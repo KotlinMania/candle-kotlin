@@ -1,0 +1,17 @@
+Gradle start parameters:
+  tasks = [help]
+  excluded tasks = []
+  current dir = /Volumes/stuff/Projects/kotlinmania/template
+  project properties args = []
+  system properties args = [user.variant: , file.encoding: UTF-8, user.country: US, user.language: en]
+
+Time metrics:
+  Total Gradle task time: 0.024 s
+
+
+
+No Kotlin task was run
+Task ':help' finished in 0.024 s
+Time metrics:
+  Total Gradle task time: 0.024 s
+
