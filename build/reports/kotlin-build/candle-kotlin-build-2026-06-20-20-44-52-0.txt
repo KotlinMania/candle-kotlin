@@ -1,0 +1,59 @@
+Gradle start parameters:
+  tasks = [kotlinUpgradeYarnLock]
+  excluded tasks = []
+  current dir = /Volumes/stuff/Projects/kotlinmania/candle-kotlin
+  project properties args = []
+  system properties args = [user.variant: , file.encoding: UTF-8, user.country: US, user.language: en]
+
+Time metrics:
+  Total Gradle task time: 2.516 s
+
+
+
+No Kotlin task was run
+Task ':kotlinNpmInstall' finished in 1.383 s
+Time metrics:
+  Total Gradle task time: 1.383 s
+
+Task ':kotlinNodeJsSetup' finished in 0.879 s
+Time metrics:
+  Total Gradle task time: 0.879 s
+
+Task ':jsPackageJson' finished in 0.122 s
+Time metrics:
+  Total Gradle task time: 0.122 s
+
+Task ':rootPackageJson' finished in 0.067 s
+Time metrics:
+  Total Gradle task time: 0.067 s
+
+Task ':kotlinRestoreYarnLock' finished in 0.023 s
+Time metrics:
+  Total Gradle task time: 0.023 s
+
+Task ':kotlinKotlinNpmCachesSetup' finished in 0.017 s
+Time metrics:
+  Total Gradle task time: 0.017 s
+
+Task ':kotlinYarnSetup' finished in 0.012 s
+Time metrics:
+  Total Gradle task time: 0.012 s
+
+Task ':kotlinUpgradeYarnLock' finished in 0.006 s
+Time metrics:
+  Total Gradle task time: 0.006 s
+
+Task ':jsTestPackageJson' finished in 0.004 s
+Time metrics:
+  Total Gradle task time: 0.004 s
+
+Task ':jsPublicPackageJson' finished in 0.002 s
+Time metrics:
+  Total Gradle task time: 0.002 s
+
+Task ':jsTestPublicPackageJson' finished in 0.001 s
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':kotlinPackageJsonUmbrella' finished in 0.000 s
+

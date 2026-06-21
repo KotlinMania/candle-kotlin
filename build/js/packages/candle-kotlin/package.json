@@ -1,0 +1,12 @@
+{
+  "name": "candle-kotlin",
+  "version": "0.1.1",
+  "main": "kotlin/candle-kotlin.js",
+  "devDependencies": {},
+  "dependencies": {
+    "@js-joda/core": "3.2.0"
+  },
+  "peerDependencies": {},
+  "optionalDependencies": {},
+  "bundledDependencies": []
+}

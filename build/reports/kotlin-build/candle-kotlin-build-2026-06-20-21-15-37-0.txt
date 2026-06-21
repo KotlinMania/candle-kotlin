@@ -1,0 +1,413 @@
+Gradle start parameters:
+  tasks = [ktlintFormat]
+  excluded tasks = []
+  current dir = /Volumes/stuff/Projects/kotlinmania/candle-kotlin
+  project properties args = []
+  system properties args = [user.variant: , file.encoding: UTF-8, user.country: US, user.language: en]
+
+Time metrics:
+  Total Gradle task time: 13.151 s
+
+
+
+No Kotlin task was run
+Task ':ensureAndroidSdk' finished in 11.784 s
+Time metrics:
+  Total Gradle task time: 11.784 s
+
+Task ':runKtlintFormatOverKotlinScripts' finished in 1.128 s
+Time metrics:
+  Total Gradle task time: 1.128 s
+
+Task ':loadKtlintReporters' finished in 0.105 s
+Time metrics:
+  Total Gradle task time: 0.105 s
+
+Task ':ktlintKotlinScriptFormat' finished in 0.058 s
+Time metrics:
+  Total Gradle task time: 0.058 s
+
+Task ':runKtlintFormatOverAndroidDeviceTestSourceSet' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.004 s
+
+Task ':runKtlintFormatOverAndroidMainSourceSet' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.003 s
+
+Task ':runKtlintFormatOverAndroidNativeMainSourceSet' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.002 s
+
+Task ':runKtlintFormatOverAppleMainSourceSet' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.002 s
+
+Task ':runKtlintFormatOverIosTestSourceSet' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.002 s
+
+Task ':runKtlintFormatOverJvmMainSourceSet' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.002 s
+
+Task ':runKtlintFormatOverLinuxTestSourceSet' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.002 s
+
+Task ':runKtlintFormatOverMacosTestSourceSet' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.002 s
+
+Task ':runKtlintFormatOverWasmWasiMainSourceSet' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.002 s
+
+Task ':runKtlintFormatOverWasmWasiTestSourceSet' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.002 s
+
+Task ':runKtlintFormatOverWatchosMainSourceSet' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.002 s
+
+Task ':runKtlintFormatOverWatchosSimulatorArm64MainSourceSet' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.002 s
+
+Task ':ktlintAndroidDeviceTestSourceSetFormat' was skipped: SKIPPED
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':runKtlintFormatOverAndroidHostTestSourceSet' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':runKtlintFormatOverAndroidNativeArm32MainSourceSet' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':runKtlintFormatOverAndroidNativeArm32TestSourceSet' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':runKtlintFormatOverAndroidNativeArm64MainSourceSet' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':ktlintAndroidNativeMainSourceSetFormat' was skipped: SKIPPED
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':runKtlintFormatOverAndroidNativeTestSourceSet' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':runKtlintFormatOverAndroidNativeX86MainSourceSet' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':runKtlintFormatOverAndroidNativeX86TestSourceSet' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':runKtlintFormatOverAppleTestSourceSet' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':runKtlintFormatOverCommonMainSourceSet' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':runKtlintFormatOverCommonTestSourceSet' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':runKtlintFormatOverIosArm64MainSourceSet' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':runKtlintFormatOverIosArm64TestSourceSet' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':runKtlintFormatOverIosMainSourceSet' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':runKtlintFormatOverIosSimulatorArm64TestSourceSet' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':runKtlintFormatOverIosX64MainSourceSet' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':runKtlintFormatOverIosX64TestSourceSet' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':runKtlintFormatOverJsMainSourceSet' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':runKtlintFormatOverJsTestSourceSet' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':runKtlintFormatOverJvmTestSourceSet' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':runKtlintFormatOverLinuxArm64MainSourceSet' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':runKtlintFormatOverLinuxArm64TestSourceSet' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':ktlintLinuxArm64TestSourceSetFormat' was skipped: SKIPPED
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':runKtlintFormatOverLinuxMainSourceSet' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':runKtlintFormatOverLinuxX64MainSourceSet' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':ktlintLinuxX64MainSourceSetFormat' was skipped: SKIPPED
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':runKtlintFormatOverLinuxX64TestSourceSet' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':runKtlintFormatOverMacosArm64MainSourceSet' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':runKtlintFormatOverMacosArm64TestSourceSet' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':runKtlintFormatOverMacosMainSourceSet' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':runKtlintFormatOverMingwMainSourceSet' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':ktlintMingwX64MainSourceSetFormat' was skipped: SKIPPED
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':runKtlintFormatOverNativeMainSourceSet' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':runKtlintFormatOverNativeTestSourceSet' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':runKtlintFormatOverTvosArm64MainSourceSet' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':runKtlintFormatOverTvosMainSourceSet' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':runKtlintFormatOverTvosSimulatorArm64MainSourceSet' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':runKtlintFormatOverTvosSimulatorArm64TestSourceSet' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':runKtlintFormatOverTvosTestSourceSet' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':runKtlintFormatOverWasmJsMainSourceSet' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':runKtlintFormatOverWasmJsTestSourceSet' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':runKtlintFormatOverWatchosArm64MainSourceSet' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':runKtlintFormatOverWatchosArm64TestSourceSet' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':ktlintWatchosSimulatorArm64TestSourceSetFormat' was skipped: SKIPPED
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':runKtlintFormatOverWatchosTestSourceSet' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':runKtlintFormatOverWebMainSourceSet' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':runKtlintFormatOverWebTestSourceSet' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':ktlintWebTestSourceSetFormat' was skipped: SKIPPED
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':ktlintAndroidHostTestSourceSetFormat' was skipped: SKIPPED
+
+Task ':ktlintAndroidMainSourceSetFormat' was skipped: SKIPPED
+
+Task ':ktlintAndroidNativeArm32MainSourceSetFormat' was skipped: SKIPPED
+
+Task ':ktlintAndroidNativeArm32TestSourceSetFormat' was skipped: SKIPPED
+
+Task ':ktlintAndroidNativeArm64MainSourceSetFormat' was skipped: SKIPPED
+
+Task ':runKtlintFormatOverAndroidNativeArm64TestSourceSet' was skipped: NO-SOURCE
+
+Task ':ktlintAndroidNativeArm64TestSourceSetFormat' was skipped: SKIPPED
+
+Task ':ktlintAndroidNativeTestSourceSetFormat' was skipped: SKIPPED
+
+Task ':runKtlintFormatOverAndroidNativeX64MainSourceSet' was skipped: NO-SOURCE
+
+Task ':ktlintAndroidNativeX64MainSourceSetFormat' was skipped: SKIPPED
+
+Task ':runKtlintFormatOverAndroidNativeX64TestSourceSet' was skipped: NO-SOURCE
+
+Task ':ktlintAndroidNativeX64TestSourceSetFormat' was skipped: SKIPPED
+
+Task ':ktlintAndroidNativeX86MainSourceSetFormat' was skipped: SKIPPED
+
+Task ':ktlintAndroidNativeX86TestSourceSetFormat' was skipped: SKIPPED
+
+Task ':ktlintAppleMainSourceSetFormat' was skipped: SKIPPED
+
+Task ':ktlintAppleTestSourceSetFormat' was skipped: SKIPPED
+
+Task ':ktlintCommonMainSourceSetFormat' was skipped: SKIPPED
+
+Task ':ktlintCommonTestSourceSetFormat' was skipped: SKIPPED
+
+Task ':ktlintIosArm64MainSourceSetFormat' was skipped: SKIPPED
+
+Task ':ktlintIosArm64TestSourceSetFormat' was skipped: SKIPPED
+
+Task ':ktlintIosMainSourceSetFormat' was skipped: SKIPPED
+
+Task ':runKtlintFormatOverIosSimulatorArm64MainSourceSet' was skipped: NO-SOURCE
+
+Task ':ktlintIosSimulatorArm64MainSourceSetFormat' was skipped: SKIPPED
+
+Task ':ktlintIosSimulatorArm64TestSourceSetFormat' was skipped: SKIPPED
+
+Task ':ktlintIosTestSourceSetFormat' was skipped: SKIPPED
+
+Task ':ktlintIosX64MainSourceSetFormat' was skipped: SKIPPED
+
+Task ':ktlintIosX64TestSourceSetFormat' was skipped: SKIPPED
+
+Task ':ktlintJsMainSourceSetFormat' was skipped: SKIPPED
+
+Task ':ktlintJsTestSourceSetFormat' was skipped: SKIPPED
+
+Task ':ktlintJvmMainSourceSetFormat' was skipped: SKIPPED
+
+Task ':ktlintJvmTestSourceSetFormat' was skipped: SKIPPED
+
+Task ':ktlintLinuxArm64MainSourceSetFormat' was skipped: SKIPPED
+
+Task ':ktlintLinuxMainSourceSetFormat' was skipped: SKIPPED
+
+Task ':ktlintLinuxTestSourceSetFormat' was skipped: SKIPPED
+
+Task ':ktlintLinuxX64TestSourceSetFormat' was skipped: SKIPPED
+
+Task ':ktlintMacosArm64MainSourceSetFormat' was skipped: SKIPPED
+
+Task ':ktlintMacosArm64TestSourceSetFormat' was skipped: SKIPPED
+
+Task ':ktlintMacosMainSourceSetFormat' was skipped: SKIPPED
+
+Task ':ktlintMacosTestSourceSetFormat' was skipped: SKIPPED
+
+Task ':ktlintMingwMainSourceSetFormat' was skipped: SKIPPED
+
+Task ':runKtlintFormatOverMingwTestSourceSet' was skipped: NO-SOURCE
+
+Task ':ktlintMingwTestSourceSetFormat' was skipped: SKIPPED
+
+Task ':runKtlintFormatOverMingwX64MainSourceSet' was skipped: NO-SOURCE
+
+Task ':runKtlintFormatOverMingwX64TestSourceSet' was skipped: NO-SOURCE
+
+Task ':ktlintMingwX64TestSourceSetFormat' was skipped: SKIPPED
+
+Task ':ktlintNativeMainSourceSetFormat' was skipped: SKIPPED
+
+Task ':ktlintNativeTestSourceSetFormat' was skipped: SKIPPED
+
+Task ':ktlintTvosArm64MainSourceSetFormat' was skipped: SKIPPED
+
+Task ':runKtlintFormatOverTvosArm64TestSourceSet' was skipped: NO-SOURCE
+
+Task ':ktlintTvosArm64TestSourceSetFormat' was skipped: SKIPPED
+
+Task ':ktlintTvosMainSourceSetFormat' was skipped: SKIPPED
+
+Task ':ktlintTvosSimulatorArm64MainSourceSetFormat' was skipped: SKIPPED
+
+Task ':ktlintTvosSimulatorArm64TestSourceSetFormat' was skipped: SKIPPED
+
+Task ':ktlintTvosTestSourceSetFormat' was skipped: SKIPPED
+
+Task ':ktlintWasmJsMainSourceSetFormat' was skipped: SKIPPED
+
+Task ':ktlintWasmJsTestSourceSetFormat' was skipped: SKIPPED
+
+Task ':ktlintWasmWasiMainSourceSetFormat' was skipped: SKIPPED
+
+Task ':ktlintWasmWasiTestSourceSetFormat' was skipped: SKIPPED
+
+Task ':ktlintWatchosArm64MainSourceSetFormat' was skipped: SKIPPED
+
+Task ':ktlintWatchosArm64TestSourceSetFormat' was skipped: SKIPPED
+
+Task ':runKtlintFormatOverWatchosDeviceArm64MainSourceSet' was skipped: NO-SOURCE
+
+Task ':ktlintWatchosDeviceArm64MainSourceSetFormat' was skipped: SKIPPED
+
+Task ':runKtlintFormatOverWatchosDeviceArm64TestSourceSet' was skipped: NO-SOURCE
+
+Task ':ktlintWatchosDeviceArm64TestSourceSetFormat' was skipped: SKIPPED
+
+Task ':ktlintWatchosMainSourceSetFormat' was skipped: SKIPPED
+
+Task ':ktlintWatchosSimulatorArm64MainSourceSetFormat' was skipped: SKIPPED
+
+Task ':runKtlintFormatOverWatchosSimulatorArm64TestSourceSet' was skipped: NO-SOURCE
+
+Task ':ktlintWatchosTestSourceSetFormat' was skipped: SKIPPED
+
+Task ':ktlintWebMainSourceSetFormat' was skipped: SKIPPED
+
+Task ':ktlintFormat' finished in 0.000 s
+

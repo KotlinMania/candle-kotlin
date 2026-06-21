@@ -1,0 +1,33 @@
+{
+  "version": "9",
+  "items": {
+    "38d0ff14951d4e5181f8860628999733": {
+      "src": "/Users/sydneybach/.gradle/caches/modules-2/files-2.1/org.jetbrains.kotlin/kotlin-stdlib-js/2.4.0/e226a9616307e895822dfad4bf755d242169867b/kotlin-stdlib-js-2.4.0.klib"
+    },
+    "19155ba32c3ea0c9912a3a46a86706eb": {
+      "src": "/Users/sydneybach/.gradle/caches/modules-2/files-2.1/org.jetbrains.kotlinx/kotlinx-coroutines-core-js/1.11.0/20e1b63e6163ea5f6eb6524057d3c73f5e80e5ac/kotlinx-coroutines-core-js-1.11.0.klib"
+    },
+    "003da13253428179dfee2d100380bdc4": {
+      "src": "/Users/sydneybach/.gradle/caches/modules-2/files-2.1/org.jetbrains.kotlin/kotlin-dom-api-compat/2.4.0/f27924baa5adc795bc8f53796282ddf0af6f5c4d/kotlin-dom-api-compat-2.4.0.klib"
+    },
+    "2dc9c25edd85baaf840c789dfccbf34b": {
+      "src": "/Users/sydneybach/.gradle/caches/modules-2/files-2.1/org.jetbrains.kotlinx/atomicfu-js/0.32.1/32d10e41f39ffa72a4d455bd2e9a9a6e70fd90a4/atomicfu-js-0.32.1.klib"
+    },
+    "afc2ac6b373bd55b88d0e3ce71287ec3": {
+      "src": "/Users/sydneybach/.gradle/caches/modules-2/files-2.1/org.jetbrains.kotlinx/kotlinx-serialization-core-js/1.11.0/b54ca21683b986f08b384131029df8288788fb05/kotlinx-serialization-core-js-1.11.0.klib"
+    },
+    "7d0e1e83fa1e6dbde51e486c55b96034": {
+      "src": "/Users/sydneybach/.gradle/caches/modules-2/files-2.1/org.jetbrains.kotlinx/kotlinx-serialization-json-js/1.11.0/ccb25332937d0a4529415d14fd6b46199b135b80/kotlinx-serialization-json-js-1.11.0.klib"
+    },
+    "e858b34d0a02c2e2eb58e27dee7238c1": {
+      "src": "/Users/sydneybach/.gradle/caches/modules-2/files-2.1/org.jetbrains.kotlinx/kotlinx-datetime-js/0.8.0/338f7067a63d9e9f143bc0cb7175ad21eb5f51ae/kotlinx-datetime-js-0.8.0.klib",
+      "target": "Kotlin-DateTime-library-kotlinx-datetime/0.8.0"
+    },
+    "5715ab537220db856eddac49fff454ec": {
+      "src": "/Users/sydneybach/.gradle/caches/modules-2/files-2.1/org.jetbrains.kotlinx/kotlinx-collections-immutable-js/0.5.0/5c49935e667bf42bde849a3a4c22a36805efe5a7/kotlinx-collections-immutable-js-0.5.0.klib"
+    },
+    "ca8c8b5d8c5f09042183f65b5d037e46": {
+      "src": "/Users/sydneybach/.gradle/caches/modules-2/files-2.1/org.jetbrains.kotlin/kotlin-test-js/2.4.0/619bcee19f2dfe0623ac0aad919ecd2571c6bb67/kotlin-test-js-2.4.0.klib"
+    }
+  }
+}
