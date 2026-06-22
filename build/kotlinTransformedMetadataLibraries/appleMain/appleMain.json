@@ -1,0 +1,62 @@
+[
+  {
+    "moduleId": {
+      "groupAndName": {
+        "group": "org.jetbrains.kotlinx",
+        "name": "kotlinx-coroutines-core"
+      },
+      "componentId": {
+        "type": "module",
+        "group": "org.jetbrains.kotlinx",
+        "name": "kotlinx-coroutines-core"
+      }
+    },
+    "file": "/Volumes/stuff/Projects/kotlinmania/candle-kotlin/build/kotlinTransformedMetadataLibraries/appleMain/org.jetbrains.kotlinx-kotlinx-coroutines-core-1.11.0-nativeDarwinMain-_rPXvA.klib",
+    "sourceSetName": "nativeDarwinMain"
+  },
+  {
+    "moduleId": {
+      "groupAndName": {
+        "group": "org.jetbrains.kotlinx",
+        "name": "kotlinx-datetime"
+      },
+      "componentId": {
+        "type": "module",
+        "group": "org.jetbrains.kotlinx",
+        "name": "kotlinx-datetime"
+      }
+    },
+    "file": "/Volumes/stuff/Projects/kotlinmania/candle-kotlin/build/kotlinTransformedMetadataLibraries/appleMain/org.jetbrains.kotlinx-kotlinx-datetime-0.8.0-darwinMain-HeEIcg.klib",
+    "sourceSetName": "darwinMain"
+  },
+  {
+    "moduleId": {
+      "groupAndName": {
+        "group": "org.jetbrains.kotlinx",
+        "name": "kotlinx-datetime"
+      },
+      "componentId": {
+        "type": "module",
+        "group": "org.jetbrains.kotlinx",
+        "name": "kotlinx-datetime"
+      }
+    },
+    "file": "/Volumes/stuff/Projects/kotlinmania/candle-kotlin/build/kotlinTransformedMetadataLibraries/appleMain/org.jetbrains.kotlinx-kotlinx-datetime-0.8.0-tzdbOnFilesystemMain-gspK2g.klib",
+    "sourceSetName": "tzdbOnFilesystemMain"
+  },
+  {
+    "moduleId": {
+      "groupAndName": {
+        "group": "org.jetbrains.kotlinx",
+        "name": "kotlinx-datetime"
+      },
+      "componentId": {
+        "type": "module",
+        "group": "org.jetbrains.kotlinx",
+        "name": "kotlinx-datetime"
+      }
+    },
+    "file": "/Volumes/stuff/Projects/kotlinmania/candle-kotlin/build/kotlinTransformedMetadataLibraries/appleMain/org.jetbrains.kotlinx-kotlinx-datetime-0.8.0-tzfileMain-gspK2g.klib",
+    "sourceSetName": "tzfileMain"
+  }
+]

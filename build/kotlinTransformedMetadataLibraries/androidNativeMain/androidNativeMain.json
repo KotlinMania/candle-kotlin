@@ -1,0 +1,47 @@
+[
+  {
+    "moduleId": {
+      "groupAndName": {
+        "group": "org.jetbrains.kotlinx",
+        "name": "kotlinx-coroutines-core"
+      },
+      "componentId": {
+        "type": "module",
+        "group": "org.jetbrains.kotlinx",
+        "name": "kotlinx-coroutines-core"
+      }
+    },
+    "file": "/Volumes/stuff/Projects/kotlinmania/candle-kotlin/build/kotlinTransformedMetadataLibraries/androidNativeMain/org.jetbrains.kotlinx-kotlinx-coroutines-core-1.11.0-nativeOtherMain-BviMwQ.klib",
+    "sourceSetName": "nativeOtherMain"
+  },
+  {
+    "moduleId": {
+      "groupAndName": {
+        "group": "org.jetbrains.kotlinx",
+        "name": "kotlinx-datetime"
+      },
+      "componentId": {
+        "type": "module",
+        "group": "org.jetbrains.kotlinx",
+        "name": "kotlinx-datetime"
+      }
+    },
+    "file": "/Volumes/stuff/Projects/kotlinmania/candle-kotlin/build/kotlinTransformedMetadataLibraries/androidNativeMain/org.jetbrains.kotlinx-kotlinx-datetime-0.8.0-androidNativeMain-gspK2g.klib",
+    "sourceSetName": "androidNativeMain"
+  },
+  {
+    "moduleId": {
+      "groupAndName": {
+        "group": "org.jetbrains.kotlinx",
+        "name": "kotlinx-datetime"
+      },
+      "componentId": {
+        "type": "module",
+        "group": "org.jetbrains.kotlinx",
+        "name": "kotlinx-datetime"
+      }
+    },
+    "file": "/Volumes/stuff/Projects/kotlinmania/candle-kotlin/build/kotlinTransformedMetadataLibraries/androidNativeMain/org.jetbrains.kotlinx-kotlinx-datetime-0.8.0-tzfileMain-gspK2g.klib",
+    "sourceSetName": "tzfileMain"
+  }
+]

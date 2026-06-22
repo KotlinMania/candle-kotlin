@@ -1,0 +1,4 @@
+module KotlinCoroutineSupport {
+header "KotlinCoroutineSupport-Swift.h"
+export *
+}

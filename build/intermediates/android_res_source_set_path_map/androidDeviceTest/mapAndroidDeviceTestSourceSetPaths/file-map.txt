@@ -1,0 +1,5 @@
+io.github.kotlinmania.candle.test-updated_navigation_xml-0 /Volumes/stuff/Projects/kotlinmania/candle-kotlin/build/generated/updated_navigation_xml/androidDeviceTest
+io.github.kotlinmania.candle.test-packageAndroidDeviceTestResources-1 /Volumes/stuff/Projects/kotlinmania/candle-kotlin/build/intermediates/incremental/androidDeviceTest/packageAndroidDeviceTestResources/merged.dir
+io.github.kotlinmania.candle.test-packageAndroidDeviceTestResources-2 /Volumes/stuff/Projects/kotlinmania/candle-kotlin/build/intermediates/incremental/androidDeviceTest/packageAndroidDeviceTestResources/stripped.dir
+io.github.kotlinmania.candle.test-androidDeviceTest-3 /Volumes/stuff/Projects/kotlinmania/candle-kotlin/build/intermediates/merged_res/androidDeviceTest/mergeAndroidDeviceTestResources
+gradleHome-0 /Users/sydneybach/.gradle

@@ -1,0 +1,30 @@
+{
+  "version": "9",
+  "items": {
+    "a45e3f677d2099a333a23dbc79f78820": {
+      "src": "/Users/sydneybach/.gradle/caches/modules-2/files-2.1/org.jetbrains.kotlin/kotlin-stdlib-wasm-js/2.4.0/18c952be1631c2b81f7303db26c7c65b48b911ea/kotlin-stdlib-wasm-js-2.4.0.klib"
+    },
+    "2e18ac556574246ec112304cceacf844": {
+      "src": "/Users/sydneybach/.gradle/caches/modules-2/files-2.1/org.jetbrains.kotlinx/kotlinx-coroutines-core-wasm-js/1.11.0/821648fe380015ce91050d23afe28c990d670d87/kotlinx-coroutines-core-wasm-js-1.11.0.klib"
+    },
+    "4fcafebeb7e9a97052642ca9027b0fbb": {
+      "src": "/Users/sydneybach/.gradle/caches/modules-2/files-2.1/org.jetbrains.kotlinx/atomicfu-wasm-js/0.32.1/6cffbc16855eb9849d414a691b71680d70dbb419/atomicfu-wasm-js-0.32.1.klib"
+    },
+    "e1f214fa437e45cea9430ae0b98fecd4": {
+      "src": "/Users/sydneybach/.gradle/caches/modules-2/files-2.1/org.jetbrains.kotlinx/kotlinx-serialization-core-wasm-js/1.11.0/e389fa3e0dc0c534e8ec57730ac55517be5a691f/kotlinx-serialization-core-wasm-js-1.11.0.klib"
+    },
+    "ca8e0b93869ab9bab958fd7232241400": {
+      "src": "/Users/sydneybach/.gradle/caches/modules-2/files-2.1/org.jetbrains.kotlinx/kotlinx-serialization-json-wasm-js/1.11.0/8a6382b2530393fb990e8467fc57dae6b6fdcc03/kotlinx-serialization-json-wasm-js-1.11.0.klib"
+    },
+    "be39a0905e1b14d810d11e8ba2064d13": {
+      "src": "/Users/sydneybach/.gradle/caches/modules-2/files-2.1/org.jetbrains.kotlinx/kotlinx-datetime-wasm-js/0.8.0/dd855c642270ea2638210613ff79a5a34e7f4b4/kotlinx-datetime-wasm-js-0.8.0.klib",
+      "target": "Kotlin-DateTime-library-kotlinx-datetime-wasm-js/0.8.0"
+    },
+    "9b5a3258d7ef1eddd8a5ad5685c47a9c": {
+      "src": "/Users/sydneybach/.gradle/caches/modules-2/files-2.1/org.jetbrains.kotlinx/kotlinx-collections-immutable-wasm-js/0.5.0/f02fad607bc365f4e68824ec9eec33a69afbd0c3/kotlinx-collections-immutable-wasm-js-0.5.0.klib"
+    },
+    "f0b83dafb15e3c8aa614a43367df655c": {
+      "src": "/Users/sydneybach/.gradle/caches/modules-2/files-2.1/org.jetbrains.kotlin/kotlin-test-wasm-js/2.4.0/b96a9ca243e99ce96ddf53fecbe54d09e5596e4b/kotlin-test-wasm-js-2.4.0.klib"
+    }
+  }
+}

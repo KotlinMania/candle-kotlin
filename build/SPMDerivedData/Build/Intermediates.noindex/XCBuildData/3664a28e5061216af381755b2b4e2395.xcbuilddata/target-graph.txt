@@ -1,0 +1,31 @@
+Target dependency graph (9 targets)
+Target 'CandleLibrary' in project 'Candle'
+➜ Explicit dependency on target 'ExportedKotlinPackages' in project 'Candle'
+➜ Explicit dependency on target 'KotlinRuntimeSupport' in project 'Candle'
+➜ Explicit dependency on target 'KotlinCoroutineSupport' in project 'Candle'
+➜ Explicit dependency on target 'Candle' in project 'Candle'
+➜ Explicit dependency on target 'KotlinRuntime' in project 'Candle'
+➜ Explicit dependency on target 'KotlinRuntimeSupportBridge' in project 'Candle'
+➜ Explicit dependency on target 'KotlinCoroutineSupportBridge' in project 'Candle'
+➜ Explicit dependency on target 'SharedBridge_Candle' in project 'Candle'
+Target 'Candle' in project 'Candle'
+➜ Explicit dependency on target 'KotlinRuntimeSupportBridge' in project 'Candle'
+➜ Explicit dependency on target 'KotlinRuntime' in project 'Candle'
+➜ Explicit dependency on target 'KotlinRuntimeSupport' in project 'Candle'
+➜ Explicit dependency on target 'KotlinCoroutineSupportBridge' in project 'Candle'
+➜ Explicit dependency on target 'KotlinCoroutineSupport' in project 'Candle'
+➜ Explicit dependency on target 'SharedBridge_Candle' in project 'Candle'
+Target 'SharedBridge_Candle' in project 'Candle' (no dependencies)
+Target 'KotlinCoroutineSupport' in project 'Candle'
+➜ Explicit dependency on target 'KotlinRuntimeSupportBridge' in project 'Candle'
+➜ Explicit dependency on target 'KotlinRuntime' in project 'Candle'
+➜ Explicit dependency on target 'KotlinRuntimeSupport' in project 'Candle'
+➜ Explicit dependency on target 'KotlinCoroutineSupportBridge' in project 'Candle'
+Target 'KotlinCoroutineSupportBridge' in project 'Candle' (no dependencies)
+Target 'KotlinRuntimeSupport' in project 'Candle'
+➜ Explicit dependency on target 'KotlinRuntimeSupportBridge' in project 'Candle'
+➜ Explicit dependency on target 'KotlinRuntime' in project 'Candle'
+Target 'KotlinRuntimeSupportBridge' in project 'Candle' (no dependencies)
+Target 'ExportedKotlinPackages' in project 'Candle'
+➜ Explicit dependency on target 'KotlinRuntime' in project 'Candle'
+Target 'KotlinRuntime' in project 'Candle' (no dependencies)

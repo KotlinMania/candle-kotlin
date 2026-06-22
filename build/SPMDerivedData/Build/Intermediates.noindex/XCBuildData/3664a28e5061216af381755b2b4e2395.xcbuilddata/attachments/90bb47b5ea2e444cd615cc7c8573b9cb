@@ -1,0 +1,19 @@
+{
+  "" : {
+    "diagnostics" : "/Volumes/stuff/Projects/kotlinmania/candle-kotlin/build/SPMDerivedData/Build/Intermediates.noindex/Candle.build/Debug/KotlinCoroutineSupport.build/Objects-normal/arm64/KotlinCoroutineSupport-primary.dia",
+    "emit-module-dependencies" : "/Volumes/stuff/Projects/kotlinmania/candle-kotlin/build/SPMDerivedData/Build/Intermediates.noindex/Candle.build/Debug/KotlinCoroutineSupport.build/Objects-normal/arm64/KotlinCoroutineSupport-primary-emit-module.d",
+    "emit-module-diagnostics" : "/Volumes/stuff/Projects/kotlinmania/candle-kotlin/build/SPMDerivedData/Build/Intermediates.noindex/Candle.build/Debug/KotlinCoroutineSupport.build/Objects-normal/arm64/KotlinCoroutineSupport-primary-emit-module.dia",
+    "pch" : "/Volumes/stuff/Projects/kotlinmania/candle-kotlin/build/SPMDerivedData/Build/Intermediates.noindex/Candle.build/Debug/KotlinCoroutineSupport.build/Objects-normal/arm64/KotlinCoroutineSupport-primary-Bridging-header.pch",
+    "swift-dependencies" : "/Volumes/stuff/Projects/kotlinmania/candle-kotlin/build/SPMDerivedData/Build/Intermediates.noindex/Candle.build/Debug/KotlinCoroutineSupport.build/Objects-normal/arm64/KotlinCoroutineSupport-primary.swiftdeps"
+  },
+  "/Volumes/stuff/Projects/kotlinmania/candle-kotlin/build/SPMPackage/macosArm64/Debug/Sources/KotlinCoroutineSupport/KotlinCoroutineSupport.swift" : {
+    "const-values" : "/Volumes/stuff/Projects/kotlinmania/candle-kotlin/build/SPMDerivedData/Build/Intermediates.noindex/Candle.build/Debug/KotlinCoroutineSupport.build/Objects-normal/arm64/KotlinCoroutineSupport.swiftconstvalues",
+    "dependencies" : "/Volumes/stuff/Projects/kotlinmania/candle-kotlin/build/SPMDerivedData/Build/Intermediates.noindex/Candle.build/Debug/KotlinCoroutineSupport.build/Objects-normal/arm64/KotlinCoroutineSupport.d",
+    "diagnostics" : "/Volumes/stuff/Projects/kotlinmania/candle-kotlin/build/SPMDerivedData/Build/Intermediates.noindex/Candle.build/Debug/KotlinCoroutineSupport.build/Objects-normal/arm64/KotlinCoroutineSupport.dia",
+    "index-unit-output-path" : "/Candle.build/Debug/KotlinCoroutineSupport.build/Objects-normal/arm64/KotlinCoroutineSupport.o",
+    "llvm-bc" : "/Volumes/stuff/Projects/kotlinmania/candle-kotlin/build/SPMDerivedData/Build/Intermediates.noindex/Candle.build/Debug/KotlinCoroutineSupport.build/Objects-normal/arm64/KotlinCoroutineSupport.bc",
+    "object" : "/Volumes/stuff/Projects/kotlinmania/candle-kotlin/build/SPMDerivedData/Build/Intermediates.noindex/Candle.build/Debug/KotlinCoroutineSupport.build/Objects-normal/arm64/KotlinCoroutineSupport.o",
+    "swift-dependencies" : "/Volumes/stuff/Projects/kotlinmania/candle-kotlin/build/SPMDerivedData/Build/Intermediates.noindex/Candle.build/Debug/KotlinCoroutineSupport.build/Objects-normal/arm64/KotlinCoroutineSupport.swiftdeps",
+    "swiftmodule" : "/Volumes/stuff/Projects/kotlinmania/candle-kotlin/build/SPMDerivedData/Build/Intermediates.noindex/Candle.build/Debug/KotlinCoroutineSupport.build/Objects-normal/arm64/KotlinCoroutineSupport~partial.swiftmodule"
+  }
+}

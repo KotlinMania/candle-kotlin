@@ -1,0 +1,4 @@
+module Candle {
+header "Candle-Swift.h"
+export *
+}

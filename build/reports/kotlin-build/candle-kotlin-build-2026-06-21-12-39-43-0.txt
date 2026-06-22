@@ -1,0 +1,101 @@
+Gradle start parameters:
+  tasks = [embedSwiftExportForXcode]
+  excluded tasks = []
+  current dir = /Volumes/stuff/Projects/kotlinmania/candle-kotlin
+  project properties args = []
+  system properties args = [user.variant: , file.encoding: UTF-8, user.country: US, user.language: en]
+
+Time metrics:
+  Total Gradle task time: 0.704 s
+
+
+
+No Kotlin task was run
+Task ':macosArm64DebugBuildSPMPackage' finished in 0.163 s
+Time metrics:
+  Total Gradle task time: 0.163 s
+
+Task ':copyDebugSPMIntermediates' finished in 0.147 s
+Time metrics:
+  Total Gradle task time: 0.147 s
+
+Task ':compileSwiftExportMainKotlinMacosArm64' finished in 0.146 s
+Time metrics:
+  Total Gradle task time: 0.146 s
+
+Task ':macosArm64DebugGenerateSPMPackage' finished in 0.069 s
+Time metrics:
+  Total Gradle task time: 0.069 s
+
+Task ':kmpPartiallyResolvedDependenciesChecker' finished in 0.064 s
+Time metrics:
+  Total Gradle task time: 0.064 s
+
+Task ':downloadKotlinNativeDistribution' finished in 0.047 s
+Time metrics:
+  Total Gradle task time: 0.047 s
+
+Task ':macosArm64DebugSwiftExport' finished in 0.021 s
+Time metrics:
+  Total Gradle task time: 0.021 s
+
+Task ':checkSandboxAndWriteProtection' finished in 0.013 s
+Time metrics:
+  Total Gradle task time: 0.013 s
+
+Task ':linkSwiftExportBinaryDebugStaticMacosArm64' finished in 0.011 s
+Time metrics:
+  Total Gradle task time: 0.011 s
+
+Task ':compileKotlinMacosArm64' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.006 s
+
+Task ':computeLocalPackageDependencyInputFiles' finished in 0.004 s
+Time metrics:
+  Total Gradle task time: 0.004 s
+
+Task ':macosArm64ProcessResources' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.003 s
+
+Task ':generateUmbrellaPackageIdentifierBasedResolutionForDefault' was skipped: SKIPPED
+Time metrics:
+  Total Gradle task time: 0.002 s
+
+Task ':convertSyntheticImportProjectIntoDefFileMacosx' finished in 0.002 s
+Time metrics:
+  Total Gradle task time: 0.002 s
+
+Task ':checkKotlinGradlePluginConfigurationErrors' was skipped: SKIPPED
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':macosArm64MainKlibrary' finished in 0.001 s
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':serializeSwiftPMDependenciesMetadataForLockFiles' finished in 0.001 s
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':syncPersistedPackageResolvedToSynthetic' was skipped: SKIPPED
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':mergeMacosDebugSwiftExportLibraries' finished in 0.001 s
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':validateArchitecturesForEmbedSwiftExportForXcode' finished in 0.001 s
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':generateSyntheticLinkageSwiftPMImportProjectForCinteropsAndLdDump' was skipped: SKIPPED
+
+Task ':fetchUmbrellaPackageIdentifierForDefault' was skipped: SKIPPED
+
+Task ':fetchSyntheticImportProjectPackages' was skipped: SKIPPED
+
+Task ':embedSwiftExportForXcode' finished in 0.000 s
+

@@ -1,0 +1,1587 @@
+Gradle start parameters:
+  tasks = [build]
+  excluded tasks = []
+  current dir = /Volumes/stuff/Projects/kotlinmania/candle-kotlin
+  project properties args = []
+  system properties args = [user.variant: , file.encoding: UTF-8, user.country: US, user.language: en]
+
+Build failed: [Execution failed for task ':swiftExportSmokeTest' (registered in build file 'build.gradle.kts').]
+
+Time metrics:
+  Total Gradle task time: 50.669 s
+
+
+
+No Kotlin task was run
+Task ':packageAndroidDeviceTest' finished in 20.491 s
+Time metrics:
+  Total Gradle task time: 20.491 s
+
+Task ':swiftExportSmokeTest' finished in 18.774 s
+Time metrics:
+  Total Gradle task time: 18.774 s
+
+Task ':mergeExtDexAndroidDeviceTest' finished in 4.355 s
+Time metrics:
+  Total Gradle task time: 4.355 s
+
+Task ':kotlinWasmToolingSetup' finished in 1.797 s
+Time metrics:
+  Total Gradle task time: 1.797 s
+
+Task ':detektAndroidDeviceTest' finished in 1.141 s
+Time metrics:
+  Total Gradle task time: 1.141 s
+
+Task ':runKtlintCheckOverKotlinScripts' finished in 1.129 s
+Time metrics:
+  Total Gradle task time: 1.129 s
+
+Task ':processAndroidDeviceTestResources' finished in 0.727 s
+Time metrics:
+  Total Gradle task time: 0.727 s
+
+Task ':kotlinWasmNpmInstall' finished in 0.490 s
+Time metrics:
+  Total Gradle task time: 0.490 s
+
+Task ':kotlinNodeJsSetup' finished in 0.165 s
+Time metrics:
+  Total Gradle task time: 0.165 s
+
+Task ':kotlinWasmNodeJsSetup' finished in 0.144 s
+Time metrics:
+  Total Gradle task time: 0.144 s
+
+Task ':compileAndroidDeviceTestNavigationResources' finished in 0.093 s
+Time metrics:
+  Total Gradle task time: 0.093 s
+
+Task ':wasmJsPublicPackageJson' finished in 0.068 s
+Time metrics:
+  Total Gradle task time: 0.068 s
+
+Task ':transformCommonMainDependenciesMetadata' finished in 0.062 s
+Time metrics:
+  Total Gradle task time: 0.062 s
+
+Task ':kmpPartiallyResolvedDependenciesChecker' finished in 0.059 s
+Time metrics:
+  Total Gradle task time: 0.059 s
+
+Task ':processAndroidDeviceTestManifest' finished in 0.053 s
+Time metrics:
+  Total Gradle task time: 0.053 s
+
+Task ':downloadKotlinNativeDistribution' finished in 0.052 s
+Time metrics:
+  Total Gradle task time: 0.052 s
+
+Task ':detektAndroidHostTest' finished in 0.052 s
+Time metrics:
+  Total Gradle task time: 0.052 s
+
+Task ':mergeAndroidDeviceTestResources' finished in 0.044 s
+Time metrics:
+  Total Gradle task time: 0.044 s
+
+Task ':detektAndroidMain' finished in 0.039 s
+Time metrics:
+  Total Gradle task time: 0.039 s
+
+Task ':detektJsMain' finished in 0.037 s
+Time metrics:
+  Total Gradle task time: 0.037 s
+
+Task ':detektJvmTest' finished in 0.028 s
+Time metrics:
+  Total Gradle task time: 0.028 s
+
+Task ':dexBuilderAndroidDeviceTest' finished in 0.027 s
+Time metrics:
+  Total Gradle task time: 0.027 s
+
+Task ':detektJvmMain' finished in 0.026 s
+Time metrics:
+  Total Gradle task time: 0.026 s
+
+Task ':extractAndroidMainAnnotations' finished in 0.023 s
+Time metrics:
+  Total Gradle task time: 0.023 s
+
+Task ':detektJsTest' finished in 0.019 s
+Time metrics:
+  Total Gradle task time: 0.019 s
+
+Task ':jsPublicPackageJson' finished in 0.018 s
+Time metrics:
+  Total Gradle task time: 0.018 s
+
+Task ':loadKtlintReporters' finished in 0.018 s
+Time metrics:
+  Total Gradle task time: 0.018 s
+
+Task ':detektMetadataAndroidNativeMain' finished in 0.017 s
+Time metrics:
+  Total Gradle task time: 0.017 s
+
+Task ':detektMetadataNativeMain' finished in 0.017 s
+Time metrics:
+  Total Gradle task time: 0.017 s
+
+Task ':androidJar' finished in 0.016 s
+Time metrics:
+  Total Gradle task time: 0.016 s
+
+Task ':validateSigningAndroidDeviceTest' finished in 0.016 s
+Time metrics:
+  Total Gradle task time: 0.016 s
+
+Task ':detektMetadataAppleMain' finished in 0.016 s
+Time metrics:
+  Total Gradle task time: 0.016 s
+
+Task ':detektMetadataIosMain' finished in 0.016 s
+Time metrics:
+  Total Gradle task time: 0.016 s
+
+Task ':detektMetadataLinuxMain' finished in 0.016 s
+Time metrics:
+  Total Gradle task time: 0.016 s
+
+Task ':detektMetadataMain' finished in 0.016 s
+Time metrics:
+  Total Gradle task time: 0.016 s
+
+Task ':detektMetadataTvosMain' finished in 0.016 s
+Time metrics:
+  Total Gradle task time: 0.016 s
+
+Task ':detektWasmJsTest' finished in 0.016 s
+Time metrics:
+  Total Gradle task time: 0.016 s
+
+Task ':detektMetadataCommonMain' finished in 0.015 s
+Time metrics:
+  Total Gradle task time: 0.015 s
+
+Task ':detektMetadataWebMain' finished in 0.015 s
+Time metrics:
+  Total Gradle task time: 0.015 s
+
+Task ':detektWasmJsMain' finished in 0.015 s
+Time metrics:
+  Total Gradle task time: 0.015 s
+
+Task ':detektWasmWasiMain' finished in 0.015 s
+Time metrics:
+  Total Gradle task time: 0.015 s
+
+Task ':detektWasmWasiTest' finished in 0.015 s
+Time metrics:
+  Total Gradle task time: 0.015 s
+
+Task ':bundleLibRuntimeToDirAndroidMain' finished in 0.014 s
+Time metrics:
+  Total Gradle task time: 0.014 s
+
+Task ':detektMetadataWatchosMain' finished in 0.014 s
+Time metrics:
+  Total Gradle task time: 0.014 s
+
+Task ':writeAndroidDeviceTestSigningConfigVersions' finished in 0.012 s
+Time metrics:
+  Total Gradle task time: 0.012 s
+
+Task ':transformAndroidNativeMainDependenciesMetadata' finished in 0.011 s
+Time metrics:
+  Total Gradle task time: 0.011 s
+
+Task ':commonizeNativeDistribution' finished in 0.010 s
+Time metrics:
+  Total Gradle task time: 0.010 s
+
+Task ':assembleDebugWatchosFatFrameworkForCandleXCFramework' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.010 s
+
+Task ':transformNativeMainDependenciesMetadata' finished in 0.009 s
+Time metrics:
+  Total Gradle task time: 0.009 s
+
+Task ':mergeAndroidDeviceTestNativeLibs' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.009 s
+
+Task ':detekt' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.009 s
+
+Task ':checkAndroidDeviceTestAarMetadata' finished in 0.008 s
+Time metrics:
+  Total Gradle task time: 0.008 s
+
+Task ':convertSyntheticImportProjectIntoDefFileIphonesimulator' finished in 0.008 s
+Time metrics:
+  Total Gradle task time: 0.008 s
+
+Task ':compileKotlinAndroidNativeArm32' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.007 s
+
+Task ':bundleAndroidMainClassesToCompileJar' finished in 0.007 s
+Time metrics:
+  Total Gradle task time: 0.007 s
+
+Task ':kotlinStoreYarnLock' finished in 0.007 s
+Time metrics:
+  Total Gradle task time: 0.007 s
+
+Task ':allMetadataJar' finished in 0.006 s
+Time metrics:
+  Total Gradle task time: 0.006 s
+
+Task ':jsPackageJson' finished in 0.006 s
+Time metrics:
+  Total Gradle task time: 0.006 s
+
+Task ':mergeAndroidDeviceTestAssets' finished in 0.006 s
+Time metrics:
+  Total Gradle task time: 0.006 s
+
+Task ':parseAndroidDeviceTestLocalResources' finished in 0.006 s
+Time metrics:
+  Total Gradle task time: 0.006 s
+
+Task ':mergeAndroidDeviceTestJniLibFolders' finished in 0.006 s
+Time metrics:
+  Total Gradle task time: 0.006 s
+
+Task ':mergeProjectDexAndroidDeviceTest' finished in 0.006 s
+Time metrics:
+  Total Gradle task time: 0.006 s
+
+Task ':transformLinuxMainDependenciesMetadata' finished in 0.005 s
+Time metrics:
+  Total Gradle task time: 0.005 s
+
+Task ':transformWebMainDependenciesMetadata' finished in 0.005 s
+Time metrics:
+  Total Gradle task time: 0.005 s
+
+Task ':transformAppleMainDependenciesMetadata' finished in 0.005 s
+Time metrics:
+  Total Gradle task time: 0.005 s
+
+Task ':checkAndroidMainAarMetadata' finished in 0.005 s
+Time metrics:
+  Total Gradle task time: 0.005 s
+
+Task ':mapAndroidDeviceTestSourceSetPaths' finished in 0.005 s
+Time metrics:
+  Total Gradle task time: 0.005 s
+
+Task ':mergeLibDexAndroidDeviceTest' finished in 0.005 s
+Time metrics:
+  Total Gradle task time: 0.005 s
+
+Task ':compileTestKotlinAndroidNativeArm32' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.004 s
+
+Task ':generateProjectStructureMetadata' finished in 0.004 s
+Time metrics:
+  Total Gradle task time: 0.004 s
+
+Task ':mergeAndroidMainJniLibFolders' finished in 0.004 s
+Time metrics:
+  Total Gradle task time: 0.004 s
+
+Task ':mergeAndroidDeviceTestJavaResource' finished in 0.004 s
+Time metrics:
+  Total Gradle task time: 0.004 s
+
+Task ':checkAndroidDeviceTestDuplicateClasses' finished in 0.004 s
+Time metrics:
+  Total Gradle task time: 0.004 s
+
+Task ':jsTestPublicPackageJson' finished in 0.004 s
+Time metrics:
+  Total Gradle task time: 0.004 s
+
+Task ':wasmJsTestPackageJson' finished in 0.004 s
+Time metrics:
+  Total Gradle task time: 0.004 s
+
+Task ':wasmRootPackageJson' finished in 0.004 s
+Time metrics:
+  Total Gradle task time: 0.004 s
+
+Task ':createAndroidDeviceTestApkListingFileRedirect' finished in 0.004 s
+Time metrics:
+  Total Gradle task time: 0.004 s
+
+Task ':compileTestKotlinAndroidNativeX64' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.003 s
+
+Task ':processAndroidMainManifest' finished in 0.003 s
+Time metrics:
+  Total Gradle task time: 0.003 s
+
+Task ':compileAndroidMain' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.003 s
+
+Task ':compileTestKotlinLinuxArm64' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.003 s
+
+Task ':compileTestKotlinMingwX64' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.003 s
+
+Task ':kotlinKotlinNpmCachesSetup' finished in 0.003 s
+Time metrics:
+  Total Gradle task time: 0.003 s
+
+Task ':wasmJsPackageJson' finished in 0.003 s
+Time metrics:
+  Total Gradle task time: 0.003 s
+
+Task ':kotlinWasmStoreYarnLock' finished in 0.003 s
+Time metrics:
+  Total Gradle task time: 0.003 s
+
+Task ':androidNativeArm32ProcessResources' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.002 s
+
+Task ':linkDebugTestAndroidNativeArm32' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.002 s
+
+Task ':compileKotlinAndroidNativeArm64' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.002 s
+
+Task ':compileTestKotlinAndroidNativeArm64' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.002 s
+
+Task ':linkDebugTestAndroidNativeArm64' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.002 s
+
+Task ':compileKotlinAndroidNativeX64' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.002 s
+
+Task ':compileKotlinAndroidNativeX86' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.002 s
+
+Task ':compileTestKotlinAndroidNativeX86' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.002 s
+
+Task ':compileNativeMainKotlinMetadata' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.002 s
+
+Task ':compileAndroidNativeMainKotlinMetadata' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.002 s
+
+Task ':compileAppleMainKotlinMetadata' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.002 s
+
+Task ':transformIosMainDependenciesMetadata' finished in 0.002 s
+Time metrics:
+  Total Gradle task time: 0.002 s
+
+Task ':compileIosMainKotlinMetadata' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.002 s
+
+Task ':transformTvosMainDependenciesMetadata' finished in 0.002 s
+Time metrics:
+  Total Gradle task time: 0.002 s
+
+Task ':compileTvosMainKotlinMetadata' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.002 s
+
+Task ':transformWatchosMainDependenciesMetadata' finished in 0.002 s
+Time metrics:
+  Total Gradle task time: 0.002 s
+
+Task ':androidNativeArm32MetadataElements' finished in 0.002 s
+Time metrics:
+  Total Gradle task time: 0.002 s
+
+Task ':androidNativeArm64MetadataElements' finished in 0.002 s
+Time metrics:
+  Total Gradle task time: 0.002 s
+
+Task ':androidNativeX64MetadataElements' finished in 0.002 s
+Time metrics:
+  Total Gradle task time: 0.002 s
+
+Task ':androidNativeX86MetadataElements' finished in 0.002 s
+Time metrics:
+  Total Gradle task time: 0.002 s
+
+Task ':generateAndroidMainEmptyResourceFiles' finished in 0.002 s
+Time metrics:
+  Total Gradle task time: 0.002 s
+
+Task ':mergeAndroidMainJavaResource' finished in 0.002 s
+Time metrics:
+  Total Gradle task time: 0.002 s
+
+Task ':compileKotlinIosArm64' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.002 s
+
+Task ':compileKotlinIosSimulatorArm64' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.002 s
+
+Task ':compileKotlinMacosArm64' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.002 s
+
+Task ':compileKotlinTvosSimulatorArm64' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.002 s
+
+Task ':compileTestKotlinIosArm64' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.002 s
+
+Task ':compileTestKotlinIosX64' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.002 s
+
+Task ':compileTestKotlinTvosArm64' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.002 s
+
+Task ':compileTestKotlinTvosSimulatorArm64' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.002 s
+
+Task ':compileTestKotlinWatchosArm64' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.002 s
+
+Task ':compileTestKotlinWatchosDeviceArm64' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.002 s
+
+Task ':compileTestKotlinWatchosSimulatorArm64' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.002 s
+
+Task ':iosArm64MetadataElements' finished in 0.002 s
+Time metrics:
+  Total Gradle task time: 0.002 s
+
+Task ':iosSimulatorArm64MetadataElements' finished in 0.002 s
+Time metrics:
+  Total Gradle task time: 0.002 s
+
+Task ':computeLocalPackageDependencyInputFiles' finished in 0.002 s
+Time metrics:
+  Total Gradle task time: 0.002 s
+
+Task ':generateUmbrellaPackageIdentifierBasedResolutionForDefault' was skipped: SKIPPED
+Time metrics:
+  Total Gradle task time: 0.002 s
+
+Task ':convertSyntheticImportProjectIntoDefFileMacosx' finished in 0.002 s
+Time metrics:
+  Total Gradle task time: 0.002 s
+
+Task ':linkDebugFrameworkMacosArm64' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.002 s
+
+Task ':convertSyntheticImportProjectIntoDefFileAppletvos' finished in 0.002 s
+Time metrics:
+  Total Gradle task time: 0.002 s
+
+Task ':convertSyntheticImportProjectIntoDefFileWatchos' finished in 0.002 s
+Time metrics:
+  Total Gradle task time: 0.002 s
+
+Task ':linuxArm64MetadataElements' finished in 0.002 s
+Time metrics:
+  Total Gradle task time: 0.002 s
+
+Task ':linuxX64MetadataElements' finished in 0.002 s
+Time metrics:
+  Total Gradle task time: 0.002 s
+
+Task ':tvosArm64MetadataElements' finished in 0.002 s
+Time metrics:
+  Total Gradle task time: 0.002 s
+
+Task ':tvosSimulatorArm64MetadataElements' finished in 0.002 s
+Time metrics:
+  Total Gradle task time: 0.002 s
+
+Task ':wasmJsJar' finished in 0.002 s
+Time metrics:
+  Total Gradle task time: 0.002 s
+
+Task ':packageAndroidDeviceTestResources' finished in 0.002 s
+Time metrics:
+  Total Gradle task time: 0.002 s
+
+Task ':generateAndroidDeviceTestRFile' finished in 0.002 s
+Time metrics:
+  Total Gradle task time: 0.002 s
+
+Task ':compileAndroidDeviceTest' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.002 s
+
+Task ':compileAndroidHostTest' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.002 s
+
+Task ':linkDebugTestIosSimulatorArm64' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.002 s
+
+Task ':bundleAndroidMainClassesToRuntimeJar' finished in 0.002 s
+Time metrics:
+  Total Gradle task time: 0.002 s
+
+Task ':kotlinWasmYarnSetup' finished in 0.002 s
+Time metrics:
+  Total Gradle task time: 0.002 s
+
+Task ':compileTestKotlinWasmWasi' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.002 s
+
+Task ':linkDebugTestWatchosSimulatorArm64' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.002 s
+
+Task ':checkKotlinGradlePluginConfigurationErrors' was skipped: SKIPPED
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':androidNativeArm32MainKlibrary' finished in 0.001 s
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':androidNativeArm64ProcessResources' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':linkDebugTestAndroidNativeX64' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':androidNativeX86ProcessResources' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':linkDebugTestAndroidNativeX86' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':androidNativeX86TestBinaries' finished in 0.001 s
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':compileCommonMainKotlinMetadata' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':metadataNativeMainProcessResources' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':compileLinuxMainKotlinMetadata' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':compileWebMainKotlinMetadata' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':metadataLinuxMainProcessResources' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':metadataWebMainProcessResources' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':metadataAppleMainProcessResources' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':compileWatchosMainKotlinMetadata' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':metadataIosMainProcessResources' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':mergeAndroidMainNativeLibs' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':copyAndroidMainJniLibsProjectOnly' finished in 0.001 s
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':prepareAndroidMainArtProfile' finished in 0.001 s
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':prepareLintJarForPublish' finished in 0.001 s
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':processAndroidMainJavaRes' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':syncAndroidMainLibJars' finished in 0.001 s
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':writeAndroidMainAarMetadata' finished in 0.001 s
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':bundleAndroidMainAar' finished in 0.001 s
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':compileKotlinIosX64' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':compileKotlinLinuxArm64' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':compileKotlinLinuxX64' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':compileKotlinMingwX64' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':compileKotlinTvosArm64' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':compileKotlinWatchosArm64' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':compileKotlinWatchosDeviceArm64' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':compileKotlinWatchosSimulatorArm64' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':compileTestKotlinIosSimulatorArm64' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':iosX64ProcessResources' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':compileTestKotlinLinuxX64' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':compileTestKotlinMacosArm64' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':mingwX64ProcessResources' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':tvosArm64MainKlibrary' finished in 0.001 s
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':watchosDeviceArm64ProcessResources' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':iosX64MetadataElements' finished in 0.001 s
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':compileKotlinJs' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':jsJar' finished in 0.001 s
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':compileKotlinJvm' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':jvmProcessResources' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':jvmJar' finished in 0.001 s
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':linkDebugFrameworkIosArm64' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':linkDebugFrameworkIosSimulatorArm64' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':linkDebugFrameworkIosX64' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':serializeSwiftPMDependenciesMetadataForLockFiles' finished in 0.001 s
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':fetchUmbrellaPackageIdentifierForDefault' was skipped: SKIPPED
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':linkDebugFrameworkTvosArm64' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':convertSyntheticImportProjectIntoDefFileAppletvsimulator' finished in 0.001 s
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':linkDebugFrameworkTvosSimulatorArm64' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':linkDebugFrameworkWatchosArm64' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':linkDebugFrameworkWatchosDeviceArm64' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':convertSyntheticImportProjectIntoDefFileWatchsimulator' finished in 0.001 s
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':linkDebugFrameworkWatchosSimulatorArm64' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':linkReleaseFrameworkIosArm64' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':linkReleaseFrameworkIosSimulatorArm64' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':linkReleaseFrameworkIosX64' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':linkReleaseFrameworkMacosArm64' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':linkReleaseFrameworkTvosSimulatorArm64' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':linkReleaseFrameworkWatchosArm64' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':linkReleaseFrameworkWatchosDeviceArm64' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':linkReleaseFrameworkWatchosSimulatorArm64' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':macosArm64MetadataElements' finished in 0.001 s
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':mingwX64MetadataElements' finished in 0.001 s
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':compileKotlinWasmJs' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':compileKotlinWasmWasi' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':wasmWasiJar' finished in 0.001 s
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':watchosArm64MetadataElements' finished in 0.001 s
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':watchosDeviceArm64MetadataElements' finished in 0.001 s
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':watchosSimulatorArm64MetadataElements' finished in 0.001 s
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':compressAndroidDeviceTestAssets' finished in 0.001 s
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':generateAndroidDeviceTestResources' finished in 0.001 s
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':desugarAndroidDeviceTestFileDependencies' finished in 0.001 s
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':stripAndroidDeviceTestDebugSymbols' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':assembleDebugTvosFatFrameworkForCandleXCFramework' was skipped: SKIPPED
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':assembleCandleDebugXCFramework' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':assembleReleaseIosSimulatorFatFrameworkForCandleXCFramework' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':compileTestKotlinJs' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':jsTestProcessResources' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':compileTestDevelopmentExecutableKotlinJs' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':jsTestTestDevelopmentExecutableCompileSync' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':linkDebugTestIosX64' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':kotlinRestoreYarnLock' finished in 0.001 s
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':kotlinYarnSetup' finished in 0.001 s
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':rootPackageJson' finished in 0.001 s
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':kotlinNpmInstall' finished in 0.001 s
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':compileTestKotlinJvm' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':jvmTest' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':linkDebugTestLinuxX64' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':linkDebugTestMacosArm64' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':linkDebugTestMingwX64' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':processAndroidHostTestJavaRes' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':testAndroidHostTest' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':linkDebugTestTvosSimulatorArm64' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':compileTestKotlinWasmJs' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':wasmJsTestPublicPackageJson' finished in 0.001 s
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':wasmJsTestTestDevelopmentExecutableCompileSync' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':wasmJsNodeTest' was skipped: SKIPPED
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':compileTestDevelopmentExecutableKotlinWasmWasi' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':allTests' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':detektAndroidNativeArm32Test' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':detektAndroidNativeX64Test' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':detektAndroidNativeX86Test' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':detektLinuxArm64Test' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':detektMacosArm64Test' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':detektWatchosDeviceArm64Main' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':runKtlintCheckOverAndroidDeviceTestSourceSet' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':runKtlintCheckOverAndroidNativeTestSourceSet' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':ktlintAndroidNativeX64MainSourceSetCheck' was skipped: SKIPPED
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':runKtlintCheckOverAndroidNativeX86TestSourceSet' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':runKtlintCheckOverAppleTestSourceSet' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':runKtlintCheckOverCommonTestSourceSet' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':runKtlintCheckOverIosSimulatorArm64TestSourceSet' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':ktlintJvmTestSourceSetCheck' was skipped: SKIPPED
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':runKtlintCheckOverLinuxArm64MainSourceSet' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':runKtlintCheckOverLinuxMainSourceSet' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':runKtlintCheckOverLinuxX64MainSourceSet' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':runKtlintCheckOverMacosArm64MainSourceSet' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':runKtlintCheckOverMacosMainSourceSet' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':runKtlintCheckOverMingwMainSourceSet' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':runKtlintCheckOverMingwX64MainSourceSet' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':runKtlintCheckOverNativeMainSourceSet' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':runKtlintCheckOverTvosArm64MainSourceSet' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':runKtlintCheckOverTvosTestSourceSet' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':runKtlintCheckOverWatchosSimulatorArm64MainSourceSet' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':runKtlintCheckOverWatchosTestSourceSet' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':ktlintWebMainSourceSetCheck' was skipped: SKIPPED
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':androidNativeArm32Binaries' finished in 0.000 s
+
+Task ':androidNativeArm32TestBinaries' finished in 0.000 s
+
+Task ':androidNativeArm64Binaries' finished in 0.000 s
+
+Task ':androidNativeArm64MainKlibrary' finished in 0.000 s
+
+Task ':androidNativeArm64TestBinaries' finished in 0.000 s
+
+Task ':androidNativeX64Binaries' finished in 0.000 s
+
+Task ':androidNativeX64ProcessResources' was skipped: NO-SOURCE
+
+Task ':androidNativeX64MainKlibrary' finished in 0.000 s
+
+Task ':androidNativeX64TestBinaries' finished in 0.000 s
+
+Task ':androidNativeX86Binaries' finished in 0.000 s
+
+Task ':androidNativeX86MainKlibrary' finished in 0.000 s
+
+Task ':metadataCommonMainProcessResources' was skipped: NO-SOURCE
+
+Task ':metadataCommonMainClasses' finished in 0.000 s
+
+Task ':metadataNativeMainClasses' finished in 0.000 s
+
+Task ':metadataAndroidNativeMainProcessResources' was skipped: NO-SOURCE
+
+Task ':metadataAndroidNativeMainClasses' finished in 0.000 s
+
+Task ':metadataLinuxMainClasses' finished in 0.000 s
+
+Task ':metadataWebMainClasses' finished in 0.000 s
+
+Task ':metadataAppleMainClasses' finished in 0.000 s
+
+Task ':metadataIosMainClasses' finished in 0.000 s
+
+Task ':metadataTvosMainProcessResources' was skipped: NO-SOURCE
+
+Task ':metadataTvosMainClasses' finished in 0.000 s
+
+Task ':metadataWatchosMainProcessResources' was skipped: NO-SOURCE
+
+Task ':metadataWatchosMainClasses' finished in 0.000 s
+
+Task ':ensureAndroidSdk' was skipped: SKIPPED
+
+Task ':androidPreBuild' finished in 0.000 s
+
+Task ':preAndroidMainBuild' finished in 0.000 s
+
+Task ':assembleAndroidMain' finished in 0.000 s
+
+Task ':iosArm64ProcessResources' was skipped: NO-SOURCE
+
+Task ':iosArm64MainKlibrary' finished in 0.000 s
+
+Task ':iosSimulatorArm64ProcessResources' was skipped: NO-SOURCE
+
+Task ':iosSimulatorArm64MainKlibrary' finished in 0.000 s
+
+Task ':iosX64MainKlibrary' finished in 0.000 s
+
+Task ':linuxArm64ProcessResources' was skipped: NO-SOURCE
+
+Task ':linuxArm64MainKlibrary' finished in 0.000 s
+
+Task ':linuxX64ProcessResources' was skipped: NO-SOURCE
+
+Task ':linuxX64MainKlibrary' finished in 0.000 s
+
+Task ':macosArm64ProcessResources' was skipped: NO-SOURCE
+
+Task ':macosArm64MainKlibrary' finished in 0.000 s
+
+Task ':mingwX64MainKlibrary' finished in 0.000 s
+
+Task ':tvosArm64ProcessResources' was skipped: NO-SOURCE
+
+Task ':tvosSimulatorArm64ProcessResources' was skipped: NO-SOURCE
+
+Task ':tvosSimulatorArm64MainKlibrary' finished in 0.000 s
+
+Task ':watchosArm64ProcessResources' was skipped: NO-SOURCE
+
+Task ':watchosArm64MainKlibrary' finished in 0.000 s
+
+Task ':watchosDeviceArm64MainKlibrary' finished in 0.000 s
+
+Task ':watchosSimulatorArm64ProcessResources' was skipped: NO-SOURCE
+
+Task ':watchosSimulatorArm64MainKlibrary' finished in 0.000 s
+
+Task ':jsProcessResources' was skipped: NO-SOURCE
+
+Task ':jsMainClasses' finished in 0.000 s
+
+Task ':compileJvmMainJava' was skipped: NO-SOURCE
+
+Task ':processJvmMainResources' was skipped: SKIPPED
+
+Task ':jvmMainClasses' finished in 0.000 s
+
+Task ':generateSyntheticLinkageSwiftPMImportProjectForCinteropsAndLdDump' was skipped: SKIPPED
+
+Task ':syncPersistedPackageResolvedToSynthetic' was skipped: SKIPPED
+
+Task ':fetchSyntheticImportProjectPackages' was skipped: SKIPPED
+
+Task ':linkReleaseFrameworkTvosArm64' was skipped: NO-SOURCE
+
+Task ':wasmJsProcessResources' was skipped: NO-SOURCE
+
+Task ':wasmJsMainClasses' finished in 0.000 s
+
+Task ':kotlinWasmKotlinNpmCachesSetup' finished in 0.000 s
+
+Task ':wasmWasiProcessResources' was skipped: NO-SOURCE
+
+Task ':wasmWasiMainClasses' finished in 0.000 s
+
+Task ':assemble' finished in 0.000 s
+
+Task ':generateAndroidDeviceTestAssets' finished in 0.000 s
+
+Task ':preAndroidDeviceTestBuild' finished in 0.000 s
+
+Task ':processAndroidDeviceTestNavigationResources' finished in 0.000 s
+
+Task ':processAndroidDeviceTestJavaRes' was skipped: NO-SOURCE
+
+Task ':assembleDebugIosFatFrameworkForCandleXCFramework' was skipped: SKIPPED
+
+Task ':assembleDebugIosSimulatorFatFrameworkForCandleXCFramework' was skipped: NO-SOURCE
+
+Task ':assembleDebugMacosFatFrameworkForCandleXCFramework' was skipped: SKIPPED
+
+Task ':assembleDebugTvosSimulatorFatFrameworkForCandleXCFramework' was skipped: SKIPPED
+
+Task ':assembleDebugWatchosSimulatorFatFrameworkForCandleXCFramework' was skipped: SKIPPED
+
+Task ':assembleReleaseIosFatFrameworkForCandleXCFramework' was skipped: SKIPPED
+
+Task ':assembleReleaseMacosFatFrameworkForCandleXCFramework' was skipped: SKIPPED
+
+Task ':assembleReleaseTvosFatFrameworkForCandleXCFramework' was skipped: SKIPPED
+
+Task ':assembleReleaseTvosSimulatorFatFrameworkForCandleXCFramework' was skipped: SKIPPED
+
+Task ':assembleReleaseWatchosFatFrameworkForCandleXCFramework' was skipped: NO-SOURCE
+
+Task ':assembleReleaseWatchosSimulatorFatFrameworkForCandleXCFramework' was skipped: SKIPPED
+
+Task ':assembleCandleReleaseXCFramework' was skipped: NO-SOURCE
+
+Task ':assembleCandleXCFramework' finished in 0.000 s
+
+Task ':assembleAndroidHostTest' finished in 0.000 s
+
+Task ':assembleUnitTest' finished in 0.000 s
+
+Task ':jsTestClasses' finished in 0.000 s
+
+Task ':iosSimulatorArm64Test' was skipped: SKIPPED
+
+Task ':iosX64Test' was skipped: SKIPPED
+
+Task ':jsTestPackageJson' finished in 0.000 s
+
+Task ':kotlinPackageJsonUmbrella' finished in 0.000 s
+
+Task ':jsBrowserTest' was skipped: SKIPPED
+
+Task ':jsNodeTest' was skipped: SKIPPED
+
+Task ':jsTest' was skipped: NO-SOURCE
+
+Task ':compileJvmTestJava' was skipped: NO-SOURCE
+
+Task ':jvmTestProcessResources' was skipped: NO-SOURCE
+
+Task ':processJvmTestResources' was skipped: SKIPPED
+
+Task ':jvmTestClasses' finished in 0.000 s
+
+Task ':linuxX64Test' was skipped: SKIPPED
+
+Task ':macosArm64Test' was skipped: SKIPPED
+
+Task ':mingwX64Test' was skipped: SKIPPED
+
+Task ':preAndroidHostTestBuild' finished in 0.000 s
+
+Task ':tvosSimulatorArm64Test' was skipped: SKIPPED
+
+Task ':kotlinWasmRestoreYarnLock' was skipped: SKIPPED
+
+Task ':kotlinWasmPackageJsonUmbrella' finished in 0.000 s
+
+Task ':wasmJsTestProcessResources' was skipped: NO-SOURCE
+
+Task ':wasmJsTestClasses' finished in 0.000 s
+
+Task ':compileTestDevelopmentExecutableKotlinWasmJs' was skipped: NO-SOURCE
+
+Task ':wasmJsBrowserTest' was skipped: SKIPPED
+
+Task ':wasmJsTest' was skipped: NO-SOURCE
+
+Task ':wasmWasiTestProcessResources' was skipped: NO-SOURCE
+
+Task ':wasmWasiTestClasses' finished in 0.000 s
+
+Task ':wasmWasiNodeTest' was skipped: SKIPPED
+
+Task ':wasmWasiTest' was skipped: NO-SOURCE
+
+Task ':watchosSimulatorArm64Test' was skipped: SKIPPED
+
+Task ':detektAndroidNativeArm32Main' was skipped: NO-SOURCE
+
+Task ':detektAndroidNativeArm64Main' was skipped: NO-SOURCE
+
+Task ':detektAndroidNativeArm64Test' was skipped: NO-SOURCE
+
+Task ':detektAndroidNativeX64Main' was skipped: NO-SOURCE
+
+Task ':detektAndroidNativeX86Main' was skipped: NO-SOURCE
+
+Task ':detektIosArm64Main' was skipped: NO-SOURCE
+
+Task ':detektIosArm64Test' was skipped: NO-SOURCE
+
+Task ':detektIosSimulatorArm64Main' was skipped: NO-SOURCE
+
+Task ':detektIosSimulatorArm64Test' was skipped: NO-SOURCE
+
+Task ':detektIosX64Main' was skipped: NO-SOURCE
+
+Task ':detektIosX64Test' was skipped: NO-SOURCE
+
+Task ':detektLinuxArm64Main' was skipped: NO-SOURCE
+
+Task ':detektLinuxX64Main' was skipped: NO-SOURCE
+
+Task ':detektLinuxX64Test' was skipped: NO-SOURCE
+
+Task ':detektMacosArm64Main' was skipped: NO-SOURCE
+
+Task ':detektMingwX64Main' was skipped: NO-SOURCE
+
+Task ':detektMingwX64Test' was skipped: NO-SOURCE
+
+Task ':detektTvosArm64Main' was skipped: NO-SOURCE
+
+Task ':detektTvosArm64Test' was skipped: NO-SOURCE
+
+Task ':detektTvosSimulatorArm64Main' was skipped: NO-SOURCE
+
+Task ':detektTvosSimulatorArm64Test' was skipped: NO-SOURCE
+
+Task ':detektWatchosArm64Main' was skipped: NO-SOURCE
+
+Task ':detektWatchosArm64Test' was skipped: NO-SOURCE
+
+Task ':detektWatchosDeviceArm64Test' was skipped: NO-SOURCE
+
+Task ':detektWatchosSimulatorArm64Main' was skipped: NO-SOURCE
+
+Task ':detektWatchosSimulatorArm64Test' was skipped: NO-SOURCE
+
+Task ':ktlintAndroidDeviceTestSourceSetCheck' was skipped: SKIPPED
+
+Task ':runKtlintCheckOverAndroidHostTestSourceSet' was skipped: NO-SOURCE
+
+Task ':ktlintAndroidHostTestSourceSetCheck' was skipped: SKIPPED
+
+Task ':runKtlintCheckOverAndroidMainSourceSet' was skipped: NO-SOURCE
+
+Task ':ktlintAndroidMainSourceSetCheck' was skipped: SKIPPED
+
+Task ':runKtlintCheckOverAndroidNativeArm32MainSourceSet' was skipped: NO-SOURCE
+
+Task ':ktlintAndroidNativeArm32MainSourceSetCheck' was skipped: SKIPPED
+
+Task ':runKtlintCheckOverAndroidNativeArm32TestSourceSet' was skipped: NO-SOURCE
+
+Task ':ktlintAndroidNativeArm32TestSourceSetCheck' was skipped: SKIPPED
+
+Task ':runKtlintCheckOverAndroidNativeArm64MainSourceSet' was skipped: NO-SOURCE
+
+Task ':ktlintAndroidNativeArm64MainSourceSetCheck' was skipped: SKIPPED
+
+Task ':runKtlintCheckOverAndroidNativeArm64TestSourceSet' was skipped: NO-SOURCE
+
+Task ':ktlintAndroidNativeArm64TestSourceSetCheck' was skipped: SKIPPED
+
+Task ':runKtlintCheckOverAndroidNativeMainSourceSet' was skipped: NO-SOURCE
+
+Task ':ktlintAndroidNativeMainSourceSetCheck' was skipped: SKIPPED
+
+Task ':ktlintAndroidNativeTestSourceSetCheck' was skipped: SKIPPED
+
+Task ':runKtlintCheckOverAndroidNativeX64MainSourceSet' was skipped: NO-SOURCE
+
+Task ':runKtlintCheckOverAndroidNativeX64TestSourceSet' was skipped: NO-SOURCE
+
+Task ':ktlintAndroidNativeX64TestSourceSetCheck' was skipped: SKIPPED
+
+Task ':runKtlintCheckOverAndroidNativeX86MainSourceSet' was skipped: NO-SOURCE
+
+Task ':ktlintAndroidNativeX86MainSourceSetCheck' was skipped: SKIPPED
+
+Task ':ktlintAndroidNativeX86TestSourceSetCheck' was skipped: SKIPPED
+
+Task ':runKtlintCheckOverAppleMainSourceSet' was skipped: NO-SOURCE
+
+Task ':ktlintAppleMainSourceSetCheck' was skipped: SKIPPED
+
+Task ':ktlintAppleTestSourceSetCheck' was skipped: SKIPPED
+
+Task ':runKtlintCheckOverCommonMainSourceSet' was skipped: NO-SOURCE
+
+Task ':ktlintCommonMainSourceSetCheck' was skipped: SKIPPED
+
+Task ':ktlintCommonTestSourceSetCheck' was skipped: SKIPPED
+
+Task ':runKtlintCheckOverIosArm64MainSourceSet' was skipped: NO-SOURCE
+
+Task ':ktlintIosArm64MainSourceSetCheck' was skipped: SKIPPED
+
+Task ':runKtlintCheckOverIosArm64TestSourceSet' was skipped: NO-SOURCE
+
+Task ':ktlintIosArm64TestSourceSetCheck' was skipped: SKIPPED
+
+Task ':runKtlintCheckOverIosMainSourceSet' was skipped: NO-SOURCE
+
+Task ':ktlintIosMainSourceSetCheck' was skipped: SKIPPED
+
+Task ':runKtlintCheckOverIosSimulatorArm64MainSourceSet' was skipped: NO-SOURCE
+
+Task ':ktlintIosSimulatorArm64MainSourceSetCheck' was skipped: SKIPPED
+
+Task ':ktlintIosSimulatorArm64TestSourceSetCheck' was skipped: SKIPPED
+
+Task ':runKtlintCheckOverIosTestSourceSet' was skipped: NO-SOURCE
+
+Task ':ktlintIosTestSourceSetCheck' was skipped: SKIPPED
+
+Task ':runKtlintCheckOverIosX64MainSourceSet' was skipped: NO-SOURCE
+
+Task ':ktlintIosX64MainSourceSetCheck' was skipped: SKIPPED
+
+Task ':runKtlintCheckOverIosX64TestSourceSet' was skipped: NO-SOURCE
+
+Task ':ktlintIosX64TestSourceSetCheck' was skipped: SKIPPED
+
+Task ':runKtlintCheckOverJsMainSourceSet' was skipped: NO-SOURCE
+
+Task ':ktlintJsMainSourceSetCheck' was skipped: SKIPPED
+
+Task ':runKtlintCheckOverJsTestSourceSet' was skipped: NO-SOURCE
+
+Task ':ktlintJsTestSourceSetCheck' was skipped: SKIPPED
+
+Task ':runKtlintCheckOverJvmMainSourceSet' was skipped: NO-SOURCE
+
+Task ':ktlintJvmMainSourceSetCheck' was skipped: SKIPPED
+
+Task ':runKtlintCheckOverJvmTestSourceSet' was skipped: NO-SOURCE
+
+Task ':ktlintLinuxArm64MainSourceSetCheck' was skipped: SKIPPED
+
+Task ':runKtlintCheckOverLinuxArm64TestSourceSet' was skipped: NO-SOURCE
+
+Task ':ktlintLinuxArm64TestSourceSetCheck' was skipped: SKIPPED
+
+Task ':ktlintLinuxMainSourceSetCheck' was skipped: SKIPPED
+
+Task ':runKtlintCheckOverLinuxTestSourceSet' was skipped: NO-SOURCE
+
+Task ':ktlintLinuxTestSourceSetCheck' was skipped: SKIPPED
+
+Task ':ktlintLinuxX64MainSourceSetCheck' was skipped: SKIPPED
+
+Task ':runKtlintCheckOverLinuxX64TestSourceSet' was skipped: NO-SOURCE
+
+Task ':ktlintLinuxX64TestSourceSetCheck' was skipped: SKIPPED
+
+Task ':ktlintMacosArm64MainSourceSetCheck' was skipped: SKIPPED
+
+Task ':runKtlintCheckOverMacosArm64TestSourceSet' was skipped: NO-SOURCE
+
+Task ':ktlintMacosArm64TestSourceSetCheck' was skipped: SKIPPED
+
+Task ':ktlintMacosMainSourceSetCheck' was skipped: SKIPPED
+
+Task ':runKtlintCheckOverMacosTestSourceSet' was skipped: NO-SOURCE
+
+Task ':ktlintMacosTestSourceSetCheck' was skipped: SKIPPED
+
+Task ':ktlintMingwMainSourceSetCheck' was skipped: SKIPPED
+
+Task ':runKtlintCheckOverMingwTestSourceSet' was skipped: NO-SOURCE
+
+Task ':ktlintMingwTestSourceSetCheck' was skipped: SKIPPED
+
+Task ':ktlintMingwX64MainSourceSetCheck' was skipped: SKIPPED
+
+Task ':runKtlintCheckOverMingwX64TestSourceSet' was skipped: NO-SOURCE
+
+Task ':ktlintMingwX64TestSourceSetCheck' was skipped: SKIPPED
+
+Task ':ktlintNativeMainSourceSetCheck' was skipped: SKIPPED
+
+Task ':runKtlintCheckOverNativeTestSourceSet' was skipped: NO-SOURCE
+
+Task ':ktlintNativeTestSourceSetCheck' was skipped: SKIPPED
+
+Task ':ktlintTvosArm64MainSourceSetCheck' was skipped: SKIPPED
+
+Task ':runKtlintCheckOverTvosArm64TestSourceSet' was skipped: NO-SOURCE
+
+Task ':ktlintTvosArm64TestSourceSetCheck' was skipped: SKIPPED
+
+Task ':runKtlintCheckOverTvosMainSourceSet' was skipped: NO-SOURCE
+
+Task ':ktlintTvosMainSourceSetCheck' was skipped: SKIPPED
+
+Task ':runKtlintCheckOverTvosSimulatorArm64MainSourceSet' was skipped: NO-SOURCE
+
+Task ':ktlintTvosSimulatorArm64MainSourceSetCheck' was skipped: SKIPPED
+
+Task ':runKtlintCheckOverTvosSimulatorArm64TestSourceSet' was skipped: NO-SOURCE
+
+Task ':ktlintTvosSimulatorArm64TestSourceSetCheck' was skipped: SKIPPED
+
+Task ':ktlintTvosTestSourceSetCheck' was skipped: SKIPPED
+
+Task ':runKtlintCheckOverWasmJsMainSourceSet' was skipped: NO-SOURCE
+
+Task ':ktlintWasmJsMainSourceSetCheck' was skipped: SKIPPED
+
+Task ':runKtlintCheckOverWasmJsTestSourceSet' was skipped: NO-SOURCE
+
+Task ':ktlintWasmJsTestSourceSetCheck' was skipped: SKIPPED
+
+Task ':runKtlintCheckOverWasmWasiMainSourceSet' was skipped: NO-SOURCE
+
+Task ':ktlintWasmWasiMainSourceSetCheck' was skipped: SKIPPED
+
+Task ':runKtlintCheckOverWasmWasiTestSourceSet' was skipped: NO-SOURCE
+
+Task ':ktlintWasmWasiTestSourceSetCheck' was skipped: SKIPPED
+
+Task ':runKtlintCheckOverWatchosArm64MainSourceSet' was skipped: NO-SOURCE
+
+Task ':ktlintWatchosArm64MainSourceSetCheck' was skipped: SKIPPED
+
+Task ':runKtlintCheckOverWatchosArm64TestSourceSet' was skipped: NO-SOURCE
+
+Task ':ktlintWatchosArm64TestSourceSetCheck' was skipped: SKIPPED
+
+Task ':runKtlintCheckOverWatchosDeviceArm64MainSourceSet' was skipped: NO-SOURCE
+
+Task ':ktlintWatchosDeviceArm64MainSourceSetCheck' was skipped: SKIPPED
+
+Task ':runKtlintCheckOverWatchosDeviceArm64TestSourceSet' was skipped: NO-SOURCE
+
+Task ':ktlintWatchosDeviceArm64TestSourceSetCheck' was skipped: SKIPPED
+
+Task ':runKtlintCheckOverWatchosMainSourceSet' was skipped: NO-SOURCE
+
+Task ':ktlintWatchosMainSourceSetCheck' was skipped: SKIPPED
+
+Task ':ktlintWatchosSimulatorArm64MainSourceSetCheck' was skipped: SKIPPED
+
+Task ':runKtlintCheckOverWatchosSimulatorArm64TestSourceSet' was skipped: NO-SOURCE
+
+Task ':ktlintWatchosSimulatorArm64TestSourceSetCheck' was skipped: SKIPPED
+
+Task ':ktlintWatchosTestSourceSetCheck' was skipped: SKIPPED
+
+Task ':runKtlintCheckOverWebMainSourceSet' was skipped: NO-SOURCE
+
+Task ':runKtlintCheckOverWebTestSourceSet' was skipped: NO-SOURCE
+
+Task ':ktlintWebTestSourceSetCheck' was skipped: SKIPPED
+

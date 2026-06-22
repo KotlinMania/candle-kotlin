@@ -1,0 +1,4 @@
+module ExportedKotlinPackages {
+header "ExportedKotlinPackages-Swift.h"
+export *
+}

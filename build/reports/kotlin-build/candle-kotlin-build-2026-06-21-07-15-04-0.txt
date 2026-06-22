@@ -1,0 +1,320 @@
+Gradle start parameters:
+  tasks = [embedSwiftExportForXcode]
+  excluded tasks = []
+  current dir = /Volumes/stuff/Projects/kotlinmania/candle-kotlin
+  project properties args = []
+  system properties args = [user.variant: , file.encoding: UTF-8, user.country: US, user.language: en]
+
+Time metrics:
+  Total Gradle task time: 13.418 s
+  Task action before worker execution: 0.136 s
+  Run compilation in Gradle worker: 4.221 s
+    Compiler code analysis: 1.681 s
+    Compiler backend: 0.548 s
+      LinkKlibs: 0.584 s
+      FunctionsWithoutBoundCheckGenerator: 0.003 s
+      RedundantCoercionsCleaning: 0.001 s
+      CreateLLVMDeclarations: 0.031 s
+      RTTI: 0.022 s
+      Codegen: 0.131 s
+      CStubs: 0.092 s
+      LinkBitcodeDependencies: 0.013 s
+      llvm-mandatory.ModuleToFunctionPassAdaptor: 0.002 s
+      llvm-mandatory.ModuleToFunctionPassAdaptor.PassManager<Function>: 0.002 s
+      llvm-mandatory.ModuleToFunctionPassAdaptor.PassManager<Function>.ObjCARCContractPass: 0.002 s
+      llvm-mandatory.ModuleToFunctionPassAdaptor.PassManager<Function>.ObjCARCContractPass.AAManager: 0.001 s
+      llvm-mandatory.ModuleToFunctionPassAdaptor.PassManager<Function>.ObjCARCContractPass.AAManager.BasicAA: 0.001 s
+      MandatoryBitcodeLLVMPostprocessingPhase: 0.005 s
+      llvm-default.ModuleToFunctionPassAdaptor: 0.002 s
+      llvm-default.ModuleToFunctionPassAdaptor.FunctionToLoopPassAdaptor: 0.002 s
+      llvm-default.ModuleToFunctionPassAdaptor.FunctionToLoopPassAdaptor.PassManager<Function>: 0.001 s
+      llvm-default.ModuleToFunctionPassAdaptor.FunctionToLoopPassAdaptor.PassManager<Function>.LoopSimplifyPass: 0.001 s
+      ModuleBitcodeOptimization: 0.003 s
+      LTOBitcodeOptimization: 0.001 s
+      WriteBitcodeFile: 0.005 s
+      ObjectFiles: 0.110 s
+      Linker: 0.115 s
+    Compiler IR lowering: 0.282 s
+      InlineAllFunctions: 0.041 s
+      ConstEvaluationLowering: 0.021 s
+      SpecializeSharedVariableBoxes: 0.001 s
+      Interop: 0.016 s
+      StripTypeAliasDeclarations: 0.001 s
+      VolatileFields: 0.001 s
+      FunctionReference: 0.007 s
+      PostInline: 0.001 s
+      AnnotationImplementation: 0.001 s
+      RangeContains: 0.004 s
+      ForLoops: 0.004 s
+      FlattenStringConcatenationLowering: 0.004 s
+      Initializers: 0.001 s
+      InventNameForInteropBridges: 0.002 s
+      InventNamesForLocalClasses: 0.003 s
+      InventNamesForLocalFunctions: 0.002 s
+      LocalFunctions: 0.009 s
+      DefaultParameterExtent: 0.006 s
+      InnerClasses: 0.001 s
+      IfNullExpressionsFusionLowering: 0.001 s
+      FinallyBlocks: 0.003 s
+      EnumUsage: 0.001 s
+      Vararg: 0.002 s
+      KotlinNothingValueException: 0.001 s
+      Coroutines: 0.011 s
+      CoroutinesLivenessAnalysis: 0.003 s
+      ObjectClasses: 0.028 s
+      StaticInitializers: 0.001 s
+      ComputeTypes: 0.007 s
+      OptimizeCasts: 0.016 s
+      BuiltinOperators: 0.001 s
+      Bridges: 0.014 s
+      UseInternalAbi: 0.001 s
+      Autobox: 0.011 s
+      ConstructorsLowering: 0.002 s
+    Compiler initialization time: 0.184 s
+    Compiler IR pre-lowering: 0.058 s
+      TestProcessor: 0.006 s
+      UpgradeCallableReferences: 0.007 s
+      SharedVariablesLowering: 0.001 s
+      LocalClassesInInlineLambdasLowering: 0.003 s
+      ArrayConstructorLowering: 0.002 s
+      PreSerializationPrivateFunctionInlining: 0.013 s
+      InlineDeclarationCheckerLowering: 0.001 s
+      OuterThisInInlineFunctionsSpecialAccessorLowering: 0.002 s
+      SyntheticAccessorLowering: 0.001 s
+      FunctionInlining: 0.002 s
+    Compiler IR Serialization: 0.158 s
+    Compiler Klib writing: 0.008 s
+    Compiler translation to IR: 0.879 s
+    Run native in process: 4.214 s
+      Run entry point: 4.192 s
+  Spent time before task action: 0.596 s
+
+Size metrics:
+  Start time of task action: 2082-12-10T04:30:01
+  KLIB directory cumulative size: 73.2 KB
+    KLIB directory cumulative size/IR (inlinable functions): 96 B
+      KLIB directory cumulative size/IR (inlinable functions)/IR bodies: 12 B
+      KLIB directory cumulative size/IR (inlinable functions)/IR declarations: 12 B
+      KLIB directory cumulative size/IR (inlinable functions)/IR file entries: 12 B
+      KLIB directory cumulative size/IR (inlinable functions)/IR files: 11 B
+      KLIB directory cumulative size/IR (inlinable functions)/IR signatures: 12 B
+      KLIB directory cumulative size/IR (inlinable functions)/IR signatures (debug info): 12 B
+      KLIB directory cumulative size/IR (inlinable functions)/IR strings: 13 B
+      KLIB directory cumulative size/IR (inlinable functions)/IR types: 12 B
+    KLIB directory cumulative size/IR (main): 54.9 KB
+      KLIB directory cumulative size/IR (main)/IR bodies: 20.5 KB
+      KLIB directory cumulative size/IR (main)/IR declarations: 8.8 KB
+      KLIB directory cumulative size/IR (main)/IR file entries: 588 B
+      KLIB directory cumulative size/IR (main)/IR files: 282 B
+      KLIB directory cumulative size/IR (main)/IR signatures: 7.7 KB
+      KLIB directory cumulative size/IR (main)/IR signatures (debug info): 8.7 KB
+      KLIB directory cumulative size/IR (main)/IR strings: 6.8 KB
+      KLIB directory cumulative size/IR (main)/IR types: 1.5 KB
+    KLIB directory cumulative size/Manifest file: 748 B
+    KLIB directory cumulative size/Metadata: 17.5 KB
+
+
+Total time for Kotlin tasks: 5.049 s (37.6 % of all tasks time)
+Time   |% of Kotlin time|Task                                       
+2.962 s|58.7 %          |:compileSwiftExportMainKotlinMacosArm64    
+2.087 s|41.3 %          |:linkSwiftExportBinaryDebugStaticMacosArm64
+
+Task ':macosArm64DebugBuildSPMPackage' finished in 6.816 s
+Time metrics:
+  Total Gradle task time: 6.816 s
+
+Task ':compileSwiftExportMainKotlinMacosArm64' finished in 2.962 s
+Task info:
+  Kotlin language version: 2.4
+Time metrics:
+  Total Gradle task time: 2.962 s
+  Task action before worker execution: 0.136 s
+  Run compilation in Gradle worker: 2.225 s
+    Compiler code analysis: 1.432 s
+    Compiler initialization time: 0.018 s
+    Compiler IR pre-lowering: 0.058 s
+      TestProcessor: 0.006 s
+      UpgradeCallableReferences: 0.007 s
+      SharedVariablesLowering: 0.001 s
+      LocalClassesInInlineLambdasLowering: 0.003 s
+      ArrayConstructorLowering: 0.002 s
+      PreSerializationPrivateFunctionInlining: 0.013 s
+      InlineDeclarationCheckerLowering: 0.001 s
+      OuterThisInInlineFunctionsSpecialAccessorLowering: 0.002 s
+      SyntheticAccessorLowering: 0.001 s
+      FunctionInlining: 0.002 s
+    Compiler IR Serialization: 0.158 s
+    Compiler Klib writing: 0.008 s
+    Compiler translation to IR: 0.292 s
+    Run native in process: 2.219 s
+      Run entry point: 2.197 s
+  Spent time before task action: 0.579 s
+Size metrics:
+  Start time of task action: 2026-06-21T14:14:59
+  KLIB directory cumulative size: 73.2 KB
+    KLIB directory cumulative size/IR (inlinable functions): 96 B
+      KLIB directory cumulative size/IR (inlinable functions)/IR bodies: 12 B
+      KLIB directory cumulative size/IR (inlinable functions)/IR declarations: 12 B
+      KLIB directory cumulative size/IR (inlinable functions)/IR file entries: 12 B
+      KLIB directory cumulative size/IR (inlinable functions)/IR files: 11 B
+      KLIB directory cumulative size/IR (inlinable functions)/IR signatures: 12 B
+      KLIB directory cumulative size/IR (inlinable functions)/IR signatures (debug info): 12 B
+      KLIB directory cumulative size/IR (inlinable functions)/IR strings: 13 B
+      KLIB directory cumulative size/IR (inlinable functions)/IR types: 12 B
+    KLIB directory cumulative size/IR (main): 54.9 KB
+      KLIB directory cumulative size/IR (main)/IR bodies: 20.5 KB
+      KLIB directory cumulative size/IR (main)/IR declarations: 8.8 KB
+      KLIB directory cumulative size/IR (main)/IR file entries: 588 B
+      KLIB directory cumulative size/IR (main)/IR files: 282 B
+      KLIB directory cumulative size/IR (main)/IR signatures: 7.7 KB
+      KLIB directory cumulative size/IR (main)/IR signatures (debug info): 8.7 KB
+      KLIB directory cumulative size/IR (main)/IR strings: 6.8 KB
+      KLIB directory cumulative size/IR (main)/IR types: 1.5 KB
+    KLIB directory cumulative size/Manifest file: 748 B
+    KLIB directory cumulative size/Metadata: 17.5 KB
+
+Task ':linkSwiftExportBinaryDebugStaticMacosArm64' finished in 2.087 s
+Time metrics:
+  Total Gradle task time: 2.087 s
+  Run compilation in Gradle worker: 1.996 s
+    Compiler code analysis: 0.249 s
+    Compiler backend: 0.548 s
+      LinkKlibs: 0.584 s
+      FunctionsWithoutBoundCheckGenerator: 0.003 s
+      RedundantCoercionsCleaning: 0.001 s
+      CreateLLVMDeclarations: 0.031 s
+      RTTI: 0.022 s
+      Codegen: 0.131 s
+      CStubs: 0.092 s
+      LinkBitcodeDependencies: 0.013 s
+      llvm-mandatory.ModuleToFunctionPassAdaptor: 0.002 s
+      llvm-mandatory.ModuleToFunctionPassAdaptor.PassManager<Function>: 0.002 s
+      llvm-mandatory.ModuleToFunctionPassAdaptor.PassManager<Function>.ObjCARCContractPass: 0.002 s
+      llvm-mandatory.ModuleToFunctionPassAdaptor.PassManager<Function>.ObjCARCContractPass.AAManager: 0.001 s
+      llvm-mandatory.ModuleToFunctionPassAdaptor.PassManager<Function>.ObjCARCContractPass.AAManager.BasicAA: 0.001 s
+      MandatoryBitcodeLLVMPostprocessingPhase: 0.005 s
+      llvm-default.ModuleToFunctionPassAdaptor: 0.002 s
+      llvm-default.ModuleToFunctionPassAdaptor.FunctionToLoopPassAdaptor: 0.002 s
+      llvm-default.ModuleToFunctionPassAdaptor.FunctionToLoopPassAdaptor.PassManager<Function>: 0.001 s
+      llvm-default.ModuleToFunctionPassAdaptor.FunctionToLoopPassAdaptor.PassManager<Function>.LoopSimplifyPass: 0.001 s
+      ModuleBitcodeOptimization: 0.003 s
+      LTOBitcodeOptimization: 0.001 s
+      WriteBitcodeFile: 0.005 s
+      ObjectFiles: 0.110 s
+      Linker: 0.115 s
+    Compiler IR lowering: 0.282 s
+      InlineAllFunctions: 0.041 s
+      ConstEvaluationLowering: 0.021 s
+      SpecializeSharedVariableBoxes: 0.001 s
+      Interop: 0.016 s
+      StripTypeAliasDeclarations: 0.001 s
+      VolatileFields: 0.001 s
+      FunctionReference: 0.007 s
+      PostInline: 0.001 s
+      AnnotationImplementation: 0.001 s
+      RangeContains: 0.004 s
+      ForLoops: 0.004 s
+      FlattenStringConcatenationLowering: 0.004 s
+      Initializers: 0.001 s
+      InventNameForInteropBridges: 0.002 s
+      InventNamesForLocalClasses: 0.003 s
+      InventNamesForLocalFunctions: 0.002 s
+      LocalFunctions: 0.009 s
+      DefaultParameterExtent: 0.006 s
+      InnerClasses: 0.001 s
+      IfNullExpressionsFusionLowering: 0.001 s
+      FinallyBlocks: 0.003 s
+      EnumUsage: 0.001 s
+      Vararg: 0.002 s
+      KotlinNothingValueException: 0.001 s
+      Coroutines: 0.011 s
+      CoroutinesLivenessAnalysis: 0.003 s
+      ObjectClasses: 0.028 s
+      StaticInitializers: 0.001 s
+      ComputeTypes: 0.007 s
+      OptimizeCasts: 0.016 s
+      BuiltinOperators: 0.001 s
+      Bridges: 0.014 s
+      UseInternalAbi: 0.001 s
+      Autobox: 0.011 s
+      ConstructorsLowering: 0.002 s
+    Compiler initialization time: 0.166 s
+    Compiler translation to IR: 0.587 s
+    Run native in process: 1.995 s
+      Run entry point: 1.995 s
+  Spent time before task action: 0.017 s
+Size metrics:
+  Start time of task action: 2026-06-21T14:15:02
+
+Task ':macosArm64DebugSwiftExport' finished in 1.112 s
+Time metrics:
+  Total Gradle task time: 1.112 s
+
+Task ':mergeMacosDebugSwiftExportLibraries' finished in 0.152 s
+Time metrics:
+  Total Gradle task time: 0.152 s
+
+Task ':copyDebugSPMIntermediates' finished in 0.082 s
+Time metrics:
+  Total Gradle task time: 0.082 s
+
+Task ':kmpPartiallyResolvedDependenciesChecker' finished in 0.072 s
+Time metrics:
+  Total Gradle task time: 0.072 s
+
+Task ':downloadKotlinNativeDistribution' finished in 0.048 s
+Time metrics:
+  Total Gradle task time: 0.048 s
+
+Task ':macosArm64DebugGenerateSPMPackage' finished in 0.047 s
+Time metrics:
+  Total Gradle task time: 0.047 s
+
+Task ':checkSandboxAndWriteProtection' finished in 0.016 s
+Time metrics:
+  Total Gradle task time: 0.016 s
+
+Task ':compileKotlinMacosArm64' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.008 s
+
+Task ':computeLocalPackageDependencyInputFiles' finished in 0.005 s
+Time metrics:
+  Total Gradle task time: 0.005 s
+
+Task ':convertSyntheticImportProjectIntoDefFileMacosx' finished in 0.004 s
+Time metrics:
+  Total Gradle task time: 0.004 s
+
+Task ':generateUmbrellaPackageIdentifierBasedResolutionForDefault' was skipped: SKIPPED
+Time metrics:
+  Total Gradle task time: 0.003 s
+
+Task ':macosArm64ProcessResources' was skipped: NO-SOURCE
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':serializeSwiftPMDependenciesMetadataForLockFiles' finished in 0.001 s
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':fetchUmbrellaPackageIdentifierForDefault' was skipped: SKIPPED
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':fetchSyntheticImportProjectPackages' was skipped: SKIPPED
+Time metrics:
+  Total Gradle task time: 0.001 s
+
+Task ':checkKotlinGradlePluginConfigurationErrors' was skipped: SKIPPED
+
+Task ':macosArm64MainKlibrary' finished in 0.000 s
+
+Task ':generateSyntheticLinkageSwiftPMImportProjectForCinteropsAndLdDump' was skipped: SKIPPED
+
+Task ':syncPersistedPackageResolvedToSynthetic' was skipped: SKIPPED
+
+Task ':validateArchitecturesForEmbedSwiftExportForXcode' finished in 0.000 s
+
+Task ':embedSwiftExportForXcode' finished in 0.000 s
+

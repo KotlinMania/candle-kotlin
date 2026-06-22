@@ -1,0 +1,122 @@
+[
+  {
+    "moduleId": {
+      "groupAndName": {
+        "group": "org.jetbrains.kotlin",
+        "name": "kotlin-stdlib"
+      },
+      "componentId": {
+        "type": "module",
+        "group": "org.jetbrains.kotlin",
+        "name": "kotlin-stdlib"
+      }
+    },
+    "file": "/Volumes/stuff/Projects/kotlinmania/candle-kotlin/build/kotlinTransformedMetadataLibraries/webMain/org.jetbrains.kotlin-kotlin-stdlib-2.4.0-commonNonJvmMain-pEpArg.klib",
+    "sourceSetName": "commonNonJvmMain"
+  },
+  {
+    "moduleId": {
+      "groupAndName": {
+        "group": "org.jetbrains.kotlin",
+        "name": "kotlin-stdlib"
+      },
+      "componentId": {
+        "type": "module",
+        "group": "org.jetbrains.kotlin",
+        "name": "kotlin-stdlib"
+      }
+    },
+    "file": "/Volumes/stuff/Projects/kotlinmania/candle-kotlin/build/kotlinTransformedMetadataLibraries/webMain/org.jetbrains.kotlin-kotlin-stdlib-2.4.0-webMain-pEpArg.klib",
+    "sourceSetName": "webMain"
+  },
+  {
+    "moduleId": {
+      "groupAndName": {
+        "group": "org.jetbrains.kotlinx",
+        "name": "kotlinx-coroutines-core"
+      },
+      "componentId": {
+        "type": "module",
+        "group": "org.jetbrains.kotlinx",
+        "name": "kotlinx-coroutines-core"
+      }
+    },
+    "file": "/Volumes/stuff/Projects/kotlinmania/candle-kotlin/build/kotlinTransformedMetadataLibraries/webMain/org.jetbrains.kotlinx-kotlinx-coroutines-core-1.11.0-webMain-BviMwQ.klib",
+    "sourceSetName": "webMain"
+  },
+  {
+    "moduleId": {
+      "groupAndName": {
+        "group": "org.jetbrains.kotlinx",
+        "name": "kotlinx-serialization-json"
+      },
+      "componentId": {
+        "type": "module",
+        "group": "org.jetbrains.kotlinx",
+        "name": "kotlinx-serialization-json"
+      }
+    },
+    "file": "/Volumes/stuff/Projects/kotlinmania/candle-kotlin/build/kotlinTransformedMetadataLibraries/webMain/org.jetbrains.kotlinx-kotlinx-serialization-json-1.11.0-jsWasmMain-1M5Mww.klib",
+    "sourceSetName": "jsWasmMain"
+  },
+  {
+    "moduleId": {
+      "groupAndName": {
+        "group": "org.jetbrains.kotlinx",
+        "name": "kotlinx-datetime"
+      },
+      "componentId": {
+        "type": "module",
+        "group": "org.jetbrains.kotlinx",
+        "name": "kotlinx-datetime"
+      }
+    },
+    "file": "/Volumes/stuff/Projects/kotlinmania/candle-kotlin/build/kotlinTransformedMetadataLibraries/webMain/org.jetbrains.kotlinx-kotlinx-datetime-0.8.0-commonJsMain-gspK2g.klib",
+    "sourceSetName": "commonJsMain"
+  },
+  {
+    "moduleId": {
+      "groupAndName": {
+        "group": "org.jetbrains.kotlinx",
+        "name": "kotlinx-datetime"
+      },
+      "componentId": {
+        "type": "module",
+        "group": "org.jetbrains.kotlinx",
+        "name": "kotlinx-datetime"
+      }
+    },
+    "file": "/Volumes/stuff/Projects/kotlinmania/candle-kotlin/build/kotlinTransformedMetadataLibraries/webMain/org.jetbrains.kotlinx-kotlinx-datetime-0.8.0-commonKotlinMain-gspK2g.klib",
+    "sourceSetName": "commonKotlinMain"
+  },
+  {
+    "moduleId": {
+      "groupAndName": {
+        "group": "org.jetbrains.kotlinx",
+        "name": "atomicfu"
+      },
+      "componentId": {
+        "type": "module",
+        "group": "org.jetbrains.kotlinx",
+        "name": "atomicfu"
+      }
+    },
+    "file": "/Volumes/stuff/Projects/kotlinmania/candle-kotlin/build/kotlinTransformedMetadataLibraries/webMain/org.jetbrains.kotlinx-atomicfu-0.23.1-jsAndWasmSharedMain-wFq7cg.klib",
+    "sourceSetName": "jsAndWasmSharedMain"
+  },
+  {
+    "moduleId": {
+      "groupAndName": {
+        "group": "org.jetbrains.kotlinx",
+        "name": "atomicfu"
+      },
+      "componentId": {
+        "type": "module",
+        "group": "org.jetbrains.kotlinx",
+        "name": "atomicfu"
+      }
+    },
+    "file": "/Volumes/stuff/Projects/kotlinmania/candle-kotlin/build/kotlinTransformedMetadataLibraries/webMain/org.jetbrains.kotlinx-atomicfu-0.23.1-commonMain-wFq7cg.klib",
+    "sourceSetName": "commonMain"
+  }
+]

@@ -1,0 +1,49 @@
+{
+  "modules": [
+    {
+      "swiftApi": "/Volumes/stuff/Projects/kotlinmania/candle-kotlin/build/SwiftExport/macosArm64/Debug/ExportedKotlinPackages/ExportedKotlinPackages.swift",
+      "name": "ExportedKotlinPackages",
+      "type": "SWIFT_ONLY",
+      "dependencies": []
+    },
+    {
+      "files": {
+        "swiftApi": "/Volumes/stuff/Projects/kotlinmania/candle-kotlin/build/SwiftExport/macosArm64/Debug/KotlinRuntimeSupport/KotlinRuntimeSupport/KotlinRuntimeSupport.swift",
+        "kotlinBridges": "/Volumes/stuff/Projects/kotlinmania/candle-kotlin/build/SwiftExport/macosArm64/Debug/KotlinRuntimeSupport/KotlinRuntimeSupport/KotlinRuntimeSupport.kt",
+        "cHeaderBridges": "/Volumes/stuff/Projects/kotlinmania/candle-kotlin/build/SwiftExport/macosArm64/Debug/KotlinRuntimeSupport/KotlinRuntimeSupport/KotlinRuntimeSupport.h"
+      },
+      "bridgeName": "KotlinRuntimeSupportBridge",
+      "name": "KotlinRuntimeSupport",
+      "type": "BRIDGES_TO_KOTLIN",
+      "dependencies": []
+    },
+    {
+      "files": {
+        "swiftApi": "/Volumes/stuff/Projects/kotlinmania/candle-kotlin/build/SwiftExport/macosArm64/Debug/KotlinCoroutineSupport/KotlinCoroutineSupport/KotlinCoroutineSupport.swift",
+        "kotlinBridges": "/Volumes/stuff/Projects/kotlinmania/candle-kotlin/build/SwiftExport/macosArm64/Debug/KotlinCoroutineSupport/KotlinCoroutineSupport/KotlinCoroutineSupport.kt",
+        "cHeaderBridges": "/Volumes/stuff/Projects/kotlinmania/candle-kotlin/build/SwiftExport/macosArm64/Debug/KotlinCoroutineSupport/KotlinCoroutineSupport/KotlinCoroutineSupport.h"
+      },
+      "bridgeName": "KotlinCoroutineSupportBridge",
+      "name": "KotlinCoroutineSupport",
+      "type": "BRIDGES_TO_KOTLIN",
+      "dependencies": [
+        "KotlinRuntimeSupport"
+      ]
+    },
+    {
+      "files": {
+        "swiftApi": "/Volumes/stuff/Projects/kotlinmania/candle-kotlin/build/SwiftExport/macosArm64/Debug/files/Candle/Candle.swift",
+        "kotlinBridges": "/Volumes/stuff/Projects/kotlinmania/candle-kotlin/build/SwiftExport/macosArm64/Debug/files/Candle/Candle.kt",
+        "cHeaderBridges": "/Volumes/stuff/Projects/kotlinmania/candle-kotlin/build/SwiftExport/macosArm64/Debug/files/Candle/Candle.h"
+      },
+      "bridgeName": "SharedBridge_Candle",
+      "name": "Candle",
+      "type": "BRIDGES_TO_KOTLIN",
+      "dependencies": [
+        "KotlinRuntimeSupport",
+        "KotlinCoroutineSupport"
+      ]
+    }
+  ],
+  "timestamp": 1782051292212
+}

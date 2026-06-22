@@ -1,0 +1,7 @@
+#Sun Jun 21 07:14:44 PDT 2026
+base.0=/Volumes/stuff/Projects/kotlinmania/candle-kotlin/build/intermediates/dex/androidDeviceTest/mergeExtDexAndroidDeviceTest/classes.dex
+base.1=/Volumes/stuff/Projects/kotlinmania/candle-kotlin/build/intermediates/dex/androidDeviceTest/mergeProjectDexAndroidDeviceTest/0/classes.dex
+path.0=classes.dex
+path.1=0/classes.dex
+renamed.0=classes.dex
+renamed.1=classes2.dex
