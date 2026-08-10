@@ -1,0 +1,31 @@
+Gradle start parameters:
+  tasks = [tasks, ktlintKotlinScriptCheck]
+  excluded tasks = []
+  current dir = /Volumes/stuff/Projects/kotlinmania/template
+  project properties args = []
+  system properties args = [user.variant: , file.encoding: UTF-8, user.country: US, user.language: en]
+
+Build failed: [Execution failed for task ':ktlintKotlinScriptCheck' (registered by plugin 'org.jlleitschuh.gradle.ktlint').]
+
+Time metrics:
+  Total Gradle task time: 3.924 s
+
+
+
+No Kotlin task was run
+Task ':tasks' finished in 1.611 s
+Time metrics:
+  Total Gradle task time: 1.611 s
+
+Task ':runKtlintCheckOverKotlinScripts' finished in 1.302 s
+Time metrics:
+  Total Gradle task time: 1.302 s
+
+Task ':ktlintKotlinScriptCheck' finished in 0.839 s
+Time metrics:
+  Total Gradle task time: 0.839 s
+
+Task ':loadKtlintReporters' finished in 0.172 s
+Time metrics:
+  Total Gradle task time: 0.172 s
+
