@@ -5,7 +5,9 @@ public class Var(
     public val tensor: Tensor,
 ) {
     public fun shape(): Shape = tensor.shape()
+
     public fun dtype(): DType = tensor.dtype()
+
     public fun device(): Device = tensor.device()
 
     public fun asTensor(): Tensor = tensor

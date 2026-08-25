@@ -105,7 +105,7 @@ public data class Layout(
     public fun permute(idxs: List<Int>): Layout {
         val isPermutation = idxs.size == shape.rank && (0 until idxs.size).all { idxs.contains(it) }
         if (!isPermutation) {
-            bail("dimension mismatch in permute, tensor ${dims}, dims: $idxs")
+            bail("dimension mismatch in permute, tensor $dims, dims: $idxs")
         }
         val permStride = ArrayList<Int>(idxs.size)
         val permDims = ArrayList<Int>(idxs.size)

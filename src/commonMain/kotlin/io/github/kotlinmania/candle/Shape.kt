@@ -219,6 +219,7 @@ public data class Shape(
 
 public sealed interface ShapeDim {
     public fun toIndex(shape: Shape, op: String): Int
+
     public fun toIndexPlusOne(shape: Shape, op: String): Int
 }
 
