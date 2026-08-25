@@ -1,5 +1,0 @@
-module "SharedBridge_Candle" {
-    umbrella "."
-    export *
-    link "Candle"
-}
