@@ -1,5 +1,0 @@
-module "KotlinCoroutineSupportBridge" {
-    umbrella "."
-    export *
-    link "KotlinCoroutineSupport"
-}

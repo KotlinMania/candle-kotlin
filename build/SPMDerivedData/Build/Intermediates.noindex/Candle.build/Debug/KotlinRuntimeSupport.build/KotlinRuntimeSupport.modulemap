@@ -1,4 +1,0 @@
-module KotlinRuntimeSupport {
-header "KotlinRuntimeSupport-Swift.h"
-export *
-}
