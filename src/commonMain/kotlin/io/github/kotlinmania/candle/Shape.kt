@@ -248,6 +248,16 @@ public data class ShapeDimMinus(
         if (u > 0 && shape.rank + 1 >= u) shape.rank + 1 - u else throw CandleException.DimOutOfRange(shape, -u, op)
 }
 
+public data class ShapeDimIndex(
+    val dim: Int,
+) : ShapeDim {
+    override fun toIndex(shape: Shape, op: String): Int = Shape.toIndex(dim, shape, op)
+
+    override fun toIndexPlusOne(shape: Shape, op: String): Int = Shape.toIndexPlusOne(dim, shape, op)
+}
+
+public typealias Dim = ShapeDim
+
 public fun List<Int>.intoShapeWithHole(elCount: Int): Shape {
     var holeIdx = -1
     var knownProduct = 1

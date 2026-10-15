@@ -56,6 +56,15 @@ public class Tensor internal constructor(
 
     public fun dim(d: Int): Int = layout.dim(d)
 
+    public fun dim(d: ShapeDim): Int = layout.dim(d.toIndex(shape(), "dim"))
+
+    public fun narrow(dim: ShapeDim, start: Int, len: Int): Tensor =
+        narrow(dim.toIndex(shape(), "narrow"), start, len)
+
+    public fun apply(m: Module): Tensor = m.forward(this)
+
+    public fun applyT(m: ModuleT, train: Boolean): Tensor = m.forwardT(this, train)
+
     public fun checkDim(dim: Int, op: String) {
         if (dim < 0 || dim >= dims().size) {
             throw CandleException.DimOutOfRange(shape(), dim, op)
