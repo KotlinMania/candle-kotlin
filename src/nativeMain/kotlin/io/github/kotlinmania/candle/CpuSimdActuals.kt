@@ -2,7 +2,6 @@
 package io.github.kotlinmania.candle
 
 import io.github.kotlinmania.candle.internal.CandleCInterop
-import io.github.kotlinmania.libc.CInt
 
 internal actual val vdupqNF32: (Float) -> FloatArray = { x -> CandleCInterop.neonVdupqNF32(x) }
 internal actual val vld1qF32: (FloatArray, Int) -> FloatArray = { mem, off -> CandleCInterop.neonVld1qF32(mem, off) }
@@ -36,12 +35,12 @@ internal actual val asmBfdot4s8h: (ShortArray, ShortArray, ShortArray) -> ShortA
 }
 internal actual val mm256AddPs: (FloatArray, FloatArray) -> FloatArray = { a, b -> CandleCInterop.avxAddPs(a, b) }
 internal actual val mm256CvtphPs: (ShortArray) -> FloatArray = { a -> CandleCInterop.avxCvtphPs(a, 0) }
-internal actual val accelVvexpf: (FloatArray, FloatArray, CInt) -> Unit = { dst, src, len ->
+internal actual val accelVvexpf: (FloatArray, FloatArray, Int) -> Unit = { dst, src, len ->
     CandleCInterop.accelerateVvexpf(dst, src, len)
 }
-internal actual val accelVvsqrtf: (FloatArray, FloatArray, CInt) -> Unit = { dst, src, len ->
+internal actual val accelVvsqrtf: (FloatArray, FloatArray, Int) -> Unit = { dst, src, len ->
     CandleCInterop.accelerateVvsqrtf(dst, src, len)
 }
-internal actual val accelVvtanhf: (FloatArray, FloatArray, CInt) -> Unit = { dst, src, len ->
+internal actual val accelVvtanhf: (FloatArray, FloatArray, Int) -> Unit = { dst, src, len ->
     CandleCInterop.accelerateVvtanhf(dst, src, len)
 }

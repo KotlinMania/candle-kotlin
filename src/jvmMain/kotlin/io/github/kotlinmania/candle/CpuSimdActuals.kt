@@ -2,7 +2,6 @@
 package io.github.kotlinmania.candle
 
 import io.github.kotlinmania.candle.internal.CandleJni
-import io.github.kotlinmania.libc.CInt
 
 internal actual val vdupqNF32: (Float) -> FloatArray = { x ->
     val out = FloatArray(4)
@@ -80,12 +79,12 @@ internal actual val mm256CvtphPs: (ShortArray) -> FloatArray = { a ->
     CandleJni.avxCvtphPs(a, 0, out)
     out
 }
-internal actual val accelVvexpf: (FloatArray, FloatArray, CInt) -> Unit = { dst, src, len ->
+internal actual val accelVvexpf: (FloatArray, FloatArray, Int) -> Unit = { dst, src, len ->
     CandleJni.accelerateVvexpf(dst, src, len)
 }
-internal actual val accelVvsqrtf: (FloatArray, FloatArray, CInt) -> Unit = { dst, src, len ->
+internal actual val accelVvsqrtf: (FloatArray, FloatArray, Int) -> Unit = { dst, src, len ->
     CandleJni.accelerateVvsqrtf(dst, src, len)
 }
-internal actual val accelVvtanhf: (FloatArray, FloatArray, CInt) -> Unit = { dst, src, len ->
+internal actual val accelVvtanhf: (FloatArray, FloatArray, Int) -> Unit = { dst, src, len ->
     CandleJni.accelerateVvtanhf(dst, src, len)
 }

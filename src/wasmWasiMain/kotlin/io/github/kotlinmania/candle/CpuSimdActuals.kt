@@ -1,7 +1,6 @@
 // port-lint: source cpu/neon.rs
 package io.github.kotlinmania.candle
 
-import io.github.kotlinmania.libc.CInt
 import kotlin.math.exp
 import kotlin.math.sqrt
 import kotlin.math.tanh
@@ -77,12 +76,12 @@ internal actual val mm256AddPs: (FloatArray, FloatArray) -> FloatArray = { a, b 
 internal actual val mm256CvtphPs: (ShortArray) -> FloatArray = { a ->
     FloatArray(8) { Float16Utils.f16BitsToFloat(a[it]) }
 }
-internal actual val accelVvexpf: (FloatArray, FloatArray, CInt) -> Unit = { dst, src, len ->
+internal actual val accelVvexpf: (FloatArray, FloatArray, Int) -> Unit = { dst, src, len ->
     for (i in 0 until len) dst[i] = exp(src[i])
 }
-internal actual val accelVvsqrtf: (FloatArray, FloatArray, CInt) -> Unit = { dst, src, len ->
+internal actual val accelVvsqrtf: (FloatArray, FloatArray, Int) -> Unit = { dst, src, len ->
     for (i in 0 until len) dst[i] = sqrt(src[i])
 }
-internal actual val accelVvtanhf: (FloatArray, FloatArray, CInt) -> Unit = { dst, src, len ->
+internal actual val accelVvtanhf: (FloatArray, FloatArray, Int) -> Unit = { dst, src, len ->
     for (i in 0 until len) dst[i] = tanh(src[i])
 }

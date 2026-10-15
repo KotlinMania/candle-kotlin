@@ -1,10 +1,6 @@
 // port-lint: source mkl.rs
 package io.github.kotlinmania.candle
 
-import io.github.kotlinmania.libc.CChar
-import io.github.kotlinmania.libc.CDouble
-import io.github.kotlinmania.libc.CFloat
-import io.github.kotlinmania.libc.CInt
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.exp
@@ -15,116 +11,116 @@ import kotlin.math.tanh
 
 public object Mkl {
     public object Ffi {
-        public val vsTanh: (CInt, FloatArray, FloatArray) -> Unit = { n, a, y ->
+        public val vsTanh: (Int, FloatArray, FloatArray) -> Unit = { n, a, y ->
             accelVvtanhf(y, a, n)
         }
 
-        public val vdTanh: (CInt, DoubleArray, DoubleArray) -> Unit = { n, a, y ->
+        public val vdTanh: (Int, DoubleArray, DoubleArray) -> Unit = { n, a, y ->
             for (i in 0 until n) y[i] = tanh(a[i])
         }
 
-        public val vsExp: (CInt, FloatArray, FloatArray) -> Unit = { n, a, y ->
+        public val vsExp: (Int, FloatArray, FloatArray) -> Unit = { n, a, y ->
             accelVvexpf(y, a, n)
         }
 
-        public val vdExp: (CInt, DoubleArray, DoubleArray) -> Unit = { n, a, y ->
+        public val vdExp: (Int, DoubleArray, DoubleArray) -> Unit = { n, a, y ->
             for (i in 0 until n) y[i] = exp(a[i])
         }
 
-        public val vsLn: (CInt, FloatArray, FloatArray) -> Unit = { n, a, y ->
+        public val vsLn: (Int, FloatArray, FloatArray) -> Unit = { n, a, y ->
             for (i in 0 until n) y[i] = ln(a[i])
         }
 
-        public val vdLn: (CInt, DoubleArray, DoubleArray) -> Unit = { n, a, y ->
+        public val vdLn: (Int, DoubleArray, DoubleArray) -> Unit = { n, a, y ->
             for (i in 0 until n) y[i] = ln(a[i])
         }
 
-        public val vsSin: (CInt, FloatArray, FloatArray) -> Unit = { n, a, y ->
+        public val vsSin: (Int, FloatArray, FloatArray) -> Unit = { n, a, y ->
             for (i in 0 until n) y[i] = sin(a[i])
         }
 
-        public val vdSin: (CInt, DoubleArray, DoubleArray) -> Unit = { n, a, y ->
+        public val vdSin: (Int, DoubleArray, DoubleArray) -> Unit = { n, a, y ->
             for (i in 0 until n) y[i] = sin(a[i])
         }
 
-        public val vsCos: (CInt, FloatArray, FloatArray) -> Unit = { n, a, y ->
+        public val vsCos: (Int, FloatArray, FloatArray) -> Unit = { n, a, y ->
             for (i in 0 until n) y[i] = cos(a[i])
         }
 
-        public val vdCos: (CInt, DoubleArray, DoubleArray) -> Unit = { n, a, y ->
+        public val vdCos: (Int, DoubleArray, DoubleArray) -> Unit = { n, a, y ->
             for (i in 0 until n) y[i] = cos(a[i])
         }
 
-        public val vsSqrt: (CInt, FloatArray, FloatArray) -> Unit = { n, a, y ->
+        public val vsSqrt: (Int, FloatArray, FloatArray) -> Unit = { n, a, y ->
             accelVvsqrtf(y, a, n)
         }
 
-        public val vdSqrt: (CInt, DoubleArray, DoubleArray) -> Unit = { n, a, y ->
+        public val vdSqrt: (Int, DoubleArray, DoubleArray) -> Unit = { n, a, y ->
             for (i in 0 until n) y[i] = sqrt(a[i])
         }
 
-        public val vsAdd: (CInt, FloatArray, FloatArray, FloatArray) -> Unit = { n, a, b, y ->
+        public val vsAdd: (Int, FloatArray, FloatArray, FloatArray) -> Unit = { n, a, b, y ->
             for (i in 0 until n) y[i] = a[i] + b[i]
         }
 
-        public val vdAdd: (CInt, DoubleArray, DoubleArray, DoubleArray) -> Unit = { n, a, b, y ->
+        public val vdAdd: (Int, DoubleArray, DoubleArray, DoubleArray) -> Unit = { n, a, b, y ->
             for (i in 0 until n) y[i] = a[i] + b[i]
         }
 
-        public val vsSub: (CInt, FloatArray, FloatArray, FloatArray) -> Unit = { n, a, b, y ->
+        public val vsSub: (Int, FloatArray, FloatArray, FloatArray) -> Unit = { n, a, b, y ->
             for (i in 0 until n) y[i] = a[i] - b[i]
         }
 
-        public val vdSub: (CInt, DoubleArray, DoubleArray, DoubleArray) -> Unit = { n, a, b, y ->
+        public val vdSub: (Int, DoubleArray, DoubleArray, DoubleArray) -> Unit = { n, a, b, y ->
             for (i in 0 until n) y[i] = a[i] - b[i]
         }
 
-        public val vsMul: (CInt, FloatArray, FloatArray, FloatArray) -> Unit = { n, a, b, y ->
+        public val vsMul: (Int, FloatArray, FloatArray, FloatArray) -> Unit = { n, a, b, y ->
             for (i in 0 until n) y[i] = a[i] * b[i]
         }
 
-        public val vdMul: (CInt, DoubleArray, DoubleArray, DoubleArray) -> Unit = { n, a, b, y ->
+        public val vdMul: (Int, DoubleArray, DoubleArray, DoubleArray) -> Unit = { n, a, b, y ->
             for (i in 0 until n) y[i] = a[i] * b[i]
         }
 
-        public val vsDiv: (CInt, FloatArray, FloatArray, FloatArray) -> Unit = { n, a, b, y ->
+        public val vsDiv: (Int, FloatArray, FloatArray, FloatArray) -> Unit = { n, a, b, y ->
             for (i in 0 until n) y[i] = a[i] / b[i]
         }
 
-        public val vdDiv: (CInt, DoubleArray, DoubleArray, DoubleArray) -> Unit = { n, a, b, y ->
+        public val vdDiv: (Int, DoubleArray, DoubleArray, DoubleArray) -> Unit = { n, a, b, y ->
             for (i in 0 until n) y[i] = a[i] / b[i]
         }
 
-        public val vsFmax: (CInt, FloatArray, FloatArray, FloatArray) -> Unit = { n, a, b, y ->
+        public val vsFmax: (Int, FloatArray, FloatArray, FloatArray) -> Unit = { n, a, b, y ->
             for (i in 0 until n) y[i] = maxOf(a[i], b[i])
         }
 
-        public val vdFmax: (CInt, DoubleArray, DoubleArray, DoubleArray) -> Unit = { n, a, b, y ->
+        public val vdFmax: (Int, DoubleArray, DoubleArray, DoubleArray) -> Unit = { n, a, b, y ->
             for (i in 0 until n) y[i] = maxOf(a[i], b[i])
         }
 
-        public val vsFmin: (CInt, FloatArray, FloatArray, FloatArray) -> Unit = { n, a, b, y ->
+        public val vsFmin: (Int, FloatArray, FloatArray, FloatArray) -> Unit = { n, a, b, y ->
             for (i in 0 until n) y[i] = minOf(a[i], b[i])
         }
 
-        public val vdFmin: (CInt, DoubleArray, DoubleArray, DoubleArray) -> Unit = { n, a, b, y ->
+        public val vdFmin: (Int, DoubleArray, DoubleArray, DoubleArray) -> Unit = { n, a, b, y ->
             for (i in 0 until n) y[i] = minOf(a[i], b[i])
         }
 
         public val sgemm: (
-            CChar,
-            CChar,
-            CInt,
-            CInt,
-            CInt,
-            CFloat,
+            Byte,
+            Byte,
+            Int,
+            Int,
+            Int,
+            Float,
             FloatArray,
-            CInt,
+            Int,
             FloatArray,
-            CInt,
-            CFloat,
+            Int,
+            Float,
             FloatArray,
-            CInt
+            Int,
         ) -> Unit = { transa, transb, m, n, k, alpha, a, lda, b, ldb, beta, c, ldc ->
             val ta = transa == 'T'.code.toByte() || transa == 't'.code.toByte()
             val tb = transb == 'T'.code.toByte() || transb == 't'.code.toByte()
@@ -143,19 +139,19 @@ public object Mkl {
         }
 
         public val dgemm: (
-            CChar,
-            CChar,
-            CInt,
-            CInt,
-            CInt,
-            CDouble,
+            Byte,
+            Byte,
+            Int,
+            Int,
+            Int,
+            Double,
             DoubleArray,
-            CInt,
+            Int,
             DoubleArray,
-            CInt,
-            CDouble,
+            Int,
+            Double,
             DoubleArray,
-            CInt
+            Int,
         ) -> Unit = { transa, transb, m, n, k, alpha, a, lda, b, ldb, beta, c, ldc ->
             val ta = transa == 'T'.code.toByte() || transa == 't'.code.toByte()
             val tb = transb == 'T'.code.toByte() || transb == 't'.code.toByte()
@@ -174,19 +170,19 @@ public object Mkl {
         }
 
         public val hgemm: (
-            CChar,
-            CChar,
-            CInt,
-            CInt,
-            CInt,
+            Byte,
+            Byte,
+            Int,
+            Int,
+            Int,
             Short,
             ShortArray,
-            CInt,
+            Int,
             ShortArray,
-            CInt,
+            Int,
             Short,
             ShortArray,
-            CInt
+            Int,
         ) -> Unit = { transa, transb, m, n, k, alpha, a, lda, b, ldb, beta, c, ldc ->
             val ta = transa == 'T'.code.toByte() || transa == 't'.code.toByte()
             val tb = transb == 'T'.code.toByte() || transb == 't'.code.toByte()
@@ -224,8 +220,8 @@ public object Mkl {
         ldc: Int,
     ) {
         Ffi.sgemm(
-            transa.toByte() as CChar,
-            transb.toByte() as CChar,
+            transa.toByte() as Byte,
+            transb.toByte() as Byte,
             m,
             n,
             k,
@@ -256,8 +252,8 @@ public object Mkl {
         ldc: Int,
     ) {
         Ffi.dgemm(
-            transa.toByte() as CChar,
-            transb.toByte() as CChar,
+            transa.toByte() as Byte,
+            transb.toByte() as Byte,
             m,
             n,
             k,
@@ -288,8 +284,8 @@ public object Mkl {
         ldc: Int,
     ) {
         Ffi.hgemm(
-            transa.toByte() as CChar,
-            transb.toByte() as CChar,
+            transa.toByte() as Byte,
+            transb.toByte() as Byte,
             m,
             n,
             k,
@@ -450,41 +446,49 @@ public object Mkl {
 
     public fun vsGelu(vs: FloatArray, ys: FloatArray) {
         for (i in vs.indices) {
-            val v = vs[i]; ys[i] = sqrt(2.0f / PI.toFloat()) * v * (1.0f + 0.044715f * v * v)
+            val v = vs[i]
+            ys[i] = sqrt(2.0f / PI.toFloat()) * v * (1.0f + 0.044715f * v * v)
         }
         vsTanhInplace(ys)
         for (i in vs.indices) {
-            val v = vs[i]; ys[i] = 0.5f * v * (1.0f + ys[i])
+            val v = vs[i]
+            ys[i] = 0.5f * v * (1.0f + ys[i])
         }
     }
 
     public fun vdGelu(vs: DoubleArray, ys: DoubleArray) {
         for (i in vs.indices) {
-            val v = vs[i]; ys[i] = sqrt(2.0 / PI) * v * (1.0 + 0.044715 * v * v)
+            val v = vs[i]
+            ys[i] = sqrt(2.0 / PI) * v * (1.0 + 0.044715 * v * v)
         }
         vdTanhInplace(ys)
         for (i in vs.indices) {
-            val v = vs[i]; ys[i] = 0.5 * v * (1.0 + ys[i])
+            val v = vs[i]
+            ys[i] = 0.5 * v * (1.0 + ys[i])
         }
     }
 
     public fun vsSilu(vs: FloatArray, ys: FloatArray) {
         for (i in vs.indices) {
-            val v = vs[i]; ys[i] = -v
+            val v = vs[i]
+            ys[i] = -v
         }
         vsExpInplace(ys)
         for (i in vs.indices) {
-            val v = vs[i]; ys[i] = v / (1.0f + ys[i])
+            val v = vs[i]
+            ys[i] = v / (1.0f + ys[i])
         }
     }
 
     public fun vdSilu(vs: DoubleArray, ys: DoubleArray) {
         for (i in vs.indices) {
-            val v = vs[i]; ys[i] = -v
+            val v = vs[i]
+            ys[i] = -v
         }
         vdExpInplace(ys)
         for (i in vs.indices) {
-            val v = vs[i]; ys[i] = v / (1.0 + ys[i])
+            val v = vs[i]
+            ys[i] = v / (1.0 + ys[i])
         }
     }
 
