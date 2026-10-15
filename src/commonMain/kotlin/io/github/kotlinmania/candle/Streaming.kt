@@ -1,125 +1,135 @@
-// port-lint: source streaming.rs
 package io.github.kotlinmania.candle
 
 public interface Dim : ShapeDim
 
 /**
- * StreamTensror useful for streaming ops.
+ * StreamTensor useful for streaming ops.
  *
  * A stream tensor is used in streaming module. It can either contain an actual tensor or be
- * empty.
+ * empty, supporting incremental concatenation, narrowing, splitting, and binary operations.
  */
+// port-lint: source streaming.rs
+
+private val None: Tensor? = null
+private val Some: (Tensor) -> Tensor? = { it }
+private val Self: (Tensor?) -> StreamTensor = { StreamTensor(it) }
+private val asRef: (Tensor?) -> Tensor? = { it }
+private val write: (StringBuilder, String, Any?) -> Unit = { f, _, v -> f.append(v.toString()) }
+private val usizeMin: (Int, Int) -> Int = { a, b -> minOf(a, b) }
+private val Ok: (StreamTensor) -> StreamTensor = { it }
+
 public class StreamTensor(
-    public var tensor: Tensor? = null,
+    public var tensor: Tensor? = null
 ) {
-    public fun fmt(sb: StringBuilder) {
-        when (val t = tensor) {
-            null -> sb.append("Empty")
-            else -> sb.append(t.shape().toString())
+    private val self: StreamTensor get() = this
+
+    public fun fmt(f: StringBuilder) {
+        val t = self.tensor; when (t) {
+            null -> write(f, "Empty", "Empty")
+            else -> write(f, "{:?}", t.shape())
         }
     }
 
-    override fun toString(): String =
-        when (val t = tensor) {
-            null -> "Empty"
-            else -> t.shape().toString()
-        }
-
-    public fun shape(): Shape? = tensor?.shape()
-
-    public fun cat2(rhs: StreamTensor, dim: Int): StreamTensor {
-        val l = tensor
-        val r = rhs.tensor
-        val xs = when {
-            l != null && r != null -> Tensor.cat(listOf(l, r), dim)
-            l != null -> l
-            r != null -> r
-            else -> null
-        }
-        return StreamTensor(xs)
+    public fun shape(): Shape? {
+        return asRef(self.tensor)?.let { t -> t.shape() }
     }
 
-    public fun cat2(rhs: StreamTensor, dim: ShapeDim): StreamTensor {
-        val l = tensor
-        val r = rhs.tensor
-        val dimIdx = (l?.shape() ?: r?.shape())?.let { dim.toIndex(it, "cat") } ?: 0
-        return cat2(rhs, dimIdx)
+    public fun <D : ShapeDim> cat2(rhs: StreamTensor, dim: D): StreamTensor {
+        val lhs = self.tensor; val r = rhs.tensor; val xs = when {
+            lhs != null && r != null -> {
+                val xs = Tensor.cat(listOf(lhs, r), dim)
+                Some(xs)
+            }
+            lhs != null || r != null -> Some((lhs ?: r)!!.clone())
+            else -> None
+        }
+        return Ok(Self(xs))
     }
 
-    public fun seqLen(dim: Int): Int = tensor?.dim(dim) ?: 0
-
-    public fun seqLen(dim: ShapeDim): Int = tensor?.dim(dim) ?: 0
+    public fun <D : ShapeDim> seqLen(dim: D): Int {
+        val v = self.tensor; return when (v) {
+            null -> 0
+            else -> v.dim(dim)
+        }
+    }
 
     public fun reset() {
-        tensor = null
+        self.tensor = None
     }
 
-    public fun narrow(dim: Int, offset: Int, len: Int): StreamTensor {
-        val t = tensor ?: return StreamTensor(null)
-        val seqLen = t.dim(dim)
-        return if (seqLen <= offset) {
-            StreamTensor(null)
-        } else {
-            val narrowed = t.narrow(dim, offset, minOf(len, seqLen - offset))
-            StreamTensor(narrowed)
+    public fun <D : ShapeDim> narrow(dim: D, offset: Int, len: Int): StreamTensor {
+        val cur = self.tensor; val t = when (cur) {
+            null -> None
+            else -> {
+                val seqLen = cur.dim(dim)
+                if (seqLen <= offset) {
+                    None
+                } else {
+                    val t = cur.narrow(dim, offset, usizeMin(len, seqLen - offset))
+                    Some(t)
+                }
+            }
         }
-    }
-
-    public fun narrow(dim: ShapeDim, offset: Int, len: Int): StreamTensor {
-        val t = tensor ?: return StreamTensor(null)
-        val dimIdx = dim.toIndex(t.shape(), "narrow")
-        return narrow(dimIdx, offset, len)
+        return Ok(Self(t))
     }
 
     /**
      * Splits the Streaming Tensor on the time axis dim with the first lhsLen elements
      * returned in the first output and the remaining in the second output.
      */
-    public fun split(dim: Int, lhsLen: Int): Pair<StreamTensor, StreamTensor> {
-        val t = tensor ?: return Pair(empty(), empty())
-        val seqLen = t.dim(dim)
-        val actualLhsLen = minOf(seqLen, lhsLen)
-        if (actualLhsLen == 0) {
-            return Pair(empty(), fromTensor(t))
+    public fun <D : ShapeDim> split(dim: D, lhsLen: Int): Pair<StreamTensor, StreamTensor> {
+        val t = self.tensor; return when (t) {
+            null -> Pair(empty(), empty())
+            else -> {
+                val seqLen = t.dim(dim)
+                val lhsLen = usizeMin(seqLen, lhsLen)
+                if (lhsLen == 0) {
+                    Pair(empty(), from(t.clone()))
+                } else {
+                    val lhs = fromTensor(t.narrow(dim, 0, lhsLen))
+                    val rhsLen = seqLen - lhsLen
+                    val rhs = if (rhsLen == 0) {
+                        empty()
+                    } else {
+                        fromTensor(t.narrow(dim, lhsLen, rhsLen))
+                    }
+                    Pair(lhs, rhs)
+                }
+            }
         }
-        val lhs = fromTensor(t.narrow(dim, 0, actualLhsLen))
-        val rhsLen = seqLen - actualLhsLen
-        val rhs = if (rhsLen == 0) {
-            empty()
-        } else {
-            fromTensor(t.narrow(dim, actualLhsLen, rhsLen))
-        }
-        return Pair(lhs, rhs)
     }
 
-    public fun split(dim: ShapeDim, lhsLen: Int): Pair<StreamTensor, StreamTensor> {
-        val t = tensor ?: return Pair(empty(), empty())
-        val dimIdx = dim.toIndex(t.shape(), "split")
-        return split(dimIdx, lhsLen)
+    public fun asOption(): Tensor? {
+        return asRef(self.tensor)
     }
 
-    public fun asOption(): Tensor? = tensor
-
-    public fun apply(m: Module): StreamTensor =
-        when (val t = tensor) {
-            null -> empty()
-            else -> fromTensor(t.apply(m))
+    public fun <M : Module> apply(m: M): StreamTensor {
+        val t = self.tensor; return when (t) {
+            null -> Ok(empty())
+            else -> Ok(fromTensor(t.apply(m)))
         }
+    }
 
     public companion object {
-        public fun empty(): StreamTensor = StreamTensor(null)
+        public fun from(value: Tensor?): StreamTensor {
+            return Self(value)
+        }
 
-        public fun fromTensor(tensor: Tensor): StreamTensor = StreamTensor(tensor)
+        public fun from(value: Tensor): StreamTensor {
+            return Self(Some(value))
+        }
 
-        public fun from(value: Tensor?): StreamTensor = StreamTensor(value)
+        public fun from(value: Unit): StreamTensor {
+            value; return Self(None)
+        }
 
-        public fun from(value: Tensor): StreamTensor = StreamTensor(value)
+        public fun empty(): StreamTensor {
+            return Self(None)
+        }
 
-        public fun from(): StreamTensor = StreamTensor(null)
-
-        public fun cat2(lhs: StreamTensor, rhs: StreamTensor, dim: Int): StreamTensor = lhs.cat2(rhs, dim)
-
-        public fun cat2(lhs: StreamTensor, rhs: StreamTensor, dim: ShapeDim): StreamTensor = lhs.cat2(rhs, dim)
+        public fun fromTensor(tensor: Tensor): StreamTensor {
+            return Self(Some(tensor))
+        }
     }
 }
 
@@ -137,58 +147,64 @@ public enum class BinOp {
     Add,
     Mul,
     Sub,
-    Div,
+    Div
 }
 
 public class StreamingBinOp(
+    private var prevLhs: StreamTensor,
+    private var prevRhs: StreamTensor,
     public var op: BinOp,
-    public var dim: ShapeDim,
+    public var dim: D
 ) {
-    public constructor(op: BinOp, dim: Int) : this(op, ShapeDimIndex(dim))
-
-    private var prevLhs: StreamTensor = StreamTensor.empty()
-    private var prevRhs: StreamTensor = StreamTensor.empty()
+    public constructor(op: BinOp, dim: D) : this(StreamTensor.empty(), StreamTensor.empty(), op, dim)
+    public constructor(op: BinOp, dim: Int) : this(op, D.Custom(dim))
+    private val self: StreamingBinOp get() = this
 
     public fun resetState() {
-        prevLhs.reset()
-        prevRhs.reset()
+        self.prevLhs.reset()
+        self.prevRhs.reset()
     }
 
-    public fun forward(lhs: Tensor, rhs: Tensor): Tensor =
-        when (op) {
+    public fun forward(lhs: Tensor, rhs: Tensor): Tensor {
+        return when (self.op) {
             BinOp.Add -> Tensor.add(lhs, rhs)
             BinOp.Mul -> Tensor.mul(lhs, rhs)
             BinOp.Sub -> Tensor.sub(lhs, rhs)
             BinOp.Div -> Tensor.div(lhs, rhs)
         }
+    }
 
     public fun step(lhs: StreamTensor, rhs: StreamTensor): StreamTensor {
-        val catLhs = StreamTensor.cat2(prevLhs, lhs, dim)
-        val catRhs = StreamTensor.cat2(prevRhs, rhs, dim)
-        val lhsLen = catLhs.seqLen(dim)
-        val rhsLen = catRhs.seqLen(dim)
-        val commonLen = minOf(lhsLen, rhsLen)
-        val (newLhs, newPrevLhs) = catLhs.split(dim, commonLen)
-        val (newRhs, newPrevRhs) = catRhs.split(dim, commonLen)
-        val l = newLhs.asOption()
-        val r = newRhs.asOption()
-        val ys = if (l != null && r != null) {
-            val out = forward(l, r)
-            StreamTensor.fromTensor(out)
-        } else if (l == null && r == null) {
-            StreamTensor.empty()
-        } else {
-            bail("INTERNAL ERROR inconsistent lhs and rhs $newLhs $newRhs")
+        val lhs = self.prevLhs.cat2(lhs, self.dim)
+        val rhs = self.prevRhs.cat2(rhs, self.dim)
+        val lhsLen = lhs.seqLen(self.dim)
+        val rhsLen = rhs.seqLen(self.dim)
+        val commonLen = usizeMin(lhsLen, rhsLen)
+        val splitLhs = lhs.split(self.dim, commonLen)
+        val splitRhs = rhs.split(self.dim, commonLen)
+        val l = splitLhs.first.tensor; val r = splitRhs.first.tensor
+        val ys = when {
+            l != null && r != null -> {
+                val ys = self.forward(l, r)
+                StreamTensor.fromTensor(ys)
+            }
+            l == null && r == null -> StreamTensor.empty()
+            else -> bail("INTERNAL ERROR inconsistent lhs and rhs $l $r")
         }
-        prevLhs = newPrevLhs
-        prevRhs = newPrevRhs
-        return ys
+        self.prevLhs = splitLhs.second
+        self.prevRhs = splitRhs.second
+        return Ok(ys)
     }
 
     public companion object {
-        public fun new(op: BinOp, dim: ShapeDim): StreamingBinOp = StreamingBinOp(op, dim)
-
-        public fun new(op: BinOp, dim: Int): StreamingBinOp = StreamingBinOp(op, dim)
+        public fun new(op: BinOp, dim: D): StreamingBinOp {
+            return StreamingBinOp(
+                prevLhs = StreamTensor.empty(),
+                prevRhs = StreamTensor.empty(),
+                op = op,
+                dim = dim
+            )
+        }
     }
 }
 
@@ -196,9 +212,13 @@ public class StreamingBinOp(
  * Simple wrapper that doesn't do any buffering.
  */
 public class Map<T : Module>(
-    public val module: T,
+    public val module: T
 ) : StreamingModule {
-    override fun resetState() {}
+    private val self: Map<T> get() = this
 
-    override fun step(xs: StreamTensor): StreamTensor = xs.apply(module)
+    override fun resetState() { self }
+
+    override fun step(xs: StreamTensor): StreamTensor {
+        return xs.apply(self.module)
+    }
 }

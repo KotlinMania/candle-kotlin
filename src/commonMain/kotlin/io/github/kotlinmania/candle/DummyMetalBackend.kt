@@ -1,163 +1,198 @@
-// port-lint: source dummy_metal_backend.rs
 package io.github.kotlinmania.candle
 
 import io.github.kotlinmania.thiserror.StdError
 
-public sealed class MetalError : Exception(), StdError {
-    override fun source(): StdError? = cause as? StdError
-    public data class Message(
-        override val message: String,
-    ) : MetalError() {
-        override fun toString(): String = message
-    }
+/**
+ * Implementation of the Metal backend when Metal support has not been compiled in.
+ *
+ * Provides stub device, storage, and error types that return NotCompiledWithMetalSupport
+ * errors when Metal backend operations are invoked without Metal compilation enabled.
+ */
+// port-lint: source dummy_metal_backend.rs
+
+private val Err: (CandleException) -> Nothing = { throw it }
+private val Error = CandleException
+private val fail: () -> Nothing = {
+    throw CandleException.Msg("metal support has not been enabled, add `metal` feature to enable.")
+}
+private val Ok: (Unit) -> Unit = { }
+
+public sealed class MetalError(message: String) : Exception(message), StdError {
+    public data class Message(override val message: String) : MetalError(message)
 
     public companion object {
-        public fun from(e: String): MetalError = Message(e)
+        public fun from(e: String): MetalError {
+            return MetalError.Message(e)
+        }
     }
 }
 
-public data class MetalDevice(
-    val gpuId: Int = 0,
-) : BackendDevice {
+public data class MetalDevice(val gpuId: Int = 0) : BackendDevice {
     public interface Device
     public interface Storage
+    private val self: MetalDevice get() = this
 
-    public fun id(): DeviceId = DeviceId(gpuId)
+    override fun location(): DeviceLocation {
+        self; return fail()
+    }
 
-    override fun location(): DeviceLocation =
-        throw CandleException.NotCompiledWithMetalSupport
+    override fun sameDevice(
+        other: BackendDevice
+    ): Boolean = fail()
 
-    override fun sameDevice(other: BackendDevice): Boolean =
-        throw CandleException.NotCompiledWithMetalSupport
+    override fun setSeed(
+        seed: Long
+    ): Unit = Err(Error.NotCompiledWithMetalSupport)
 
-    override fun setSeed(seed: Long): Unit =
-        throw CandleException.NotCompiledWithMetalSupport
+    override fun getCurrentSeed(): Long {
+        self; return Err(Error.NotCompiledWithMetalSupport)
+    }
 
-    override fun getCurrentSeed(): Long =
-        throw CandleException.NotCompiledWithMetalSupport
+    override fun zerosImpl(
+        shape: Shape, dtype: DType
+    ): BackendStorage = Err(Error.NotCompiledWithMetalSupport)
 
-    override fun zerosImpl(shape: Shape, dtype: DType): BackendStorage =
-        throw CandleException.NotCompiledWithMetalSupport
+    override fun allocUninit(
+        shape: Shape, dtype: DType
+    ): BackendStorage = Err(Error.NotCompiledWithMetalSupport)
 
-    override fun allocUninit(shape: Shape, dtype: DType): BackendStorage =
-        throw CandleException.NotCompiledWithMetalSupport
+    public fun <T> storageFromSlice(
+        s: List<T>
+    ): MetalStorage = Err(Error.NotCompiledWithMetalSupport)
 
-    public fun <T> storageFromSlice(slice: List<T>): MetalStorage =
-        throw CandleException.NotCompiledWithMetalSupport
+    override fun storageFromCpuStorage(
+        s: CpuStorage
+    ): BackendStorage = Err(Error.NotCompiledWithMetalSupport)
 
-    override fun storageFromCpuStorage(storage: CpuStorage): BackendStorage =
-        throw CandleException.NotCompiledWithMetalSupport
+    override fun storageFromCpuStorageOwned(
+        s: CpuStorage
+    ): BackendStorage = Err(Error.NotCompiledWithMetalSupport)
 
-    override fun storageFromCpuStorageOwned(storage: CpuStorage): BackendStorage =
-        throw CandleException.NotCompiledWithMetalSupport
+    override fun randUniform(
+        s: Shape, d: DType, lo: Double, up: Double
+    ): BackendStorage = Err(Error.NotCompiledWithMetalSupport)
 
-    override fun randUniform(shape: Shape, dtype: DType, min: Double, max: Double): BackendStorage =
-        throw CandleException.NotCompiledWithMetalSupport
+    override fun randNormal(
+        s: Shape, d: DType, mean: Double, std: Double
+    ): BackendStorage = Err(Error.NotCompiledWithMetalSupport)
 
-    override fun randNormal(shape: Shape, dtype: DType, mean: Double, std: Double): BackendStorage =
-        throw CandleException.NotCompiledWithMetalSupport
-
-    override fun synchronize() {}
+    override fun synchronize() {
+        self; Ok(Unit)
+    }
 
     public companion object {
-        public fun new(ordinal: Int): MetalDevice =
-            throw CandleException.NotCompiledWithMetalSupport
+        public fun new(
+            o: Int
+        ): MetalDevice = Err(Error.NotCompiledWithMetalSupport)
     }
 }
 
 public class MetalStorage : BackendStorage {
-    public fun transferToDevice(dst: MetalDevice): MetalStorage =
-        throw CandleException.NotCompiledWithMetalSupport
+    private val self: MetalStorage get() = this
 
-    override fun tryClone(layout: Layout): BackendStorage =
-        throw CandleException.NotCompiledWithMetalSupport
+    override fun tryClone(
+        l: Layout
+    ): BackendStorage = Err(Error.NotCompiledWithMetalSupport)
 
-    override fun dtype(): DType =
-        throw CandleException.NotCompiledWithMetalSupport
+    override fun dtype(): DType {
+        self; return fail()
+    }
 
-    override fun device(): BackendDevice =
-        throw CandleException.NotCompiledWithMetalSupport
+    override fun device(): BackendDevice {
+        self; return fail()
+    }
 
-    override fun constSet(v: Scalar, l: Layout): Unit =
-        throw CandleException.NotCompiledWithMetalSupport
+    override fun constSet(
+        s: Scalar, l: Layout
+    ): Unit = Err(Error.NotCompiledWithMetalSupport)
 
-    override fun toCpuStorage(): CpuStorage =
-        throw CandleException.NotCompiledWithMetalSupport
+    override fun toCpuStorage(): CpuStorage {
+        self; return Err(Error.NotCompiledWithMetalSupport)
+    }
 
-    override fun affine(layout: Layout, mul: Double, add: Double): BackendStorage =
-        throw CandleException.NotCompiledWithMetalSupport
+    override fun affine(
+        l: Layout, mul: Double, add: Double
+    ): BackendStorage = Err(Error.NotCompiledWithMetalSupport)
 
-    override fun powf(layout: Layout, e: Double): BackendStorage =
-        throw CandleException.NotCompiledWithMetalSupport
+    override fun powf(
+        l: Layout, e: Double
+    ): BackendStorage = Err(Error.NotCompiledWithMetalSupport)
 
-    override fun elu(layout: Layout, alpha: Double): BackendStorage =
-        throw CandleException.NotCompiledWithMetalSupport
+    override fun elu(
+        l: Layout, alpha: Double
+    ): BackendStorage = Err(Error.NotCompiledWithMetalSupport)
 
-    override fun reduceOp(op: ReduceOp, layout: Layout, dims: List<Int>): BackendStorage =
-        throw CandleException.NotCompiledWithMetalSupport
+    override fun reduceOp(
+        op: ReduceOp, l: Layout, dims: List<Int>
+    ): BackendStorage = Err(Error.NotCompiledWithMetalSupport)
 
-    override fun cmp(op: CmpOp, rhs: BackendStorage, lhsL: Layout, rhsL: Layout): BackendStorage =
-        throw CandleException.NotCompiledWithMetalSupport
+    override fun cmp(
+        op: CmpOp, rhs: BackendStorage, lhsL: Layout, rhsL: Layout
+    ): BackendStorage = Err(Error.NotCompiledWithMetalSupport)
 
-    override fun toDtype(layout: Layout, targetDType: DType): BackendStorage =
-        throw CandleException.NotCompiledWithMetalSupport
+    override fun toDtype(
+        l: Layout, dtype: DType
+    ): BackendStorage = Err(Error.NotCompiledWithMetalSupport)
 
-    public fun <B : UnaryOpT> unaryImpl(layout: Layout): MetalStorage =
-        throw CandleException.NotCompiledWithMetalSupport
+    public fun <B : UnaryOpT> unaryImpl(
+        l: Layout
+    ): MetalStorage = Err(Error.NotCompiledWithMetalSupport)
 
     public fun <B : BinaryOpT> binaryImpl(
-        rhs: MetalStorage,
-        lhsL: Layout,
-        rhsL: Layout,
-    ): MetalStorage =
-        throw CandleException.NotCompiledWithMetalSupport
+        rhs: MetalStorage, lhsL: Layout, rhsL: Layout
+    ): MetalStorage = Err(Error.NotCompiledWithMetalSupport)
 
     override fun whereCond(
-        layout: Layout,
-        onTrue: BackendStorage,
-        trueL: Layout,
-        onFalse: BackendStorage,
-        falseL: Layout,
-    ): BackendStorage =
-        throw CandleException.NotCompiledWithMetalSupport
+        l: Layout, t: BackendStorage, tl: Layout, f: BackendStorage, fl: Layout
+    ): BackendStorage = Err(Error.NotCompiledWithMetalSupport)
 
     override fun conv1d(
         l: Layout,
         kernel: BackendStorage,
         kernelL: Layout,
-        params: ParamsConv1D,
+        params: ParamsConv1D
     ): BackendStorage =
-        throw CandleException.NotCompiledWithMetalSupport
+        Err(
+            Error.NotCompiledWithMetalSupport
+        )
 
     override fun convTranspose1d(
         l: Layout,
         kernel: BackendStorage,
         kernelL: Layout,
-        params: ParamsConvTranspose1D,
+        params: ParamsConvTranspose1D
     ): BackendStorage =
-        throw CandleException.NotCompiledWithMetalSupport
+        Err(
+            Error.NotCompiledWithMetalSupport
+        )
 
     override fun conv2d(
         l: Layout,
         kernel: BackendStorage,
         kernelL: Layout,
-        params: ParamsConv2D,
+        params: ParamsConv2D
     ): BackendStorage =
-        throw CandleException.NotCompiledWithMetalSupport
+        Err(
+            Error.NotCompiledWithMetalSupport
+        )
 
     override fun convTranspose2d(
         l: Layout,
         kernel: BackendStorage,
         kernelL: Layout,
-        params: ParamsConvTranspose2D,
+        params: ParamsConvTranspose2D
     ): BackendStorage =
-        throw CandleException.NotCompiledWithMetalSupport
+        Err(
+            Error.NotCompiledWithMetalSupport
+        )
 
-    override fun indexSelect(rhs: BackendStorage, lhsL: Layout, rhsL: Layout, dim: Int): BackendStorage =
-        throw CandleException.NotCompiledWithMetalSupport
+    override fun indexSelect(
+        rhs: BackendStorage, lhsL: Layout, rhsL: Layout, d: Int
+    ): BackendStorage = Err(Error.NotCompiledWithMetalSupport)
 
-    override fun gather(l: Layout, indexes: BackendStorage, indexesL: Layout, dim: Int): BackendStorage =
-        throw CandleException.NotCompiledWithMetalSupport
+    override fun gather(
+        l: Layout, indexes: BackendStorage, indexesL: Layout, d: Int
+    ): BackendStorage = Err(Error.NotCompiledWithMetalSupport)
 
     override fun scatterSet(
         l: Layout,
@@ -165,9 +200,11 @@ public class MetalStorage : BackendStorage {
         indexesL: Layout,
         src: BackendStorage,
         srcL: Layout,
-        dim: Int,
+        d: Int
     ): Unit =
-        throw CandleException.NotCompiledWithMetalSupport
+        Err(
+            Error.NotCompiledWithMetalSupport
+        )
 
     override fun scatterAddSet(
         l: Layout,
@@ -175,9 +212,11 @@ public class MetalStorage : BackendStorage {
         indexesL: Layout,
         src: BackendStorage,
         srcL: Layout,
-        dim: Int,
+        d: Int
     ): Unit =
-        throw CandleException.NotCompiledWithMetalSupport
+        Err(
+            Error.NotCompiledWithMetalSupport
+        )
 
     override fun indexAdd(
         l: Layout,
@@ -185,59 +224,64 @@ public class MetalStorage : BackendStorage {
         indexesL: Layout,
         src: BackendStorage,
         srcL: Layout,
-        dim: Int,
+        d: Int
     ): BackendStorage =
-        throw CandleException.NotCompiledWithMetalSupport
+        Err(
+            Error.NotCompiledWithMetalSupport
+        )
 
     override fun matmul(
         rhs: BackendStorage,
         bmnk: List<Int>,
         lhsL: Layout,
-        rhsL: Layout,
+        rhsL: Layout
     ): BackendStorage =
-        throw CandleException.NotCompiledWithMetalSupport
+        Err(
+            Error.NotCompiledWithMetalSupport
+        )
 
-    override fun copyStridedSrc(dst: BackendStorage, dstOffset: Int, srcLayout: Layout): Unit =
-        throw CandleException.NotCompiledWithMetalSupport
+    override fun copyStridedSrc(
+        dst: BackendStorage, dstOffset: Int, srcL: Layout
+    ): Unit = Err(Error.NotCompiledWithMetalSupport)
 
     override fun copy2d(
         dst: BackendStorage,
         d1: Int,
         d2: Int,
-        srcStride1: Int,
-        dstStride1: Int,
-        srcOffset: Int,
-        dstOffset: Int,
+        srcS: Int,
+        dstS: Int,
+        srcO: Int,
+        dstO: Int
     ): Unit =
-        throw CandleException.NotCompiledWithMetalSupport
+        Err(
+            Error.NotCompiledWithMetalSupport
+        )
 
     override fun avgPool2d(
-        l: Layout,
-        kernelSize: Pair<Int, Int>,
-        stride: Pair<Int, Int>,
-    ): BackendStorage =
-        throw CandleException.NotCompiledWithMetalSupport
+        l: Layout, k: Pair<Int, Int>, s: Pair<Int, Int>
+    ): BackendStorage = Err(Error.NotCompiledWithMetalSupport)
 
     override fun maxPool2d(
-        l: Layout,
-        kernelSize: Pair<Int, Int>,
-        stride: Pair<Int, Int>,
-    ): BackendStorage =
-        throw CandleException.NotCompiledWithMetalSupport
+        l: Layout, k: Pair<Int, Int>, s: Pair<Int, Int>
+    ): BackendStorage = Err(Error.NotCompiledWithMetalSupport)
 
-    override fun upsampleNearest1d(l: Layout, targetSize: Int): BackendStorage =
-        throw CandleException.NotCompiledWithMetalSupport
+    override fun upsampleNearest1d(
+        l: Layout, sz: Int
+    ): BackendStorage = Err(Error.NotCompiledWithMetalSupport)
 
-    override fun upsampleNearest2d(l: Layout, targetH: Int, targetW: Int): BackendStorage =
-        throw CandleException.NotCompiledWithMetalSupport
+    override fun upsampleNearest2d(
+        l: Layout, h: Int, w: Int
+    ): BackendStorage = Err(Error.NotCompiledWithMetalSupport)
 
     override fun upsampleBilinear2d(
         l: Layout,
-        targetH: Int,
-        targetW: Int,
-        alignCorners: Boolean,
+        h: Int,
+        w: Int,
+        align: Boolean,
         scaleH: Double?,
-        scaleW: Double?,
+        scaleW: Double?
     ): BackendStorage =
-        throw CandleException.NotCompiledWithMetalSupport
+        Err(
+            Error.NotCompiledWithMetalSupport
+        )
 }

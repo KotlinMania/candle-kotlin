@@ -34,153 +34,173 @@ public const val MAX_DIMS: Int = 8
  * Note: `innerStrides[n]` can be 1 (contiguous), but also 0 (broadcast/scalar) or > 1 (non-contiguous),
  * so callers must not assume contiguous element access within a slice.
  */
-public class NdIter(
-    layouts: List<Layout>,
-) : Iterator<IntArray> {
-    public constructor(vararg layouts: Layout) : this(layouts.toList())
-
-    /** Number of tensor layouts iterated simultaneously. */
-    public val n: Int = layouts.size
-
-    /**
-     * Number of elements in each innermost merged slice yielded by [next].
-     *
-     * When all dimensions of a contiguous tensor merge into a single slice,
-     * [innerSize] equals the total element count and [remaining] starts at `1`.
-     */
-    public val innerSize: Int
-
-    /**
-     * Per-layout element stride within each inner slice: `elementOffset = base + i * stride`.
-     *
-     * Can be `1` for contiguous inner slices, `0` for broadcast dimensions, or `> 1` for strided views.
-     */
-    public val innerStrides: IntArray
-
-    private val outerDims: IntArray = IntArray(MAX_DIMS)
-    private val outerStrides: Array<IntArray> = Array(n) { IntArray(MAX_DIMS) }
-
-    /** Number of unmerged outer dimensions tracked by the coordinate counter. */
-    public val outerLen: Int
-
-    private val offsets: IntArray
-    private val coords: IntArray = IntArray(MAX_DIMS)
-
-    /**
-     * Number of outer blocks (product of all dims except the innermost) remaining to be yielded.
-     */
+public class NdIter internal constructor(
+    public val innerSize: Int,
+    /** Per-layout element stride within each inner slice: `elementOffset = base + i * stride`. */
+    public val innerStrides: IntArray,
+    private val outerDims: IntArray,
+    private val outerStrides: Array<IntArray>,
+    public val outerLen: Int,
+    private val offsets: IntArray,
+    private val coords: IntArray,
     public var remaining: Int
+) : Iterator<IntArray> {
+    public constructor(layouts: List<Layout>) : this(new(layouts))
+    public constructor(vararg layouts: Layout) : this(new(layouts.toList()))
+    private constructor(other: NdIter) : this(
+        other.innerSize,
+        other.innerStrides,
+        other.outerDims,
+        other.outerStrides,
+        other.outerLen,
+        other.offsets,
+        other.coords,
+        other.remaining
+    )
 
-    init {
-        require(layouts.isNotEmpty()) { "layouts must not be empty" }
-        val dims = layouts[0].dims
-        require(dims.size <= MAX_DIMS) { "rank ${dims.size} exceeds MAX_DIMS=$MAX_DIMS" }
-        for (l in layouts) {
-            require(l.dims == dims) { "all layouts must have identical dimensions" }
-        }
-
-        val rank = dims.size
-        val outDims = IntArray(MAX_DIMS)
-        val outStrides = Array(n) { IntArray(MAX_DIMS) }
-        var outLen: Int
-
-        if (rank == 0) {
-            outDims[0] = 1
-            outLen = 1
-        } else {
-            outDims[0] = dims[0]
-            for (i in 0 until n) {
-                outStrides[i][0] = layouts[i].stride[0]
-            }
-            outLen = 1
-
-            for (i in 1 until rank) {
-                val d = dims[i]
-                val top = outLen - 1
-                val lastD = outDims[top]
-
-                val (canMerge, useInner) = if (lastD == 1) {
-                    Pair(true, true)
-                } else if (d == 1) {
-                    Pair(true, false)
-                } else {
-                    val canMerge = (0 until n).all { ni ->
-                        outStrides[ni][top] == layouts[ni].stride[i] * d
-                    }
-                    Pair(canMerge, true)
-                }
-
-                if (canMerge) {
-                    outDims[top] = lastD * d
-                    if (useInner) {
-                        for (ni in 0 until n) {
-                            outStrides[ni][top] = layouts[ni].stride[i]
-                        }
-                    }
-                } else {
-                    outDims[outLen] = d
-                    for (ni in 0 until n) {
-                        outStrides[ni][outLen] = layouts[ni].stride[i]
-                    }
-                    outLen++
-                }
-            }
-        }
-
-        val innerIdx = outLen - 1
-        innerSize = outDims[innerIdx]
-        innerStrides = IntArray(n) { ni -> outStrides[ni][innerIdx] }
-
-        outerLen = innerIdx
-        for (i in 0 until outerLen) {
-            outerDims[i] = outDims[i]
-            for (ni in 0 until n) {
-                outerStrides[ni][i] = outStrides[ni][i]
-            }
-        }
-
-        offsets = IntArray(n) { ni -> layouts[ni].startOffset }
-
-        var rem = 1
-        for (i in 0 until outerLen) {
-            rem *= outDims[i]
-        }
-        remaining = rem
-    }
+    public val n: Int = innerStrides.size
+    private val self: NdIter get() = this
 
     public val len: Int get() = remaining
 
     override fun hasNext(): Boolean = remaining > 0
 
     override fun next(): IntArray {
-        if (remaining == 0) {
+        if (self.remaining == 0) {
             throw NoSuchElementException()
         }
-        val item = offsets.copyOf()
-        remaining--
+        val item = self.offsets.copyOf()
+        self.remaining -= 1
 
-        for (k in (outerLen - 1) downTo 0) {
-            coords[k]++
-            for (ni in 0 until n) {
-                offsets[ni] += outerStrides[ni][k]
+        for (k in (0 until self.outerLen).reversed()) {
+            self.coords[k] += 1
+            for (n in 0 until this.n) {
+                self.offsets[n] += self.outerStrides[n][k]
             }
-            if (coords[k] < outerDims[k]) {
+            if (self.coords[k] < self.outerDims[k]) {
                 break
             }
-            coords[k] = 0
-            for (ni in 0 until n) {
-                offsets[ni] -= outerDims[k] * outerStrides[ni][k]
+            self.coords[k] = 0
+            for (n in 0 until this.n) {
+                self.offsets[n] -= self.outerDims[k] * self.outerStrides[n][k]
             }
         }
 
         return item
     }
 
-    public fun sizeHint(): Pair<Int, Int?> = Pair(remaining, remaining)
+    public fun sizeHint(): Pair<Int, Int?> {
+        return Pair(self.remaining, self.remaining)
+    }
 
     public companion object {
-        public fun new(vararg layouts: Layout): NdIter = NdIter(*layouts)
+        private val debugAssert: (Boolean, String, Any?, Any?) -> Unit = { cond, _, _, _ ->
+            require(cond)
+        }
+        private val debugAssertEq: (Any?, Any?) -> Unit = { a, b ->
+            require(a == b)
+        }
 
-        public fun new(layouts: List<Layout>): NdIter = NdIter(layouts)
+        public fun new(layouts: List<Layout>): NdIter {
+            val N = layouts.size
+            val dims = layouts[0].dims()
+            debugAssert(
+                dims.size <= MAX_DIMS,
+                "rank {} exceeds MAX_DIMS={}",
+                dims.size,
+                MAX_DIMS
+            )
+            for (l in layouts) {
+                debugAssertEq(l.dims(), dims)
+            }
+
+            val rank = dims.size
+            val outDims = IntArray(MAX_DIMS)
+            val outStrides = Array(N) { IntArray(MAX_DIMS) }
+            var outLen: Int
+
+            if (rank == 0) {
+                outDims[0] = 1
+                outLen = 1
+            } else {
+                outDims[0] = dims[0]
+                for (n in 0 until N) {
+                    outStrides[n][0] = layouts[n].stride()[0]
+                }
+                outLen = 1
+
+                for (entry in dims.withIndex().take(rank).drop(1)) {
+                    val i = entry.index
+                    val d = entry.value
+                    val top = outLen - 1
+                    val lastD = outDims[top]
+
+                    val mergePair = if (lastD == 1) {
+                        Pair(true, true)
+                    } else if (d == 1) {
+                        Pair(true, false)
+                    } else {
+                        val canMerge =
+                            (0 until N).all { n -> outStrides[n][top] == layouts[n].stride()[i] * d }
+                        Pair(canMerge, true)
+                    }
+                    val canMerge = mergePair.first
+                    val useInner = mergePair.second
+                    if (canMerge) {
+                        outDims[top] = lastD * d
+                        if (useInner) {
+                            for (n in 0 until N) {
+                                outStrides[n][top] = layouts[n].stride()[i]
+                            }
+                        }
+                    } else {
+                        outDims[outLen] = d
+                        for (n in 0 until N) {
+                            outStrides[n][outLen] = layouts[n].stride()[i]
+                        }
+                        outLen += 1
+                    }
+                }
+            }
+
+            // Update inner strides
+            val innerIdx = outLen - 1
+            val innerSize = outDims[innerIdx]
+            val innerStrides = IntArray(N)
+            for (n in 0 until N) {
+                innerStrides[n] = outStrides[n][innerIdx]
+            }
+
+            // Update outer dims
+            val outerLen = innerIdx
+            val outerDims = IntArray(MAX_DIMS)
+            outDims.copyInto(outerDims, 0, 0, outerLen)
+
+            // Update outer strides
+            val outerStrides = Array(N) { IntArray(MAX_DIMS) }
+            for (n in 0 until N) {
+                outStrides[n].copyInto(outerStrides[n], 0, 0, outerLen)
+            }
+
+            // Update offsets
+            val offsets = IntArray(N)
+            for (n in 0 until N) {
+                offsets[n] = layouts[n].startOffset()
+            }
+
+            // Number of outer blocks (product of all dims except the innermost).
+            val remaining = outDims.take(outerLen).fold(1) { acc, v -> acc * v }
+
+            return NdIter(
+                innerSize,
+                innerStrides,
+                outerDims,
+                outerStrides,
+                outerLen,
+                offsets,
+                IntArray(MAX_DIMS),
+                remaining
+            )
+        }
     }
 }
