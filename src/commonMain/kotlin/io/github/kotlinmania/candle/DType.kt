@@ -1,6 +1,7 @@
 // port-lint: source dtype.rs
 package io.github.kotlinmania.candle
 
+import io.github.kotlinmania.anyhow.Err
 import io.github.kotlinmania.anyhow.Ok
 import io.github.kotlinmania.anyhow.Result
 
@@ -9,9 +10,8 @@ import io.github.kotlinmania.anyhow.Result
  */
 
 public class DTypeParseError(public val raw: String) : Exception("cannot parse '$raw' as a dtype") {
-    public fun fmt(f: StringBuilder): Result<Unit> {
-        f.append("cannot parse '$raw' as a dtype")
-        return Ok(Unit)
+    public fun fmt(self: DTypeParseError, f: Formatter): Result<Unit> {
+        return write(f, "cannot parse '{}' as a dtype", self.raw)
     }
 }
 
@@ -60,80 +60,100 @@ public enum class DType(
     F8E8M0("f8e8m0", 1),
     ;
 
+    private val self: DType get() = this
+
     /**
      * String representation for dtypes.
      */
     public fun asStr(): String =
-        when (this) {
-            U8 -> "u8"
-            U32 -> "u32"
-            I16 -> "i16"
-            I32 -> "i32"
-            I64 -> "i64"
-            BF16 -> "bf16"
-            F16 -> "f16"
-            F32 -> "f32"
-            F64 -> "f64"
-            F8E4M3 -> "f8e4m3"
-            F6E2M3 -> "f6e2m3"
-            F6E3M2 -> "f6e3m2"
-            F4 -> "f4"
-            F8E8M0 -> "f8e8m0"
+        when (self) {
+            Self.U8 -> "u8"
+            Self.U32 -> "u32"
+            Self.I16 -> "i16"
+            Self.I32 -> "i32"
+            Self.I64 -> "i64"
+            Self.BF16 -> "bf16"
+            Self.F16 -> "f16"
+            Self.F32 -> "f32"
+            Self.F64 -> "f64"
+            Self.F8E4M3 -> "f8e4m3"
+            Self.F6E2M3 -> "f6e2m3"
+            Self.F6E3M2 -> "f6e3m2"
+            Self.F4 -> "f4"
+            Self.F8E8M0 -> "f8e8m0"
         }
 
     /**
      * The size used by each element in bytes, i.e. 1 for `U8`, 4 for `F32`.
      */
     public fun sizeInBytes(): Int =
-        when (this) {
-            U8 -> 1
-            U32 -> 4
-            I16 -> 2
-            I32 -> 4
-            I64 -> 8
-            BF16 -> 2
-            F16 -> 2
-            F32 -> 4
-            F64 -> 8
-            F8E4M3 -> 1
-            F6E2M3 -> 0
-            F6E3M2 -> 0
-            F4 -> 0
-            F8E8M0 -> 1
+        when (self) {
+            Self.U8 -> 1
+            Self.U32 -> 4
+            Self.I16 -> 2
+            Self.I32 -> 4
+            Self.I64 -> 8
+            Self.BF16 -> 2
+            Self.F16 -> 2
+            Self.F32 -> 4
+            Self.F64 -> 8
+            Self.F8E4M3 -> 1
+            Self.F6E2M3 -> 0
+            Self.F6E3M2 -> 0
+            Self.F4 -> 0
+            Self.F8E8M0 -> 1
         }
 
     public fun isInt(): Boolean =
-        when (this) {
-            U8, U32, I16, I32, I64 -> true
-            BF16, F16, F32, F64, F8E4M3, F6E2M3, F6E3M2, F4, F8E8M0 -> false
+        when (self) {
+            Self.U8, Self.U32, Self.I16, Self.I32, Self.I64 -> true
+            Self.BF16,
+            Self.F16,
+            Self.F32,
+            Self.F64,
+            Self.F8E4M3,
+            Self.F6E2M3,
+            Self.F6E3M2,
+            Self.F4,
+            Self.F8E8M0,
+            -> false
         }
 
     public fun isFloat(): Boolean =
-        when (this) {
-            U8, U32, I16, I32, I64 -> false
-            BF16, F16, F32, F64, F8E4M3, F6E2M3, F6E3M2, F4, F8E8M0 -> true
+        when (self) {
+            Self.U8, Self.U32, Self.I16, Self.I32, Self.I64 -> false
+            Self.BF16,
+            Self.F16,
+            Self.F32,
+            Self.F64,
+            Self.F8E4M3,
+            Self.F6E2M3,
+            Self.F6E3M2,
+            Self.F4,
+            Self.F8E8M0,
+            -> true
         }
 
-    public companion object {
+    public companion object Self {
         public interface Err
 
         public fun fromStr(s: String): Result<DType> =
             when (s) {
-                "u8" -> Ok(U8)
-                "u32" -> Ok(U32)
-                "i16" -> Ok(I16)
-                "i32" -> Ok(I32)
-                "i64" -> Ok(I64)
-                "bf16" -> Ok(BF16)
-                "f16" -> Ok(F16)
-                "f32" -> Ok(F32)
-                "f64" -> Ok(F64)
-                "f8e4m3" -> Ok(F8E4M3)
-                "f6e2m3" -> Ok(F6E2M3)
-                "f6e3m2" -> Ok(F6E3M2)
-                "f4" -> Ok(F4)
-                "f8e8m0" -> Ok(F8E8M0)
-                else -> Result.failure(DTypeParseError(s.toString()))
+                "u8" -> Ok(Self.U8)
+                "u32" -> Ok(Self.U32)
+                "i16" -> Ok(Self.I16)
+                "i32" -> Ok(Self.I32)
+                "i64" -> Ok(Self.I64)
+                "bf16" -> Ok(Self.BF16)
+                "f16" -> Ok(Self.F16)
+                "f32" -> Ok(Self.F32)
+                "f64" -> Ok(Self.F64)
+                "f8e4m3" -> Ok(Self.F8E4M3)
+                "f6e2m3" -> Ok(Self.F6E2M3)
+                "f6e3m2" -> Ok(Self.F6E3M2)
+                "f4" -> Ok(Self.F4)
+                "f8e8m0" -> Ok(Self.F8E8M0)
+                else -> Err(DTypeParseError(s.toString()))
             }
 
         public val fromString: (String) -> DType = { s ->
@@ -145,46 +165,46 @@ public enum class DType(
 public interface WithDType<T> {
     public val dtype: DType
     public fun fromF64(v: Double): T
-    public fun toF64(v: T): Double
-    public fun toScalar(v: T): Scalar
+    public fun toF64(self: T): Double
+    public fun toScalar(self: T): Scalar
     public fun cpuStorageRef(data: List<T>): CpuStorageRef
     public fun toCpuStorageOwned(data: List<T>): CpuStorage
 
     public fun toCpuStorage(data: List<T>): CpuStorage =
-        toCpuStorageOwned(data.toList())
+        toCpuStorageOwned(data.toVec())
 
     public fun cpuStorageAsSlice(s: CpuStorage): Result<List<T>>
     public fun cpuStorageData(s: CpuStorage): Result<List<T>>
 }
 
 public interface IntDType<T> {
-    public fun isTrue(v: T): Boolean
-    public fun asUsize(v: T): Int
+    public fun isTrue(self: T): Boolean
+    public fun asUsize(self: T): Int
 }
 
-public object IntDTypeI64 : IntDType<Long> {
-    override fun isTrue(v: Long): Boolean = v != 0L
-    override fun asUsize(v: Long): Int = v.toInt()
+public object IntDTypeI64 : IntDType<Int> {
+    override fun isTrue(self: Int) = self != 0
+    override fun asUsize(self: Int) = self
 }
 
-public object IntDTypeU32 : IntDType<UInt> {
-    override fun isTrue(v: UInt): Boolean = v != 0u
-    override fun asUsize(v: UInt): Int = v.toInt()
+public object IntDTypeU32 : IntDType<Int> {
+    override fun isTrue(self: Int) = self != 0
+    override fun asUsize(self: Int) = self
 }
 
-public object IntDTypeU8 : IntDType<UByte> {
-    override fun isTrue(v: UByte): Boolean = v != 0u.toUByte()
-    override fun asUsize(v: UByte): Int = v.toInt()
+public object IntDTypeU8 : IntDType<Int> {
+    override fun isTrue(self: Int) = self != 0
+    override fun asUsize(self: Int) = self
 }
 
-public object IntDTypeI16 : IntDType<Short> {
-    override fun isTrue(v: Short): Boolean = v != 0.toShort()
-    override fun asUsize(v: Short): Int = v.toInt()
+public object IntDTypeI16 : IntDType<Int> {
+    override fun isTrue(self: Int) = self != 0
+    override fun asUsize(self: Int) = self
 }
 
 public object IntDTypeI32 : IntDType<Int> {
-    override fun isTrue(v: Int): Boolean = v != 0
-    override fun asUsize(v: Int): Int = v
+    override fun isTrue(self: Int) = self != 0
+    override fun asUsize(self: Int) = self
 }
 
 public interface FloatDType<T> : WithDType<T>
