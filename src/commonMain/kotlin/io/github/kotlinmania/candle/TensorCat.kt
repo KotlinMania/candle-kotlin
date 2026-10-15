@@ -63,6 +63,23 @@ public fun Tensor.Companion.cat(args: List<Tensor>, dim: Int): Tensor {
     }
 }
 
+/**
+ * Concatenates two or more tensors along a particular dimension.
+ *
+ * All tensors must be of the same rank, and the output will have
+ * the same rank.
+ *
+ * ```kotlin
+ * val a = Tensor.zeros(Shape(2, 3), DType.F32, Device.Cpu)
+ * val b = Tensor.zeros(Shape(2, 3), DType.F32, Device.Cpu)
+ *
+ * val c = Tensor.cat(listOf(a, b), 0)
+ * check(c.shape().dims() == listOf(4, 3))
+ *
+ * val c1 = Tensor.cat(listOf(a, b), 1)
+ * check(c1.shape().dims() == listOf(2, 6))
+ * ```
+ */
 public fun Tensor.Companion.cat(args: List<Tensor>, dim: ShapeDim): Tensor {
     if (args.isEmpty()) {
         throw CandleException.OpRequiresAtLeastOneTensor("cat")
@@ -287,6 +304,15 @@ public fun Tensor.sliceSet(src: Tensor, dim: Int, offset: Int) {
     )
 }
 
+/**
+ * Set the values on `this` using values from `src`. The copy starts at the specified
+ * `offset` for the target dimension `dim` on `this`.
+ * `this` and `src` must have the same shape except on dimension `dim` where the `this` size
+ * has to be greater than or equal to `offset` plus the `src` size.
+ *
+ * Note that this modifies `this` in place and as such is not compatible with
+ * back-propagation.
+ */
 public fun Tensor.sliceSet(src: Tensor, dim: ShapeDim, offset: Int) {
     val dimIdx = dim.toIndex(shape(), "slice-set")
     sliceSet(src, dimIdx, offset)

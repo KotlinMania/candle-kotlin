@@ -1,17 +1,35 @@
 // port-lint: source cpu/kernels.rs
 package io.github.kotlinmania.candle
 
+/**
+ * Vectorized and scalar CPU kernel operations over contiguous slices.
+ */
 public interface VecOps<T> {
+    /**
+     * Element-wise minimum of two scalar values.
+     */
     public fun min(lhs: T, rhs: T): T
+
+    /**
+     * Element-wise maximum of two scalar values.
+     */
     public fun max(lhs: T, rhs: T): T
 
     /**
      * Element-wise addition of two slices into a third.
+     *
+     * # Safety
+     *
+     * All slices must have matching lengths.
      */
     public fun vecAdd(lhs: List<T>, rhs: List<T>, res: MutableList<T>)
 
     /**
      * Add a broadcast scalar to every element of a slice: `ys[i] = xs[i] + scalar`.
+     *
+     * # Safety
+     *
+     * Input and output slices must have matching lengths.
      */
     public fun scalarAdd(scalar: T, xs: List<T>, ys: MutableList<T>)
 

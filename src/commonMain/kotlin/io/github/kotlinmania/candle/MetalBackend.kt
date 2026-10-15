@@ -32,8 +32,16 @@ import io.github.kotlinmania.candle.metal.device.Kernels
 import io.github.kotlinmania.candle.metal.device.MetalDevice
 import io.github.kotlinmania.candle.metal.device.ResidencySet
 
+/**
+ * Implementation of Backend traits for Metal.
+ *
+ * Provides Metal buffer offset helpers, lock error handling, MetalError variants,
+ * and MetalStorage operations.
+ */
 data class BufferOffset(
+    /** The underlying Metal buffer. */
     val buffer: Buffer,
+    /** Byte offset into the Metal buffer. */
     val offsetInBytes: Int
 ) {
     interface Device

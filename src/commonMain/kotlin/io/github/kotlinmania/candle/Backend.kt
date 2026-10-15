@@ -138,6 +138,12 @@ public interface BackendDevice {
 
     public fun zerosImpl(shape: Shape, dtype: DType): BackendStorage
 
+    /**
+     * # Safety
+     * This function does not initialize the underlying data store.
+     * The caller should ensure that the data is properly initialized as early as possible
+     * after this call.
+     */
     public fun allocUninit(shape: Shape, dtype: DType): BackendStorage
 
     public fun storageFromCpuStorage(storage: CpuStorage): BackendStorage

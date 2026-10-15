@@ -13,6 +13,11 @@ import io.github.kotlinmania.candle.quantized.cuda.CudaSlice
 import io.github.kotlinmania.candle.quantized.cuda.MATRIX_ROW_PADDING
 import io.github.kotlinmania.candle.quantized.cuda.QCudaStorage
 
+/**
+ * CUDA fast path for GGUF tiled matmul (prompt/prefill phase).
+ *
+ * Handles batch > 8 (complement to fastMmvq which handles batch 1-8).
+ */
 private const val QK8_1: Int = 32
 private const val BLOCK_Q8_1_MMQ_SIZE: Int = 4 * QK8_1 + 4 * 4 // 128 qs + 16 scale bytes = 144
 
@@ -20,7 +25,9 @@ private fun pad(p: Int, q: Int): Int {
     return ((p + q - 1) / q) * q
 }
 
-/** Quant types supported by MMQ kernels (same as MMVQ). */
+/**
+ * Quant types supported by MMQ kernels (same as MMVQ).
+ */
 private fun supports(dtype: GgmlDType): Boolean {
     return when (dtype) {
         GgmlDType.Q4_0,
@@ -37,7 +44,9 @@ private fun supports(dtype: GgmlDType): Boolean {
     }
 }
 
-/** qk (block quantization size) per dtype. */
+/**
+ * Block quantization size (qk) per dtype.
+ */
 private fun qkFor(dtype: GgmlDType): Int {
     return when (dtype) {
         GgmlDType.Q4_0,

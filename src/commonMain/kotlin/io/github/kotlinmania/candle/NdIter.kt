@@ -12,25 +12,63 @@ public const val MAX_DIMS: Int = 8
  * Multi-dimensional iterator that walks `N` tensor layouts simultaneously.
  *
  * Internally, adjacent dimensions are merged whenever their strides allow it,
- * reducing the number of outer iterations. Each call to [next] yields
+ * reducing the number of outer iterations. Each call to [Iterator.next] yields
  * `IntArray`, one base offset per layout, for one inner slice of `innerSize`
- * elements. Callers iterate that slice using `innerStrides`.
+ * elements. Callers iterate that slice using `innerStrides`:
+ *
+ * ```kotlin
+ * val ndIter = NdIter.new(lhsL, rhsL)
+ * val innerSize = ndIter.innerSize
+ * val innerLs = ndIter.innerStrides[0]
+ * val innerRs = ndIter.innerStrides[1]
+ * for (offsets in ndIter) {
+ *     val lhsOff = offsets[0]
+ *     val rhsOff = offsets[1]
+ *     for (i in 0 until innerSize) {
+ *         val lhs = lhsBuf[lhsOff + i * innerLs]
+ *         val rhs = rhsBuf[rhsOff + i * innerRs]
+ *     }
+ * }
+ * ```
+ *
+ * Note: `innerStrides[n]` can be 1 (contiguous), but also 0 (broadcast/scalar) or > 1 (non-contiguous),
+ * so callers must not assume contiguous element access within a slice.
  */
 public class NdIter(
     layouts: List<Layout>,
 ) : Iterator<IntArray> {
     public constructor(vararg layouts: Layout) : this(layouts.toList())
 
+    /** Number of tensor layouts iterated simultaneously. */
     public val n: Int = layouts.size
+
+    /**
+     * Number of elements in each innermost merged slice yielded by [next].
+     *
+     * When all dimensions of a contiguous tensor merge into a single slice,
+     * [innerSize] equals the total element count and [remaining] starts at `1`.
+     */
     public val innerSize: Int
+
+    /**
+     * Per-layout element stride within each inner slice: `elementOffset = base + i * stride`.
+     *
+     * Can be `1` for contiguous inner slices, `0` for broadcast dimensions, or `> 1` for strided views.
+     */
     public val innerStrides: IntArray
 
     private val outerDims: IntArray = IntArray(MAX_DIMS)
     private val outerStrides: Array<IntArray> = Array(n) { IntArray(MAX_DIMS) }
+
+    /** Number of unmerged outer dimensions tracked by the coordinate counter. */
     public val outerLen: Int
 
     private val offsets: IntArray
     private val coords: IntArray = IntArray(MAX_DIMS)
+
+    /**
+     * Number of outer blocks (product of all dims except the innermost) remaining to be yielded.
+     */
     public var remaining: Int
 
     init {

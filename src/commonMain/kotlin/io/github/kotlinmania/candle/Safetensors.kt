@@ -15,6 +15,9 @@ package io.github.kotlinmania.candle
 
 import kotlin.test.Test
 
+/**
+ * Supported element data types in the `safetensors` wire format.
+ */
 enum class SafeTensorDtype(val wireName: String, val byteSize: Int) {
     U8("U8", 1),
     U16("U16", 2),
@@ -35,11 +38,23 @@ enum class SafeTensorDtype(val wireName: String, val byteSize: Int) {
     interface Error
 }
 
+/**
+ * Zero-copy view over a single tensor stored in a `safetensors` buffer,
+ * holding its wire [dtype], [shape], and raw [data] bytes.
+ *
+ * Implements [Load] so it can be materialized directly onto a target [Device].
+ */
 class SafeTensorView(
+    /** The safetensors wire element type. */
     val dtype: SafeTensorDtype,
+    /** The tensor dimensions. */
     val shape: IntArray,
+    /** Raw little-endian tensor bytes. */
     val data: ByteArray,
 ) : Load {
+    /**
+     * Loads this tensor view onto the specified [device].
+     */
     override fun load(device: Device): CandleResult<Tensor> = convert(this, device)
 }
 

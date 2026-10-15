@@ -16,11 +16,18 @@ import io.github.kotlinmania.candle.WithDType
 import io.github.kotlinmania.candle.cuda.error.CudaError
 import io.github.kotlinmania.candle.cuda.error.w
 
-/** Unique identifier for cuda devices. */
+/**
+ * Unique identifier for cuda devices.
+ *
+ * Used to distinguish CUDA device instances and key per-device caches.
+ */
 data class DeviceId(val id: Int) {
     companion object {
         private var counter: Int = 1
 
+        /**
+         * Allocates a fresh unique [DeviceId] using a monotonically increasing counter.
+         */
         internal fun new(): DeviceId {
             val nextId = counter
             counter += 1

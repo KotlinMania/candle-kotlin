@@ -35,6 +35,9 @@ public enum class DType(
      */
     public fun asStr(): String = typeName
 
+    /**
+     * Format this dtype as its canonical string representation.
+     */
     public fun fmt(): String = asStr()
 
     /**
@@ -42,12 +45,18 @@ public enum class DType(
      */
     public fun sizeInBytes(): Int = sizeInBytes
 
+    /**
+     * Returns true if this dtype represents an integer element type.
+     */
     public fun isInt(): Boolean =
         when (this) {
             U8, U32, I16, I32, I64 -> true
             BF16, F16, F32, F64, F8E4M3, F6E2M3, F6E3M2, F4, F8E8M0 -> false
         }
 
+    /**
+     * Returns true if this dtype represents a floating-point element type.
+     */
     public fun isFloat(): Boolean =
         when (this) {
             U8, U32, I16, I32, I64 -> false

@@ -284,6 +284,8 @@ public fun nextPowerOf2(x: Int): Int {
  * If `asc` is `true`, sorting is in ascending order. Otherwise sorting is performed in
  * descending order. The sort is unstable so there is no guarantees on the final order when it
  * comes to ties.
+ *
+ * No backward pass is needed for argument sort.
  */
 public fun Tensor.argSortLastDim(asc: Boolean): Tensor {
     if (!isContiguous()) {
@@ -301,6 +303,8 @@ public fun Tensor.argSortLastDim(asc: Boolean): Tensor {
  * If `asc` is `true`, sorting is in ascending order. Otherwise sorting is performed in
  * descending order. The sort is unstable so there is no guarantees on the final order when it
  * comes to ties.
+ *
+ * Returns a pair of `(sortedTensor, sortedIndices)`.
  */
 public fun Tensor.sortLastDim(asc: Boolean): Pair<Tensor, Tensor> {
     if (!isContiguous()) {

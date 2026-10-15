@@ -5,11 +5,12 @@ import kotlin.math.abs
 import kotlin.math.ceil
 
 /**
- * Pretty printing of tensors
+ * Pretty printing of tensors.
  *
  * This implementation should be in line with the PyTorch version.
+ *https://github.com/pytorch/pytorch/blob/7b419e8513a024e172eae767e2daec1b8dc997f0/torch/_tensor_str.py
  *
- * Options for Tensor pretty printing
+ * Options for Tensor pretty printing.
  */
 public data class PrinterOptions(
     public var precision: Int = 4,
@@ -34,6 +35,9 @@ public data class PrinterOptions(
 
 private var globalPrintOptions: PrinterOptions = PrinterOptions.constDefault()
 
+/**
+ * Returns the current global printer options for tensor formatting.
+ */
 public fun printOptions(): PrinterOptions = globalPrintOptions
 
 public fun setPrintOptions(options: PrinterOptions) {

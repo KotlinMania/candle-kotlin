@@ -44,32 +44,65 @@ package io.github.kotlinmania.candle
  * - [candle-pyo3](https://docs.rs/candle-pyo3/). Access to Candle from Python.
  * - [candle-transformers](https://docs.rs/candle-transformers/). Candle implementation of many published transformer models.
  */
+/**
+ * Conversion trait for 2D kernel sizes, strides, padding, and dilation parameters.
+ *
+ * Allows passing either a single integer (applied uniformly to both height and width)
+ * or an explicit pair of integers `(height, width)`.
+ */
 public interface ToUsize2 {
+    /**
+     * Converts this value into a 2-tuple of `(first, second)` dimensions.
+     */
     public fun toUsize2(): Pair<Int, Int>
 }
 
+/**
+ * Uniform 2D parameter wrapper that expands a single integer [value] into `(value, value)`.
+ */
 public class IntToUsize2(public val value: Int) : ToUsize2 {
     override fun toUsize2(): Pair<Int, Int> = Pair(value, value)
 }
 
+/**
+ * Explicit 2D parameter wrapper holding a pair of `(height, width)` dimensions.
+ */
 public class PairToUsize2(public val value: Pair<Int, Int>) : ToUsize2 {
     override fun toUsize2(): Pair<Int, Int> = value
 }
 
 /**
  * Defining a module with forward method using a single argument.
+ *
+ * Neural network layers that do not distinguish between training and evaluation
+ * modes implement [Module] and automatically satisfy [ModuleT].
  */
 public fun interface Module : ModuleT {
+    /**
+     * Applies this module's forward pass to input tensor [xs].
+     */
     public fun forward(xs: Tensor): Tensor
 
     override fun forwardT(xs: Tensor, train: Boolean): Tensor = forward(xs)
 }
 
+/**
+ * Adapter that wraps a function `(Tensor) -> Tensor` as a [Module].
+ */
 public class FnModule(public val f: (Tensor) -> Tensor) : Module {
     override fun forward(xs: Tensor): Tensor = f(xs)
 }
 
+/**
+ * Optional module wrapper that applies [module] when present or acts as the identity function when null.
+ *
+ * Useful for optional layers (such as optional biases, projections, or normalization blocks)
+ * in a sequential forward pipeline without branching at the call site.
+ */
 public class OptionModule<M : Module>(public val module: M?) : Module {
+    /**
+     * Forwards [xs] through [module] if non-null, or returns [xs] unchanged when [module] is null.
+     */
     override fun forward(xs: Tensor): Tensor =
         when (val m = module) {
             null -> xs
@@ -78,9 +111,16 @@ public class OptionModule<M : Module>(public val module: M?) : Module {
 }
 
 /**
- * A single forward method using a single single tensor argument and a flag to
+ * A single forward method using a single tensor argument and a flag to
  * separate the training and evaluation behaviors.
+ *
+ * Modules such as dropout and batch normalization implement [ModuleT] directly,
+ * whereas deterministic modules implement [Module] and inherit a default [forwardT].
  */
 public interface ModuleT {
+    /**
+     * Applies this module's forward pass to input tensor [xs], with [train] indicating
+     * whether the module is running in training mode (`true`) or evaluation mode (`false`).
+     */
     public fun forwardT(xs: Tensor, train: Boolean): Tensor
 }

@@ -2,8 +2,9 @@
 package io.github.kotlinmania.candle
 
 /**
- * 6-bit float with 2 exponent bits and 3 mantissa bits (MX6 format)
- * This is a dummy type.
+ * 6-bit float with 2 exponent bits and 3 mantissa bits (MX6 format).
+ *
+ * This is a dummy type used to represent sub-byte microscaling formats.
  */
 public class F6E2M3 {
     public fun fmt(): String = "F6E2M3"
@@ -16,8 +17,9 @@ public class F6E2M3 {
 }
 
 /**
- * 6-bit float with 3 exponent bits and 2 mantissa bits (MX6 format)
- * This is a dummy type.
+ * 6-bit float with 3 exponent bits and 2 mantissa bits (MX6 format).
+ *
+ * This is a dummy type used to represent sub-byte microscaling formats.
  */
 public class F6E3M2 {
     public fun fmt(): String = "F6E3M2"
@@ -30,8 +32,9 @@ public class F6E3M2 {
 }
 
 /**
- * 4-bit float (MX4 format)
- * This is a dummy type.
+ * 4-bit float (MX4 format).
+ *
+ * This is a dummy type used to represent sub-byte microscaling formats.
  */
 public class F4 {
     public fun fmt(): String = "F4"
@@ -44,8 +47,9 @@ public class F4 {
 }
 
 /**
- * 8-bit float with 8 exponent bits and 0 mantissa bits
- * This is a dummy type.
+ * 8-bit float with 8 exponent bits and 0 mantissa bits.
+ *
+ * This is a dummy type used to represent scale-only microscaling formats.
  */
 public class F8E8M0 {
     public fun fmt(): String = "F8E8M0"

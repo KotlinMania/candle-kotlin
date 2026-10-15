@@ -9,6 +9,12 @@ package io.github.kotlinmania.candle
 
 private const val VERBOSE: Boolean = false
 
+/**
+ * Pickle virtual machine opcodes used when reading PyTorch checkpoint archives.
+ *
+ * This supports the subset of pickle protocol opcodes needed to reconstruct
+ * tensor metadata and storage references from serialized PyTorch state dicts.
+ */
 // https://docs.juliahub.com/Pickle/LAUNc/0.1.0/opcode/
 enum class OpCode(val code: UByte) {
     // https://github.com/python/cpython/blob/ed25f097160b5cbb0c9a1f9a746d2f1bbc96515a/Lib/pickletools.py#L2123

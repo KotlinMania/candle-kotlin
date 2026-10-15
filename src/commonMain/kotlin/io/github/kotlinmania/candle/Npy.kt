@@ -42,10 +42,20 @@ private val NPY_MAGIC_STRING: ByteArray = byteArrayOf(
 )
 private const val NPY_SUFFIX: String = ".npy"
 
+/**
+ * Sequential byte reader for parsing NPY and NPZ streams.
+ *
+ * Tracks the current read [position] within the underlying [bytes] buffer
+ * and provides exact-length reads returning [CandleResult].
+ */
 class NpyByteReader(
     private val bytes: ByteArray,
     var position: Int = 0,
 ) {
+    /**
+     * Reads exactly `dst.size` bytes into `dst`, advancing [position],
+     * or returns a [CandleError.Npy] error on unexpected end of stream.
+     */
     val readExact: (ByteArray) -> CandleResult<Unit> = { dst ->
         if (this.position + dst.size > this.bytes.size) {
             CandleResult.Err(CandleError.Npy("unexpected end of npy stream"))
@@ -57,11 +67,20 @@ class NpyByteReader(
     }
 }
 
+/**
+ * Growable byte writer for serializing tensors in NPY and NPZ formats.
+ *
+ * Automatically doubles internal capacity as bytes are appended and exposes
+ * the serialized byte slice via [toByteArray].
+ */
 class NpyByteWriter {
     private var buffer: ByteArray = ByteArray(256)
     var size: Int = 0
         private set
 
+    /**
+     * Appends all bytes from `src` to the writer buffer.
+     */
     val writeAll: (ByteArray) -> CandleResult<Unit> = { src ->
         if (this.size + src.size > this.buffer.size) {
             var newCap = this.buffer.size * 2
@@ -73,6 +92,9 @@ class NpyByteWriter {
         CandleResult.Ok(Unit)
     }
 
+    /**
+     * Returns a copy of the written bytes of length [size].
+     */
     val toByteArray: () -> ByteArray = {
         this.buffer.copyOf(this.size)
     }

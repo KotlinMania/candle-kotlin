@@ -13,6 +13,12 @@ import io.github.kotlinmania.candle.quantized.cuda.MATRIX_ROW_PADDING
 import io.github.kotlinmania.candle.quantized.cuda.QCudaStorage
 import io.github.kotlinmania.candle.quantized.cuda.CudaSlice
 
+/**
+ * CUDA fast path for GGUF matrix-vector multiplication (decode phase).
+ *
+ * Handles small batch sizes up to [MMVQ_MAX_BATCH] using specialized quantized
+ * matrix-vector kernels and a reusable per-device scratch workspace.
+ */
 private const val Q8_1_BLOCK_SIZE: Int = 32
 private const val Q8_1_TYPE_SIZE: Int = 36
 
@@ -20,7 +26,9 @@ private fun pad(p: Int, q: Int): Int {
     return ((p + q - 1) / q) * q
 }
 
-/** Quant types supported by the fast MMVQ kernels. */
+/**
+ * Quant types supported by the fast MMVQ kernels.
+ */
 private fun supports(dtype: GgmlDType): Boolean {
     return when (dtype) {
         GgmlDType.Q4_0,
