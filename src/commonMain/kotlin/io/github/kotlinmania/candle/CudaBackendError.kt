@@ -2,11 +2,13 @@
 package io.github.kotlinmania.candle.cuda.error
 
 import io.github.kotlinmania.candle.CandleError
-import io.github.kotlinmania.candle.CandleResult
 import io.github.kotlinmania.candle.DType
 import io.github.kotlinmania.candle.Layout
 import io.github.kotlinmania.thiserror.StdError
 
+/**
+ * cudarc related errors
+ */
 sealed class CudaError(message: String) : Exception(message), StdError {
     data class Cuda(val err: String) : CudaError(err)
 
@@ -17,13 +19,13 @@ sealed class CudaError(message: String) : Exception(message), StdError {
     data class Curand(val err: String) : CudaError(err)
 
     data class MissingKernel(val moduleName: String) :
-        CudaError("missing kernel `$moduleName`")
+        CudaError("missing kernel '$moduleName'")
 
     data class UnsupportedDtype(val dtype: DType, val op: String) :
         CudaError("unsupported dtype $dtype for $op")
 
     data class InternalError(val msg: String) :
-        CudaError("internal error `$msg`")
+        CudaError("internal error '$msg'")
 
     data class MatMulNonContiguous(
         val lhsStride: Layout,
@@ -41,21 +43,32 @@ sealed class CudaError(message: String) : Exception(message), StdError {
         val cuda: String,
         val moduleName: String
     ) : CudaError("$cuda when loading $moduleName")
+
+    fun into(): CudaError = this
 }
 
-fun from(`val`: CudaError): CandleError {
-    return CandleError.Cuda(`val`).bt()
+internal object Error {
+    fun Cuda(err: CudaError): CandleError = CandleError.Cuda(err)
 }
+
+fun from(v: CudaError): CandleError =
+    Error.Cuda(v).bt()
 
 interface WrapErr<O> {
     fun w(): Result<O>
 }
 
 class ResultWrapErr<O>(private val self: Result<O>) : WrapErr<O> {
-    override fun w(): Result<O> {
-        return self.fold(
+    private fun <R> Result<R>.mapErr(transform: (CudaError) -> Throwable): Result<R> =
+        fold(
             onSuccess = { Result.success(it) },
-            onFailure = { e -> Result.failure(CandleError.Cuda(e).bt()) },
+            onFailure = { err ->
+                val cudaErr = (err as? CudaError) ?: CudaError.Cuda(err.message ?: "")
+                Result.failure(transform(cudaErr))
+            },
         )
-    }
+
+    override fun w(): Result<O> =
+        self.mapErr { e -> Error.Cuda(e.into()).bt() }
 }
+
