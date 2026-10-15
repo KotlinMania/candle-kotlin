@@ -46,6 +46,9 @@ enum class OpCode(val code: UByte) {
     Appends('e'.code.toUByte()),
     Long1(0x8au);
 
+    interface Error
+    interface OResult
+
     companion object {
         // Avoid using FromPrimitive so as not to drag another dependency.
         fun tryFrom(value: UByte): CandleResult<OpCode> {

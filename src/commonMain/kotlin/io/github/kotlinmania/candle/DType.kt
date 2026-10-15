@@ -55,6 +55,8 @@ public enum class DType(
         }
 
     public companion object {
+        public interface Err
+
         public fun fromStr(s: String): DType =
             when (s.lowercase()) {
                 "u8" -> U8

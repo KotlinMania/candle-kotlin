@@ -5,6 +5,8 @@ package io.github.kotlinmania.candle
  * Implement conversion traits for tensors
  */
 public interface ByteWriter {
+    public interface Error
+
     public fun write(bytes: ByteArray)
 }
 

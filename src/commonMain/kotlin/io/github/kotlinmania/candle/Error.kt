@@ -19,6 +19,9 @@ public sealed class CandleException(
     message: String,
     cause: Throwable? = null,
 ) : Exception(message, cause) {
+    public interface Error
+    public interface Result
+
     // === DType Errors ===
     public data class UnexpectedDType(
         val msg: String,

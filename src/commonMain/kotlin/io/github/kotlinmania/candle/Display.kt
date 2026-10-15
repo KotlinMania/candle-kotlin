@@ -18,6 +18,8 @@ public data class PrinterOptions(
     public var lineWidth: Int = 80,
     public var sciMode: Boolean? = null,
 ) {
+    public interface Elem
+
     public companion object {
         public fun constDefault(): PrinterOptions =
             PrinterOptions(

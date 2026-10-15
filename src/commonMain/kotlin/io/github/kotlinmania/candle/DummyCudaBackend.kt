@@ -15,6 +15,9 @@ public value class DeviceId(
 public data class CudaDevice(
     val gpuId: Int = 0,
 ) : BackendDevice {
+    public interface Device
+    public interface Storage
+
     public fun id(): DeviceId = DeviceId(gpuId)
 
     override fun location(): DeviceLocation =

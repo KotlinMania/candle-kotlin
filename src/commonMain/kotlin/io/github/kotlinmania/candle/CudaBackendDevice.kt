@@ -76,10 +76,17 @@ internal data class CudaGraphHtodCacheKey(
     val bytes: List<Byte>
 )
 
+internal class CudaGraphHtodCache(
+    val entries: MutableMap<CudaGraphHtodCacheKey, Any> = mutableMapOf()
+)
+
 private val CUDA_GRAPH_HTOD_CACHE: MutableMap<CudaGraphHtodCacheKey, Any> = mutableMapOf()
 private var CUDA_GRAPH_HTOD_CACHE_DEPTH: Int = 0
 
 class CudaGraphHtodCacheGuard {
+    interface Target
+    interface Storage
+
     fun drop() {
         check(CUDA_GRAPH_HTOD_CACHE_DEPTH > 0)
         CUDA_GRAPH_HTOD_CACHE_DEPTH = maxOf(0, CUDA_GRAPH_HTOD_CACHE_DEPTH - 1)

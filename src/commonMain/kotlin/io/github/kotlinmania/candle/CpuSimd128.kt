@@ -2,11 +2,16 @@
 package io.github.kotlinmania.candle
 
 public object CpuSimd128 {
+    public object AssociatedTypes {
+        public interface Unit
+        public interface Array
+    }
+
     public const val step: Int = 16
     public const val epr: Int = 4
     public const val arr: Int = step / epr
 
-    public class CurrentCpu : Cpu<FloatArray, Array<FloatArray>> {
+    public class CurrentCpu : Cpu<FloatArray, kotlin.Array<FloatArray>> {
         override val step: Int = CpuSimd128.step
         override val epr: Int = CpuSimd128.epr
         override val arr: Int = CpuSimd128.arr

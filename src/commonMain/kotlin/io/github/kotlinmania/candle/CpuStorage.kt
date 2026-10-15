@@ -26,6 +26,9 @@ public const val useCol2imConv1dTr: Boolean = true
 // Maybe we should not implement Clone here and instead have an explicit allocator +
 // intercept the oom errors to avoid panicking and provide a proper error.
 public sealed class CpuStorage {
+    public interface Device
+    public interface Storage
+
     public data class U8(
         val data: UByteArray,
     ) : CpuStorage()

@@ -29,6 +29,8 @@ class MetalDevice(
     internal var seedValue: ULong = 0uL,
     internal val residencySet: MutableSet<MetalBuffer> = mutableSetOf()
 ) {
+    interface Target
+
     fun fmt(): String = "MetalDevice($idVal)"
 
     fun deref(): Any = deviceVal

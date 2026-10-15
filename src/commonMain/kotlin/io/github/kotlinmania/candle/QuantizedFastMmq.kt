@@ -59,6 +59,9 @@ private enum class DsLayout {
     D4,
     DS4,
     D2S6,
+    ;
+
+    interface WsMap
 }
 
 private fun dsLayoutFor(dtype: GgmlDType): DsLayout {

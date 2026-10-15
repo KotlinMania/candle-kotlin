@@ -36,6 +36,9 @@ data class BufferOffset(
     val buffer: Buffer,
     val offsetInBytes: Int
 ) {
+    interface Device
+    interface Storage
+
     companion object {
         val zeroOffset: (Buffer) -> BufferOffset = { buf -> BufferOffset(buf, 0) }
     }

@@ -36,6 +36,8 @@ private enum class Magic {
     Ggml,
     Ggsn;
 
+    interface Error
+
     companion object {
         fun tryFrom(value: UInt): CandleResult<Magic> {
             val magic = when (value) {

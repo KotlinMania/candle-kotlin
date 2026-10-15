@@ -50,6 +50,9 @@ public class Tensor internal constructor(
     private val op: BackpropOp,
     private val isVariable: Boolean,
 ) {
+    public interface Target
+    public interface Output
+
     /**
      * The unique identifier for this tensor.
      */

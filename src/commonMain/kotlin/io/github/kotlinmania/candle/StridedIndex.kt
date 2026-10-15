@@ -10,6 +10,8 @@ public class StridedIndex(
     public val stride: List<Int>,
     public val startOffset: Int,
 ) : Iterator<Int> {
+    public interface Item
+
     private var nextStorageIndex: Int?
     private val multiIndex: IntArray = IntArray(dims.size)
     private var remaining: Int

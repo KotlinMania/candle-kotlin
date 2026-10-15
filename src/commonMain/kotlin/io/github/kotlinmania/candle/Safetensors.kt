@@ -31,6 +31,8 @@ enum class SafeTensorDtype(val wireName: String, val byteSize: Int) {
     F6E3M2("F6_E3M2", 1),
     F4("F4", 1),
     F8E8M0("F8_E8M0", 1);
+
+    interface Error
 }
 
 class SafeTensorView(

@@ -68,6 +68,8 @@ private fun readLength(reader: NpyByteReader, magic: VersionedMagic): CandleResu
 private enum class Magic {
     Gguf;
 
+    interface Error
+
     companion object {
         fun tryFrom(value: UInt): CandleResult<Magic> {
             val magic = when (value) {

@@ -18,6 +18,9 @@ public enum class CmpOp {
     Ge,
     Lt,
     Gt,
+    ;
+
+    public interface Target
 }
 
 public enum class ReduceOp {

@@ -30,6 +30,9 @@ import io.github.kotlinmania.candle.cuda.error.CudaError
 import io.github.kotlinmania.candle.cuda.error.w
 
 sealed class SlicePtrOrNull<out T> {
+    interface Clone
+    interface Device
+
     data class Ptr<T>(val slice: CudaSlice<T>) : SlicePtrOrNull<T>()
     data object Null : SlicePtrOrNull<Nothing>()
 

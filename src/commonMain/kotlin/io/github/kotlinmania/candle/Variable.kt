@@ -13,6 +13,8 @@ package io.github.kotlinmania.candle
 public class Var(
     public val tensor: Tensor,
 ) {
+    public interface Target
+
     override fun toString(): String = tensor.toString()
 
     public fun fmt(): String = tensor.toString()

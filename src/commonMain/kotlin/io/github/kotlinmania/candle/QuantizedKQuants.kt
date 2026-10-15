@@ -18,6 +18,8 @@ const val QK80: Int = 32
 const val QK81: Int = 32
 
 interface GgmlType<T, V> {
+    interface VecDotType
+
     val DTYPE: GgmlDType
     val BLCK_SIZE: Int
     val DIRECT_COPY: Boolean

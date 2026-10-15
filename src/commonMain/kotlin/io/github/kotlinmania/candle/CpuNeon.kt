@@ -2,7 +2,12 @@
 package io.github.kotlinmania.candle
 
 public object CpuNeon {
-    public class CurrentCpu : Cpu<FloatArray, Array<FloatArray>> {
+    public object AssociatedTypes {
+        public interface Unit
+        public interface Array
+    }
+
+    public class CurrentCpu : Cpu<FloatArray, kotlin.Array<FloatArray>> {
         override val step: Int = 32
         override val epr: Int = 4
         override val arr: Int = step / epr

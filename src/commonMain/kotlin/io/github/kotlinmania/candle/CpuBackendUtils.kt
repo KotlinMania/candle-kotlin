@@ -5,6 +5,8 @@ package io.github.kotlinmania.candle
  * Helper functions to write CPU kernels.
  */
 public interface Map1 {
+    public interface C
+
     public fun f(vs: List<Double>, layout: Layout): List<Double>
 
     public fun map(vs: CpuStorage, layout: Layout): CpuStorage =
