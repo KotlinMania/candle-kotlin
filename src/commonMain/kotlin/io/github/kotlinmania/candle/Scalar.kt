@@ -1,6 +1,9 @@
-// port-lint: source candle-core/src/scalar.rs
+// port-lint: source scalar.rs
 package io.github.kotlinmania.candle
 
+/**
+ * TensorScalar Enum and Trait
+ */
 public sealed class Scalar {
     public data class U8(
         val value: UByte,
@@ -118,3 +121,44 @@ public sealed class Scalar {
         public fun from(v: Double): Scalar = F64(v)
     }
 }
+
+public sealed class TensorScalar {
+    public data class Tensor(
+        val tensor: io.github.kotlinmania.candle.Tensor,
+    ) : TensorScalar()
+
+    public data class Scalar(
+        val tensor: io.github.kotlinmania.candle.Tensor,
+    ) : TensorScalar()
+}
+
+public interface TensorOrScalar {
+    public fun toTensorScalar(): TensorScalar
+}
+
+public class TensorAsTensorOrScalar(
+    public val tensor: Tensor,
+) : TensorOrScalar {
+    override fun toTensorScalar(): TensorScalar = TensorScalar.Tensor(tensor)
+}
+
+public class ScalarAsTensorOrScalar(
+    public val tensor: Tensor,
+) : TensorOrScalar {
+    override fun toTensorScalar(): TensorScalar = TensorScalar.Scalar(tensor)
+}
+
+public fun Tensor.toTensorScalar(): TensorScalar = TensorScalar.Tensor(this)
+
+public fun Float.toTensorScalar(): TensorScalar =
+    TensorScalar.Scalar(Tensor.new(this, Device.Cpu))
+
+public fun Double.toTensorScalar(): TensorScalar =
+    TensorScalar.Scalar(Tensor.new(this, Device.Cpu))
+
+public fun Int.toTensorScalar(): TensorScalar =
+    TensorScalar.Scalar(Tensor.new(this, Device.Cpu))
+
+public fun Long.toTensorScalar(): TensorScalar =
+    TensorScalar.Scalar(Tensor.new(this, Device.Cpu))
+
