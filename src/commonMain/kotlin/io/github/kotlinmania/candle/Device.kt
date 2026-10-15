@@ -89,9 +89,7 @@ public interface NdArray {
     }
 
     public object Vec {
-        public val withCapacity: (Int) -> MutableList<Any?> = { cap ->
-            ArrayList(cap)
-        }
+        public fun <T> withCapacity(cap: Int): MutableList<T> = ArrayList(cap)
     }
 
     public class Scalar<T>(
@@ -155,10 +153,10 @@ public interface NdArray {
         }
 
         override fun toCpuStorage(): CpuStorage {
-            val vec = Vec.withCapacity(n1 * n2 * n3)
+            val vec = Vec.withCapacity<T>(n1 * n2 * n3)
             for (i1 in 0 until n1) {
                 for (i2 in 0 until n2) {
-                    vec.extend(self[i1][i2] as Array<Any?>)
+                    vec.extend(self[i1][i2])
                 }
             }
             return S.toCpuStorageOwned(vec)
@@ -177,11 +175,11 @@ public interface NdArray {
         }
 
         override fun toCpuStorage(): CpuStorage {
-            val vec = Vec.withCapacity(n1 * n2 * n3 * n4)
+            val vec = Vec.withCapacity<T>(n1 * n2 * n3 * n4)
             for (i1 in 0 until n1) {
                 for (i2 in 0 until n2) {
                     for (i3 in 0 until n3) {
-                        vec.extend(self[i1][i2][i3] as Array<Any?>)
+                        vec.extend(self[i1][i2][i3])
                     }
                 }
             }
@@ -243,7 +241,7 @@ public interface NdArray {
 
         override fun toCpuStorage(): CpuStorage {
             val len = self.iter().map { v -> v.len() }.sum()
-            val dst = Vec.withCapacity(len)
+            val dst = Vec.withCapacity<T>(len)
             for (v in self.iter()) {
                 dst.extendList(v.iter().copied())
             }
@@ -277,7 +275,7 @@ public interface NdArray {
                 .iter()
                 .map { v -> v.iter().map { v2 -> v2.len() }.sum() }
                 .sum()
-            val dst = Vec.withCapacity(len)
+            val dst = Vec.withCapacity<T>(len)
             for (v1 in self.iter()) {
                 for (v2 in v1.iter()) {
                     dst.extendList(v2.iter().copied())
@@ -314,7 +312,7 @@ public interface NdArray {
                         .sum()
                 }
                 .sum()
-            val dst = Vec.withCapacity(len)
+            val dst = Vec.withCapacity<T>(len)
             for (v1 in self.iter()) {
                 for (v2 in v1.iter()) {
                     for (v3 in v2.iter()) {
@@ -475,7 +473,7 @@ public sealed class Device {
         shape: Shape,
         dtype: DType = DType.F32,
     ): Storage {
-        return self.randUniformF64(lo.toDouble(), up.toDouble(), shape, dtype)
+        return self.randUniformF64(lo, up, shape, dtype)
     }
 
     public fun randNormalF64(
@@ -513,7 +511,7 @@ public sealed class Device {
         shape: Shape,
         dtype: DType = DType.F32,
     ): Storage {
-        return self.randNormalF64(mean.toDouble(), std.toDouble(), shape, dtype)
+        return self.randNormalF64(mean, std, shape, dtype)
     }
 
     public fun zeros(shape: Shape, dtype: DType): Storage {

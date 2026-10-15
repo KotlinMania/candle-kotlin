@@ -452,13 +452,13 @@ public class UgIOp1(
     override fun cpuFwd(storage: CpuStorage, layout: Layout): Unit =
         bail("ug ops are only supported on metal/cuda at the moment")
 
-    override fun metalFwd(sto: MetalStorage, layout: Layout) {
+    override fun metalFwd(storage: MetalStorage, layout: Layout) {
         val elemCount = layout.shape().elemCount()
-        if (sto.dtype() != DType.F32) {
+        if (storage.dtype() != DType.F32) {
             // Support more dtypes.
             bail("input is not a f32 tensor")
         }
-        val device = sto.device()
+        val device = storage.device()
         val (g, b) = if (elemCount.isMultipleOf(32)) {
             Pair(elemCount / 32, 32)
         } else {
@@ -476,9 +476,9 @@ public class UgIOp1(
         Ok(Unit)
     }
 
-    override fun cudaFwd(sto: CudaStorage, layout: Layout) {
+    override fun cudaFwd(storage: CudaStorage, layout: Layout) {
         val elemCount = layout.shape().elemCount()
-        val dev = sto.device()
+        val dev = storage.device()
         val offsets = layout.contiguousOffsets()
             ?: bail("input has to be contiguous")
         val (g, b) = if (elemCount % 32 == 0) {

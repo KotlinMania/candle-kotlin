@@ -1613,11 +1613,11 @@ public class Tensor internal constructor(
     /**
      * Returns the data contained in a 1D tensor as a list of scalar values.
      */
-    public fun <S> toVec1(): List<S> {
+    public inline fun <reified S> toVec1(): List<S> {
         val count = elemCount()
         if (rank() != 1) throw CandleException.UnexpectedNumberOfDims(1, rank(), shape())
         val cont = contiguous()
-        val cpu = (cont.storage as Storage.Cpu).storage
+        val cpu = (cont.storage() as Storage.Cpu).storage
         val list = ArrayList<S>(count)
         for (i in 0 until count) {
             val v: Any = cpu.getAsDouble(i)
@@ -1629,10 +1629,10 @@ public class Tensor internal constructor(
     /**
      * Returns the data contained in a 2D tensor as a list of lists of scalar values.
      */
-    public fun <S> toVec2(): List<List<S>> {
+    public inline fun <reified S> toVec2(): List<List<S>> {
         val (dim1, dim2) = dims2()
         val cont = contiguous()
-        val cpu = (cont.storage as Storage.Cpu).storage
+        val cpu = (cont.storage() as Storage.Cpu).storage
         val result = ArrayList<List<S>>(dim1)
         for (i in 0 until dim1) {
             val row = ArrayList<S>(dim2)
@@ -1649,10 +1649,10 @@ public class Tensor internal constructor(
     /**
      * Returns the data contained in a 3D tensor as nested lists of scalar values.
      */
-    public fun <S> toVec3(): List<List<List<S>>> {
+    public inline fun <reified S> toVec3(): List<List<List<S>>> {
         val (dim1, dim2, dim3) = dims3()
         val cont = contiguous()
-        val cpu = (cont.storage as Storage.Cpu).storage
+        val cpu = (cont.storage() as Storage.Cpu).storage
         val result = ArrayList<List<List<S>>>(dim1)
         for (i in 0 until dim1) {
             val page = ArrayList<List<S>>(dim2)
@@ -1674,7 +1674,7 @@ public class Tensor internal constructor(
      * Retrieves the single scalar value held in the tensor. If the tensor contains multiple
      * dimensions, an error is returned instead.
      */
-    public fun <S> toScalar(): S {
+    public inline fun <reified S> toScalar(): S {
         if (elemCount() != 1) throw CandleException.UnexpectedNumberOfDims(0, rank(), shape())
         return toVec1<S>()[0]
     }
@@ -1682,7 +1682,7 @@ public class Tensor internal constructor(
     /**
      * An alias for `toScalar`.
      */
-    public fun <S> toVec0(): S = toScalar<S>()
+    public inline fun <reified S> toVec0(): S = toScalar<S>()
 
     /**
      * Returns the data contained in a 1D tensor as a float array.

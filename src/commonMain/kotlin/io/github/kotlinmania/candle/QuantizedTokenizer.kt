@@ -270,7 +270,6 @@ public fun valueToStringArray(v: Value, name: String): CandleResult<List<String>
         .asSequence()
         .map { elem ->
             elem.toString(true)
-                .map { s -> s.toString() }
                 .withContext { format("`{name}` element is not a string: {v:?}", name) }
                 .unwrap()
         }
@@ -283,7 +282,7 @@ public fun mergesFromValue(v: Value): CandleResult<List<Pair<String, String>>> {
         .unwrap()
         .map { m ->
             m.splitOnce(' ')
-                ?.let { pair -> Pair(pair.first.toString(), pair.second.toString()) }
+                ?.let { pair -> Pair(pair.first, pair.second) }
                 .okOrElse { Error.msg(format("invalid merge entry `{m}`", m)) }
                 .unwrap()
         }
@@ -318,7 +317,7 @@ public class Pipeline(
 
 public fun preTokenizerSequence(regex: String, byteLevel: PreTokenizerWrapper.ByteLevel): CandleResult<PreTokenizerWrapper> {
     val split = PreTokenizerWrapper.Split.new(
-        SplitPattern.Regex(regex.toString()),
+        SplitPattern.Regex(regex),
         SplitDelimiterBehavior.Isolated,
         false,
     ).mapErr(Error.wrap).unwrap()
@@ -392,7 +391,7 @@ public fun templateProcessor(
     if (addBos) {
         single.add(bos ?: return null)
     }
-    single.add("\$0".toString())
+    single.add("\$0")
     if (addEos) {
         single.add(eos ?: return null)
     }
@@ -401,14 +400,14 @@ public fun templateProcessor(
     if (addBos) {
         pair.add(format("{}:0", bos ?: return null))
     }
-    pair.add("\$A:0".toString())
+    pair.add("\$A:0")
     if (addEos) {
         pair.add(format("{}:0", eos ?: return null))
     }
     if (addBos) {
         pair.add(format("{}:1", bos ?: return null))
     }
-    pair.add("\$B:1".toString())
+    pair.add("\$B:1")
     if (addEos) {
         pair.add(format("{}:1", eos ?: return null))
     }
@@ -488,8 +487,7 @@ public class Tokenizer(
 
             val pre = metadataValue(ct, "tokenizer.ggml.pre")
                 .andThen { v -> v.toString(true) }
-                .map { s -> s.toString() }
-                .unwrapOrElse { "gpt2".toString() }
+                .unwrapOrElse { "gpt2" }
             val pipeline = pipelineFromPre(pre).unwrap()
             val postProcessorBase = pipeline.postProcessor
 
@@ -529,7 +527,7 @@ public class Tokenizer(
             // Mark special tokens so decode(skipSpecialTokens = true) behaves as expected
             val tokenTypeRes = metadataValue(ct, "tokenizer.ggml.token_type")
             if (tokenTypeRes is CandleResult.Ok && tokenTypeRes.value is Value.Array) {
-                val arr = (tokenTypeRes.value as Value.Array).v
+                val arr = tokenTypeRes.value.v
                 val specials = ArrayList<AddedToken>()
                 for (indexed in arr.withIndex()) {
                     val idx = indexed.index

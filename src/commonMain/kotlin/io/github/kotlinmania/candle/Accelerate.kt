@@ -222,8 +222,8 @@ public object Accelerate {
         ldc: Int,
     ) {
         Ffi.sgemmFfi(
-            transa.toByte() as Byte,
-            transb.toByte() as Byte,
+            transa.toByte(),
+            transb.toByte(),
             m,
             n,
             k,
@@ -254,8 +254,8 @@ public object Accelerate {
         ldc: Int,
     ) {
         Ffi.dgemmFfi(
-            transa.toByte() as Byte,
-            transb.toByte() as Byte,
+            transa.toByte(),
+            transb.toByte(),
             m,
             n,
             k,
@@ -276,7 +276,7 @@ public object Accelerate {
         if (aLen != yLen) {
             error("a and y have different lengths $aLen <> $yLen")
         }
-        Ffi.vvexpf(y, a, aLen as Int)
+        Ffi.vvexpf(y, a, aLen)
     }
 
     public fun vdExp(a: DoubleArray, y: DoubleArray) {
@@ -285,7 +285,7 @@ public object Accelerate {
         if (aLen != yLen) {
             error("a and y have different lengths $aLen <> $yLen")
         }
-        Ffi.vvexp(y, a, aLen as Int)
+        Ffi.vvexp(y, a, aLen)
     }
 
     public fun vsSqrt(a: FloatArray, y: FloatArray) {
@@ -294,7 +294,7 @@ public object Accelerate {
         if (aLen != yLen) {
             error("a and y have different lengths $aLen <> $yLen")
         }
-        Ffi.vvsqrtf(y, a, aLen as Int)
+        Ffi.vvsqrtf(y, a, aLen)
     }
 
     public fun vdSqrt(a: DoubleArray, y: DoubleArray) {
@@ -303,7 +303,7 @@ public object Accelerate {
         if (aLen != yLen) {
             error("a and y have different lengths $aLen <> $yLen")
         }
-        Ffi.vvsqrt(y, a, aLen as Int)
+        Ffi.vvsqrt(y, a, aLen)
     }
 
     public fun vsSin(a: FloatArray, y: FloatArray) {
@@ -312,7 +312,7 @@ public object Accelerate {
         if (aLen != yLen) {
             error("a and y have different lengths $aLen <> $yLen")
         }
-        Ffi.vvsinf(y, a, aLen as Int)
+        Ffi.vvsinf(y, a, aLen)
     }
 
     public fun vdSin(a: DoubleArray, y: DoubleArray) {
@@ -321,7 +321,7 @@ public object Accelerate {
         if (aLen != yLen) {
             error("a and y have different lengths $aLen <> $yLen")
         }
-        Ffi.vvsin(y, a, aLen as Int)
+        Ffi.vvsin(y, a, aLen)
     }
 
     public fun vsCos(a: FloatArray, y: FloatArray) {
@@ -330,7 +330,7 @@ public object Accelerate {
         if (aLen != yLen) {
             error("a and y have different lengths $aLen <> $yLen")
         }
-        Ffi.vvcosf(y, a, aLen as Int)
+        Ffi.vvcosf(y, a, aLen)
     }
 
     public fun vdCos(a: DoubleArray, y: DoubleArray) {
@@ -339,7 +339,7 @@ public object Accelerate {
         if (aLen != yLen) {
             error("a and y have different lengths $aLen <> $yLen")
         }
-        Ffi.vvcos(y, a, aLen as Int)
+        Ffi.vvcos(y, a, aLen)
     }
 
     public fun vsTanh(a: FloatArray, y: FloatArray) {
@@ -348,7 +348,7 @@ public object Accelerate {
         if (aLen != yLen) {
             error("a and y have different lengths $aLen <> $yLen")
         }
-        Ffi.vvtanhf(y, a, aLen as Int)
+        Ffi.vvtanhf(y, a, aLen)
     }
 
     public fun vdTanh(a: DoubleArray, y: DoubleArray) {
@@ -357,7 +357,7 @@ public object Accelerate {
         if (aLen != yLen) {
             error("a and y have different lengths $aLen <> $yLen")
         }
-        Ffi.vvtanh(y, a, aLen as Int)
+        Ffi.vvtanh(y, a, aLen)
     }
 
     public fun vsLn(a: FloatArray, y: FloatArray) {
@@ -366,7 +366,7 @@ public object Accelerate {
         if (aLen != yLen) {
             error("a and y have different lengths $aLen <> $yLen")
         }
-        Ffi.vvlogf(y, a, aLen as Int)
+        Ffi.vvlogf(y, a, aLen)
     }
 
     public fun vdLn(a: DoubleArray, y: DoubleArray) {
@@ -375,7 +375,7 @@ public object Accelerate {
         if (aLen != yLen) {
             error("a and y have different lengths $aLen <> $yLen")
         }
-        Ffi.vvlog(y, a, aLen as Int)
+        Ffi.vvlog(y, a, aLen)
     }
 
     public fun vsSqr(a: FloatArray, y: FloatArray) {
@@ -401,19 +401,19 @@ public object Accelerate {
     }
 
     public fun vsTanhInplace(y: FloatArray) {
-        Ffi.vvtanhf(y, y, y.size as Int)
+        Ffi.vvtanhf(y, y, y.size)
     }
 
     public fun vdTanhInplace(y: DoubleArray) {
-        Ffi.vvtanh(y, y, y.size as Int)
+        Ffi.vvtanh(y, y, y.size)
     }
 
     public fun vsExpInplace(y: FloatArray) {
-        Ffi.vvexpf(y, y, y.size as Int)
+        Ffi.vvexpf(y, y, y.size)
     }
 
     public fun vdExpInplace(y: DoubleArray) {
-        Ffi.vvexp(y, y, y.size as Int)
+        Ffi.vvexp(y, y, y.size)
     }
 
     public fun vsGelu(vs: FloatArray, ys: FloatArray) {

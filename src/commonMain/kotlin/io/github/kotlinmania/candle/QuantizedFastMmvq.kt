@@ -263,8 +263,8 @@ fun tryFwd(
     val workspacePair = workspaceEnsure(dev, scratchBytes).getOrThrow()
     val scratchPtr = workspacePair.first
     val workspaceGuard = workspacePair.second
-    val strideColY = (kPadded / Q8_1_BLOCK_SIZE).toInt()
-    val strideColDst = nrows.toInt()
+    val strideColY = kPadded / Q8_1_BLOCK_SIZE
+    val strideColDst = nrows
     val weightPtr = qstorage.devicePtr().toULong()
 
     val outShape = rhsL.shape().dims.toMutableList()
@@ -286,9 +286,9 @@ fun tryFwd(
                 ffi.launchMmvqGgufQuantizeQ81Bf16(
                     rhsPtr,
                     scratchPtr,
-                    k.toInt(),
-                    kPadded.toInt(),
-                    bSize.toInt(),
+                    k,
+                    kPadded,
+                    bSize,
                     streamPtr,
                 )
                 val launcher = plainLauncherBf16(wDtype)!!.invoke
@@ -296,11 +296,11 @@ fun tryFwd(
                     weightPtr,
                     scratchPtr,
                     outPtr,
-                    k.toInt(),
-                    nrows.toInt(),
+                    k,
+                    nrows,
                     strideColY,
                     strideColDst,
-                    bSize.toInt(),
+                    bSize,
                     streamPtr,
                 )
             }
@@ -320,9 +320,9 @@ fun tryFwd(
                 ffi.launchMmvqGgufQuantizeQ81F16(
                     rhsPtr,
                     scratchPtr,
-                    k.toInt(),
-                    kPadded.toInt(),
-                    bSize.toInt(),
+                    k,
+                    kPadded,
+                    bSize,
                     streamPtr,
                 )
                 val launcher = plainLauncherF16(wDtype)!!.invoke
@@ -330,11 +330,11 @@ fun tryFwd(
                     weightPtr,
                     scratchPtr,
                     outPtr,
-                    k.toInt(),
-                    nrows.toInt(),
+                    k,
+                    nrows,
                     strideColY,
                     strideColDst,
-                    bSize.toInt(),
+                    bSize,
                     streamPtr,
                 )
             }
@@ -342,7 +342,7 @@ fun tryFwd(
             val outStorage = CudaStorage(dev, DType.F16)
             Pair(outStorage, Shape(outShape))
         }
-        DType.F32 -> {
+        else -> {
             val rhsSlice = rhs.slice
             val rhsSliceView = Pair(o1, o2)
             val out = CudaSlice(ByteArray(nrows * bSize * 4))
@@ -354,9 +354,9 @@ fun tryFwd(
                 ffi.launchMmvqGgufQuantizeQ81F32(
                     rhsPtr,
                     scratchPtr,
-                    k.toInt(),
-                    kPadded.toInt(),
-                    bSize.toInt(),
+                    k,
+                    kPadded,
+                    bSize,
                     streamPtr,
                 )
                 val launcher = plainLauncherF32(wDtype)!!.invoke
@@ -364,11 +364,11 @@ fun tryFwd(
                     weightPtr,
                     scratchPtr,
                     outPtr,
-                    k.toInt(),
-                    nrows.toInt(),
+                    k,
+                    nrows,
                     strideColY,
                     strideColDst,
-                    bSize.toInt(),
+                    bSize,
                     streamPtr,
                 )
             }
@@ -376,6 +376,5 @@ fun tryFwd(
             val outStorage = CudaStorage(dev, DType.F32)
             Pair(outStorage, Shape(outShape))
         }
-        else -> null
     }
 }

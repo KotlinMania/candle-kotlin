@@ -309,8 +309,7 @@ fun fromRawBuffer(
                         DType.F6E2M3 -> CpuStorage.F6E2M3(data)
                         DType.F6E3M2 -> CpuStorage.F6E3M2(data)
                         DType.F4 -> CpuStorage.F4(data)
-                        DType.F8E8M0 -> CpuStorage.F8E8M0(data)
-                        else -> return CandleResult.Err(CandleError.Msg("unreachable dummy dtype"))
+                        else -> CpuStorage.F8E8M0(data)
                     }
                     Storage.Cpu(cpuStorage)
                 }
@@ -324,8 +323,7 @@ fun fromRawBuffer(
                         DType.F6E2M3 -> SafeTensors.cudaSliceF6E2M3(slice)
                         DType.F6E3M2 -> SafeTensors.cudaSliceF6E3M2(slice)
                         DType.F4 -> SafeTensors.cudaSliceF4(slice)
-                        DType.F8E8M0 -> SafeTensors.cudaSliceF8E8M0(slice)
-                        else -> return CandleResult.Err(CandleError.Msg("unreachable dummy dtype"))
+                        else -> SafeTensors.cudaSliceF8E8M0(slice)
                     }
                     val cudaStorage = SafeTensors.cudaStorage(
                         cudaSlice,
@@ -1015,7 +1013,7 @@ class MmapedSafetensors private constructor(
             else -> {
                 val index = routing[name] ?: return CandleResult.Err(
                     CandleError.CannotFindTensor(
-                        path = name.toString(),
+                        path = name,
                     )
                         .bt()
                 )
@@ -1080,7 +1078,7 @@ class MmapedSafetensors private constructor(
                         .mapErr { e -> e.withPath(p) }
                 }.unwrapOrElse { return CandleResult.Err(it) }
                 for (k in data.get().names()) {
-                    routing[k.toString()] = index
+                    routing[k] = index
                 }
                 safetensors.add(data)
             }

@@ -423,7 +423,9 @@ private fun bufferLabel(buffer: Buffer, label: String?) {
     buffer.setLabel(label.unwrapOr("unlabeled"))
 }
 
-private fun bufferLabel(buffer: Buffer, label: CharSequence?) { buffer; label }
+private fun bufferLabel(buffer: Buffer, label: CharSequence?) {
+    buffer.setLabel(label?.toString().unwrapOr("unlabeled"))
+}
 
 class DataUpload(val upload: (MetalDevice) -> Result<Buffer>)
 

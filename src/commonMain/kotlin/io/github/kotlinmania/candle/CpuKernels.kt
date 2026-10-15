@@ -95,12 +95,12 @@ public object F32VecOps : VecOps<Float> {
     override val add: (Float, Float) -> Float = { a, b -> a + b }
     override val mul: (Float, Float) -> Float = { a, b -> a * b }
 
-    override fun min(self: Float, other: Float): Float {
-        return Self.min(self, other)
+    override fun min(self: Float, rhs: Float): Float {
+        return Self.min(self, rhs)
     }
 
-    override fun max(self: Float, other: Float): Float {
-        return Self.max(self, other)
+    override fun max(self: Float, rhs: Float): Float {
+        return Self.max(self, rhs)
     }
 
     override fun vecAdd(lhs: List<Float>, rhs: List<Float>, res: MutableList<Float>) {
@@ -128,12 +128,12 @@ public object F16VecOps : VecOps<Float16> {
     override val add: (Float16, Float16) -> Float16 = { a, b -> Float16.fromFloat(a.toFloat() + b.toFloat()) }
     override val mul: (Float16, Float16) -> Float16 = { a, b -> Float16.fromFloat(a.toFloat() * b.toFloat()) }
 
-    override fun min(self: Float16, other: Float16): Float16 {
-        return Self.min(self, other)
+    override fun min(self: Float16, rhs: Float16): Float16 {
+        return Self.min(self, rhs)
     }
 
-    override fun max(self: Float16, other: Float16): Float16 {
-        return Self.max(self, other)
+    override fun max(self: Float16, rhs: Float16): Float16 {
+        return Self.max(self, rhs)
     }
 
     override fun vecAdd(lhs: List<Float16>, rhs: List<Float16>, res: MutableList<Float16>) {
@@ -156,12 +156,12 @@ public object F64VecOps : VecOps<Double> {
     override val add: (Double, Double) -> Double = { a, b -> a + b }
     override val mul: (Double, Double) -> Double = { a, b -> a * b }
 
-    override fun min(self: Double, other: Double): Double {
-        return Self.min(self, other)
+    override fun min(self: Double, rhs: Double): Double {
+        return Self.min(self, rhs)
     }
 
-    override fun max(self: Double, other: Double): Double {
-        return Self.max(self, other)
+    override fun max(self: Double, rhs: Double): Double {
+        return Self.max(self, rhs)
     }
 
     override fun vecAdd(lhs: List<Double>, rhs: List<Double>, res: MutableList<Double>) {
@@ -181,12 +181,12 @@ public object BF16VecOps : VecOps<BFloat16> {
     override val add: (BFloat16, BFloat16) -> BFloat16 = { a, b -> BFloat16.fromFloat(a.toFloat() + b.toFloat()) }
     override val mul: (BFloat16, BFloat16) -> BFloat16 = { a, b -> BFloat16.fromFloat(a.toFloat() * b.toFloat()) }
 
-    override fun min(self: BFloat16, other: BFloat16): BFloat16 {
-        return Self.min(self, other)
+    override fun min(self: BFloat16, rhs: BFloat16): BFloat16 {
+        return Self.min(self, rhs)
     }
 
-    override fun max(self: BFloat16, other: BFloat16): BFloat16 {
-        return Self.max(self, other)
+    override fun max(self: BFloat16, rhs: BFloat16): BFloat16 {
+        return Self.max(self, rhs)
     }
 
     override fun vecAdd(lhs: List<BFloat16>, rhs: List<BFloat16>, res: MutableList<BFloat16>) {
@@ -209,12 +209,12 @@ public object U8VecOps : VecOps<UByte> {
     override val add: (UByte, UByte) -> UByte = { a, b -> (a + b).toUByte() }
     override val mul: (UByte, UByte) -> UByte = { a, b -> (a * b).toUByte() }
 
-    override fun min(self: UByte, other: UByte): UByte {
-        return Ord.min(self, other)
+    override fun min(self: UByte, rhs: UByte): UByte {
+        return Ord.min(self, rhs)
     }
 
-    override fun max(self: UByte, other: UByte): UByte {
-        return Ord.max(self, other)
+    override fun max(self: UByte, rhs: UByte): UByte {
+        return Ord.max(self, rhs)
     }
 }
 
@@ -223,12 +223,12 @@ public object U32VecOps : VecOps<UInt> {
     override val add: (UInt, UInt) -> UInt = { a, b -> a + b }
     override val mul: (UInt, UInt) -> UInt = { a, b -> a * b }
 
-    override fun min(self: UInt, other: UInt): UInt {
-        return Ord.min(self, other)
+    override fun min(self: UInt, rhs: UInt): UInt {
+        return Ord.min(self, rhs)
     }
 
-    override fun max(self: UInt, other: UInt): UInt {
-        return Ord.max(self, other)
+    override fun max(self: UInt, rhs: UInt): UInt {
+        return Ord.max(self, rhs)
     }
 }
 
@@ -237,12 +237,12 @@ public object I16VecOps : VecOps<Short> {
     override val add: (Short, Short) -> Short = { a, b -> (a + b).toShort() }
     override val mul: (Short, Short) -> Short = { a, b -> (a * b).toShort() }
 
-    override fun min(self: Short, other: Short): Short {
-        return Ord.min(self, other)
+    override fun min(self: Short, rhs: Short): Short {
+        return Ord.min(self, rhs)
     }
 
-    override fun max(self: Short, other: Short): Short {
-        return Ord.max(self, other)
+    override fun max(self: Short, rhs: Short): Short {
+        return Ord.max(self, rhs)
     }
 }
 
@@ -251,12 +251,12 @@ public object I32VecOps : VecOps<Int> {
     override val add: (Int, Int) -> Int = { a, b -> a + b }
     override val mul: (Int, Int) -> Int = { a, b -> a * b }
 
-    override fun min(self: Int, other: Int): Int {
-        return Ord.min(self, other)
+    override fun min(self: Int, rhs: Int): Int {
+        return Ord.min(self, rhs)
     }
 
-    override fun max(self: Int, other: Int): Int {
-        return Ord.max(self, other)
+    override fun max(self: Int, rhs: Int): Int {
+        return Ord.max(self, rhs)
     }
 }
 
@@ -265,12 +265,12 @@ public object I64VecOps : VecOps<Long> {
     override val add: (Long, Long) -> Long = { a, b -> a + b }
     override val mul: (Long, Long) -> Long = { a, b -> a * b }
 
-    override fun min(self: Long, other: Long): Long {
-        return Ord.min(self, other)
+    override fun min(self: Long, rhs: Long): Long {
+        return Ord.min(self, rhs)
     }
 
-    override fun max(self: Long, other: Long): Long {
-        return Ord.max(self, other)
+    override fun max(self: Long, rhs: Long): Long {
+        return Ord.max(self, rhs)
     }
 }
 
@@ -279,12 +279,12 @@ public object F8E4M3VecOps : VecOps<Byte> {
     override val add: (Byte, Byte) -> Byte = { a, b -> (a + b).toByte() }
     override val mul: (Byte, Byte) -> Byte = { a, b -> (a * b).toByte() }
 
-    override fun min(self: Byte, other: Byte): Byte {
-        return Self.min(self, other)
+    override fun min(self: Byte, rhs: Byte): Byte {
+        return Self.min(self, rhs)
     }
 
-    override fun max(self: Byte, other: Byte): Byte {
-        return Self.max(self, other)
+    override fun max(self: Byte, rhs: Byte): Byte {
+        return Self.max(self, rhs)
     }
 }
 

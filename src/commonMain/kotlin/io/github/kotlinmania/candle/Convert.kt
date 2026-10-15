@@ -8,38 +8,38 @@ import io.github.kotlinmania.candle.CandleResult.Ok
  * Implement conversion traits for tensors
  */
 public object TryFromTensorRefVec1 {
-    public fun <T : WithDType<*>> tryFrom(tensor: Tensor): CandleResult<List<T>> {
+    public inline fun <reified T : WithDType<*>> tryFrom(tensor: Tensor): CandleResult<List<T>> {
         return Ok(tensor.toVec1<T>())
     }
 }
 
 public object TryFromTensorRefVec2 {
-    public fun <T : WithDType<*>> tryFrom(tensor: Tensor): CandleResult<List<List<T>>> {
+    public inline fun <reified T : WithDType<*>> tryFrom(tensor: Tensor): CandleResult<List<List<T>>> {
         return Ok(tensor.toVec2<T>())
     }
 }
 
 public object TryFromTensorRefVec3 {
-    public fun <T : WithDType<*>> tryFrom(tensor: Tensor): CandleResult<List<List<List<T>>>> {
+    public inline fun <reified T : WithDType<*>> tryFrom(tensor: Tensor): CandleResult<List<List<List<T>>>> {
         return Ok(tensor.toVec3<T>())
     }
 }
 
 public object TryFromTensorVec1 {
-    public fun <T : WithDType<*>> tryFrom(tensor: Tensor): CandleResult<List<T>> {
-        return Vec.tryFrom1(tensor) as CandleResult<List<T>>
+    public inline fun <reified T : WithDType<*>> tryFrom(tensor: Tensor): CandleResult<List<T>> {
+        return TryFromTensorRefVec1.tryFrom(tensor)
     }
 }
 
 public object TryFromTensorVec2 {
-    public fun <T : WithDType<*>> tryFrom(tensor: Tensor): CandleResult<List<List<T>>> {
-        return Vec.tryFrom2(tensor) as CandleResult<List<List<T>>>
+    public inline fun <reified T : WithDType<*>> tryFrom(tensor: Tensor): CandleResult<List<List<T>>> {
+        return TryFromTensorRefVec2.tryFrom(tensor)
     }
 }
 
 public object TryFromTensorVec3 {
-    public fun <T : WithDType<*>> tryFrom(tensor: Tensor): CandleResult<List<List<List<T>>>> {
-        return Vec.tryFrom3(tensor) as CandleResult<List<List<List<T>>>>
+    public inline fun <reified T : WithDType<*>> tryFrom(tensor: Tensor): CandleResult<List<List<List<T>>>> {
+        return TryFromTensorRefVec3.tryFrom(tensor)
     }
 }
 
@@ -98,7 +98,7 @@ internal fun Tensor.toVec1F8E4M3(): List<F8E4M3> {
     return List(elemCount()) { F8E4M3.fromBits(cpu.data[it].toUByte()) }
 }
 
-public fun <W : NpyByteWriter> Tensor.writeBytes(f: W, self: Tensor = this): CandleResult<Unit> {
+public fun Tensor.writeBytes(f: NpyByteWriter, self: Tensor = this): CandleResult<Unit> {
     val vs = self.flattenAll()
     when (self.dtype()) {
         DType.BF16 -> {

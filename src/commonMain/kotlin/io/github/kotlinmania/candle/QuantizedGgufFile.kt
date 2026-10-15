@@ -554,7 +554,7 @@ public sealed class Value {
         }
     }
 
-    internal fun <W : NpyByteWriter> write(w: W): CandleResult<Unit> {
+    internal fun write(w: NpyByteWriter): CandleResult<Unit> {
         when (val v = self) {
             is U8 -> w.writeU8(v.v).unwrap()
             is I8 -> w.writeI8(v.v).unwrap()
@@ -595,15 +595,15 @@ public sealed class Value {
 
 private fun ByteArray.len(): Int = size
 
-private fun <W : NpyByteWriter> writeString(w: W, str: String): CandleResult<Unit> {
+private fun writeString(w: NpyByteWriter, str: String): CandleResult<Unit> {
     val bytes = str.asBytes()
     w.writeU64<LittleEndian>(bytes.len().toULong()).unwrap()
     w.writeAll(bytes).unwrap()
     return Ok(Unit)
 }
 
-public fun <W : NpyByteWriter> write(
-    w: W,
+public fun write(
+    w: NpyByteWriter,
     metadata: List<Pair<String, Value>>,
     tensors: List<Pair<String, QTensor>>,
 ): CandleResult<Unit> {

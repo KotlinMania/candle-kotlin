@@ -14,6 +14,8 @@ import io.github.kotlinmania.oncecell.sync.OnceCell
 public class CandlePool(
     public val numThreads: Int = 1,
 ) {
+    public fun numThreads(n: Int): CandlePool = CandlePool(n)
+
     public fun setThreadAffinity() {
         // On non-macOS platforms we currently leave thread affinity untouched.
     }
@@ -48,7 +50,6 @@ private val CandlePool.sysctlbyname: (String, Any?, ULong, Any?, ULong) -> Int
 private val rayon: CandlePool = CandlePool()
 private val CandlePool.ThreadPoolBuilder: CandlePool get() = this
 private val CandlePool.new: () -> CandlePool get() = { CandlePool() }
-private val CandlePool.numThreads: (Int) -> CandlePool get() = { n -> CandlePool(n) }
 private val CandlePool.startHandler: ((Int) -> Unit) -> CandlePool get() = { h -> h(0); this }
 private val CandlePool.build: () -> CandlePool get() = { this }
 private val CandlePool.expect: (String) -> CandlePool get() = { _ -> this }

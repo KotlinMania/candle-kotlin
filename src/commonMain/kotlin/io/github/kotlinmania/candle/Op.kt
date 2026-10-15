@@ -324,16 +324,16 @@ public interface UnaryOpT {
     public val kernel: String
     public val Self: UnaryOpT get() = this
 
-    public fun bf16(v1: BF16): BF16
-    public fun f16(v1: F16): F16
-    public fun f32(v1: Float): Float
-    public fun f64(v1: Double): Double
-    public fun u8(v1: UByte): UByte
-    public fun u32(v1: UInt): UInt
-    public fun i16(v1: Short): Short
-    public fun i32(v1: Int): Int
-    public fun i64(v1: Long): Long
-    public fun f8e4m3(v1: F8E4M3): F8E4M3
+    public fun bf16(v: BF16): BF16
+    public fun f16(v: F16): F16
+    public fun f32(v: Float): Float
+    public fun f64(v: Double): Double
+    public fun u8(v: UByte): UByte
+    public fun u32(v: UInt): UInt
+    public fun i16(v: Short): Short
+    public fun i32(v: Int): Int
+    public fun i64(v: Long): Long
+    public fun f8e4m3(v: F8E4M3): F8E4M3
 
     public fun bf16Vec(xs: Array<BF16>, ys: Array<BF16>) {
         xs.iter().zip(ys).forEach { (x, y) -> ys[y] = Self.bf16(x) }
@@ -514,16 +514,16 @@ private class MacroUnaryOp(
     private val f32Fn: (Float) -> Float,
     private val f64Fn: (Double) -> Double,
 ) : UnaryOpT {
-    override fun bf16(v1: BF16): BF16 = BF16.fromFloat(f32Fn(v1.toFloat()))
-    override fun f16(v1: F16): F16 = F16.fromFloat(f32Fn(v1.toFloat()))
-    override fun f32(v1: Float): Float = f32Fn(v1)
-    override fun f64(v1: Double): Double = f64Fn(v1)
-    override fun u8(v1: UByte): UByte = v1
-    override fun u32(v1: UInt): UInt = v1
-    override fun i16(v1: Short): Short = v1
-    override fun i32(v1: Int): Int = v1
-    override fun i64(v1: Long): Long = v1
-    override fun f8e4m3(v1: F8E4M3): F8E4M3 = F8E4M3.fromFloat(f32Fn(v1.toFloat()))
+    override fun bf16(v: BF16): BF16 = BF16.fromFloat(f32Fn(v.toFloat()))
+    override fun f16(v: F16): F16 = F16.fromFloat(f32Fn(v.toFloat()))
+    override fun f32(v: Float): Float = f32Fn(v)
+    override fun f64(v: Double): Double = f64Fn(v)
+    override fun u8(v: UByte): UByte = v
+    override fun u32(v: UInt): UInt = v
+    override fun i16(v: Short): Short = v
+    override fun i32(v: Int): Int = v
+    override fun i64(v: Long): Long = v
+    override fun f8e4m3(v: F8E4M3): F8E4M3 = F8E4M3.fromFloat(f32Fn(v.toFloat()))
 }
 
 public object Add : BinaryOpT by MacroBinaryOp("add", "badd", { a, b -> a + b }, { a, b -> a + b }, { a, b -> a + b })

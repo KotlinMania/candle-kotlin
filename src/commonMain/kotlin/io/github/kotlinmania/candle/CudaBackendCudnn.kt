@@ -169,7 +169,6 @@ internal fun <T, Y> launchConv2d(
             dst,
         ).getOrThrow()
     }
-    Unit
 }
 
 internal fun <T, Y> launchConv1d(
@@ -266,5 +265,4 @@ internal fun <T, Y> launchConv1d(
             dst,
         ).getOrThrow()
     }
-    Unit
 }

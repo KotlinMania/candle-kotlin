@@ -411,8 +411,8 @@ public class Stack(
             OpCode.Global -> {
                 val rawModuleName = readToNewline(r).unwrap()
                 val rawClassName = readToNewline(r).unwrap()
-                val moduleName = String.fromUtf8Lossy(rawModuleName).toString()
-                val className = String.fromUtf8Lossy(rawClassName).toString()
+                val moduleName = String.fromUtf8Lossy(rawModuleName)
+                val className = String.fromUtf8Lossy(rawClassName)
                 this.push(
                     Object.Class(
                         moduleName = moduleName,
@@ -645,7 +645,6 @@ public fun <P : Any> readPthTensorInfo(
     val zip = ZipArchive.new(zipReader).unwrap()
     val zipFileNames = zip
         .fileNames()
-        .map { f -> f.toString() }
         .collect()
 
     val tensorInfos = Vec.new<TensorInfo>()
@@ -782,7 +781,7 @@ public class PthTensors(
             val rawInfos = readPthTensorInfo(pathStr, false, key).unwrap()
             val tensorInfos = rawInfos
                 .intoIter()
-                .map { ti -> Pair(ti.name.toString(), ti) }
+                .map { ti -> Pair(ti.name, ti) }
                 .collectMap()
             val ownedPath = pathStr.toOwned()
             return Ok(PthTensors(tensorInfos, ownedPath))
@@ -808,7 +807,7 @@ public fun <P : Any> readAllWithKey(
     for (name in tensorNames) {
         val tensor = pth.get(name).unwrap()
         if (tensor != null) {
-            tensors.push(Pair(name.toString(), tensor))
+            tensors.push(Pair(name, tensor))
         }
     }
     return Ok(tensors)

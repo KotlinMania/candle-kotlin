@@ -26,34 +26,30 @@ public const val useCol2imConv1dTr: Boolean = true
 internal class VecList<T>(
     private val capacity: Int,
 ) : AbstractMutableList<T>() {
-    private val buf: ArrayList<T?> = ArrayList(capacity)
+    private val buf: kotlin.collections.HashMap<Int, T> = kotlin.collections.HashMap(capacity)
     override var size: Int = 0
         private set
 
-    override fun get(index: Int): T = buf[index] as T
+    override fun get(index: Int): T = buf.getValue(index)
 
     override fun set(index: Int, element: T): T {
-        while (buf.size <= index) buf.add(null)
-        val prev = buf[index]
-        buf[index] = element
+        val prev = buf.put(index, element)
         if (index >= size) size = index + 1
         return prev ?: element
     }
 
     override fun add(index: Int, element: T) {
-        while (buf.size < index) buf.add(null)
-        buf.add(index, element)
-        size = buf.size
+        buf[index] = element
+        if (index >= size) size = index + 1
     }
 
     override fun removeAt(index: Int): T {
-        val prev = buf.removeAt(index) as T
-        size = buf.size
+        val prev = buf.remove(index) ?: throw IndexOutOfBoundsException()
+        if (size > 0) size -= 1
         return prev
     }
 
     fun spareCapacityMut(): MutableList<T> {
-        while (buf.size < capacity) buf.add(null)
         size = capacity
         return this
     }
@@ -2027,18 +2023,18 @@ public class Cmp(public val opKind: CmpOp) : Map2U8 {
     override val op: String = "cmp"
 
     override fun f(
-        lhs: List<Double>,
-        lhsL: Layout,
-        rhs: List<Double>,
-        rhsL: Layout,
+        v1: List<Double>,
+        l1: Layout,
+        v2: List<Double>,
+        l2: Layout,
     ): UByteArray {
         val dst = when (opKind) {
-            CmpOp.Eq -> binaryMap(lhsL, rhsL, lhs, rhs) { x, y -> if (x == y) 1u else 0u }
-            CmpOp.Ne -> binaryMap(lhsL, rhsL, lhs, rhs) { x, y -> if (x != y) 1u else 0u }
-            CmpOp.Lt -> binaryMap(lhsL, rhsL, lhs, rhs) { x, y -> if (x < y) 1u else 0u }
-            CmpOp.Le -> binaryMap(lhsL, rhsL, lhs, rhs) { x, y -> if (x <= y) 1u else 0u }
-            CmpOp.Gt -> binaryMap(lhsL, rhsL, lhs, rhs) { x, y -> if (x > y) 1u else 0u }
-            CmpOp.Ge -> binaryMap(lhsL, rhsL, lhs, rhs) { x, y -> if (x >= y) 1u else 0u }
+            CmpOp.Eq -> binaryMap(l1, l2, v1, v2) { x, y -> if (x == y) 1u else 0u }
+            CmpOp.Ne -> binaryMap(l1, l2, v1, v2) { x, y -> if (x != y) 1u else 0u }
+            CmpOp.Lt -> binaryMap(l1, l2, v1, v2) { x, y -> if (x < y) 1u else 0u }
+            CmpOp.Le -> binaryMap(l1, l2, v1, v2) { x, y -> if (x <= y) 1u else 0u }
+            CmpOp.Gt -> binaryMap(l1, l2, v1, v2) { x, y -> if (x > y) 1u else 0u }
+            CmpOp.Ge -> binaryMap(l1, l2, v1, v2) { x, y -> if (x >= y) 1u else 0u }
         }
         return UByteArray(dst.size) { dst[it].toUByte() }
     }
@@ -2564,16 +2560,16 @@ public class Scatter(
     override val op: String = "scatter"
 
     override fun f(
-        dst: MutableList<Double>,
-        dstL: Layout,
-        src: List<Double>,
-        srcL: Layout,
+        v1: MutableList<Double>,
+        l1: Layout,
+        v2: List<Double>,
+        l2: Layout,
     ) {
-        val dstOffsets = dstL.contiguousOffsets() ?: throw CandleException.RequiresContiguous("scatter")
-        val srcOffsets = srcL.contiguousOffsets() ?: throw CandleException.RequiresContiguous("scatter")
+        val dstOffsets = l1.contiguousOffsets() ?: throw CandleException.RequiresContiguous("scatter")
+        val srcOffsets = l2.contiguousOffsets() ?: throw CandleException.RequiresContiguous("scatter")
         val idsOffsets = idsL.contiguousOffsets() ?: throw CandleException.RequiresContiguous("scatter")
         val idsDims = idsL.dims
-        val dstDims = dstL.dims
+        val dstDims = l1.dims
         val dstDimLen = dstDims[dim]
         val dstRightLen = dstDims.subList(dim + 1, dstDims.size).fold(1) { a, b -> a * b }
         val idsLeftLen = idsDims.subList(0, dim).fold(1) { a, b -> a * b }
@@ -2593,7 +2589,7 @@ public class Scatter(
                         throw CandleException.InvalidIndex("gather", idxInt, dstDimLen)
                     }
                     val dstIdx = dstOffsets.start + startDstIdx + idxInt * dstRightLen + rightI
-                    update.f(dst, dstIdx, src[srcOffsets.start + idsIdx])
+                    update.f(v1, dstIdx, v2[srcOffsets.start + idsIdx])
                 }
             }
         }
@@ -3186,13 +3182,13 @@ internal object Vec {
     fun <T> new(): VecList<T> = VecList(0)
     fun <T> withCapacity(cap: Int): VecList<T> = VecList(cap)
     val tryFrom1: (Tensor) -> CandleResult<List<Any?>> = { tensor ->
-        CandleResult.Ok(tensor.toVec1())
+        CandleResult.Ok(tensor.toVec1<Any?>())
     }
     val tryFrom2: (Tensor) -> CandleResult<List<List<Any?>>> = { tensor ->
-        CandleResult.Ok(tensor.toVec2())
+        CandleResult.Ok(tensor.toVec2<Any?>())
     }
     val tryFrom3: (Tensor) -> CandleResult<List<List<List<Any?>>>> = { tensor ->
-        CandleResult.Ok(tensor.toVec3())
+        CandleResult.Ok(tensor.toVec3<Any?>())
     }
 }
 internal fun <T> List<T>.getUnchecked(i: Int): T = this[i]
@@ -3232,10 +3228,7 @@ internal fun Scalar.U32.toDouble(): Double = v.toDouble()
 internal fun Scalar.I16.toDouble(): Double = v.toDouble()
 internal fun Scalar.I32.toDouble(): Double = v.toDouble()
 internal fun Scalar.I64.toDouble(): Double = v.toDouble()
-internal fun Scalar.BF16.toF64(): Double = Float16Utils.bf16BitsToFloat(v).toDouble()
-internal fun Scalar.F16.toF64(): Double = Float16Utils.f16BitsToFloat(v).toDouble()
 internal fun Scalar.F32.toDouble(): Double = v.toDouble()
-internal fun Scalar.F8E4M3.toF64(): Double = v.toDouble()
 
 internal fun <T : Any> Tensor.Companion.new(v: T, dev: Device): CandleResult<Tensor> {
     val t: Tensor = when (v) {

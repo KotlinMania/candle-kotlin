@@ -157,8 +157,9 @@ sealed class QStorage {
     fun data(): CandleResult<ByteArray> {
         return when (self) {
             is Cpu -> {
-                val dataPtr = (this as Cpu).storage.asPtr()
-                val sizeInBytes = (this as Cpu).storage.storageSizeInBytes()
+                val cpu = (this as Cpu).storage
+                val dataPtr = cpu.asPtr()
+                val sizeInBytes = cpu.storageSizeInBytes()
                 val data = QuantizedHelper.cowFromParts(dataPtr, sizeInBytes)
                 CandleResult.Ok(QuantizedHelper.cowFrom(data))
             }

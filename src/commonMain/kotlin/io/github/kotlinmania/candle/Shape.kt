@@ -230,7 +230,7 @@ public class DimInt(public val self: Int) : Dim {
         return if (dim >= shape.dims().len()) {
             throw CandleException.DimOutOfRange(
                 shape = shape.clone(),
-                dim = dim.toInt(),
+                dim = dim,
                 op = op,
             )
                 .bt()
@@ -244,7 +244,7 @@ public class DimInt(public val self: Int) : Dim {
         return if (dim > shape.dims().len()) {
             throw CandleException.DimOutOfRange(
                 shape = shape.clone(),
-                dim = dim.toInt(),
+                dim = dim,
                 op = op,
             )
                 .bt()
@@ -266,7 +266,7 @@ public sealed class D : Dim {
         val dim = when (self) {
             is Minus1 -> -1
             is Minus2 -> -2
-            is Minus -> -(self.u.toInt())
+            is Minus -> -self.u
             is Custom -> self.u
         }
         return CandleException.DimOutOfRange(
@@ -317,7 +317,7 @@ public interface Dims {
             if (dim >= shape.rank()) {
                 throw CandleException.DimOutOfRange(
                     shape = shape.clone(),
-                    dim = dim.toInt(),
+                    dim = dim,
                     op = op,
                 )
                     .bt()
@@ -713,7 +713,6 @@ public val Shape.Companion.toIndexPlusOne: (Int, Shape, String) -> Int
     }
 
 internal fun Shape.Companion.fromDims(dims: IntArray): Shape = Shape(dims.toList())
-internal fun Shape.Companion.fromDims(vararg dims: Int): Shape = Shape(dims.toList())
 internal fun Shape.Companion.Self(dims: List<Int>): Shape = Shape(dims)
 
 public val List<Int>.intoShapeWithHole: (Int) -> Shape

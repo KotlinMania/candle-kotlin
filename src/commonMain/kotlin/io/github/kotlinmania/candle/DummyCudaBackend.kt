@@ -61,19 +61,19 @@ public data class CudaDevice(val gpuId: Int = 0) : BackendDevice {
     ): CudaStorage = Err(Error.NotCompiledWithCudaSupport)
 
     override fun storageFromCpuStorage(
-        s: CpuStorage
+        storage: CpuStorage
     ): BackendStorage = Err(Error.NotCompiledWithCudaSupport)
 
     override fun storageFromCpuStorageOwned(
-        s: CpuStorage
+        storage: CpuStorage
     ): BackendStorage = Err(Error.NotCompiledWithCudaSupport)
 
     override fun randUniform(
-        s: Shape, d: DType, lo: Double, up: Double
+        shape: Shape, dtype: DType, min: Double, max: Double
     ): BackendStorage = Err(Error.NotCompiledWithCudaSupport)
 
     override fun randNormal(
-        s: Shape, d: DType, mean: Double, std: Double
+        shape: Shape, dtype: DType, mean: Double, std: Double
     ): BackendStorage = Err(Error.NotCompiledWithCudaSupport)
 
     override fun synchronize() {
@@ -125,7 +125,7 @@ public class CudaStorage() : BackendStorage {
     ): CudaStorage = Err(Error.NotCompiledWithCudaSupport)
 
     override fun tryClone(
-        l: Layout
+        layout: Layout
     ): BackendStorage = Err(Error.NotCompiledWithCudaSupport)
 
     override fun dtype(): DType {
@@ -137,7 +137,7 @@ public class CudaStorage() : BackendStorage {
     }
 
     override fun constSet(
-        s: Scalar, l: Layout
+        v: Scalar, l: Layout
     ): Unit = Err(Error.NotCompiledWithCudaSupport)
 
     override fun toCpuStorage(): CpuStorage {
@@ -145,19 +145,19 @@ public class CudaStorage() : BackendStorage {
     }
 
     override fun affine(
-        l: Layout, mul: Double, add: Double
+        layout: Layout, mul: Double, add: Double
     ): BackendStorage = Err(Error.NotCompiledWithCudaSupport)
 
     override fun powf(
-        l: Layout, e: Double
+        layout: Layout, e: Double
     ): BackendStorage = Err(Error.NotCompiledWithCudaSupport)
 
     override fun elu(
-        l: Layout, alpha: Double
+        layout: Layout, alpha: Double
     ): BackendStorage = Err(Error.NotCompiledWithCudaSupport)
 
     override fun reduceOp(
-        op: ReduceOp, l: Layout, dims: List<Int>
+        op: ReduceOp, layout: Layout, dims: List<Int>
     ): BackendStorage = Err(Error.NotCompiledWithCudaSupport)
 
     override fun cmp(
@@ -165,7 +165,7 @@ public class CudaStorage() : BackendStorage {
     ): BackendStorage = Err(Error.NotCompiledWithCudaSupport)
 
     override fun toDtype(
-        l: Layout, dtype: DType
+        layout: Layout, targetDType: DType
     ): BackendStorage = Err(Error.NotCompiledWithCudaSupport)
 
     public fun <B : UnaryOpT> unaryImpl(
@@ -177,7 +177,7 @@ public class CudaStorage() : BackendStorage {
     ): CudaStorage = Err(Error.NotCompiledWithCudaSupport)
 
     override fun whereCond(
-        l: Layout, t: BackendStorage, tl: Layout, f: BackendStorage, fl: Layout
+        layout: Layout, onTrue: BackendStorage, trueL: Layout, onFalse: BackendStorage, falseL: Layout
     ): BackendStorage = Err(Error.NotCompiledWithCudaSupport)
 
     override fun conv1d(
@@ -221,11 +221,11 @@ public class CudaStorage() : BackendStorage {
         )
 
     override fun indexSelect(
-        rhs: BackendStorage, lhsL: Layout, rhsL: Layout, d: Int
+        rhs: BackendStorage, lhsL: Layout, rhsL: Layout, dim: Int
     ): BackendStorage = Err(Error.NotCompiledWithCudaSupport)
 
     override fun gather(
-        l: Layout, indexes: BackendStorage, indexesL: Layout, d: Int
+        l: Layout, indexes: BackendStorage, indexesL: Layout, dim: Int
     ): BackendStorage = Err(Error.NotCompiledWithCudaSupport)
 
     override fun scatterSet(
@@ -234,7 +234,7 @@ public class CudaStorage() : BackendStorage {
         indexesL: Layout,
         src: BackendStorage,
         srcL: Layout,
-        d: Int
+        dim: Int
     ): Unit =
         Err(
             Error.NotCompiledWithCudaSupport
@@ -246,7 +246,7 @@ public class CudaStorage() : BackendStorage {
         indexesL: Layout,
         src: BackendStorage,
         srcL: Layout,
-        d: Int
+        dim: Int
     ): Unit =
         Err(
             Error.NotCompiledWithCudaSupport
@@ -258,7 +258,7 @@ public class CudaStorage() : BackendStorage {
         indexesL: Layout,
         src: BackendStorage,
         srcL: Layout,
-        d: Int
+        dim: Int
     ): BackendStorage =
         Err(
             Error.NotCompiledWithCudaSupport
@@ -275,43 +275,43 @@ public class CudaStorage() : BackendStorage {
         )
 
     override fun copyStridedSrc(
-        dst: BackendStorage, dstOffset: Int, srcL: Layout
+        dst: BackendStorage, dstOffset: Int, srcLayout: Layout
     ): Unit = Err(Error.NotCompiledWithCudaSupport)
 
     override fun copy2d(
         dst: BackendStorage,
         d1: Int,
         d2: Int,
-        srcS: Int,
-        dstS: Int,
-        srcO: Int,
-        dstO: Int
+        srcStride1: Int,
+        dstStride1: Int,
+        srcOffset: Int,
+        dstOffset: Int
     ): Unit =
         Err(
             Error.NotCompiledWithCudaSupport
         )
 
     override fun avgPool2d(
-        l: Layout, k: Pair<Int, Int>, s: Pair<Int, Int>
+        l: Layout, kernelSize: Pair<Int, Int>, stride: Pair<Int, Int>
     ): BackendStorage = Err(Error.NotCompiledWithCudaSupport)
 
     override fun maxPool2d(
-        l: Layout, k: Pair<Int, Int>, s: Pair<Int, Int>
+        l: Layout, kernelSize: Pair<Int, Int>, stride: Pair<Int, Int>
     ): BackendStorage = Err(Error.NotCompiledWithCudaSupport)
 
     override fun upsampleNearest1d(
-        l: Layout, sz: Int
+        l: Layout, targetSize: Int
     ): BackendStorage = Err(Error.NotCompiledWithCudaSupport)
 
     override fun upsampleNearest2d(
-        l: Layout, h: Int, w: Int
+        l: Layout, targetH: Int, targetW: Int
     ): BackendStorage = Err(Error.NotCompiledWithCudaSupport)
 
     override fun upsampleBilinear2d(
         l: Layout,
-        h: Int,
-        w: Int,
-        align: Boolean,
+        targetH: Int,
+        targetW: Int,
+        alignCorners: Boolean,
         scaleH: Double?,
         scaleW: Double?
     ): BackendStorage =

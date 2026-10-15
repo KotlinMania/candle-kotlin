@@ -327,10 +327,10 @@ class CudaDevice internal constructor(
                 .toVec()
         val key = CudaGraphHtodCacheKey(self.id, typeIdOf(srcSlice), bytes)
         val existing = CUDA_GRAPH_HTOD_CACHE.with { cache ->
-            cache.borrow().get(key)?.let { cached ->
-                (cached as? CudaSlice<T>)
-                    ?.clone
-                    ?.invoke()
+            if (cache.borrow().containsKey(key)) {
+                CudaSlice(srcSlice.toMutableList())
+            } else {
+                null
             }
         }
         if (existing != null) {
@@ -420,7 +420,7 @@ class CudaDevice internal constructor(
         drop(ms)
         val msWrite = self.customModules.write().unwrap()
         val cudaModule = self.context.loadModule(ptx.into()).w().getOrThrow()
-        msWrite[moduleName.toString()] = cudaModule.clone()
+        msWrite[moduleName] = cudaModule.clone()
         val func = cudaModule.loadFunction(fnName).w().getOrThrow()
         return Ok(CudaFunc(
             func = func,

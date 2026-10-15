@@ -67,7 +67,7 @@ public enum class DType(
                 "f6e3m2" -> Ok(Self.F6E3M2)
                 "f4" -> Ok(Self.F4)
                 "f8e8m0" -> Ok(Self.F8E8M0)
-                else -> Err(DTypeParseError(s.toString()))
+                else -> Err(DTypeParseError(s))
             }
         }
 
@@ -233,10 +233,6 @@ public typealias F16 = io.github.kotlinmania.half.F16
 public typealias BF16 = io.github.kotlinmania.half.BF16
 public typealias F8E4M3 = io.github.kotlinmania.float8.F8E4M3
 public typealias F8E5M2 = io.github.kotlinmania.float8.F8E5M2
-
-public val Float16.bits: Short get() = rawBits.toShort()
-public val BFloat16.bits: Short get() = rawBits.toShort()
-public val F8E4M3.bits: Byte get() = rawBits.toByte()
 
 public object Float16Utils {
     public val floatToF16Bits: (Float) -> Short = { value ->

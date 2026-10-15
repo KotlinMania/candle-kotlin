@@ -148,7 +148,7 @@ public data class Layout(
         if (dim >= dims.len()) {
             throw CandleException.DimOutOfRange(
                 shape = self.shape().clone(),
-                dim = dim.toInt(),
+                dim = dim,
                 op = "narrow",
             )
                 .bt()

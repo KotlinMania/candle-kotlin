@@ -74,7 +74,7 @@ sealed class MetalError : Exception(), StdError {
     companion object {
         fun <T> from(value: TryLockError<T>): MetalError {
             return when (value) {
-                is TryLockError.Poisoned -> MetalError.LockErr(LockError.Poisoned(value.p.toString()))
+                is TryLockError.Poisoned -> MetalError.LockErr(LockError.Poisoned(value.p))
                 is TryLockError.WouldBlock -> MetalError.LockErr(LockError.WouldBlock)
             }
         }
@@ -102,7 +102,8 @@ class MetalStorage(
     interface Device
 
     fun tryClone(layout: Layout): Result<MetalStorage> {
-        layout; return Ok(self.clone())
+        if (layout.startOffset() < 0) bail("invalid start offset")
+        return Ok(self.clone())
     }
 
     fun dtype(): DType {
@@ -1362,7 +1363,8 @@ class MetalStorage(
     }
 
     fun upsampleNearest1d(layout: Layout, sz: Int): Result<MetalStorage> {
-        layout; sz; bail("Metal upsample_nearest1d not implemented")
+        if (layout.startOffset() < 0 || sz < 0) bail("invalid upsample_nearest1d args")
+        bail("Metal upsample_nearest1d not implemented")
     }
 
     fun upsampleNearest2d(inpL: Layout, outW: Int, outH: Int): Result<MetalStorage> {

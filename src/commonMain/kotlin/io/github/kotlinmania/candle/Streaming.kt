@@ -122,7 +122,7 @@ public class StreamTensor(
         }
 
         public fun from(value: Unit): StreamTensor {
-            value; return Self(None)
+            return if (value == Unit) Self(None) else Self(None)
         }
 
         public fun empty(): StreamTensor {

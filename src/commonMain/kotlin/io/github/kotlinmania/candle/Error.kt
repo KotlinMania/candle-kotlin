@@ -579,7 +579,7 @@ public interface ErrorContext<T, E> : Sealed {
             }
 
         override fun <C : Any> withContext(
-            context: () -> C,
+            f: () -> C,
         ): Result<T> =
             // Evaluation of context closure only occurs on Err.
             // Preserves original Result when Ok.
@@ -587,7 +587,7 @@ public interface ErrorContext<T, E> : Sealed {
                 Ok.ok -> Ok(ok)
                 Err.error -> Err(Error.WrappedContext(
                     wrapped, new(error),
-                    context, context().toString(),
+                    f, f().toString(),
                 )
                 .bt())
                 else -> self
@@ -618,13 +618,13 @@ public interface ErrorContext<T, E> : Sealed {
             }
 
         override fun <C : Any> withContext(
-            context: () -> C,
+            f: () -> C,
         ): Result<T> =
             // Lazy context evaluation for None option values.
             // Converts None to Err with UnwrapNone context.
             when (self) {
                 Some.v -> Ok(v)
-                None -> Err(Error.UnwrapNone.context(context()).bt())
+                None -> Err(Error.UnwrapNone.context(f()).bt())
                 else -> Ok(v)
             }
     }
@@ -636,8 +636,6 @@ public typealias CandleError = CandleException
 
 public val CandleException.Companion.Wrap: (Throwable) -> CandleException
     get() = { err -> CandleException.Wrapped(err.message ?: err.toString()) }
-public val CandleException.Companion.Context: (Throwable, String) -> CandleException
-    get() = { err, ctx -> CandleException.Context(err as? CandleException ?: CandleException.Wrapped(err.toString()), ctx) }
 
 public sealed class CandleResult<out T> {
     public data class Ok<out T>(public val value: T) : CandleResult<T>()

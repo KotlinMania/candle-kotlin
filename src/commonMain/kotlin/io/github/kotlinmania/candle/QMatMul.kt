@@ -19,7 +19,10 @@ sealed class QMatMul : Module {
 
     fun dequantizeF16(): CandleResult<Tensor> {
         return when (self) {
-            is QTensorVariant -> (this as QTensorVariant).t.dequantizeF16((this as QTensorVariant).t.device())
+            is QTensorVariant -> {
+                val qt = (this as QTensorVariant).t
+                qt.dequantizeF16(qt.device())
+            }
             is TensorVariant -> CandleResult.Ok((this as TensorVariant).t.toDtype(DType.F16))
             is TensorF16Variant -> CandleResult.Ok((this as TensorF16Variant).t.clone())
         }

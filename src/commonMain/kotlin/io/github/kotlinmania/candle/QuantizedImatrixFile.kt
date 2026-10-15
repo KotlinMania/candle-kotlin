@@ -35,7 +35,6 @@ public fun <P : Any> loadImatrix(fname: P): CandleResult<kotlin.collections.Hash
         .readI32<LittleEndian>()
         .mapErr { e -> Error.msg(format("Failed to read number of entries: $e")) }
         .unwrap()
-        .toInt()
 
     if (nEntries < 1) {
         bail(format("No data in file {}", fname.asRef().display()))
@@ -51,7 +50,7 @@ public fun <P : Any> loadImatrix(fname: P): CandleResult<kotlin.collections.Hash
                     e,
                 ),
             )
-        }.unwrap().toInt()
+        }.unwrap()
 
         // Read the name
         val nameBuf = ByteArray(len)
@@ -65,11 +64,11 @@ public fun <P : Any> loadImatrix(fname: P): CandleResult<kotlin.collections.Hash
         // Read ncall and nval
         val ncall = cursor.readI32<LittleEndian>().mapErr { e ->
             Error.msg(format("Failed to read ncall for entry {}: {}", i + 1, e))
-        }.unwrap().toInt()
+        }.unwrap()
 
         val nval = cursor.readI32<LittleEndian>().mapErr { e ->
             Error.msg(format("Failed to read nval for entry {}: {}", i + 1, e))
-        }.unwrap().toInt()
+        }.unwrap()
 
         if (nval < 1) {
             bail(format("Invalid nval for entry {}: {}", i + 1, nval))
