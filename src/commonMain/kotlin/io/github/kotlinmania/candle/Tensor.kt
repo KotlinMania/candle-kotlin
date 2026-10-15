@@ -91,6 +91,14 @@ public class Tensor internal constructor(
 
     public fun storageMut(): Storage = storage
 
+    public fun op(): Op? = op.toOp()
+
+    public fun zerosLike(): Tensor = zeros(shape(), dtype(), device())
+
+    public fun onesLike(): Tensor = ones(shape(), dtype(), device())
+
+    public fun detach(): Tensor = Tensor(TensorId.next(), storage, layout, BackpropOp.None, false)
+
     internal fun sameStorage(rhs: Tensor): Boolean = this.storage === rhs.storage
 
     // --- Unary Ops ---

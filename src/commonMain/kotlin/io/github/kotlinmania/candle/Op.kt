@@ -154,6 +154,130 @@ public sealed class Op {
         val t3: Tensor,
         val op: io.github.kotlinmania.candle.CustomOp3,
     ) : Op()
+
+    public data class Conv1D(
+        val arg: Tensor,
+        val kernel: Tensor,
+        val padding: Int,
+        val stride: Int,
+        val dilation: Int,
+    ) : Op()
+
+    public data class ConvTranspose1D(
+        val arg: Tensor,
+        val kernel: Tensor,
+        val padding: Int,
+        val outputPadding: Int,
+        val stride: Int,
+        val dilation: Int,
+    ) : Op()
+
+    public data class Conv2D(
+        val arg: Tensor,
+        val kernel: Tensor,
+        val padding: Int,
+        val stride: Int,
+        val dilation: Int,
+    ) : Op()
+
+    public data class ConvTranspose2D(
+        val arg: Tensor,
+        val kernel: Tensor,
+        val padding: Int,
+        val outputPadding: Int,
+        val stride: Int,
+        val dilation: Int,
+    ) : Op()
+
+    public data class AvgPool2D(
+        val arg: Tensor,
+        val kernelSize: Pair<Int, Int>,
+        val stride: Pair<Int, Int>,
+    ) : Op()
+
+    public data class MaxPool2D(
+        val arg: Tensor,
+        val kernelSize: Pair<Int, Int>,
+        val stride: Pair<Int, Int>,
+    ) : Op()
+
+    public data class UpsampleNearest1D(
+        val arg: Tensor,
+        val targetSize: Int,
+    ) : Op()
+
+    public data class UpsampleNearest2D(
+        val arg: Tensor,
+        val targetH: Int,
+        val targetW: Int,
+    ) : Op()
+
+    public data class UpsampleBilinear2D(
+        val arg: Tensor,
+        val targetH: Int,
+        val targetW: Int,
+        val alignCorners: Boolean,
+    ) : Op()
+
+    public data class Affine(
+        val arg: Tensor,
+        val mul: Double,
+        val add: Double,
+    ) : Op()
+
+    public data class ToDType(
+        val arg: Tensor,
+    ) : Op()
+
+    public data class Copy(
+        val arg: Tensor,
+    ) : Op()
+
+    public data class Broadcast(
+        val arg: Tensor,
+    ) : Op()
+
+    public data class Narrow(
+        val arg: Tensor,
+        val dim: Int,
+        val start: Int,
+        val len: Int,
+    ) : Op()
+
+    public data class SliceScatter0(
+        val lhs: Tensor,
+        val rhs: Tensor,
+        val start: Int,
+    ) : Op()
+
+    public data class Reshape(
+        val arg: Tensor,
+    ) : Op()
+
+    public data class ToDevice(
+        val arg: Tensor,
+    ) : Op()
+
+    public data class Transpose(
+        val arg: Tensor,
+        val dim1: Int,
+        val dim2: Int,
+    ) : Op()
+
+    public data class Permute(
+        val arg: Tensor,
+        val dims: List<Int>,
+    ) : Op()
+
+    public data class Elu(
+        val arg: Tensor,
+        val alpha: Double,
+    ) : Op()
+
+    public data class Powf(
+        val arg: Tensor,
+        val e: Double,
+    ) : Op()
 }
 
 public sealed class BackpropOp {
@@ -181,6 +305,15 @@ public sealed class BackpropOp {
         val args: List<Tensor>,
         val buildOp: (List<Tensor>) -> Op,
     ) : BackpropOp()
+
+    public fun toOp(): Op? =
+        when (this) {
+            is None -> null
+            is Op1 -> buildOp(arg)
+            is Op2 -> buildOp(lhs, rhs)
+            is Op3 -> buildOp(t1, t2, t3)
+            is OpN -> buildOp(args)
+        }
 
     public companion object {
         public fun none(): BackpropOp = None
