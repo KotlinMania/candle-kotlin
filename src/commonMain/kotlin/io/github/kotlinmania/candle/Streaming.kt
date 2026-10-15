@@ -1,13 +1,24 @@
 // port-lint: source streaming.rs
 package io.github.kotlinmania.candle
 
+public interface Dim : ShapeDim
+
 /**
+ * StreamTensror useful for streaming ops.
+ *
  * A stream tensor is used in streaming module. It can either contain an actual tensor or be
  * empty.
  */
 public class StreamTensor(
     public var tensor: Tensor? = null,
 ) {
+    public fun fmt(sb: StringBuilder) {
+        when (val t = tensor) {
+            null -> sb.append("Empty")
+            else -> sb.append(t.shape().toString())
+        }
+    }
+
     override fun toString(): String =
         when (val t = tensor) {
             null -> "Empty"
