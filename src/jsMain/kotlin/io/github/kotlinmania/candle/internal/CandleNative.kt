@@ -55,6 +55,34 @@ public external interface CandleNativeBindings {
     public fun accelerateVvsqrtf(dst: FloatArray, src: FloatArray, len: Int)
 
     public fun accelerateVvtanhf(dst: FloatArray, src: FloatArray, len: Int)
+
+    public fun qneonVdotqS32(a: ByteArray, b: ByteArray): IntArray
+
+    public fun qneonVmullS8(a: ByteArray, b: ByteArray): ShortArray
+
+    public fun qneonVmullS16(a: ShortArray, b: ShortArray): IntArray
+
+    public fun qneonVpaddlqS16(a: ShortArray): IntArray
+
+    public fun qneonVpaddqS16(a: ShortArray, b: ShortArray): ShortArray
+
+    public fun qneonVmlaqNF32(acc: FloatArray, v: FloatArray, s: Float): FloatArray
+
+    public fun qneonVaddvqS32(a: IntArray): Int
+
+    public fun qavxMaddEpi16(a: ShortArray, b: ShortArray): IntArray
+
+    public fun qavxMmMaddEpi16(a: ShortArray, b: ShortArray): IntArray
+
+    public fun qavxMaddubsEpi16(ax: ByteArray, sy: ByteArray): ShortArray
+
+    public fun qavxSignEpi8(a: ByteArray, b: ByteArray): ByteArray
+
+    public fun qavxHaddEpi16(a: ShortArray, b: ShortArray): ShortArray
+
+    public fun qavxHaddEpi32(a: IntArray, b: IntArray): IntArray
+
+    public fun qsimd128DotI16x8(a: ShortArray, b: ShortArray): IntArray
 }
 
 @JsModule("@kotlinmania/candle-native-bindings")

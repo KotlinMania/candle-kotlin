@@ -122,6 +122,26 @@ void candle_accelerate_vdsp_vmind(const double* a, int64_t ia, const double* b, 
 void candle_accelerate_vdsp_vmax(const float* a, int64_t ia, const float* b, int64_t ib, float* c, int64_t ic, uint64_t n);
 void candle_accelerate_vdsp_vmaxd(const double* a, int64_t ia, const double* b, int64_t ib, double* c, int64_t ic, uint64_t n);
 
+/* ============================================================================
+ * Quantized NEON / AVX2 / SIMD128 intrinsics (candle-core/src/quantized/)
+ * ============================================================================ */
+void candle_qneon_vdotq_s32(const int8_t* a, const int8_t* b, int32_t* out);
+void candle_qneon_vmull_s8(const int8_t* a, const int8_t* b, int16_t* out);
+void candle_qneon_vmull_s16(const int16_t* a, const int16_t* b, int32_t* out);
+void candle_qneon_vpaddlq_s16(const int16_t* a, int32_t* out);
+void candle_qneon_vpaddq_s16(const int16_t* a, const int16_t* b, int16_t* out);
+void candle_qneon_vmlaq_n_f32(const float* acc, const float* v, float s, float* out);
+int32_t candle_qneon_vaddvq_s32(const int32_t* a);
+
+void candle_qavx_madd_epi16(const int16_t* a, const int16_t* b, int32_t* out);
+void candle_qavx_mm_madd_epi16(const int16_t* a, const int16_t* b, int32_t* out);
+void candle_qavx_maddubs_epi16(const int8_t* ax, const int8_t* sy, int16_t* out);
+void candle_qavx_sign_epi8(const int8_t* a, const int8_t* b, int8_t* out);
+void candle_qavx_hadd_epi16(const int16_t* a, const int16_t* b, int16_t* out);
+void candle_qavx_hadd_epi32(const int32_t* a, const int32_t* b, int32_t* out);
+
+void candle_qsimd128_dot_i16x8(const int16_t* a, const int16_t* b, int32_t* out);
+
 #ifdef __cplusplus
 }
 #endif

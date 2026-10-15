@@ -293,4 +293,161 @@ internal object CandleCInterop {
             }
         }
     }
+
+    fun qneonVdotqS32(a: ByteArray, b: ByteArray): IntArray {
+        val out = IntArray(4)
+        a.usePinned { pa ->
+            b.usePinned { pb ->
+                out.usePinned { pout ->
+                    candle_qneon_vdotq_s32(pa.addressOf(0), pb.addressOf(0), pout.addressOf(0))
+                }
+            }
+        }
+        return out
+    }
+
+    fun qneonVmullS8(a: ByteArray, b: ByteArray): ShortArray {
+        val out = ShortArray(8)
+        a.usePinned { pa ->
+            b.usePinned { pb ->
+                out.usePinned { pout ->
+                    candle_qneon_vmull_s8(pa.addressOf(0), pb.addressOf(0), pout.addressOf(0))
+                }
+            }
+        }
+        return out
+    }
+
+    fun qneonVmullS16(a: ShortArray, b: ShortArray): IntArray {
+        val out = IntArray(4)
+        a.usePinned { pa ->
+            b.usePinned { pb ->
+                out.usePinned { pout ->
+                    candle_qneon_vmull_s16(pa.addressOf(0), pb.addressOf(0), pout.addressOf(0))
+                }
+            }
+        }
+        return out
+    }
+
+    fun qneonVpaddlqS16(a: ShortArray): IntArray {
+        val out = IntArray(4)
+        a.usePinned { pa ->
+            out.usePinned { pout ->
+                candle_qneon_vpaddlq_s16(pa.addressOf(0), pout.addressOf(0))
+            }
+        }
+        return out
+    }
+
+    fun qneonVpaddqS16(a: ShortArray, b: ShortArray): ShortArray {
+        val out = ShortArray(8)
+        a.usePinned { pa ->
+            b.usePinned { pb ->
+                out.usePinned { pout ->
+                    candle_qneon_vpaddq_s16(pa.addressOf(0), pb.addressOf(0), pout.addressOf(0))
+                }
+            }
+        }
+        return out
+    }
+
+    fun qneonVmlaqNF32(acc: FloatArray, v: FloatArray, s: Float): FloatArray {
+        val out = FloatArray(4)
+        acc.usePinned { pacc ->
+            v.usePinned { pv ->
+                out.usePinned { pout ->
+                    candle_qneon_vmlaq_n_f32(pacc.addressOf(0), pv.addressOf(0), s, pout.addressOf(0))
+                }
+            }
+        }
+        return out
+    }
+
+    fun qneonVaddvqS32(a: IntArray): Int =
+        a.usePinned { pa -> candle_qneon_vaddvq_s32(pa.addressOf(0)) }
+
+    fun qavxMaddEpi16(a: ShortArray, b: ShortArray): IntArray {
+        val out = IntArray(8)
+        a.usePinned { pa ->
+            b.usePinned { pb ->
+                out.usePinned { pout ->
+                    candle_qavx_madd_epi16(pa.addressOf(0), pb.addressOf(0), pout.addressOf(0))
+                }
+            }
+        }
+        return out
+    }
+
+    fun qavxMmMaddEpi16(a: ShortArray, b: ShortArray): IntArray {
+        val out = IntArray(4)
+        a.usePinned { pa ->
+            b.usePinned { pb ->
+                out.usePinned { pout ->
+                    candle_qavx_mm_madd_epi16(pa.addressOf(0), pb.addressOf(0), pout.addressOf(0))
+                }
+            }
+        }
+        return out
+    }
+
+    fun qavxMaddubsEpi16(ax: ByteArray, sy: ByteArray): ShortArray {
+        val out = ShortArray(16)
+        ax.usePinned { pax ->
+            sy.usePinned { psy ->
+                out.usePinned { pout ->
+                    candle_qavx_maddubs_epi16(pax.addressOf(0), psy.addressOf(0), pout.addressOf(0))
+                }
+            }
+        }
+        return out
+    }
+
+    fun qavxSignEpi8(a: ByteArray, b: ByteArray): ByteArray {
+        val out = ByteArray(32)
+        a.usePinned { pa ->
+            b.usePinned { pb ->
+                out.usePinned { pout ->
+                    candle_qavx_sign_epi8(pa.addressOf(0), pb.addressOf(0), pout.addressOf(0))
+                }
+            }
+        }
+        return out
+    }
+
+    fun qavxHaddEpi16(a: ShortArray, b: ShortArray): ShortArray {
+        val out = ShortArray(8)
+        a.usePinned { pa ->
+            b.usePinned { pb ->
+                out.usePinned { pout ->
+                    candle_qavx_hadd_epi16(pa.addressOf(0), pb.addressOf(0), pout.addressOf(0))
+                }
+            }
+        }
+        return out
+    }
+
+    fun qavxHaddEpi32(a: IntArray, b: IntArray): IntArray {
+        val out = IntArray(4)
+        a.usePinned { pa ->
+            b.usePinned { pb ->
+                out.usePinned { pout ->
+                    candle_qavx_hadd_epi32(pa.addressOf(0), pb.addressOf(0), pout.addressOf(0))
+                }
+            }
+        }
+        return out
+    }
+
+    fun qsimd128DotI16x8(a: ShortArray, b: ShortArray): IntArray {
+        val out = IntArray(4)
+        a.usePinned { pa ->
+            b.usePinned { pb ->
+                out.usePinned { pout ->
+                    candle_qsimd128_dot_i16x8(pa.addressOf(0), pb.addressOf(0), pout.addressOf(0))
+                }
+            }
+        }
+        return out
+    }
 }

@@ -62,21 +62,10 @@ private val vgetLowU8: (ByteArray) -> ByteArray = { a -> ByteArray(8) { i -> a[i
 private val vgetHighU8: (ByteArray) -> ByteArray = { a -> ByteArray(8) { i -> a[i + 8] } }
 private val vgetLowS16: (ShortArray) -> ShortArray = { a -> ShortArray(4) { i -> a[i] } }
 private val vgetHighS16: (ShortArray) -> ShortArray = { a -> ShortArray(4) { i -> a[i + 4] } }
-private val vmullS8: (ByteArray, ByteArray) -> ShortArray = { a, b ->
-    ShortArray(8) { i -> (a[i].toInt() * b[i].toInt()).toShort() }
-}
-private val vmullS16: (ShortArray, ShortArray) -> IntArray = { a, b ->
-    IntArray(4) { i -> a[i].toInt() * b[i].toInt() }
-}
-private val vpaddlqS16: (ShortArray) -> IntArray = { a ->
-    IntArray(4) { i -> a[i * 2].toInt() + a[i * 2 + 1].toInt() }
-}
-private val vpaddqS16: (ShortArray, ShortArray) -> ShortArray = { a, b ->
-    ShortArray(8) { i ->
-        if (i < 4) (a[i * 2].toInt() + a[i * 2 + 1].toInt()).toShort()
-        else (b[(i - 4) * 2].toInt() + b[(i - 4) * 2 + 1].toInt()).toShort()
-    }
-}
+internal expect val vmullS8: (ByteArray, ByteArray) -> ShortArray
+internal expect val vmullS16: (ShortArray, ShortArray) -> IntArray
+internal expect val vpaddlqS16: (ShortArray) -> IntArray
+internal expect val vpaddqS16: (ShortArray, ShortArray) -> ShortArray
 private val vmovlS8: (ByteArray) -> ShortArray = { a -> ShortArray(8) { i -> a[i].toShort() } }
 private val vmovlU8: (ByteArray) -> ShortArray = { a -> ShortArray(8) { i -> (a[i].toInt() and 0xFF).toShort() } }
 private val vandqU8: (ByteArray, ByteArray) -> ByteArray = { a, b ->
@@ -105,11 +94,9 @@ private val vaddqS32: (IntArray, IntArray) -> IntArray = { a, b ->
 private val vcvtqF32S32: (IntArray) -> FloatArray = { a ->
     FloatArray(4) { i -> a[i].toFloat() }
 }
-private val vmlaqNF32: (FloatArray, FloatArray, Float) -> FloatArray = { acc, v, s ->
-    FloatArray(4) { i -> acc[i] + v[i] * s }
-}
+internal expect val vmlaqNF32: (FloatArray, FloatArray, Float) -> FloatArray
 private val vaddvqF32: (FloatArray) -> Float = { a -> a[0] + a[1] + a[2] + a[3] }
-private val vaddvqS32: (IntArray) -> Int = { a -> a[0] + a[1] + a[2] + a[3] }
+internal expect val vaddvqS32: (IntArray) -> Int
 private val readU32Into: (UByteArray, IntArray, Int) -> Unit = { src, dst, count ->
     for (w in 0 until count) {
         val b0 = src[w * 4].toInt() and 0xFF

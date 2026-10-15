@@ -59,4 +59,32 @@ internal object CandleJni {
     @JvmStatic external fun accelerateVvsqrtf(dst: FloatArray, src: FloatArray, len: Int)
 
     @JvmStatic external fun accelerateVvtanhf(dst: FloatArray, src: FloatArray, len: Int)
+
+    @JvmStatic external fun qneonVdotqS32(a: ByteArray, b: ByteArray, out: IntArray)
+
+    @JvmStatic external fun qneonVmullS8(a: ByteArray, b: ByteArray, out: ShortArray)
+
+    @JvmStatic external fun qneonVmullS16(a: ShortArray, b: ShortArray, out: IntArray)
+
+    @JvmStatic external fun qneonVpaddlqS16(a: ShortArray, out: IntArray)
+
+    @JvmStatic external fun qneonVpaddqS16(a: ShortArray, b: ShortArray, out: ShortArray)
+
+    @JvmStatic external fun qneonVmlaqNF32(acc: FloatArray, v: FloatArray, s: Float, out: FloatArray)
+
+    @JvmStatic external fun qneonVaddvqS32(a: IntArray): Int
+
+    @JvmStatic external fun qavxMaddEpi16(a: ShortArray, b: ShortArray, out: IntArray)
+
+    @JvmStatic external fun qavxMmMaddEpi16(a: ShortArray, b: ShortArray, out: IntArray)
+
+    @JvmStatic external fun qavxMaddubsEpi16(ax: ByteArray, sy: ByteArray, out: ShortArray)
+
+    @JvmStatic external fun qavxSignEpi8(a: ByteArray, b: ByteArray, out: ByteArray)
+
+    @JvmStatic external fun qavxHaddEpi16(a: ShortArray, b: ShortArray, out: ShortArray)
+
+    @JvmStatic external fun qavxHaddEpi32(a: IntArray, b: IntArray, out: IntArray)
+
+    @JvmStatic external fun qsimd128DotI16x8(a: ShortArray, b: ShortArray, out: IntArray)
 }

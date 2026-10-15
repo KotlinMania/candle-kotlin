@@ -786,3 +786,150 @@ void candle_accelerate_vdsp_vmaxd(const double* a, int64_t ia, const double* b, 
     }
 #endif
 }
+
+/* ============================================================================
+ * Quantized NEON / AVX2 / SIMD128 intrinsics (candle-core/src/quantized/)
+ * ============================================================================ */
+void candle_qneon_vdotq_s32(const int8_t* a, const int8_t* b, int32_t* out) {
+#if defined(__aarch64__) || defined(__arm__)
+    int8x16_t va = vld1q_s8(a);
+    int8x16_t vb = vld1q_s8(b);
+    int16x8_t p0 = vmull_s8(vget_low_s8(va), vget_low_s8(vb));
+    int16x8_t p1 = vmull_s8(vget_high_s8(va), vget_high_s8(vb));
+    vst1q_s32(out, vaddq_s32(vpaddlq_s16(p0), vpaddlq_s16(p1)));
+#else
+    for (int i = 0; i < 4; ++i) {
+        int32_t s0 = (int32_t)a[i * 2] * (int32_t)b[i * 2] + (int32_t)a[i * 2 + 1] * (int32_t)b[i * 2 + 1];
+        int32_t s1 = (int32_t)a[8 + i * 2] * (int32_t)b[8 + i * 2] + (int32_t)a[8 + i * 2 + 1] * (int32_t)b[8 + i * 2 + 1];
+        out[i] = s0 + s1;
+    }
+#endif
+}
+
+void candle_qneon_vmull_s8(const int8_t* a, const int8_t* b, int16_t* out) {
+#if defined(__aarch64__) || defined(__arm__)
+    vst1q_s16(out, vmull_s8(vld1_s8(a), vld1_s8(b)));
+#else
+    for (int i = 0; i < 8; ++i) out[i] = (int16_t)((int32_t)a[i] * (int32_t)b[i]);
+#endif
+}
+
+void candle_qneon_vmull_s16(const int16_t* a, const int16_t* b, int32_t* out) {
+#if defined(__aarch64__) || defined(__arm__)
+    vst1q_s32(out, vmull_s16(vld1_s16(a), vld1_s16(b)));
+#else
+    for (int i = 0; i < 4; ++i) out[i] = (int32_t)a[i] * (int32_t)b[i];
+#endif
+}
+
+void candle_qneon_vpaddlq_s16(const int16_t* a, int32_t* out) {
+#if defined(__aarch64__) || defined(__arm__)
+    vst1q_s32(out, vpaddlq_s16(vld1q_s16(a)));
+#else
+    for (int i = 0; i < 4; ++i) out[i] = (int32_t)a[i * 2] + (int32_t)a[i * 2 + 1];
+#endif
+}
+
+void candle_qneon_vpaddq_s16(const int16_t* a, const int16_t* b, int16_t* out) {
+#if defined(__aarch64__)
+    vst1q_s16(out, vpaddq_s16(vld1q_s16(a), vld1q_s16(b)));
+#else
+    for (int i = 0; i < 4; ++i) out[i] = (int16_t)((int32_t)a[i * 2] + (int32_t)a[i * 2 + 1]);
+    for (int i = 0; i < 4; ++i) out[4 + i] = (int16_t)((int32_t)b[i * 2] + (int32_t)b[i * 2 + 1]);
+#endif
+}
+
+void candle_qneon_vmlaq_n_f32(const float* acc, const float* v, float s, float* out) {
+#if defined(__aarch64__) || defined(__arm__)
+    vst1q_f32(out, vmlaq_n_f32(vld1q_f32(acc), vld1q_f32(v), s));
+#else
+    for (int i = 0; i < 4; ++i) out[i] = acc[i] + v[i] * s;
+#endif
+}
+
+int32_t candle_qneon_vaddvq_s32(const int32_t* a) {
+#if defined(__aarch64__)
+    return vaddvq_s32(vld1q_s32(a));
+#else
+    return a[0] + a[1] + a[2] + a[3];
+#endif
+}
+
+void candle_qavx_madd_epi16(const int16_t* a, const int16_t* b, int32_t* out) {
+#if defined(__AVX2__)
+    _mm256_storeu_si256((__m256i*)out, _mm256_madd_epi16(_mm256_loadu_si256((const __m256i*)a), _mm256_loadu_si256((const __m256i*)b)));
+#else
+    for (int i = 0; i < 8; ++i) {
+        out[i] = (int32_t)a[i * 2] * (int32_t)b[i * 2] + (int32_t)a[i * 2 + 1] * (int32_t)b[i * 2 + 1];
+    }
+#endif
+}
+
+void candle_qavx_mm_madd_epi16(const int16_t* a, const int16_t* b, int32_t* out) {
+#if defined(__SSE2__)
+    _mm_storeu_si128((__m128i*)out, _mm_madd_epi16(_mm_loadu_si128((const __m128i*)a), _mm_loadu_si128((const __m128i*)b)));
+#else
+    for (int i = 0; i < 4; ++i) {
+        out[i] = (int32_t)a[i * 2] * (int32_t)b[i * 2] + (int32_t)a[i * 2 + 1] * (int32_t)b[i * 2 + 1];
+    }
+#endif
+}
+
+void candle_qavx_maddubs_epi16(const int8_t* ax, const int8_t* sy, int16_t* out) {
+#if defined(__AVX2__)
+    _mm256_storeu_si256((__m256i*)out, _mm256_maddubs_epi16(_mm256_loadu_si256((const __m256i*)ax), _mm256_loadu_si256((const __m256i*)sy)));
+#else
+    for (int i = 0; i < 16; ++i) {
+        int32_t u0 = (int32_t)((uint8_t)ax[i * 2]);
+        int32_t u1 = (int32_t)((uint8_t)ax[i * 2 + 1]);
+        int32_t s0 = (int32_t)sy[i * 2];
+        int32_t s1 = (int32_t)sy[i * 2 + 1];
+        int32_t v = u0 * s0 + u1 * s1;
+        if (v < -32768) v = -32768;
+        if (v > 32767) v = 32767;
+        out[i] = (int16_t)v;
+    }
+#endif
+}
+
+void candle_qavx_sign_epi8(const int8_t* a, const int8_t* b, int8_t* out) {
+#if defined(__AVX2__)
+    _mm256_storeu_si256((__m256i*)out, _mm256_sign_epi8(_mm256_loadu_si256((const __m256i*)a), _mm256_loadu_si256((const __m256i*)b)));
+#else
+    for (int i = 0; i < 32; ++i) {
+        int8_t bv = b[i];
+        out[i] = bv < 0 ? (int8_t)(-a[i]) : (bv == 0 ? 0 : a[i]);
+    }
+#endif
+}
+
+void candle_qavx_hadd_epi16(const int16_t* a, const int16_t* b, int16_t* out) {
+#if defined(__SSSE3__)
+    _mm_storeu_si128((__m128i*)out, _mm_hadd_epi16(_mm_loadu_si128((const __m128i*)a), _mm_loadu_si128((const __m128i*)b)));
+#else
+    for (int i = 0; i < 4; ++i) out[i] = (int16_t)(a[i * 2] + a[i * 2 + 1]);
+    for (int i = 0; i < 4; ++i) out[4 + i] = (int16_t)(b[i * 2] + b[i * 2 + 1]);
+#endif
+}
+
+void candle_qavx_hadd_epi32(const int32_t* a, const int32_t* b, int32_t* out) {
+#if defined(__SSSE3__)
+    _mm_storeu_si128((__m128i*)out, _mm_hadd_epi32(_mm_loadu_si128((const __m128i*)a), _mm_loadu_si128((const __m128i*)b)));
+#else
+    out[0] = a[0] + a[1];
+    out[1] = a[2] + a[3];
+    out[2] = b[0] + b[1];
+    out[3] = b[2] + b[3];
+#endif
+}
+
+void candle_qsimd128_dot_i16x8(const int16_t* a, const int16_t* b, int32_t* out) {
+#if defined(__wasm_simd128__)
+    wasm_v128_store(out, wasm_i32x4_dot_i16x8(wasm_v128_load(a), wasm_v128_load(b)));
+#else
+    for (int i = 0; i < 4; ++i) {
+        out[i] = (int32_t)a[i * 2] * (int32_t)b[i * 2] + (int32_t)a[i * 2 + 1] * (int32_t)b[i * 2 + 1];
+    }
+#endif
+}
+

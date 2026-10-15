@@ -310,3 +310,167 @@ Java_io_github_kotlinmania_candle_internal_CandleJni_accelerateVvtanhf(
     if (srcPtr) (*env)->ReleaseFloatArrayElements(env, src, srcPtr, JNI_ABORT);
     if (dstPtr) (*env)->ReleaseFloatArrayElements(env, dst, dstPtr, 0);
 }
+
+/* ============================================================================
+ * JNI Bindings for Quantized NEON / AVX2 / SIMD128
+ * ============================================================================ */
+
+JNIEXPORT void JNICALL
+Java_io_github_kotlinmania_candle_internal_CandleJni_qneonVdotqS32(
+    JNIEnv* env, jclass clazz, jbyteArray a, jbyteArray b, jintArray out) {
+    (void)clazz;
+    jbyte aBuf[16], bBuf[16];
+    jint outBuf[4];
+    (*env)->GetByteArrayRegion(env, a, 0, 16, aBuf);
+    (*env)->GetByteArrayRegion(env, b, 0, 16, bBuf);
+    candle_qneon_vdotq_s32((const int8_t*)aBuf, (const int8_t*)bBuf, (int32_t*)outBuf);
+    (*env)->SetIntArrayRegion(env, out, 0, 4, outBuf);
+}
+
+JNIEXPORT void JNICALL
+Java_io_github_kotlinmania_candle_internal_CandleJni_qneonVmullS8(
+    JNIEnv* env, jclass clazz, jbyteArray a, jbyteArray b, jshortArray out) {
+    (void)clazz;
+    jbyte aBuf[8], bBuf[8];
+    jshort outBuf[8];
+    (*env)->GetByteArrayRegion(env, a, 0, 8, aBuf);
+    (*env)->GetByteArrayRegion(env, b, 0, 8, bBuf);
+    candle_qneon_vmull_s8((const int8_t*)aBuf, (const int8_t*)bBuf, (int16_t*)outBuf);
+    (*env)->SetShortArrayRegion(env, out, 0, 8, outBuf);
+}
+
+JNIEXPORT void JNICALL
+Java_io_github_kotlinmania_candle_internal_CandleJni_qneonVmullS16(
+    JNIEnv* env, jclass clazz, jshortArray a, jshortArray b, jintArray out) {
+    (void)clazz;
+    jshort aBuf[4], bBuf[4];
+    jint outBuf[4];
+    (*env)->GetShortArrayRegion(env, a, 0, 4, aBuf);
+    (*env)->GetShortArrayRegion(env, b, 0, 4, bBuf);
+    candle_qneon_vmull_s16((const int16_t*)aBuf, (const int16_t*)bBuf, (int32_t*)outBuf);
+    (*env)->SetIntArrayRegion(env, out, 0, 4, outBuf);
+}
+
+JNIEXPORT void JNICALL
+Java_io_github_kotlinmania_candle_internal_CandleJni_qneonVpaddlqS16(
+    JNIEnv* env, jclass clazz, jshortArray a, jintArray out) {
+    (void)clazz;
+    jshort aBuf[8];
+    jint outBuf[4];
+    (*env)->GetShortArrayRegion(env, a, 0, 8, aBuf);
+    candle_qneon_vpaddlq_s16((const int16_t*)aBuf, (int32_t*)outBuf);
+    (*env)->SetIntArrayRegion(env, out, 0, 4, outBuf);
+}
+
+JNIEXPORT void JNICALL
+Java_io_github_kotlinmania_candle_internal_CandleJni_qneonVpaddqS16(
+    JNIEnv* env, jclass clazz, jshortArray a, jshortArray b, jshortArray out) {
+    (void)clazz;
+    jshort aBuf[8], bBuf[8], outBuf[8];
+    (*env)->GetShortArrayRegion(env, a, 0, 8, aBuf);
+    (*env)->GetShortArrayRegion(env, b, 0, 8, bBuf);
+    candle_qneon_vpaddq_s16((const int16_t*)aBuf, (const int16_t*)bBuf, (int16_t*)outBuf);
+    (*env)->SetShortArrayRegion(env, out, 0, 8, outBuf);
+}
+
+JNIEXPORT void JNICALL
+Java_io_github_kotlinmania_candle_internal_CandleJni_qneonVmlaqNF32(
+    JNIEnv* env, jclass clazz, jfloatArray acc, jfloatArray v, jfloat s, jfloatArray out) {
+    (void)clazz;
+    jfloat accBuf[4], vBuf[4], outBuf[4];
+    (*env)->GetFloatArrayRegion(env, acc, 0, 4, accBuf);
+    (*env)->GetFloatArrayRegion(env, v, 0, 4, vBuf);
+    candle_qneon_vmlaq_n_f32(accBuf, vBuf, s, outBuf);
+    (*env)->SetFloatArrayRegion(env, out, 0, 4, outBuf);
+}
+
+JNIEXPORT jint JNICALL
+Java_io_github_kotlinmania_candle_internal_CandleJni_qneonVaddvqS32(
+    JNIEnv* env, jclass clazz, jintArray a) {
+    (void)clazz;
+    jint aBuf[4];
+    (*env)->GetIntArrayRegion(env, a, 0, 4, aBuf);
+    return candle_qneon_vaddvq_s32((const int32_t*)aBuf);
+}
+
+JNIEXPORT void JNICALL
+Java_io_github_kotlinmania_candle_internal_CandleJni_qavxMaddEpi16(
+    JNIEnv* env, jclass clazz, jshortArray a, jshortArray b, jintArray out) {
+    (void)clazz;
+    jshort aBuf[16], bBuf[16];
+    jint outBuf[8];
+    (*env)->GetShortArrayRegion(env, a, 0, 16, aBuf);
+    (*env)->GetShortArrayRegion(env, b, 0, 16, bBuf);
+    candle_qavx_madd_epi16((const int16_t*)aBuf, (const int16_t*)bBuf, (int32_t*)outBuf);
+    (*env)->SetIntArrayRegion(env, out, 0, 8, outBuf);
+}
+
+JNIEXPORT void JNICALL
+Java_io_github_kotlinmania_candle_internal_CandleJni_qavxMmMaddEpi16(
+    JNIEnv* env, jclass clazz, jshortArray a, jshortArray b, jintArray out) {
+    (void)clazz;
+    jshort aBuf[8], bBuf[8];
+    jint outBuf[4];
+    (*env)->GetShortArrayRegion(env, a, 0, 8, aBuf);
+    (*env)->GetShortArrayRegion(env, b, 0, 8, bBuf);
+    candle_qavx_mm_madd_epi16((const int16_t*)aBuf, (const int16_t*)bBuf, (int32_t*)outBuf);
+    (*env)->SetIntArrayRegion(env, out, 0, 4, outBuf);
+}
+
+JNIEXPORT void JNICALL
+Java_io_github_kotlinmania_candle_internal_CandleJni_qavxMaddubsEpi16(
+    JNIEnv* env, jclass clazz, jbyteArray ax, jbyteArray sy, jshortArray out) {
+    (void)clazz;
+    jbyte axBuf[32], syBuf[32];
+    jshort outBuf[16];
+    (*env)->GetByteArrayRegion(env, ax, 0, 32, axBuf);
+    (*env)->GetByteArrayRegion(env, sy, 0, 32, syBuf);
+    candle_qavx_maddubs_epi16((const int8_t*)axBuf, (const int8_t*)syBuf, (int16_t*)outBuf);
+    (*env)->SetShortArrayRegion(env, out, 0, 16, outBuf);
+}
+
+JNIEXPORT void JNICALL
+Java_io_github_kotlinmania_candle_internal_CandleJni_qavxSignEpi8(
+    JNIEnv* env, jclass clazz, jbyteArray a, jbyteArray b, jbyteArray out) {
+    (void)clazz;
+    jbyte aBuf[32], bBuf[32], outBuf[32];
+    (*env)->GetByteArrayRegion(env, a, 0, 32, aBuf);
+    (*env)->GetByteArrayRegion(env, b, 0, 32, bBuf);
+    candle_qavx_sign_epi8((const int8_t*)aBuf, (const int8_t*)bBuf, (int8_t*)outBuf);
+    (*env)->SetByteArrayRegion(env, out, 0, 32, outBuf);
+}
+
+JNIEXPORT void JNICALL
+Java_io_github_kotlinmania_candle_internal_CandleJni_qavxHaddEpi16(
+    JNIEnv* env, jclass clazz, jshortArray a, jshortArray b, jshortArray out) {
+    (void)clazz;
+    jshort aBuf[8], bBuf[8], outBuf[8];
+    (*env)->GetShortArrayRegion(env, a, 0, 8, aBuf);
+    (*env)->GetShortArrayRegion(env, b, 0, 8, bBuf);
+    candle_qavx_hadd_epi16((const int16_t*)aBuf, (const int16_t*)bBuf, (int16_t*)outBuf);
+    (*env)->SetShortArrayRegion(env, out, 0, 8, outBuf);
+}
+
+JNIEXPORT void JNICALL
+Java_io_github_kotlinmania_candle_internal_CandleJni_qavxHaddEpi32(
+    JNIEnv* env, jclass clazz, jintArray a, jintArray b, jintArray out) {
+    (void)clazz;
+    jint aBuf[4], bBuf[4], outBuf[4];
+    (*env)->GetIntArrayRegion(env, a, 0, 4, aBuf);
+    (*env)->GetIntArrayRegion(env, b, 0, 4, bBuf);
+    candle_qavx_hadd_epi32((const int32_t*)aBuf, (const int32_t*)bBuf, (int32_t*)outBuf);
+    (*env)->SetIntArrayRegion(env, out, 0, 4, outBuf);
+}
+
+JNIEXPORT void JNICALL
+Java_io_github_kotlinmania_candle_internal_CandleJni_qsimd128DotI16x8(
+    JNIEnv* env, jclass clazz, jshortArray a, jshortArray b, jintArray out) {
+    (void)clazz;
+    jshort aBuf[8], bBuf[8];
+    jint outBuf[4];
+    (*env)->GetShortArrayRegion(env, a, 0, 8, aBuf);
+    (*env)->GetShortArrayRegion(env, b, 0, 8, bBuf);
+    candle_qsimd128_dot_i16x8((const int16_t*)aBuf, (const int16_t*)bBuf, (int32_t*)outBuf);
+    (*env)->SetIntArrayRegion(env, out, 0, 4, outBuf);
+}
+

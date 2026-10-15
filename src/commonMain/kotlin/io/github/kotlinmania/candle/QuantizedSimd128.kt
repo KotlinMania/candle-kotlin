@@ -87,9 +87,7 @@ private val i32x4ExtendHighI16x8: (ShortArray) -> IntArray = { a ->
 private val i32x4LoadExtendI16x4: (ShortArray, Int) -> IntArray = { src, off ->
     IntArray(4) { i -> src[off + i].toInt() }
 }
-private val i32x4DotI16x8: (ShortArray, ShortArray) -> IntArray = { a, b ->
-    IntArray(4) { i -> a[i * 2].toInt() * b[i * 2].toInt() + a[i * 2 + 1].toInt() * b[i * 2 + 1].toInt() }
-}
+internal expect val i32x4DotI16x8: (ShortArray, ShortArray) -> IntArray
 private val i32x4Add: (IntArray, IntArray) -> IntArray = { a, b ->
     IntArray(4) { i -> a[i] + b[i] }
 }

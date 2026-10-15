@@ -259,6 +259,129 @@ Napi::Value AccelerateVvtanhf(const Napi::CallbackInfo& info) {
     return env.Undefined();
 }
 
+Napi::Value QneonVdotqS32(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    Napi::Int8Array a = info[0].As<Napi::Int8Array>();
+    Napi::Int8Array b = info[1].As<Napi::Int8Array>();
+    Napi::Int32Array out = Napi::Int32Array::New(env, 4);
+    candle_qneon_vdotq_s32(a.Data(), b.Data(), out.Data());
+    return out;
+}
+
+Napi::Value QneonVmullS8(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    Napi::Int8Array a = info[0].As<Napi::Int8Array>();
+    Napi::Int8Array b = info[1].As<Napi::Int8Array>();
+    Napi::Int16Array out = Napi::Int16Array::New(env, 8);
+    candle_qneon_vmull_s8(a.Data(), b.Data(), out.Data());
+    return out;
+}
+
+Napi::Value QneonVmullS16(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    Napi::Int16Array a = info[0].As<Napi::Int16Array>();
+    Napi::Int16Array b = info[1].As<Napi::Int16Array>();
+    Napi::Int32Array out = Napi::Int32Array::New(env, 4);
+    candle_qneon_vmull_s16(a.Data(), b.Data(), out.Data());
+    return out;
+}
+
+Napi::Value QneonVpaddlqS16(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    Napi::Int16Array a = info[0].As<Napi::Int16Array>();
+    Napi::Int32Array out = Napi::Int32Array::New(env, 4);
+    candle_qneon_vpaddlq_s16(a.Data(), out.Data());
+    return out;
+}
+
+Napi::Value QneonVpaddqS16(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    Napi::Int16Array a = info[0].As<Napi::Int16Array>();
+    Napi::Int16Array b = info[1].As<Napi::Int16Array>();
+    Napi::Int16Array out = Napi::Int16Array::New(env, 8);
+    candle_qneon_vpaddq_s16(a.Data(), b.Data(), out.Data());
+    return out;
+}
+
+Napi::Value QneonVmlaqNF32(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    Napi::Float32Array acc = info[0].As<Napi::Float32Array>();
+    Napi::Float32Array v = info[1].As<Napi::Float32Array>();
+    float s = info[2].As<Napi::Number>().FloatValue();
+    Napi::Float32Array out = Napi::Float32Array::New(env, 4);
+    candle_qneon_vmlaq_n_f32(acc.Data(), v.Data(), s, out.Data());
+    return out;
+}
+
+Napi::Value QneonVaddvqS32(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    Napi::Int32Array a = info[0].As<Napi::Int32Array>();
+    return Napi::Number::New(env, candle_qneon_vaddvq_s32(a.Data()));
+}
+
+Napi::Value QavxMaddEpi16(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    Napi::Int16Array a = info[0].As<Napi::Int16Array>();
+    Napi::Int16Array b = info[1].As<Napi::Int16Array>();
+    Napi::Int32Array out = Napi::Int32Array::New(env, 8);
+    candle_qavx_madd_epi16(a.Data(), b.Data(), out.Data());
+    return out;
+}
+
+Napi::Value QavxMmMaddEpi16(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    Napi::Int16Array a = info[0].As<Napi::Int16Array>();
+    Napi::Int16Array b = info[1].As<Napi::Int16Array>();
+    Napi::Int32Array out = Napi::Int32Array::New(env, 4);
+    candle_qavx_mm_madd_epi16(a.Data(), b.Data(), out.Data());
+    return out;
+}
+
+Napi::Value QavxMaddubsEpi16(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    Napi::Int8Array ax = info[0].As<Napi::Int8Array>();
+    Napi::Int8Array sy = info[1].As<Napi::Int8Array>();
+    Napi::Int16Array out = Napi::Int16Array::New(env, 16);
+    candle_qavx_maddubs_epi16(ax.Data(), sy.Data(), out.Data());
+    return out;
+}
+
+Napi::Value QavxSignEpi8(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    Napi::Int8Array a = info[0].As<Napi::Int8Array>();
+    Napi::Int8Array b = info[1].As<Napi::Int8Array>();
+    Napi::Int8Array out = Napi::Int8Array::New(env, 32);
+    candle_qavx_sign_epi8(a.Data(), b.Data(), out.Data());
+    return out;
+}
+
+Napi::Value QavxHaddEpi16(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    Napi::Int16Array a = info[0].As<Napi::Int16Array>();
+    Napi::Int16Array b = info[1].As<Napi::Int16Array>();
+    Napi::Int16Array out = Napi::Int16Array::New(env, 8);
+    candle_qavx_hadd_epi16(a.Data(), b.Data(), out.Data());
+    return out;
+}
+
+Napi::Value QavxHaddEpi32(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    Napi::Int32Array a = info[0].As<Napi::Int32Array>();
+    Napi::Int32Array b = info[1].As<Napi::Int32Array>();
+    Napi::Int32Array out = Napi::Int32Array::New(env, 4);
+    candle_qavx_hadd_epi32(a.Data(), b.Data(), out.Data());
+    return out;
+}
+
+Napi::Value Qsimd128DotI16x8(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    Napi::Int16Array a = info[0].As<Napi::Int16Array>();
+    Napi::Int16Array b = info[1].As<Napi::Int16Array>();
+    Napi::Int32Array out = Napi::Int32Array::New(env, 4);
+    candle_qsimd128_dot_i16x8(a.Data(), b.Data(), out.Data());
+    return out;
+}
+
 } // namespace
 
 Napi::Object Init(Napi::Env env, Napi::Object exports) {
@@ -289,6 +412,20 @@ Napi::Object Init(Napi::Env env, Napi::Object exports) {
     exports.Set("accelerateVvexpf", Napi::Function::New(env, AccelerateVvexpf));
     exports.Set("accelerateVvsqrtf", Napi::Function::New(env, AccelerateVvsqrtf));
     exports.Set("accelerateVvtanhf", Napi::Function::New(env, AccelerateVvtanhf));
+    exports.Set("qneonVdotqS32", Napi::Function::New(env, QneonVdotqS32));
+    exports.Set("qneonVmullS8", Napi::Function::New(env, QneonVmullS8));
+    exports.Set("qneonVmullS16", Napi::Function::New(env, QneonVmullS16));
+    exports.Set("qneonVpaddlqS16", Napi::Function::New(env, QneonVpaddlqS16));
+    exports.Set("qneonVpaddqS16", Napi::Function::New(env, QneonVpaddqS16));
+    exports.Set("qneonVmlaqNF32", Napi::Function::New(env, QneonVmlaqNF32));
+    exports.Set("qneonVaddvqS32", Napi::Function::New(env, QneonVaddvqS32));
+    exports.Set("qavxMaddEpi16", Napi::Function::New(env, QavxMaddEpi16));
+    exports.Set("qavxMmMaddEpi16", Napi::Function::New(env, QavxMmMaddEpi16));
+    exports.Set("qavxMaddubsEpi16", Napi::Function::New(env, QavxMaddubsEpi16));
+    exports.Set("qavxSignEpi8", Napi::Function::New(env, QavxSignEpi8));
+    exports.Set("qavxHaddEpi16", Napi::Function::New(env, QavxHaddEpi16));
+    exports.Set("qavxHaddEpi32", Napi::Function::New(env, QavxHaddEpi32));
+    exports.Set("qsimd128DotI16x8", Napi::Function::New(env, Qsimd128DotI16x8));
     return exports;
 }
 

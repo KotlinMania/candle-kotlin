@@ -22,21 +22,9 @@ private val mmSetzeroSi128: () -> IntArray = { IntArray(4) }
 private val mm256Set1Ps: (Float) -> FloatArray = { v -> FloatArray(8) { v } }
 private val mmSet1Ps: (Float) -> FloatArray = { v -> FloatArray(4) { v } }
 private val mm256BroadcastSs: (Float) -> FloatArray = { v -> FloatArray(8) { v } }
-private val mm256MaddEpi16: (ShortArray, ShortArray) -> IntArray = { a, b ->
-    IntArray(8) { i -> a[i * 2].toInt() * b[i * 2].toInt() + a[i * 2 + 1].toInt() * b[i * 2 + 1].toInt() }
-}
-private val mmMaddEpi16: (ShortArray, ShortArray) -> IntArray = { a, b ->
-    IntArray(4) { i -> a[i * 2].toInt() * b[i * 2].toInt() + a[i * 2 + 1].toInt() * b[i * 2 + 1].toInt() }
-}
-private val mm256MaddubsEpi16: (ByteArray, ByteArray) -> ShortArray = { ax, sy ->
-    ShortArray(16) { i ->
-        val u0 = ax[i * 2].toInt() and 0xFF
-        val u1 = ax[i * 2 + 1].toInt() and 0xFF
-        val s0 = sy[i * 2].toInt()
-        val s1 = sy[i * 2 + 1].toInt()
-        (u0 * s0 + u1 * s1).coerceIn(Short.MIN_VALUE.toInt(), Short.MAX_VALUE.toInt()).toShort()
-    }
-}
+internal expect val mm256MaddEpi16: (ShortArray, ShortArray) -> IntArray
+internal expect val mmMaddEpi16: (ShortArray, ShortArray) -> IntArray
+internal expect val mm256MaddubsEpi16: (ByteArray, ByteArray) -> ShortArray
 private val mm256Cvtepi32Ps: (IntArray) -> FloatArray = { a -> FloatArray(8) { i -> a[i].toFloat() } }
 private val mmCvtepi32Ps: (IntArray) -> FloatArray = { a -> FloatArray(4) { i -> a[i].toFloat() } }
 private val mm256Extractf128Ps: (FloatArray, Int) -> FloatArray = { x, imm ->
@@ -142,16 +130,7 @@ private val mm256SubEpi16: (ShortArray, ShortArray) -> ShortArray = { a, b ->
 private val mm256AddEpi32: (IntArray, IntArray) -> IntArray = { a, b ->
     IntArray(8) { i -> a[i] + b[i] }
 }
-private val mm256SignEpi8: (ByteArray, ByteArray) -> ByteArray = { a, b ->
-    ByteArray(32) { i ->
-        val bv = b[i].toInt()
-        when {
-            bv < 0 -> (-a[i].toInt()).toByte()
-            bv == 0 -> 0
-            else -> a[i]
-        }
-    }
-}
+internal expect val mm256SignEpi8: (ByteArray, ByteArray) -> ByteArray
 private val mm256FmaddPs: (FloatArray, FloatArray, FloatArray) -> FloatArray = { a, b, c ->
     FloatArray(8) { i -> a[i] * b[i] + c[i] }
 }
@@ -194,15 +173,8 @@ private val mm256Extracti128Si256S: (ShortArray, Int) -> ShortArray = { a, imm -
 private val mm256Extracti128Si256B: (ByteArray, Int) -> ByteArray = { a, imm ->
     ByteArray(16) { i -> a[imm * 16 + i] }
 }
-private val mmHaddEpi16: (ShortArray, ShortArray) -> ShortArray = { a, b ->
-    ShortArray(8) { i ->
-        if (i < 4) (a[i * 2].toInt() + a[i * 2 + 1].toInt()).toShort()
-        else (b[(i - 4) * 2].toInt() + b[(i - 4) * 2 + 1].toInt()).toShort()
-    }
-}
-private val mmHaddEpi32: (IntArray, IntArray) -> IntArray = { a, b ->
-    intArrayOf(a[0] + a[1], a[2] + a[3], b[0] + b[1], b[2] + b[3])
-}
+internal expect val mmHaddEpi16: (ShortArray, ShortArray) -> ShortArray
+internal expect val mmHaddEpi32: (IntArray, IntArray) -> IntArray
 private val mmExtractEpi32: (IntArray, Int) -> Int = { a, imm -> a[imm] }
 private val mmSetEpi32: (Int, Int, Int, Int) -> ByteArray = { e3, e2, e1, e0 ->
     val words = intArrayOf(e0, e1, e2, e3)
