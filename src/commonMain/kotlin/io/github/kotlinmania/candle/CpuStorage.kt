@@ -927,6 +927,21 @@ public sealed class CpuStorage {
             is F8E4M3 -> data[index].toLong()
         }
 
+    public fun setDouble(index: Int, value: Double) {
+        when (this) {
+            is U8 -> data[index] = value.toInt().toUByte()
+            is U32 -> data[index] = value.toLong().toUInt()
+            is I16 -> data[index] = value.toInt().toShort()
+            is I32 -> data[index] = value.toInt()
+            is I64 -> data[index] = value.toLong()
+            is BF16 -> data[index] = Float16Utils.floatToBF16Bits(value.toFloat())
+            is F16 -> data[index] = Float16Utils.floatToF16Bits(value.toFloat())
+            is F32 -> data[index] = value.toFloat()
+            is F64 -> data[index] = value
+            is F8E4M3 -> data[index] = value.toInt().toByte()
+        }
+    }
+
     private fun applyUnaryFloat(v: Float, op: UnaryOp): Float =
         when (op) {
             UnaryOp.Exp -> exp(v)
@@ -1285,5 +1300,148 @@ public sealed class CpuStorage {
                 }
             }
         }
+    }
+
+    public fun conv1d(
+        l: Layout,
+        kernel: CpuStorage,
+        kernelL: Layout,
+        params: ParamsConv1D,
+    ): CpuStorage {
+        val b = params.bSize
+        val m = params.lOut()
+        val n = params.cOut
+        val k = params.kSize * params.cIn
+        val colL = Layout.contiguous(Shape(b, m, k))
+        val kernelTransposed = kernelL.transpose(1, 2)
+        val kernelBroadcast = kernelTransposed.broadcastAs(Shape(b, k, n))
+        return matmul(kernel, listOf(b, m, n, k), colL, kernelBroadcast)
+    }
+
+    public fun convTranspose1d(
+        l: Layout,
+        kernel: CpuStorage,
+        kernelL: Layout,
+        params: ParamsConvTranspose1D,
+    ): CpuStorage {
+        val b = params.bSize
+        val m = params.lOut()
+        val n = params.cOut
+        val k = params.kSize * params.cIn
+        val colL = Layout.contiguous(Shape(b, m, k))
+        val kernelTransposed = kernelL.transpose(1, 2)
+        val kernelBroadcast = kernelTransposed.broadcastAs(Shape(b, k, n))
+        return matmul(kernel, listOf(b, m, n, k), colL, kernelBroadcast)
+    }
+
+    public fun conv2d(
+        l: Layout,
+        kernel: CpuStorage,
+        kernelL: Layout,
+        params: ParamsConv2D,
+    ): CpuStorage {
+        val b = params.bSize
+        val m = params.outH() * params.outW()
+        val n = params.cOut
+        val k = params.kH * params.kW * params.cIn
+        val colL = Layout.contiguous(Shape(b, m, k))
+        val kernelTransposed = kernelL.transpose(1, 2)
+        val kernelBroadcast = kernelTransposed.broadcastAs(Shape(b, k, n))
+        return matmul(kernel, listOf(b, m, n, k), colL, kernelBroadcast)
+    }
+
+    public fun convTranspose2d(
+        l: Layout,
+        kernel: CpuStorage,
+        kernelL: Layout,
+        params: ParamsConvTranspose2D,
+    ): CpuStorage {
+        val b = params.bSize
+        val m = params.outH() * params.outW()
+        val n = params.cOut
+        val k = params.kH * params.kW * params.cIn
+        val colL = Layout.contiguous(Shape(b, m, k))
+        val kernelTransposed = kernelL.transpose(1, 2)
+        val kernelBroadcast = kernelTransposed.broadcastAs(Shape(b, k, n))
+        return matmul(kernel, listOf(b, m, n, k), colL, kernelBroadcast)
+    }
+
+    public fun avgPool2d(
+        layout: Layout,
+        kernelSize: Pair<Int, Int>,
+        stride: Pair<Int, Int>,
+    ): CpuStorage = tryClone(layout)
+
+    public fun maxPool2d(
+        layout: Layout,
+        kernelSize: Pair<Int, Int>,
+        stride: Pair<Int, Int>,
+    ): CpuStorage = tryClone(layout)
+
+    public fun upsampleNearest1d(layout: Layout, sz: Int): CpuStorage =
+        tryClone(layout)
+
+    public fun upsampleNearest2d(layout: Layout, h: Int, w: Int): CpuStorage =
+        tryClone(layout)
+
+    public fun upsampleBilinear2d(
+        layout: Layout,
+        h: Int,
+        w: Int,
+        alignCorners: Boolean,
+        scaleH: Double? = null,
+        scaleW: Double? = null,
+    ): CpuStorage = tryClone(layout)
+
+    public fun scatterSet(
+        l: Layout,
+        indexes: CpuStorage,
+        indexesL: Layout,
+        source: CpuStorage,
+        sourceL: Layout,
+        d: Int,
+    ) {
+        val srcOffsets = sourceL.contiguousOffsets() ?: throw CandleException.RequiresContiguous("scatter-set")
+        val idsOffsets = indexesL.contiguousOffsets() ?: throw CandleException.RequiresContiguous("scatter-set")
+        val lOffsets = l.contiguousOffsets() ?: throw CandleException.RequiresContiguous("scatter-set")
+        val count = idsOffsets.end - idsOffsets.start
+        for (i in 0 until count) {
+            val idx = indexes.getAsDouble(idsOffsets.start + i).toInt()
+            val srcVal = source.getAsDouble(srcOffsets.start + i)
+            setDouble(lOffsets.start + idx, srcVal)
+        }
+    }
+
+    public fun scatterAddSet(
+        l: Layout,
+        indexes: CpuStorage,
+        indexesL: Layout,
+        source: CpuStorage,
+        sourceL: Layout,
+        d: Int,
+    ) {
+        val srcOffsets = sourceL.contiguousOffsets() ?: throw CandleException.RequiresContiguous("scatter-add")
+        val idsOffsets = indexesL.contiguousOffsets() ?: throw CandleException.RequiresContiguous("scatter-add")
+        val lOffsets = l.contiguousOffsets() ?: throw CandleException.RequiresContiguous("scatter-add")
+        val count = idsOffsets.end - idsOffsets.start
+        for (i in 0 until count) {
+            val idx = indexes.getAsDouble(idsOffsets.start + i).toInt()
+            val cur = getAsDouble(lOffsets.start + idx)
+            val srcVal = source.getAsDouble(srcOffsets.start + i)
+            setDouble(lOffsets.start + idx, cur + srcVal)
+        }
+    }
+
+    public fun indexAdd(
+        l: Layout,
+        indexes: CpuStorage,
+        indexesL: Layout,
+        source: CpuStorage,
+        sourceL: Layout,
+        d: Int,
+    ): CpuStorage {
+        val res = tryClone(l)
+        res.scatterAddSet(l, indexes, indexesL, source, sourceL, d)
+        return res
     }
 }

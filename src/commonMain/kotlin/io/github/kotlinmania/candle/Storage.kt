@@ -1,4 +1,4 @@
-// port-lint: source candle-core/src/storage.rs
+// port-lint: source storage.rs
 package io.github.kotlinmania.candle
 
 public sealed class Storage {
@@ -232,6 +232,167 @@ public sealed class Storage {
         sameDtype(dst, "copy2d")
         when (this) {
             is Cpu -> (this as Cpu).storage.copy2d((dst as Cpu).storage, d1, d2, srcS, dstS, srcO, dstO)
+            is Cuda -> throw CandleException.NotCompiledWithCudaSupport
+            is Metal -> throw CandleException.NotCompiledWithMetalSupport
+        }
+    }
+
+    public fun conv1d(
+        l: Layout,
+        kernel: Storage,
+        kernelL: Layout,
+        params: ParamsConv1D,
+    ): Storage {
+        sameDevice(kernel, "conv1d")
+        sameDtype(kernel, "conv1d")
+        return when (this) {
+            is Cpu -> Cpu(storage.conv1d(l, (kernel as Cpu).storage, kernelL, params))
+            is Cuda -> throw CandleException.NotCompiledWithCudaSupport
+            is Metal -> throw CandleException.NotCompiledWithMetalSupport
+        }
+    }
+
+    public fun convTranspose1d(
+        l: Layout,
+        kernel: Storage,
+        kernelL: Layout,
+        params: ParamsConvTranspose1D,
+    ): Storage {
+        sameDevice(kernel, "conv-transpose1d")
+        sameDtype(kernel, "conv-transpose1d")
+        return when (this) {
+            is Cpu -> Cpu(storage.convTranspose1d(l, (kernel as Cpu).storage, kernelL, params))
+            is Cuda -> throw CandleException.NotCompiledWithCudaSupport
+            is Metal -> throw CandleException.NotCompiledWithMetalSupport
+        }
+    }
+
+    public fun conv2d(
+        l: Layout,
+        kernel: Storage,
+        kernelL: Layout,
+        params: ParamsConv2D,
+    ): Storage {
+        sameDevice(kernel, "conv2d")
+        sameDtype(kernel, "conv2d")
+        return when (this) {
+            is Cpu -> Cpu(storage.conv2d(l, (kernel as Cpu).storage, kernelL, params))
+            is Cuda -> throw CandleException.NotCompiledWithCudaSupport
+            is Metal -> throw CandleException.NotCompiledWithMetalSupport
+        }
+    }
+
+    public fun convTranspose2d(
+        l: Layout,
+        kernel: Storage,
+        kernelL: Layout,
+        params: ParamsConvTranspose2D,
+    ): Storage {
+        sameDevice(kernel, "conv_transpose2d")
+        sameDtype(kernel, "conv_transpose2d")
+        return when (this) {
+            is Cpu -> Cpu(storage.convTranspose2d(l, (kernel as Cpu).storage, kernelL, params))
+            is Cuda -> throw CandleException.NotCompiledWithCudaSupport
+            is Metal -> throw CandleException.NotCompiledWithMetalSupport
+        }
+    }
+
+    public fun avgPool2d(
+        layout: Layout,
+        kernelSize: Pair<Int, Int>,
+        stride: Pair<Int, Int>,
+    ): Storage =
+        when (this) {
+            is Cpu -> Cpu(storage.avgPool2d(layout, kernelSize, stride))
+            is Cuda -> throw CandleException.NotCompiledWithCudaSupport
+            is Metal -> throw CandleException.NotCompiledWithMetalSupport
+        }
+
+    public fun maxPool2d(
+        layout: Layout,
+        kernelSize: Pair<Int, Int>,
+        stride: Pair<Int, Int>,
+    ): Storage =
+        when (this) {
+            is Cpu -> Cpu(storage.maxPool2d(layout, kernelSize, stride))
+            is Cuda -> throw CandleException.NotCompiledWithCudaSupport
+            is Metal -> throw CandleException.NotCompiledWithMetalSupport
+        }
+
+    public fun upsampleNearest1d(layout: Layout, sz: Int): Storage =
+        when (this) {
+            is Cpu -> Cpu(storage.upsampleNearest1d(layout, sz))
+            is Cuda -> throw CandleException.NotCompiledWithCudaSupport
+            is Metal -> throw CandleException.NotCompiledWithMetalSupport
+        }
+
+    public fun upsampleNearest2d(layout: Layout, h: Int, w: Int): Storage =
+        when (this) {
+            is Cpu -> Cpu(storage.upsampleNearest2d(layout, h, w))
+            is Cuda -> throw CandleException.NotCompiledWithCudaSupport
+            is Metal -> throw CandleException.NotCompiledWithMetalSupport
+        }
+
+    public fun upsampleBilinear2d(
+        layout: Layout,
+        h: Int,
+        w: Int,
+        alignCorners: Boolean,
+        scaleH: Double? = null,
+        scaleW: Double? = null,
+    ): Storage =
+        when (this) {
+            is Cpu -> Cpu(storage.upsampleBilinear2d(layout, h, w, alignCorners, scaleH, scaleW))
+            is Cuda -> throw CandleException.NotCompiledWithCudaSupport
+            is Metal -> throw CandleException.NotCompiledWithMetalSupport
+        }
+
+    public fun scatterSet(
+        l: Layout,
+        indexes: Storage,
+        indexesL: Layout,
+        source: Storage,
+        sourceL: Layout,
+        d: Int,
+    ) {
+        sameDevice(indexes, "scatter-set")
+        sameDevice(source, "scatter-set")
+        when (this) {
+            is Cpu -> storage.scatterSet(l, (indexes as Cpu).storage, indexesL, (source as Cpu).storage, sourceL, d)
+            is Cuda -> throw CandleException.NotCompiledWithCudaSupport
+            is Metal -> throw CandleException.NotCompiledWithMetalSupport
+        }
+    }
+
+    public fun scatterAdd(
+        l: Layout,
+        indexes: Storage,
+        indexesL: Layout,
+        source: Storage,
+        sourceL: Layout,
+        d: Int,
+    ) {
+        sameDevice(indexes, "scatter-add")
+        sameDevice(source, "scatter-add")
+        when (this) {
+            is Cpu -> storage.scatterAddSet(l, (indexes as Cpu).storage, indexesL, (source as Cpu).storage, sourceL, d)
+            is Cuda -> throw CandleException.NotCompiledWithCudaSupport
+            is Metal -> throw CandleException.NotCompiledWithMetalSupport
+        }
+    }
+
+    public fun indexAdd(
+        l: Layout,
+        indexes: Storage,
+        indexesL: Layout,
+        source: Storage,
+        sourceL: Layout,
+        d: Int,
+    ): Storage {
+        sameDevice(indexes, "index-add")
+        sameDevice(source, "index-add")
+        return when (this) {
+            is Cpu -> Cpu(storage.indexAdd(l, (indexes as Cpu).storage, indexesL, (source as Cpu).storage, sourceL, d))
             is Cuda -> throw CandleException.NotCompiledWithCudaSupport
             is Metal -> throw CandleException.NotCompiledWithMetalSupport
         }
