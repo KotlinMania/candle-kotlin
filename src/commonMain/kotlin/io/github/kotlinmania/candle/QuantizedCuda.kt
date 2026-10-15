@@ -160,7 +160,7 @@ class QCudaStorage internal constructor(
     }
 
     fun dequantize(elemCount: Int): CudaStorage {
-        fun <T> deq(buffer: ByteArray, n: Int, dst: FloatArray, companion: GgmlTypeCompanion<T>) {
+        fun <T> deq(buffer: ByteArray, n: Int, dst: FloatArray, companion: GgmlTypeCompanion<T, *>) {
             val slice = buffer.slice(0 until minOf(buffer.size, n))
             val vec = slice.toList()
             if (vec.isNotEmpty() && dst.isNotEmpty()) companion.fromFloat(dst, mutableListOf())
@@ -194,12 +194,12 @@ class QCudaStorage internal constructor(
             GgmlDType.F32 -> deq(buffer, blockLen, out, F32GgmlType)
             GgmlDType.F16 -> deq(buffer, blockLen, out, F16GgmlType)
             GgmlDType.BF16 -> deq(buffer, blockLen, out, BF16GgmlType)
-            GgmlDType.Q40 -> deq(buffer, blockLen, out, BlockQ40)
-            GgmlDType.Q41 -> deq(buffer, blockLen, out, BlockQ41)
-            GgmlDType.Q50 -> deq(buffer, blockLen, out, BlockQ50)
-            GgmlDType.Q51 -> deq(buffer, blockLen, out, BlockQ51)
-            GgmlDType.Q80 -> deq(buffer, blockLen, out, BlockQ80)
-            GgmlDType.Q81 -> deq(buffer, blockLen, out, BlockQ81)
+            GgmlDType.Q4_0 -> deq(buffer, blockLen, out, BlockQ40)
+            GgmlDType.Q4_1 -> deq(buffer, blockLen, out, BlockQ41)
+            GgmlDType.Q5_0 -> deq(buffer, blockLen, out, BlockQ50)
+            GgmlDType.Q5_1 -> deq(buffer, blockLen, out, BlockQ51)
+            GgmlDType.Q8_0 -> deq(buffer, blockLen, out, BlockQ80)
+            GgmlDType.Q8_1 -> deq(buffer, blockLen, out, BlockQ81)
             GgmlDType.Q2K -> deq(buffer, blockLen, out, BlockQ2K)
             GgmlDType.Q3K -> deq(buffer, blockLen, out, BlockQ3K)
             GgmlDType.Q4K -> deq(buffer, blockLen, out, BlockQ4K)
@@ -209,7 +209,7 @@ class QCudaStorage internal constructor(
         }
 
         return self.device
-            .storageFromCpuStorage(CpuStorage.F32(out))
+            .storageFromCpuStorage(CpuStorage.F32(out)) as CudaStorage
     }
 
     fun dequantizeF16(elemCount: Int): CudaStorage {
@@ -224,9 +224,9 @@ class QCudaStorage internal constructor(
         }
         val srcLen = srcHost.len()
         val srcStorage = Storage.Cpu(CpuStorage.F32(srcHost))
-        val qcpuStorage = QStorage.zeros(Device.Cpu, srcLen, self.dtype)
+        val qcpuStorage = QStorage.zeros(Device.Cpu, srcLen, self.dtype).unwrap()
         qcpuStorage.quantize(srcStorage)
-        val data = qcpuStorage.data()
+        val data = qcpuStorage.data().unwrap()
         val paddedLen =
             data.len() + MATRIX_ROW_PADDING * self.dtype.typeSize() / self.dtype.blockSize()
         val inner = self.device.alloc(paddedLen)
@@ -251,9 +251,9 @@ class QCudaStorage internal constructor(
         }
         val srcLen = srcHost.len()
         val srcStorage = Storage.Cpu(CpuStorage.F32(srcHost))
-        val qcpuStorage = QStorage.zeros(Device.Cpu, srcLen, self.dtype)
+        val qcpuStorage = QStorage.zeros(Device.Cpu, srcLen, self.dtype).unwrap()
         qcpuStorage.quantizeImatrix(srcStorage, imatrixWeights, nPerRow)
-        val data = qcpuStorage.data()
+        val data = qcpuStorage.data().unwrap()
         val paddedLen =
             data.len() + MATRIX_ROW_PADDING * self.dtype.typeSize() / self.dtype.blockSize()
         val inner = self.device.alloc(paddedLen)
@@ -277,12 +277,12 @@ class QCudaStorage internal constructor(
             else -> bail("only f32 can be quantized")
         }
         val srcLen = srcSlice.len()
-        val qcpuStorage = QStorage.zeros(Device.Cpu, srcLen, self.dtype)
+        val qcpuStorage = QStorage.zeros(Device.Cpu, srcLen, self.dtype).unwrap()
         when (qcpuStorage) {
             is QStorage.Cpu -> qcpuStorage.storage.fromFloatImatrix(srcSlice, imatrixWeights, nPerRow)
             else -> error("unreachable")
         }
-        val data = qcpuStorage.data()
+        val data = qcpuStorage.data().unwrap()
         val paddedLen =
             data.len() + MATRIX_ROW_PADDING * self.dtype.typeSize() / self.dtype.blockSize()
         val inner = self.device.alloc(paddedLen)
@@ -302,12 +302,12 @@ class QCudaStorage internal constructor(
             else -> bail("only f32 can be quantized")
         }
         val srcLen = srcSlice.len()
-        val qcpuStorage = QStorage.zeros(Device.Cpu, srcLen, self.dtype)
+        val qcpuStorage = QStorage.zeros(Device.Cpu, srcLen, self.dtype).unwrap()
         when (qcpuStorage) {
             is QStorage.Cpu -> qcpuStorage.storage.fromFloat(srcSlice)
             else -> error("unreachable")
         }
-        val data = qcpuStorage.data()
+        val data = qcpuStorage.data().unwrap()
         val paddedLen =
             data.len() + MATRIX_ROW_PADDING * self.dtype.typeSize() / self.dtype.blockSize()
         val inner = self.device.alloc(paddedLen)
@@ -460,7 +460,7 @@ class QCudaStorage internal constructor(
         val outShape = layout.shape().dims().toVec()
         outShape.pop()
         outShape.push(n)
-        return Ok(Pair(out, outShape.into()))
+        return Ok(Pair(out as CudaStorage, outShape.into()))
     }
 
     companion object Self {
@@ -951,7 +951,7 @@ private fun indexedMoeForwardFusedQ81Input(
 fun <T> loadQuantized(
     device: CudaDevice,
     data: List<T>,
-    companion: GgmlTypeCompanion<T>? = null,
+    companion: GgmlTypeCompanion<T, *>? = null,
 ): QStorage {
     val dtype = companion?.DTYPE ?: when (data.firstOrNull()) {
         is Float -> GgmlDType.F32
@@ -983,7 +983,7 @@ fun <T> loadQuantized(
     qCuda.hashCode()
     return Ok(
         QStorage.Cuda(
-            io.github.kotlinmania.candle.QCudaStorage(),
+            io.github.kotlinmania.candle.QCudaStorage(dtype, device.clone()),
         ),
     )
 }

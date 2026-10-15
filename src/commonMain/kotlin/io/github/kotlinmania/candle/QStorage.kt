@@ -192,6 +192,9 @@ sealed class QStorage {
     }
 
     companion object {
+        fun zeros(device: Device, elemCount: Int, dtype: GgmlDType): CandleResult<QStorage> =
+            device.qzeros(elemCount, dtype)
+
         fun fromData(data: ByteArray, device: Device, dtype: GgmlDType): CandleResult<QStorage> {
             val rawData = data
             return when (device) {

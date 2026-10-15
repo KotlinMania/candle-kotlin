@@ -225,7 +225,7 @@ private fun <T> T?.withContext(f: () -> String): CandleResult<T> =
 private fun <T> CandleResult<T>.withContext(f: () -> String): CandleResult<T> =
     when (this) {
         is CandleResult.Ok -> this
-        is CandleResult.Err -> CandleResult.Err(CandleError.context(this.error, f()))
+        is CandleResult.Err -> CandleResult.Err(CandleError.Context(this.error as? CandleException ?: CandleError.Wrapped(this.error.toString()), f()))
     }
 
 private val String.splitOnce: (Char) -> Pair<String, String>?

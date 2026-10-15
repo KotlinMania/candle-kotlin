@@ -1276,11 +1276,11 @@ class CudaStorage(
             is CudaStorageSlice.I16 -> CpuStorage.I16(sl.data.data.toShortArray())
             is CudaStorageSlice.I32 -> CpuStorage.I32(sl.data.data.toIntArray())
             is CudaStorageSlice.I64 -> CpuStorage.I64(sl.data.data.toLongArray())
-            is CudaStorageSlice.BF16 -> CpuStorage.BF16(sl.data.data.toTypedArray())
-            is CudaStorageSlice.F16 -> CpuStorage.F16(sl.data.data.toTypedArray())
+            is CudaStorageSlice.BF16 -> CpuStorage.BF16(ShortArray(sl.data.data.size) { sl.data.data[it].bits })
+            is CudaStorageSlice.F16 -> CpuStorage.F16(ShortArray(sl.data.data.size) { sl.data.data[it].bits })
             is CudaStorageSlice.F32 -> CpuStorage.F32(sl.data.data.toFloatArray())
             is CudaStorageSlice.F64 -> CpuStorage.F64(sl.data.data.toDoubleArray())
-            is CudaStorageSlice.F8E4M3Slice -> CpuStorage.F8E4M3Storage(sl.data.data.toTypedArray())
+            is CudaStorageSlice.F8E4M3Slice -> CpuStorage.F8E4M3(ByteArray(sl.data.data.size) { sl.data.data[it].bits })
             is CudaStorageSlice.F4,
             is CudaStorageSlice.F6E2M3,
             is CudaStorageSlice.F6E3M2,

@@ -672,11 +672,11 @@ class SafeTensors(
                 DType.I16 -> CpuStorage.I16(ShortArray(elemCount) { i -> readU16(i * 2).toShort() })
                 DType.I32 -> CpuStorage.I32(IntArray(elemCount) { i -> readI32(i * 4) })
                 DType.I64 -> CpuStorage.I64(LongArray(elemCount) { i -> readI64(i * 8) })
-                DType.BF16 -> CpuStorage.BF16(Array(elemCount) { i -> BFloat16.fromBits(readU16(i * 2)) })
-                DType.F16 -> CpuStorage.F16(Array(elemCount) { i -> Float16.fromBits(readU16(i * 2)) })
+                DType.BF16 -> CpuStorage.BF16(ShortArray(elemCount) { i -> readU16(i * 2).toShort() })
+                DType.F16 -> CpuStorage.F16(ShortArray(elemCount) { i -> readU16(i * 2).toShort() })
                 DType.F32 -> CpuStorage.F32(FloatArray(elemCount) { i -> Float.fromBits(readI32(i * 4)) })
                 DType.F64 -> CpuStorage.F64(DoubleArray(elemCount) { i -> Double.fromBits(readI64(i * 8)) })
-                DType.F8E4M3 -> CpuStorage.F8E4M3(Array(elemCount) { i -> F8E4M3.fromBits(data[i].toUByte()) })
+                DType.F8E4M3 -> CpuStorage.F8E4M3(data.copyOf())
                 DType.F6E2M3 -> CpuStorage.F6E2M3(data)
                 DType.F6E3M2 -> CpuStorage.F6E3M2(data)
                 DType.F4 -> CpuStorage.F4(data)
@@ -797,7 +797,7 @@ class SafeTensors(
                 is CpuStorage.F16 -> {
                     val out = ByteArray(vs.data.size * 2)
                     for (i in vs.data.indices) {
-                        val v = vs.data[i].bits.toInt()
+                        val v = vs.data[i].toInt()
                         val base = i * 2
                         out[base] = (v and 0xFF).toByte()
                         out[base + 1] = ((v ushr 8) and 0xFF).toByte()
@@ -807,7 +807,7 @@ class SafeTensors(
                 is CpuStorage.BF16 -> {
                     val out = ByteArray(vs.data.size * 2)
                     for (i in vs.data.indices) {
-                        val v = vs.data[i].bits.toInt()
+                        val v = vs.data[i].toInt()
                         val base = i * 2
                         out[base] = (v and 0xFF).toByte()
                         out[base + 1] = ((v ushr 8) and 0xFF).toByte()
@@ -837,7 +837,7 @@ class SafeTensors(
                     }
                     out
                 }
-                is CpuStorage.F8E4M3 -> ByteArray(vs.data.size) { i -> vs.data[i].bits.toByte() }
+                is CpuStorage.F8E4M3 -> vs.data.copyOf()
                 is CpuStorage.F6E2M3 -> vs.data.copyOf()
                 is CpuStorage.F6E3M2 -> vs.data.copyOf()
                 is CpuStorage.F4 -> vs.data.copyOf()

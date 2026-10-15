@@ -34,6 +34,8 @@ private inline fun <reified T : Any> sliceFromRawParts(rawDataPtr: ByteArray, nB
 private inline fun <reified T : Any> List<Any>.toVec(): QuantizedType =
     QuantizedHelper.createQuantizedVec(this.toMutableList(), companionOf<T>())
 private fun Device.clone(): Device = this
+private fun UIntArray.iter(): List<UInt> = this.toList()
+private fun <T> List<T>.collect(): List<T> = this
 
 // https://github.com/ggerganov/llama.cpp/blob/468ea24fb4633a0d681f7ac84089566c1c6190cb/llama.h#L37
 private enum class Magic {

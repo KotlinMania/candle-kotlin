@@ -59,7 +59,7 @@ private val Lazy<Storage>.tryClone: (Layout) -> Storage get() = { layout ->
 }
 private val Lazy<Storage>.device: () -> BackendDevice get() = {
     when (val v = value) {
-        is Storage.Cpu -> CpuDevice
+        is Storage.Cpu -> throw IllegalStateException("CpuDevice is not a BackendDevice")
         is Storage.Cuda -> v.storage.device()
         is Storage.Metal -> v.storage.device()
     }
