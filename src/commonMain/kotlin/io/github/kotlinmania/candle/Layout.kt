@@ -1,6 +1,9 @@
-// port-lint: source candle-core/src/layout.rs
+// port-lint: source layout.rs
 package io.github.kotlinmania.candle
 
+/**
+ * Tensor Layouts including contiguous or sparse strides
+ */
 public data class ContiguousOffsets(
     val start: Int,
     val end: Int,
@@ -13,8 +16,29 @@ public data class Layout(
 ) {
     public val dims: List<Int> get() = shape.dims
 
+    public fun dims(): List<Int> = shape.dims
+
+    public fun shape(): Shape = shape
+
+    public fun stride(): List<Int> = stride
+
+    public fun startOffset(): Int = startOffset
+
+    /**
+     * The dimension size for a specified dimension index.
+     */
     public fun dim(dimIndex: Int): Int = shape.dim(dimIndex)
 
+    /**
+     * Returns outer stride along `dim` if valid.
+     *
+     * Two conditions must hold:
+     *  1. Inner dims `[dim..]` has standard contiguous strides.
+     *  2. Outer dims `[..dim]` are contiguous among themselves, i.e.
+     *     `stride[k] == dims[k+1] * stride[k+1]` for `k` in `0..dim-1`.
+     *
+     * When the tensor is fully contiguous this returns `Some(dims[dim..].product())`.
+     */
     public fun outerStrideForDim(dim: Int): Int? {
         val dims = dims
         val strides = stride
@@ -43,6 +67,10 @@ public data class Layout(
         return outerStride
     }
 
+    /**
+     * Returns the appropriate start and stop offset if the data is stored in a C
+     * contiguous (aka row major) way.
+     */
     public fun contiguousOffsets(): ContiguousOffsets? {
         if (isContiguous()) {
             return ContiguousOffsets(startOffset, startOffset + shape.elemCount())
@@ -50,8 +78,16 @@ public data class Layout(
         return null
     }
 
+    /**
+     * Returns true if the data is stored in a C contiguous (aka row major) way.
+     * Note that this does not implies that the start offset is 0 or that there are no extra
+     * elements at the end of the storage.
+     */
     public fun isContiguous(): Boolean = shape.isContiguous(stride)
 
+    /**
+     * Returns true if the data is stored in a Fortran contiguous (aka column major) way.
+     */
     public fun isFortranContiguous(): Boolean = shape.isFortranContiguous(stride)
 
     public fun isScalar(): Boolean {
@@ -59,6 +95,9 @@ public data class Layout(
         return dims.isEmpty() || dims.all { it == 1 }
     }
 
+    /**
+     * Returns true if the data is actually a scalar during broadcast
+     */
     public fun isScalarBroadcast(): Boolean = stride.all { it == 0 }
 
     public fun isScalarLike(): Boolean = isScalar() || isScalarBroadcast()
@@ -187,6 +226,9 @@ public data class Layout(
     }
 
     public companion object {
+        public fun new(shape: Shape, stride: List<Int>, startOffset: Int): Layout =
+            Layout(shape, stride, startOffset)
+
         public fun contiguous(shape: Shape): Layout = contiguousWithOffset(shape, 0)
 
         public fun contiguousWithOffset(shape: Shape, startOffset: Int = 0): Layout =
