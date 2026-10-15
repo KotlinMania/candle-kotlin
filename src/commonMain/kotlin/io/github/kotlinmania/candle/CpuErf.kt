@@ -1,8 +1,7 @@
 // port-lint: source cpu/erf.rs
 package io.github.kotlinmania.candle
 
-import kotlin.math.abs
-import kotlin.math.exp
+import io.github.kotlinmania.libm.libm
 import kotlin.math.ln
 import kotlin.math.sqrt
 
@@ -12,7 +11,7 @@ import kotlin.math.sqrt
 
 public object Evaluate {
     /**
-     *Provides functions that don't have a numerical solution and must
+     * Provides functions that don't have a numerical solution and must
      * be solved computationally (e.g. evaluation of a polynomial)
      *
      * evaluates a polynomial at `z` where `coeff` are the coefficients
@@ -26,12 +25,10 @@ public object Evaluate {
      * Returns 0 for a 0 length coefficient slice
      */
     public fun polynomial(z: Double, coeff: DoubleArray): Double {
-        if (coeff.isEmpty()) return 0.0
-        var sum = coeff[coeff.size - 1]
-        for (i in (coeff.size - 2) downTo 0) {
-            sum = coeff[i] + z * sum
+        return when (coeff.size) {
+            0 -> 0.0
+            else -> coeff.reversed().drop(1).fold(coeff.last()) { sum, c -> c + z * sum }
         }
-        return sum
     }
 }
 
@@ -39,53 +36,62 @@ public object Evaluate {
  * `erf` calculates the error function at `x`.
  */
 public fun erfF64(x: Double): Double {
-    val a1 = 0.254829592
-    val a2 = -0.284496736
-    val a3 = 1.421413741
-    val a4 = -1.453152027
-    val a5 = 1.061405429
-    val p = 0.3275911
-    val sign = if (x < 0.0) -1.0 else 1.0
-    val absX = abs(x)
-    val t = 1.0 / (1.0 + p * absX)
-    val y = 1.0 - (((((a5 * t + a4) * t) + a3) * t + a2) * t + a1) * t * exp(-absX * absX)
-    return sign * y
+    return libm.erf(x)
 }
 
-public fun erfF32(x: Float): Float = erfF64(x.toDouble()).toFloat()
+public fun erfF32(x: Float): Float {
+    return libm.erff(x)
+}
 
 /**
  * `erfInv` calculates the inverse error function
  * at `x`.
  */
-public fun erfInv(x: Double): Double =
-    when {
-        x == 0.0 -> 0.0
-        x >= 1.0 -> Double.POSITIVE_INFINITY
-        x <= -1.0 -> Double.NEGATIVE_INFINITY
-        x < 0.0 -> erfInvImpl(-x, 1.0 + x, -1.0)
-        else -> erfInvImpl(x, 1.0 - x, 1.0)
+public fun erfInv(x: Double): Double {
+    return if (x == 0.0) {
+        0.0
+    } else if (x >= 1.0) {
+        Double.POSITIVE_INFINITY
+    } else if (x <= -1.0) {
+        Double.NEGATIVE_INFINITY
+    } else if (x < 0.0) {
+        erfInvImpl(-x, 1.0 + x, -1.0)
+    } else {
+        erfInvImpl(x, 1.0 - x, 1.0)
     }
+}
 
 /**
  * `erfc` calculates the complementary error function
  * at `x`.
  */
-public fun erfcF64(x: Double): Double = 1.0 - erfF64(x)
+public fun erfcF64(x: Double): Double {
+    return libm.erfc(x)
+}
 
-public fun erfcF32(x: Float): Float = erfcF64(x.toDouble()).toFloat()
+public fun erfcF32(x: Float): Float {
+    return libm.erfcf(x)
+}
 
 /**
  * `erfcInv` calculates the complementary inverse
  * error function at `x`.
  */
-public fun erfcInv(x: Double): Double =
-    when {
-        x <= 0.0 -> Double.POSITIVE_INFINITY
-        x >= 2.0 -> Double.NEGATIVE_INFINITY
-        x > 1.0 -> erfInvImpl(-1.0 + x, 2.0 - x, -1.0)
-        else -> erfInvImpl(1.0 - x, x, 1.0)
+public fun erfcInv(x: Double): Double {
+    return if (x <= 0.0) {
+        Double.POSITIVE_INFINITY
+    } else if (x >= 2.0) {
+        Double.NEGATIVE_INFINITY
+    } else if (x > 1.0) {
+        erfInvImpl(-1.0 + x, 2.0 - x, -1.0)
+    } else {
+        erfInvImpl(1.0 - x, x, 1.0)
     }
+}
+
+// **********************************************************
+// ********** Coefficients for erfInvImpl polynomial ********
+// **********************************************************
 
 /**
  * Polynomial coefficients for a numerator of `erfInvImpl`
@@ -315,41 +321,41 @@ public fun erfInvImpl(p: Double, q: Double, s: Double): Double {
         val y = 2.249481201171875
         val g = sqrt(-2.0 * ln(q))
         val xs = q - 0.25
-        val r = Evaluate.polynomial(xs, erfInvImplBn) / Evaluate.polynomial(xs, erfInvImplBd)
+        val r =
+            Evaluate.polynomial(xs, erfInvImplBn) / Evaluate.polynomial(xs, erfInvImplBd)
         g / (y + r)
     } else {
         val x = sqrt(-ln(q))
-        when {
-            x < 3.0 -> {
-                val y = 0.807220458984375
-                val xs = x - 1.125
-                val r = Evaluate.polynomial(xs, erfInvImplCn) / Evaluate.polynomial(xs, erfInvImplCd)
-                y * x + r * x
-            }
-            x < 6.0 -> {
-                val y = 0.93995571136474609375
-                val xs = x - 3.0
-                val r = Evaluate.polynomial(xs, erfInvImplDn) / Evaluate.polynomial(xs, erfInvImplDd)
-                y * x + r * x
-            }
-            x < 18.0 -> {
-                val y = 0.98362827301025390625
-                val xs = x - 6.0
-                val r = Evaluate.polynomial(xs, erfInvImplEn) / Evaluate.polynomial(xs, erfInvImplEd)
-                y * x + r * x
-            }
-            x < 44.0 -> {
-                val y = 0.99714565277099609375
-                val xs = x - 18.0
-                val r = Evaluate.polynomial(xs, erfInvImplFn) / Evaluate.polynomial(xs, erfInvImplFd)
-                y * x + r * x
-            }
-            else -> {
-                val y = 0.99941349029541015625
-                val xs = x - 44.0
-                val r = Evaluate.polynomial(xs, erfInvImplGn) / Evaluate.polynomial(xs, erfInvImplGd)
-                y * x + r * x
-            }
+        if (x < 3.0) {
+            val y = 0.807220458984375
+            val xs = x - 1.125
+            val r = Evaluate.polynomial(xs, erfInvImplCn) /
+                Evaluate.polynomial(xs, erfInvImplCd)
+            y * x + r * x
+        } else if (x < 6.0) {
+            val y = 0.93995571136474609375
+            val xs = x - 3.0
+            val r = Evaluate.polynomial(xs, erfInvImplDn) /
+                Evaluate.polynomial(xs, erfInvImplDd)
+            y * x + r * x
+        } else if (x < 18.0) {
+            val y = 0.98362827301025390625
+            val xs = x - 6.0
+            val r = Evaluate.polynomial(xs, erfInvImplEn) /
+                Evaluate.polynomial(xs, erfInvImplEd)
+            y * x + r * x
+        } else if (x < 44.0) {
+            val y = 0.99714565277099609375
+            val xs = x - 18.0
+            val r = Evaluate.polynomial(xs, erfInvImplFn) /
+                Evaluate.polynomial(xs, erfInvImplFd)
+            y * x + r * x
+        } else {
+            val y = 0.99941349029541015625
+            val xs = x - 44.0
+            val r = Evaluate.polynomial(xs, erfInvImplGn) /
+                Evaluate.polynomial(xs, erfInvImplGd)
+            y * x + r * x
         }
     }
     return s * result
