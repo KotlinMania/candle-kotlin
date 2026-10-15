@@ -1,6 +1,7 @@
-// port-lint: source candle-core/src/cpu_backend/mod.rs
+// port-lint: source cpu_backend/mod.rs
 package io.github.kotlinmania.candle
 
+import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.ceil
 import kotlin.math.cos
@@ -13,6 +14,7 @@ import kotlin.math.sign
 import kotlin.math.sin
 import kotlin.math.sqrt
 import kotlin.math.tanh
+import kotlin.random.Random
 
 public sealed class CpuStorage {
     public data class U8(
@@ -68,6 +70,10 @@ public sealed class CpuStorage {
             is F64 -> DType.F64
             is F8E4M3 -> DType.F8E4M3
         }
+
+    public fun device(): CpuDevice = CpuDevice
+
+    public fun toCpuStorage(): CpuStorage = this
 
     public fun tryClone(layout: Layout): CpuStorage {
         val count = layout.shape.elemCount()
@@ -1370,28 +1376,220 @@ public sealed class CpuStorage {
         layout: Layout,
         kernelSize: Pair<Int, Int>,
         stride: Pair<Int, Int>,
-    ): CpuStorage = tryClone(layout)
+    ): CpuStorage {
+        val (kH, kW) = kernelSize
+        val (sH, sW) = stride
+        val (bSz, c, h, w) = layout.shape.dims4()
+        val s = layout.stride
+        val (strideH, strideW) = Pair(s[2], s[3])
+        val hOut = (h - kH) / sH + 1
+        val wOut = (w - kW) / sW + 1
+        val srcIndex = layout.startOffset
+        val count = bSz * c * hOut * wOut
+        val scale = 1.0 / (kH * kW).toDouble()
+        val dst = FloatArray(count)
+        for (bIdx in 0 until bSz) {
+            val bOffset = bIdx * c * hOut * wOut
+            val srcB = srcIndex + bIdx * s[0]
+            for (cIdx in 0 until c) {
+                val cOffset = bOffset + cIdx * hOut * wOut
+                val srcC = srcB + cIdx * s[1]
+                for (hIdx in 0 until hOut) {
+                    for (wIdx in 0 until wOut) {
+                        var sum = 0.0
+                        for (m in 0 until kH) {
+                            for (n in 0 until kW) {
+                                val mIdx = sH * hIdx + m
+                                val nIdx = sW * wIdx + n
+                                sum += getAsDouble(srcC + mIdx * strideH + nIdx * strideW)
+                            }
+                        }
+                        dst[cOffset + hIdx * wOut + wIdx] = (sum * scale).toFloat()
+                    }
+                }
+            }
+        }
+        return F32(dst)
+    }
 
     public fun maxPool2d(
         layout: Layout,
         kernelSize: Pair<Int, Int>,
         stride: Pair<Int, Int>,
-    ): CpuStorage = tryClone(layout)
+    ): CpuStorage {
+        val (kH, kW) = kernelSize
+        val (sH, sW) = stride
+        val (bSz, c, h, w) = layout.shape.dims4()
+        val s = layout.stride
+        val (strideH, strideW) = Pair(s[2], s[3])
+        val hOut = (h - kH) / sH + 1
+        val wOut = (w - kW) / sW + 1
+        val srcIndex = layout.startOffset
+        val count = bSz * c * hOut * wOut
+        val dst = FloatArray(count)
+        for (bIdx in 0 until bSz) {
+            val bOffset = bIdx * c * hOut * wOut
+            val srcB = srcIndex + bIdx * s[0]
+            for (cIdx in 0 until c) {
+                val cOffset = bOffset + cIdx * hOut * wOut
+                val srcC = srcB + cIdx * s[1]
+                for (hIdx in 0 until hOut) {
+                    for (wIdx in 0 until wOut) {
+                        var largest = getAsDouble(srcC + sH * hIdx * strideH + sW * wIdx * strideW)
+                        for (m in 0 until kH) {
+                            for (n in 0 until kW) {
+                                val mIdx = sH * hIdx + m
+                                val nIdx = sW * wIdx + n
+                                val v = getAsDouble(srcC + mIdx * strideH + nIdx * strideW)
+                                if (v > largest) largest = v
+                            }
+                        }
+                        dst[cOffset + hIdx * wOut + wIdx] = largest.toFloat()
+                    }
+                }
+            }
+        }
+        return F32(dst)
+    }
 
-    public fun upsampleNearest1d(layout: Layout, sz: Int): CpuStorage =
-        tryClone(layout)
+    public fun upsampleNearest1d(layout: Layout, dstSz: Int): CpuStorage {
+        val (bSz, c, srcSz) = layout.shape.dims3()
+        val s = layout.stride
+        val strideSz = s[2]
+        val srcIndex = layout.startOffset
+        val scaleSz = srcSz.toDouble() / dstSz.toDouble()
+        val count = bSz * c * dstSz
+        val dst = FloatArray(count)
+        val srcIdxs = IntArray(dstSz) { idx ->
+            minOf(srcSz - 1, (idx.toDouble() * scaleSz).toInt())
+        }
+        for (bIdx in 0 until bSz) {
+            val bOffset = bIdx * c * dstSz
+            val srcB = srcIndex + bIdx * s[0]
+            for (cIdx in 0 until c) {
+                val cOffset = bOffset + cIdx * dstSz
+                val srcC = srcB + cIdx * s[1]
+                for (idx in 0 until dstSz) {
+                    dst[cOffset + idx] = getAsFloat(srcC + srcIdxs[idx] * strideSz)
+                }
+            }
+        }
+        return F32(dst)
+    }
 
-    public fun upsampleNearest2d(layout: Layout, h: Int, w: Int): CpuStorage =
-        tryClone(layout)
+    public fun upsampleNearest2d(layout: Layout, dstH: Int, dstW: Int): CpuStorage {
+        val (bSz, c, srcH, srcW) = layout.shape.dims4()
+        val s = layout.stride
+        val (strideH, strideW) = Pair(s[2], s[3])
+        val srcIndex = layout.startOffset
+        val scaleH = srcH.toDouble() / dstH.toDouble()
+        val scaleW = srcW.toDouble() / dstW.toDouble()
+        val count = bSz * c * dstH * dstW
+        val dst = FloatArray(count)
+        val srcHIdxs = IntArray(dstH) { hIdx ->
+            minOf(srcH - 1, (hIdx.toDouble() * scaleH).toInt())
+        }
+        val srcWIdxs = IntArray(dstW) { wIdx ->
+            minOf(srcW - 1, (wIdx.toDouble() * scaleW).toInt())
+        }
+        for (bIdx in 0 until bSz) {
+            val bOffset = bIdx * c * dstH * dstW
+            val srcB = srcIndex + bIdx * s[0]
+            for (cIdx in 0 until c) {
+                val cOffset = bOffset + cIdx * dstH * dstW
+                val srcC = srcB + cIdx * s[1]
+                for (hIdx in 0 until dstH) {
+                    val srcHIdx = srcHIdxs[hIdx]
+                    for (wIdx in 0 until dstW) {
+                        val srcWIdx = srcWIdxs[wIdx]
+                        dst[cOffset + hIdx * dstW + wIdx] = getAsFloat(srcC + srcHIdx * strideH + srcWIdx * strideW)
+                    }
+                }
+            }
+        }
+        return F32(dst)
+    }
 
     public fun upsampleBilinear2d(
         layout: Layout,
-        h: Int,
-        w: Int,
+        targetH: Int,
+        targetW: Int,
         alignCorners: Boolean,
-        scaleH: Double? = null,
-        scaleW: Double? = null,
-    ): CpuStorage = tryClone(layout)
+        scaleHFactor: Double? = null,
+        scaleWFactor: Double? = null,
+    ): CpuStorage {
+        val (batch, channels, heightIn, widthIn) = layout.shape.dims4()
+        val heightOut = targetH
+        val widthOut = targetW
+
+        if (heightIn == heightOut && widthIn == widthOut) {
+            return tryClone(layout)
+        }
+
+        val s = layout.stride
+        val srcOffset = layout.startOffset
+
+        val scaleH = if (alignCorners) {
+            if (heightOut > 1) (heightIn - 1).toDouble() / (heightOut - 1).toDouble() else 0.0
+        } else {
+            scaleHFactor?.let { 1.0 / it } ?: (heightIn.toDouble() / heightOut.toDouble())
+        }
+
+        val scaleW = if (alignCorners) {
+            if (widthOut > 1) (widthIn - 1).toDouble() / (widthOut - 1).toDouble() else 0.0
+        } else {
+            scaleWFactor?.let { 1.0 / it } ?: (widthIn.toDouble() / widthOut.toDouble())
+        }
+
+        val hIndices = Array(heightOut) { hOut ->
+            val srcH = if (alignCorners) scaleH * hOut.toDouble() else scaleH * (hOut.toDouble() + 0.5) - 0.5
+            val srcHClamped = maxOf(0.0, srcH)
+            val h0 = srcHClamped.toInt()
+            val h1 = minOf(heightIn - 1, h0 + 1)
+            val weightH = (srcHClamped - h0.toDouble()).coerceIn(0.0, 1.0)
+            Triple(h0, h1, weightH)
+        }
+
+        val wIndices = Array(widthOut) { wOut ->
+            val srcW = if (alignCorners) scaleW * wOut.toDouble() else scaleW * (wOut.toDouble() + 0.5) - 0.5
+            val srcWClamped = maxOf(0.0, srcW)
+            val w0 = srcWClamped.toInt()
+            val w1 = minOf(widthIn - 1, w0 + 1)
+            val weightW = (srcWClamped - w0.toDouble()).coerceIn(0.0, 1.0)
+            Triple(w0, w1, weightW)
+        }
+
+        val dst = FloatArray(batch * channels * heightOut * widthOut)
+        for (b in 0 until batch) {
+            for (c in 0 until channels) {
+                val baseIdx = srcOffset + b * s[0] + c * s[1]
+                val dstBase = (b * channels + c) * heightOut * widthOut
+
+                for (hOut in 0 until heightOut) {
+                    val (h0, h1, weightH) = hIndices[hOut]
+                    for (wOut in 0 until widthOut) {
+                        val (w0, w1, weightW) = wIndices[wOut]
+                        val idx00 = baseIdx + h0 * s[2] + w0 * s[3]
+                        val idx10 = baseIdx + h0 * s[2] + w1 * s[3]
+                        val idx01 = baseIdx + h1 * s[2] + w0 * s[3]
+                        val idx11 = baseIdx + h1 * s[2] + w1 * s[3]
+
+                        val v00 = getAsDouble(idx00)
+                        val v10 = getAsDouble(idx10)
+                        val v01 = getAsDouble(idx01)
+                        val v11 = getAsDouble(idx11)
+
+                        val vTop = v00 * (1.0 - weightW) + v10 * weightW
+                        val vBottom = v01 * (1.0 - weightW) + v11 * weightW
+                        val value = vTop * (1.0 - weightH) + vBottom * weightH
+
+                        dst[dstBase + hOut * widthOut + wOut] = value.toFloat()
+                    }
+                }
+            }
+        }
+        return F32(dst)
+    }
 
     public fun scatterSet(
         l: Layout,
@@ -1445,3 +1643,129 @@ public sealed class CpuStorage {
         return res
     }
 }
+
+public object CpuDevice {
+    public fun location(): DeviceLocation = DeviceLocation.Cpu
+
+    public fun sameDevice(other: CpuDevice): Boolean = true
+
+    public fun storageFromSlice(s: FloatArray): CpuStorage = CpuStorage.F32(s.copyOf())
+    public fun storageFromSlice(s: DoubleArray): CpuStorage = CpuStorage.F64(s.copyOf())
+    public fun storageFromSlice(s: IntArray): CpuStorage = CpuStorage.I32(s.copyOf())
+    public fun storageFromSlice(s: LongArray): CpuStorage = CpuStorage.I64(s.copyOf())
+    public fun storageFromSlice(s: ShortArray): CpuStorage = CpuStorage.I16(s.copyOf())
+    public fun storageFromSlice(s: UIntArray): CpuStorage = CpuStorage.U32(s.copyOf())
+    public fun storageFromSlice(s: UByteArray): CpuStorage = CpuStorage.U8(s.copyOf())
+
+    public fun storageFromCpuStorage(s: CpuStorage): CpuStorage = s
+
+    public fun storageFromCpuStorageOwned(s: CpuStorage): CpuStorage = s
+
+    public fun new(ordinal: Int = 0): CpuDevice = this
+
+    public fun setSeed(seed: ULong) {
+        bail("cannot seed the CPU rng with set_seed")
+    }
+
+    public fun getCurrentSeed(): ULong {
+        bail("cannot get the CPU rng seed with get_current_seed")
+    }
+
+    public fun randUniform(shape: Shape, dtype: DType, min: Double, max: Double): CpuStorage {
+        val elemCount = shape.elemCount()
+        val diff = max - min
+        return when (dtype) {
+            DType.BF16 -> {
+                val data = ShortArray(elemCount) {
+                    Float16Utils.floatToBF16Bits((min + Random.nextDouble() * diff).toFloat())
+                }
+                CpuStorage.BF16(data)
+            }
+            DType.F16 -> {
+                val data = ShortArray(elemCount) {
+                    Float16Utils.floatToF16Bits((min + Random.nextDouble() * diff).toFloat())
+                }
+                CpuStorage.F16(data)
+            }
+            DType.F32 -> {
+                val data = FloatArray(elemCount) {
+                    (min + Random.nextDouble() * diff).toFloat()
+                }
+                CpuStorage.F32(data)
+            }
+            DType.F64 -> {
+                val data = DoubleArray(elemCount) {
+                    min + Random.nextDouble() * diff
+                }
+                CpuStorage.F64(data)
+            }
+            DType.F8E4M3 -> {
+                val data = ByteArray(elemCount) {
+                    (min + Random.nextDouble() * diff).toInt().toByte()
+                }
+                CpuStorage.F8E4M3(data)
+            }
+            else -> bail("Unsupported dtype for randUniform $dtype")
+        }
+    }
+
+    public fun randNormal(shape: Shape, dtype: DType, mean: Double, std: Double): CpuStorage {
+        val elemCount = shape.elemCount()
+        val normalValues = DoubleArray(elemCount)
+        var i = 0
+        while (i < elemCount) {
+            val u1 = Random.nextDouble().coerceAtLeast(1e-15)
+            val u2 = Random.nextDouble()
+            val z0 = sqrt(-2.0 * ln(u1)) * cos(2.0 * PI * u2)
+            val z1 = sqrt(-2.0 * ln(u1)) * sin(2.0 * PI * u2)
+            normalValues[i++] = mean + std * z0
+            if (i < elemCount) {
+                normalValues[i++] = mean + std * z1
+            }
+        }
+        return when (dtype) {
+            DType.BF16 -> {
+                val data = ShortArray(elemCount) { Float16Utils.floatToBF16Bits(normalValues[it].toFloat()) }
+                CpuStorage.BF16(data)
+            }
+            DType.F16 -> {
+                val data = ShortArray(elemCount) { Float16Utils.floatToF16Bits(normalValues[it].toFloat()) }
+                CpuStorage.F16(data)
+            }
+            DType.F32 -> {
+                val data = FloatArray(elemCount) { normalValues[it].toFloat() }
+                CpuStorage.F32(data)
+            }
+            DType.F64 -> {
+                CpuStorage.F64(normalValues)
+            }
+            DType.F8E4M3 -> {
+                val data = ByteArray(elemCount) { normalValues[it].toInt().toByte() }
+                CpuStorage.F8E4M3(data)
+            }
+            else -> bail("Unsupported dtype for randNormal $dtype")
+        }
+    }
+
+    public fun allocUninit(shape: Shape, dtype: DType): CpuStorage = zerosImpl(shape, dtype)
+
+    public fun zerosImpl(shape: Shape, dtype: DType): CpuStorage {
+        val elemCount = shape.elemCount()
+        return when (dtype) {
+            DType.U8 -> CpuStorage.U8(UByteArray(elemCount))
+            DType.U32 -> CpuStorage.U32(UIntArray(elemCount))
+            DType.I16 -> CpuStorage.I16(ShortArray(elemCount))
+            DType.I32 -> CpuStorage.I32(IntArray(elemCount))
+            DType.I64 -> CpuStorage.I64(LongArray(elemCount))
+            DType.BF16 -> CpuStorage.BF16(ShortArray(elemCount))
+            DType.F16 -> CpuStorage.F16(ShortArray(elemCount))
+            DType.F32 -> CpuStorage.F32(FloatArray(elemCount))
+            DType.F64 -> CpuStorage.F64(DoubleArray(elemCount))
+            DType.F8E4M3 -> CpuStorage.F8E4M3(ByteArray(elemCount))
+            else -> bail("Unsupported dtype for zeros $dtype")
+        }
+    }
+
+    public fun synchronize() {}
+}
+
