@@ -1,203 +1,101 @@
 // port-lint: source convert.rs
 package io.github.kotlinmania.candle
 
+import io.github.kotlinmania.anyhow.Ok
+import io.github.kotlinmania.anyhow.Result
+
 /**
  * Implement conversion traits for tensors
  */
-public interface ByteWriter {
-    public interface Error
+public interface Error
 
-    public fun write(bytes: ByteArray)
+public fun Tensor.tryFrom(): List<Float> =
+    this.toVec1()
+
+public fun Tensor.tryFrom(dim2: Unit): List<List<Float>> =
+    this.toVec2().also { _ = dim2 }
+
+public fun Tensor.tryFrom(dim2: Unit, dim3: Unit): List<List<List<Float>>> =
+    this.toVec3().also {
+        _ = dim2
+        _ = dim3
+    }
+
+public fun tryFrom(tensor: Tensor): List<Float> =
+    tensor.tryFrom()
+
+public fun tryFrom(tensor: Tensor, dim2: Unit): List<List<Float>> =
+    tensor.tryFrom(dim2)
+
+public fun tryFrom(tensor: Tensor, dim2: Unit, dim3: Unit): List<List<List<Float>>> =
+    tensor.tryFrom(dim2, dim3)
+
+public fun Tensor.Companion.tryFrom(v: FloatArray): Tensor =
+    Tensor.fromSlice(v, Shape(v.size), Device.Cpu)
+
+public fun Tensor.Companion.tryFrom(v: List<Float>): Tensor {
+    val len = v.size
+    return Tensor.fromVec(v, Shape(len), Device.Cpu)
 }
 
-public fun Tensor.Companion.tryFrom(v: FloatArray): Tensor = fromSlice(v, Shape(v.size))
-
-public fun Tensor.Companion.tryFrom(v: DoubleArray): Tensor = fromSlice(v, Shape(v.size))
-
-public fun Tensor.Companion.tryFrom(v: IntArray): Tensor = fromSlice(v, Shape(v.size))
-
-public fun Tensor.Companion.tryFrom(v: LongArray): Tensor = fromSlice(v, Shape(v.size))
-
-public fun Tensor.Companion.tryFrom(v: List<Float>): Tensor = v.toTensor1()
-
-public fun Tensor.Companion.tryFrom(v: Float): Tensor = v.toTensor()
-
-public fun Tensor.Companion.tryFrom(v: Double): Tensor = v.toTensor()
-
-public fun Tensor.Companion.tryFrom(v: Int): Tensor = v.toTensor()
-
-public fun Tensor.Companion.tryFrom(v: Long): Tensor = v.toTensor()
-
-public fun Tensor.writeBytes(): ByteArray {
-    val vs = flattenAll()
-    val cont = vs.contiguous()
-    val cpu = (cont.storage() as Storage.Cpu).storage
-    val count = cont.elemCount()
-    return when (dtype()) {
-        DType.U8 -> {
-            val arr = (cpu as CpuStorage.U8).data
-            ByteArray(count) { arr[it].toByte() }
-        }
-        DType.U32 -> {
-            val arr = (cpu as CpuStorage.U32).data
-            val res = ByteArray(count * 4)
-            for (i in 0 until count) {
-                val v = arr[i].toLong()
-                res[i * 4] = (v and 0xFF).toByte()
-                res[i * 4 + 1] = ((v shr 8) and 0xFF).toByte()
-                res[i * 4 + 2] = ((v shr 16) and 0xFF).toByte()
-                res[i * 4 + 3] = ((v shr 24) and 0xFF).toByte()
-            }
-            res
-        }
-        DType.I16 -> {
-            val arr = (cpu as CpuStorage.I16).data
-            val res = ByteArray(count * 2)
-            for (i in 0 until count) {
-                val v = arr[i].toInt()
-                res[i * 2] = (v and 0xFF).toByte()
-                res[i * 2 + 1] = ((v shr 8) and 0xFF).toByte()
-            }
-            res
-        }
-        DType.I32 -> {
-            val arr = (cpu as CpuStorage.I32).data
-            val res = ByteArray(count * 4)
-            for (i in 0 until count) {
-                val v = arr[i]
-                res[i * 4] = (v and 0xFF).toByte()
-                res[i * 4 + 1] = ((v shr 8) and 0xFF).toByte()
-                res[i * 4 + 2] = ((v shr 16) and 0xFF).toByte()
-                res[i * 4 + 3] = ((v shr 24) and 0xFF).toByte()
-            }
-            res
-        }
-        DType.I64 -> {
-            val arr = (cpu as CpuStorage.I64).data
-            val res = ByteArray(count * 8)
-            for (i in 0 until count) {
-                val v = arr[i]
-                for (b in 0 until 8) {
-                    res[i * 8 + b] = ((v shr (b * 8)) and 0xFF).toByte()
-                }
-            }
-            res
-        }
+public fun Tensor.writeBytes(f: NpyByteWriter): Result<Unit> {
+    val vs = this.flattenAll()
+    when (this.dtype()) {
         DType.BF16 -> {
-            val arr = (cpu as CpuStorage.BF16).data
-            val res = ByteArray(count * 2)
-            for (i in 0 until count) {
-                val v = arr[i].toInt()
-                res[i * 2] = (v and 0xFF).toByte()
-                res[i * 2 + 1] = ((v shr 8) and 0xFF).toByte()
+            val vec = vs.toVec1Bf16()
+            for (v in vec) {
+                f.writeU16(v.toBits()).unwrap()
             }
-            res
         }
         DType.F16 -> {
-            val arr = (cpu as CpuStorage.F16).data
-            val res = ByteArray(count * 2)
-            for (i in 0 until count) {
-                val v = arr[i].toInt()
-                res[i * 2] = (v and 0xFF).toByte()
-                res[i * 2 + 1] = ((v shr 8) and 0xFF).toByte()
+            val vec = vs.toVec1F16()
+            for (v in vec) {
+                f.writeU16(v.toBits()).unwrap()
             }
-            res
         }
         DType.F32 -> {
-            val arr = (cpu as CpuStorage.F32).data
-            val res = ByteArray(count * 4)
-            for (i in 0 until count) {
-                val v = arr[i].toBits()
-                res[i * 4] = (v and 0xFF).toByte()
-                res[i * 4 + 1] = ((v shr 8) and 0xFF).toByte()
-                res[i * 4 + 2] = ((v shr 16) and 0xFF).toByte()
-                res[i * 4 + 3] = ((v shr 24) and 0xFF).toByte()
+            for (v in vs.toVec1()) {
+                f.writeF32(v).unwrap()
             }
-            res
         }
         DType.F64 -> {
-            val arr = (cpu as CpuStorage.F64).data
-            val res = ByteArray(count * 8)
-            for (i in 0 until count) {
-                val v = arr[i].toBits()
-                for (b in 0 until 8) {
-                    res[i * 8 + b] = ((v shr (b * 8)) and 0xFF).toByte()
-                }
+            for (v in vs.toVec1F64()) {
+                f.writeF64(v).unwrap()
             }
-            res
+        }
+        DType.U32 -> {
+            for (v in vs.toVec1U32()) {
+                f.writeU32(v.toUInt()).unwrap()
+            }
+        }
+        DType.I16 -> {
+            for (v in vs.toVec1I16()) {
+                f.writeI16(v).unwrap()
+            }
+        }
+        DType.I32 -> {
+            for (v in vs.toVec1I32()) {
+                f.writeI32(v).unwrap()
+            }
+        }
+        DType.I64 -> {
+            for (v in vs.toVec1I64()) {
+                f.writeI64(v).unwrap()
+            }
+        }
+        DType.U8 -> {
+            val vec = vs.toVec1U8()
+            f.writeAll(ByteArray(vec.size) { vec[it].toByte() }).unwrap()
         }
         DType.F8E4M3 -> {
-            val arr = (cpu as CpuStorage.F8E4M3).data
-            arr.copyOf()
-        }
-        DType.F6E2M3, DType.F6E3M2, DType.F4, DType.F8E8M0 -> {
-            throw CandleException.UnsupportedDTypeForOp(dtype(), "write_bytes")
-        }
-    }
-}
-
-public fun Tensor.writeBytes(writer: ByteWriter) {
-    writer.write(writeBytes())
-}
-
-public fun Float.toTensor(device: Device = Device.Cpu): Tensor =
-    Tensor.fromSlice(floatArrayOf(this), Shape(1), device)
-
-public fun Double.toTensor(device: Device = Device.Cpu): Tensor =
-    Tensor.fromSlice(doubleArrayOf(this), Shape(1), device)
-
-public fun Int.toTensor(device: Device = Device.Cpu): Tensor =
-    Tensor.fromSlice(intArrayOf(this), Shape(1), device)
-
-public fun Long.toTensor(device: Device = Device.Cpu): Tensor =
-    Tensor.fromSlice(longArrayOf(this), Shape(1), device)
-
-public fun FloatArray.toTensor(device: Device = Device.Cpu): Tensor =
-    Tensor.fromSlice(this, Shape(size), device)
-
-public fun DoubleArray.toTensor(device: Device = Device.Cpu): Tensor =
-    Tensor.fromSlice(this, Shape(size), device)
-
-public fun IntArray.toTensor(device: Device = Device.Cpu): Tensor =
-    Tensor.fromSlice(this, Shape(size), device)
-
-public fun LongArray.toTensor(device: Device = Device.Cpu): Tensor =
-    Tensor.fromSlice(this, Shape(size), device)
-
-public fun UIntArray.toTensor(device: Device = Device.Cpu): Tensor =
-    Tensor.fromSlice(this, Shape(size), device)
-
-public fun UByteArray.toTensor(device: Device = Device.Cpu): Tensor =
-    Tensor.fromSlice(this, Shape(size), device)
-
-public fun List<Float>.toTensor1(device: Device = Device.Cpu): Tensor =
-    Tensor.fromSlice(toFloatArray(), Shape(size), device)
-
-public fun List<List<Float>>.toTensor2(device: Device = Device.Cpu): Tensor {
-    val d0 = size
-    val d1 = if (d0 > 0) this[0].size else 0
-    val flat = FloatArray(d0 * d1)
-    var idx = 0
-    for (row in this) {
-        for (v in row) {
-            flat[idx++] = v
-        }
-    }
-    return Tensor.fromSlice(flat, Shape(d0, d1), device)
-}
-
-public fun List<List<List<Float>>>.toTensor3(device: Device = Device.Cpu): Tensor {
-    val d0 = size
-    val d1 = if (d0 > 0) this[0].size else 0
-    val d2 = if (d1 > 0) this[0][0].size else 0
-    val flat = FloatArray(d0 * d1 * d2)
-    var idx = 0
-    for (plane in this) {
-        for (row in plane) {
-            for (v in row) {
-                flat[idx++] = v
+            val vec = vs.toVec1F8E4M3()
+            for (v in vec) {
+                f.writeU8(v.toBits()).unwrap()
             }
         }
+        DType.F6E2M3, DType.F6E3M2, DType.F4, DType.F8E8M0 -> {
+            return Result.failure(CandleError.UnsupportedDTypeForOp(this.dtype(), "write_bytes").bt())
+        }
     }
-    return Tensor.fromSlice(flat, Shape(d0, d1, d2), device)
+    return Ok(Unit)
 }

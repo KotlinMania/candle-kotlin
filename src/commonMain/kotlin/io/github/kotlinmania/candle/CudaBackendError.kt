@@ -8,7 +8,6 @@ import io.github.kotlinmania.candle.Layout
 import io.github.kotlinmania.thiserror.StdError
 
 sealed class CudaError(message: String) : Exception(message), StdError {
-    override fun source(): StdError? = cause as? StdError
     data class Cuda(val err: String) : CudaError(err)
 
     data class Compiler(val err: String) : CudaError(err)
@@ -44,19 +43,19 @@ sealed class CudaError(message: String) : Exception(message), StdError {
     ) : CudaError("$cuda when loading $moduleName")
 }
 
-fun from(valErr: CudaError): CandleError {
-    return CandleError.Cuda(valErr).bt()
+fun from(`val`: CudaError): CandleError {
+    return CandleError.Cuda(`val`).bt()
 }
 
 interface WrapErr<O> {
-    fun w(): CandleResult<O>
+    fun w(): Result<O>
 }
 
-class ResultWrapErr<O>(private val inner: CandleResult<O>) : WrapErr<O> {
-    override fun w(): CandleResult<O> {
-        return when (inner) {
-            is CandleResult.Ok -> CandleResult.Ok(inner.value)
-            is CandleResult.Err -> CandleResult.Err(CandleError.Cuda(inner.error).bt())
-        }
+class ResultWrapErr<O>(private val self: Result<O>) : WrapErr<O> {
+    override fun w(): Result<O> {
+        return self.fold(
+            onSuccess = { Result.success(it) },
+            onFailure = { e -> Result.failure(CandleError.Cuda(e).bt()) },
+        )
     }
 }

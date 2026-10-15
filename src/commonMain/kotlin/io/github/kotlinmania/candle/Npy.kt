@@ -72,6 +72,27 @@ class NpyByteReader(
             CandleResult.Ok(Unit)
         }
     }
+
+    val readI32: () -> CandleResult<Int> = {
+        val b = ByteArray(4)
+        when (val res = this.readExact(b)) {
+            is CandleResult.Ok -> {
+                val v = (b[0].toInt() and 0xFF) or
+                    ((b[1].toInt() and 0xFF) shl 8) or
+                    ((b[2].toInt() and 0xFF) shl 16) or
+                    ((b[3].toInt() and 0xFF) shl 24)
+                CandleResult.Ok(v)
+            }
+            is CandleResult.Err -> CandleResult.Err(res.error)
+        }
+    }
+
+    val readF32: () -> CandleResult<Float> = {
+        when (val res = this.readI32()) {
+            is CandleResult.Ok -> CandleResult.Ok(Float.fromBits(res.value))
+            is CandleResult.Err -> CandleResult.Err(res.error)
+        }
+    }
 }
 
 /**
@@ -80,15 +101,15 @@ class NpyByteReader(
  * Automatically doubles internal capacity as bytes are appended and exposes
  * the serialized byte slice via [toByteArray].
  */
-class NpyByteWriter {
+public class NpyByteWriter {
     private var buffer: ByteArray = ByteArray(256)
-    var size: Int = 0
+    public var size: Int = 0
         private set
 
     /**
      * Appends all bytes from `src` to the writer buffer.
      */
-    val writeAll: (ByteArray) -> CandleResult<Unit> = { src ->
+    public val writeAll: (ByteArray) -> CandleResult<Unit> = { src ->
         if (this.size + src.size > this.buffer.size) {
             var newCap = this.buffer.size * 2
             while (newCap < this.size + src.size) newCap *= 2
@@ -99,10 +120,63 @@ class NpyByteWriter {
         CandleResult.Ok(Unit)
     }
 
+    public val writeU8: (UByte) -> CandleResult<Unit> = { v ->
+        this.writeAll(byteArrayOf(v.toByte()))
+    }
+
+    public val writeU16: (UShort) -> CandleResult<Unit> = { v ->
+        val bits = v.toInt()
+        this.writeAll(byteArrayOf((bits and 0xFF).toByte(), ((bits ushr 8) and 0xFF).toByte()))
+    }
+
+    public val writeI16: (Short) -> CandleResult<Unit> = { v ->
+        val bits = v.toInt()
+        this.writeAll(byteArrayOf((bits and 0xFF).toByte(), ((bits ushr 8) and 0xFF).toByte()))
+    }
+
+    public val writeU32: (UInt) -> CandleResult<Unit> = { v ->
+        val bits = v.toInt()
+        this.writeAll(
+            byteArrayOf(
+                (bits and 0xFF).toByte(),
+                ((bits ushr 8) and 0xFF).toByte(),
+                ((bits ushr 16) and 0xFF).toByte(),
+                ((bits ushr 24) and 0xFF).toByte(),
+            ),
+        )
+    }
+
+    public val writeI32: (Int) -> CandleResult<Unit> = { bits ->
+        this.writeAll(
+            byteArrayOf(
+                (bits and 0xFF).toByte(),
+                ((bits ushr 8) and 0xFF).toByte(),
+                ((bits ushr 16) and 0xFF).toByte(),
+                ((bits ushr 24) and 0xFF).toByte(),
+            ),
+        )
+    }
+
+    public val writeI64: (Long) -> CandleResult<Unit> = { bits ->
+        val b = ByteArray(8)
+        for (i in 0 until 8) {
+            b[i] = ((bits ushr (i * 8)) and 0xFF).toByte()
+        }
+        this.writeAll(b)
+    }
+
+    public val writeF32: (Float) -> CandleResult<Unit> = { v ->
+        this.writeI32(v.toBits())
+    }
+
+    public val writeF64: (Double) -> CandleResult<Unit> = { v ->
+        this.writeI64(v.toBits())
+    }
+
     /**
      * Returns a copy of the written bytes of length [size].
      */
-    val toByteArray: () -> ByteArray = {
+    public val toByteArray: () -> ByteArray = {
         this.buffer.copyOf(this.size)
     }
 }

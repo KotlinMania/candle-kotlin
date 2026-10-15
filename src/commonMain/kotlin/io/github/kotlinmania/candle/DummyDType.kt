@@ -1,62 +1,56 @@
 // port-lint: source dummy_dtype.rs
 package io.github.kotlinmania.candle
 
+import io.github.kotlinmania.anyhow.Ok
+import io.github.kotlinmania.anyhow.Result
+
 /**
- * 6-bit float with 2 exponent bits and 3 mantissa bits (MX6 format).
+ * Dummy data types for experimental/future float formats
  *
- * This is a dummy type used to represent sub-byte microscaling formats.
+ * These are placeholder types for experimental floating-point formats
+ * that are defined in the safetensors spec but not yet fully implemented.
+ */
+
+/**
+ * 6-bit float with 2 exponent bits and 3 mantissa bits (MX6 format)
+ * This is a dummy type.
  */
 public class F6E2M3 {
-    public fun fmt(): String = "F6E2M3"
-
-    override fun toString(): String = fmt()
-
-    override fun equals(other: Any?): Boolean = other is F6E2M3
-
-    override fun hashCode(): Int = "F6E2M3".hashCode()
+    public fun fmt(f: StringBuilder): Result<Unit> {
+        f.append("F6E2M3")
+        return Ok(Unit)
+    }
 }
 
 /**
- * 6-bit float with 3 exponent bits and 2 mantissa bits (MX6 format).
- *
- * This is a dummy type used to represent sub-byte microscaling formats.
+ * 6-bit float with 3 exponent bits and 2 mantissa bits (MX6 format)
+ * This is a dummy type.
  */
 public class F6E3M2 {
-    public fun fmt(): String = "F6E3M2"
-
-    override fun toString(): String = fmt()
-
-    override fun equals(other: Any?): Boolean = other is F6E3M2
-
-    override fun hashCode(): Int = "F6E3M2".hashCode()
+    public fun fmt(f: StringBuilder): Result<Unit> {
+        f.append("F6E3M2")
+        return Ok(Unit)
+    }
 }
 
 /**
- * 4-bit float (MX4 format).
- *
- * This is a dummy type used to represent sub-byte microscaling formats.
+ * 4-bit float (MX4 format)
+ * This is a dummy type.
  */
 public class F4 {
-    public fun fmt(): String = "F4"
-
-    override fun toString(): String = fmt()
-
-    override fun equals(other: Any?): Boolean = other is F4
-
-    override fun hashCode(): Int = "F4".hashCode()
+    public fun fmt(f: StringBuilder): Result<Unit> {
+        f.append("F4")
+        return Ok(Unit)
+    }
 }
 
 /**
- * 8-bit float with 8 exponent bits and 0 mantissa bits.
- *
- * This is a dummy type used to represent scale-only microscaling formats.
+ * 8-bit float with 8 exponent bits and 0 mantissa bits
+ * This is a dummy type.
  */
 public class F8E8M0 {
-    public fun fmt(): String = "F8E8M0"
-
-    override fun toString(): String = fmt()
-
-    override fun equals(other: Any?): Boolean = other is F8E8M0
-
-    override fun hashCode(): Int = "F8E8M0".hashCode()
+    public fun fmt(f: StringBuilder): Result<Unit> {
+        f.append("F8E8M0")
+        return Ok(Unit)
+    }
 }
