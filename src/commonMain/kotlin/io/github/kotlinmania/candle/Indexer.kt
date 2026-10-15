@@ -49,7 +49,6 @@ private val Int.saturatingSub: (Int) -> Int get() = { other -> maxOf(0, this - o
 private val Tensor.self: Tensor get() = this
 private val Tensor.isOk: Boolean get() = rank() >= 0
 private val Tensor.e: CandleException get() = CandleException.Msg("invalid index")
-private fun <T> Ok(v: T): T = v
 private val Int.into: () -> TensorIndexer get() = { TensorIndexer.from(this) }
 private val TensorIndexer.into: () -> TensorIndexer get() = { this }
 private val Pair<TensorIndexer, TensorIndexer>.a: TensorIndexer get() = first

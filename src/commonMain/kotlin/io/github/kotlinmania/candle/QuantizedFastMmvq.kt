@@ -214,6 +214,8 @@ private fun plainLauncherF32(dtype: GgmlDType): PlainLauncher? {
  * - batch too large
  * - non-BF16/F32 input
  */
+private fun Shape.dims2(): Result<Pair<Int, Int>> = Result.success(Pair(dims[0], dims[1]))
+
 fun tryFwd(
     qstorage: QCudaStorage,
     selfShape: Shape,
@@ -263,7 +265,7 @@ fun tryFwd(
     val workspaceGuard = workspacePair.second
     val strideColY = (kPadded / Q8_1_BLOCK_SIZE).toInt()
     val strideColDst = nrows.toInt()
-    val weightPtr = qstorage.devicePtr().getOrThrow()
+    val weightPtr = qstorage.devicePtr().toULong()
 
     val outShape = rhsL.shape().dims.toMutableList()
     outShape.removeAt(outShape.lastIndex)

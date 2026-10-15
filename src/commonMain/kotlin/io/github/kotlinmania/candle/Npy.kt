@@ -7,9 +7,7 @@ private val NPY_MAGIC_STRING: ByteArray = byteArrayOf(
     0x93.toByte(), 'N'.code.toByte(), 'U'.code.toByte(), 'M'.code.toByte(), 'P'.code.toByte(), 'Y'.code.toByte(),
 )
 private const val NPY_SUFFIX: String = ".npy"
-
-private fun <T> Ok(v: T): T = v
-private fun Err(e: CandleException): Nothing = throw e
+private fun Err(e: Error): Nothing = throw e
 private val String.into: () -> String get() = { this }
 private val String.asRef: () -> String get() = { this }
 private val String.toOwned: () -> String get() = { this }

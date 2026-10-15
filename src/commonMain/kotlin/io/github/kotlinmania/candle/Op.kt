@@ -33,11 +33,11 @@ public enum class ReduceOp {
 
     public fun name(self: ReduceOp = this): String =
         when (self) {
-            Self.ArgMax -> "argmax"
-            Self.ArgMin -> "argmin"
-            Self.Min -> "min"
-            Self.Max -> "max"
-            Self.Sum -> "sum"
+            ArgMax -> "argmax"
+            ArgMin -> "argmin"
+            Min -> "min"
+            Max -> "max"
+            Sum -> "sum"
         }
 
     public val opName: () -> String = { name() }
@@ -838,7 +838,7 @@ public object Sign : UnaryOpT {
         Double.from(v > 0.0) - Double.from(v < 0.0)
     override fun u8(v: UByte): UByte = UByte.min(1u, v)
     override fun u32(v: UInt): UInt = UInt.min(1u, v)
-    override fun i16(v: Short): Short = (v > 0).toI16() - (v < 0).toI16()
+    override fun i16(v: Short): Short = ((v > 0).toI16() - (v < 0).toI16()).toShort()
     override fun i32(v: Int): Int = (v > 0).toI32() - (v < 0).toI32()
     override fun i64(v: Long): Long = (v > 0L).toI64() - (v < 0L).toI64()
     override fun f8e4m3(v: F8E4M3): F8E4M3 =
@@ -888,11 +888,11 @@ private fun ShortArray.iter(): SliceIter<Short> = SliceIter(size) { this[it] }
 private fun IntArray.iter(): SliceIter<Int> = SliceIter(size) { this[it] }
 private fun LongArray.iter(): SliceIter<Long> = SliceIter(size) { this[it] }
 
-private fun BF16.Companion.tanh(v: BF16): BF16 = BF16.fromFloat(kotlin.math.tanh(v.toFloat()))
-private fun F16.Companion.tanh(v: F16): F16 = F16.fromFloat(kotlin.math.tanh(v.toFloat()))
+private fun io.github.kotlinmania.half.BF16.Companion.tanh(v: BF16): BF16 = BF16.fromFloat(kotlin.math.tanh(v.toFloat()))
+private fun io.github.kotlinmania.half.F16.Companion.tanh(v: F16): F16 = F16.fromFloat(kotlin.math.tanh(v.toFloat()))
 private fun Float.Companion.tanh(v: Float): Float = kotlin.math.tanh(v)
 private fun Double.Companion.tanh(v: Double): Double = kotlin.math.tanh(v)
-private fun F8E4M3.Companion.tanh(v: F8E4M3): F8E4M3 = F8E4M3.fromFloat(kotlin.math.tanh(v.toFloat()))
+private fun io.github.kotlinmania.float8.F8E4M3.Companion.tanh(v: F8E4M3): F8E4M3 = F8E4M3.fromFloat(kotlin.math.tanh(v.toFloat()))
 
 private fun BF16.exp(): BF16 = BF16.fromFloat(kotlin.math.exp(toFloat()))
 private fun F16.exp(): F16 = F16.fromFloat(kotlin.math.exp(toFloat()))
@@ -935,8 +935,8 @@ private fun Long.max(other: Long): Long = maxOf(this, other)
 
 private fun Op?.isNone(): Boolean = this == null
 
-private fun BF16.Companion.from(b: Boolean): BF16 = if (b) BF16.ONE else BF16.ZERO
-private fun F16.Companion.from(b: Boolean): F16 = if (b) F16.ONE else F16.ZERO
+private fun io.github.kotlinmania.half.BF16.Companion.from(b: Boolean): BF16 = if (b) BF16.ONE else BF16.ZERO
+private fun io.github.kotlinmania.half.F16.Companion.from(b: Boolean): F16 = if (b) F16.ONE else F16.ZERO
 private fun Float.Companion.from(b: Boolean): Float = if (b) 1.0f else 0.0f
 private fun Double.Companion.from(b: Boolean): Double = if (b) 1.0 else 0.0
 private fun UByte.Companion.min(a: UByte, b: UByte): UByte = minOf(a, b)
@@ -944,6 +944,6 @@ private fun UInt.Companion.min(a: UInt, b: UInt): UInt = minOf(a, b)
 private fun Boolean.toI16(): Short = if (this) 1 else 0
 private fun Boolean.toI32(): Int = if (this) 1 else 0
 private fun Boolean.toI64(): Long = if (this) 1L else 0L
-private operator fun Short.minus(other: Short): Short = (this.toInt() - other.toInt()).toShort()
+
 
 

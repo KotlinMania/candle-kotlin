@@ -13,7 +13,7 @@ import io.github.kotlinmania.candle.CandleException as Error
 public class Var(public val tensor: Tensor) {
 
     public fun fmt(f: StringBuilder = StringBuilder()): String {
-        return self[0].fmt(f)
+        return self[0].fmt(Formatter(f))
     }
 
     public interface Target
@@ -159,6 +159,5 @@ private val Var.Self: (Tensor) -> Var get() = { Var(it) }
 private val Var.Companion.Self: (Tensor) -> Var get() = { Var(it) }
 private fun Var.sameStorage(rhs: Tensor): Boolean = this.tensor.sameStorage(rhs)
 private fun Var.storageMutAndLayout(): Pair<Storage, Layout> = this.tensor.storageMutAndLayout()
-private fun <T> Ok(v: T): T = v
 private fun <T> Err(e: Error): Nothing = throw e
 

@@ -1,6 +1,5 @@
 package io.github.kotlinmania.candle
 
-private fun <T> Ok(v: T): T = v
 private val Module.self: Module get() = this
 
 /**

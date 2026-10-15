@@ -54,6 +54,9 @@ sealed class SlicePtrOrNull<out T> {
     }
 }
 
+private fun Shape.dims3(): Result<Triple<Int, Int, Int>> = Result.success(Triple(dims[0], dims[1], dims[2]))
+private fun Shape.dims4(): Result<List<Int>> = Result.success(listOf(dims[0], dims[1], dims[2], dims[3]))
+
 fun Scalar.builderArg(builder: LaunchArgs) {
     when (this) {
         is Scalar.U8 -> builder.hashCode()
@@ -65,7 +68,7 @@ fun Scalar.builderArg(builder: LaunchArgs) {
         is Scalar.F64 -> builder.hashCode()
         is Scalar.F16 -> builder.hashCode()
         is Scalar.BF16 -> builder.hashCode()
-        is Scalar.F8E4M3Scalar -> builder.hashCode()
+        is Scalar.F8E4M3 -> builder.hashCode()
     }
 }
 
@@ -1273,11 +1276,11 @@ class CudaStorage(
             is CudaStorageSlice.I16 -> CpuStorage.I16(sl.data.data.toShortArray())
             is CudaStorageSlice.I32 -> CpuStorage.I32(sl.data.data.toIntArray())
             is CudaStorageSlice.I64 -> CpuStorage.I64(sl.data.data.toLongArray())
-            is CudaStorageSlice.BF16 -> CpuStorage.BF16(sl.data.data.toList())
-            is CudaStorageSlice.F16 -> CpuStorage.F16(sl.data.data.toList())
+            is CudaStorageSlice.BF16 -> CpuStorage.BF16(sl.data.data.toTypedArray())
+            is CudaStorageSlice.F16 -> CpuStorage.F16(sl.data.data.toTypedArray())
             is CudaStorageSlice.F32 -> CpuStorage.F32(sl.data.data.toFloatArray())
             is CudaStorageSlice.F64 -> CpuStorage.F64(sl.data.data.toDoubleArray())
-            is CudaStorageSlice.F8E4M3Slice -> CpuStorage.F8E4M3Storage(sl.data.data.toList())
+            is CudaStorageSlice.F8E4M3Slice -> CpuStorage.F8E4M3Storage(sl.data.data.toTypedArray())
             is CudaStorageSlice.F4,
             is CudaStorageSlice.F6E2M3,
             is CudaStorageSlice.F6E3M2,
@@ -1331,15 +1334,15 @@ class CudaStorage(
         val m = lOut
         val colL = Layout.contiguous(Shape(listOf(b * m, k)))
         val res = if (kernelL.isContiguous()) {
-            val kL = Layout.contiguousWithOffset(Shape(listOf(n, k)), kernelL.startOffset()).transpose(0, 1).getOrThrow()
+            val kL = Layout.contiguousWithOffset(Shape(listOf(n, k)), kernelL.startOffset()).transpose(0, 1)
             col.matmul(kernel, listOf(1, b * m, n, k), colL, kL).getOrThrow()
         } else {
             val kernelC = CudaStorage(kernel.slice, device)
             kernel.copyStridedSrc(kernelC, 0, kernelL).getOrThrow()
-            val kL = Layout.contiguousWithOffset(Shape(listOf(n, k)), kernelL.startOffset()).transpose(0, 1).getOrThrow()
+            val kL = Layout.contiguousWithOffset(Shape(listOf(n, k)), kernelL.startOffset()).transpose(0, 1)
             col.matmul(kernel, listOf(1, b * m, n, k), colL, kL).getOrThrow()
         }
-        val resL = Layout.contiguous(Shape(listOf(b, lOut, n))).transpose(1, 2).getOrThrow()
+        val resL = Layout.contiguous(Shape(listOf(b, lOut, n))).transpose(1, 2)
         val resT = CudaStorage(res.slice, device)
         res.copyStridedSrc(resT, 0, resL).getOrThrow()
         resT
@@ -1363,7 +1366,7 @@ class CudaStorage(
         }
         val lOut = params.lOut()
         val dstEl = params.cOut * lOut * params.bSize
-        val newSlice = when (val sl = slice) {
+        val newSlice = when (slice) {
             is CudaStorageSlice.U8 -> CudaStorageSlice.U8(device.alloc<UByte>(dstEl).getOrThrow())
             is CudaStorageSlice.BF16 -> CudaStorageSlice.BF16(device.alloc<BFloat16>(dstEl).getOrThrow())
             is CudaStorageSlice.F16 -> CudaStorageSlice.F16(device.alloc<Float16>(dstEl).getOrThrow())
@@ -1376,7 +1379,6 @@ class CudaStorage(
             is CudaStorageSlice.F8E4M3Slice -> throw CudaError.InternalError("conv1d does not support f8e4m3")
             else -> throw CudaError.InternalError("dtype mismatch in conv1d")
         }
-        sl.hashCode()
         CudaStorage(newSlice, device)
     }
 
@@ -1404,7 +1406,7 @@ class CudaStorage(
             val col = matmul(
                 kernel,
                 listOf(bSize, lIn, cOut * kSize, cIn),
-                l.transpose(1, 2).getOrThrow(),
+                l.transpose(1, 2),
                 kernelLMm
             ).getOrThrow()
             val colL = Layout.contiguous(Shape(listOf(bSize, lIn, cOut, kSize)))
@@ -1451,17 +1453,17 @@ class CudaStorage(
         val m = hOut * wOut
         val colL = Layout.contiguous(Shape(listOf(b * m, k)))
         val res = if (kernelL.isContiguous()) {
-            val kL = Layout.contiguousWithOffset(Shape(listOf(n, k)), kernelL.startOffset()).transpose(0, 1).getOrThrow()
+            val kL = Layout.contiguousWithOffset(Shape(listOf(n, k)), kernelL.startOffset()).transpose(0, 1)
             col.matmul(kernel, listOf(1, b * m, n, k), colL, kL).getOrThrow()
         } else {
             val kernelC = CudaStorage(kernel.slice, device)
             kernel.copyStridedSrc(kernelC, 0, kernelL).getOrThrow()
-            val kL = Layout.contiguousWithOffset(Shape(listOf(n, k)), kernelL.startOffset()).transpose(0, 1).getOrThrow()
+            val kL = Layout.contiguousWithOffset(Shape(listOf(n, k)), kernelL.startOffset()).transpose(0, 1)
             col.matmul(kernel, listOf(1, b * m, n, k), colL, kL).getOrThrow()
         }
         val resL = Layout.contiguous(Shape(listOf(b, hOut, wOut, n)))
-            .transpose(1, 2).getOrThrow()
-            .transpose(1, 3).getOrThrow()
+            .transpose(1, 2)
+            .transpose(1, 3)
         val resT = CudaStorage(res.slice, device)
         res.copyStridedSrc(resT, 0, resL).getOrThrow()
         resT
@@ -1485,7 +1487,7 @@ class CudaStorage(
         }
         val (outW, outH) = Pair(params.outW(), params.outH())
         val dstEl = params.cOut * outW * outH * params.bSize
-        val newSlice = when (val sl = slice) {
+        val newSlice = when (slice) {
             is CudaStorageSlice.U8 -> CudaStorageSlice.U8(device.alloc<UByte>(dstEl).getOrThrow())
             is CudaStorageSlice.BF16 -> CudaStorageSlice.BF16(device.alloc<BFloat16>(dstEl).getOrThrow())
             is CudaStorageSlice.F16 -> CudaStorageSlice.F16(device.alloc<Float16>(dstEl).getOrThrow())
@@ -1498,7 +1500,6 @@ class CudaStorage(
             is CudaStorageSlice.F8E4M3Slice -> throw CudaError.InternalError("conv2d does not support f8e4m3")
             else -> throw CudaError.InternalError("dtype mismatch in conv2d")
         }
-        sl.hashCode()
         CudaStorage(newSlice, device)
     }
 

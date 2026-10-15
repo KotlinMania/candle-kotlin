@@ -69,11 +69,11 @@ internal class ConvForward(
     }
 }
 
-fun from(err: CudnnError): CandleError {
+internal fun from(err: CudnnError): CandleError {
     return CandleError.wrap(err)
 }
 
-fun from(err: DriverError): CandleError {
+internal fun from(err: DriverError): CandleError {
     return CandleError.wrap(err)
 }
 

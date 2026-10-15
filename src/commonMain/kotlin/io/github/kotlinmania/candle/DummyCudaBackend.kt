@@ -1,7 +1,7 @@
 // port-lint: source dummy_cuda_backend.rs
 package io.github.kotlinmania.candle
 
-import io.github.kotlinmania.candle.CandleException as Error
+import io.github.kotlinmania.candle.CandleError as Error
 import kotlin.jvm.JvmInline
 
 /**
@@ -11,9 +11,9 @@ import kotlin.jvm.JvmInline
  * errors when CUDA backend operations are invoked without CUDA compilation enabled.
  */
 
-private val Err: (CandleException) -> Nothing = { throw it }
+private val Err: (Error) -> Nothing = { throw it }
 private val fail: () -> Nothing = {
-    throw CandleException.Msg("cuda support has not been enabled, add `cuda` feature to enable.")
+    throw Error.Msg("cuda support has not been enabled, add `cuda` feature to enable.")
 }
 private val Ok: (Unit) -> Unit = { }
 
@@ -24,6 +24,9 @@ public data class CudaDevice(val gpuId: Int = 0) : BackendDevice {
     public interface Device
     public interface Storage
     private val self: CudaDevice get() = this
+    public val ordinal: Int get() = gpuId
+
+    public fun clone(): CudaDevice = this
 
     public fun id(): DeviceId {
         self; return DeviceId(0)
@@ -88,8 +91,34 @@ public data class CudaDevice(val gpuId: Int = 0) : BackendDevice {
     }
 }
 
-public class CudaStorage : BackendStorage {
+public class CudaStorage() : BackendStorage {
+    public constructor(device: CudaDevice, dtype: DType = DType.F32) : this() {
+        device.hashCode()
+        dtype.hashCode()
+    }
+
     private val self: CudaStorage get() = this
+    public val dtype: DType get() = dtype()
+    public val slice: io.github.kotlinmania.candle.cuda.CudaStorageSlice get() = fail()
+
+    public fun <T> asCudaSlice(): List<T> = fail()
+
+    public fun matmulWithLayout(
+        rhs: CudaStorage,
+        bmnk: List<Int>,
+        lhsL: Layout,
+        rhsL: Layout
+    ): CudaStorage {
+        rhs.hashCode(); bmnk.hashCode(); lhsL.hashCode(); rhsL.hashCode()
+        return fail()
+    }
+
+    public companion object {
+        public fun wrapCudaSlice(slice: Any, dev: CudaDevice): CudaStorage {
+            slice.hashCode()
+            return CudaStorage(dev)
+        }
+    }
 
     public fun transferToDevice(
         dst: CudaDevice

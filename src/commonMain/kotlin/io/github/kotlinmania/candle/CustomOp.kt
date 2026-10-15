@@ -8,7 +8,6 @@ private val <T> T.self: T get() = this
 private fun CustomOp1.asRef(): CustomOp1 = this
 private fun CustomOp2.asRef(): CustomOp2 = this
 private fun CustomOp3.asRef(): CustomOp3 = this
-private fun <T> Ok(v: T): T = v
 private val Err: (Throwable) -> Nothing get() = { throw it }
 private val format: (String, Any?) -> String get() = { fmt, arg -> fmt.replace("{}", arg.toString()) }
 private val String.into: () -> String get() = { this }

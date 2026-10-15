@@ -3352,6 +3352,9 @@ internal fun <T> MutableList<T>.append(other: MutableList<T>) {
 internal fun <T> MutableList<T>.extend(other: Iterable<T>) {
     this.addAll(other)
 }
+internal fun <T> MutableList<T>.extend(other: List<T>) {
+    this.addAll(other)
+}
 internal fun <T> MutableList<T>.lastMut(): T? = this.lastOrNull()
 internal fun <T> MutableList<T>.splitOff(at: Int): MutableList<T> {
     val tail = this.subList(at, this.size).toMutableList()
@@ -3388,7 +3391,7 @@ internal fun UByte.Companion.from(b: Boolean): UByte = if (b) 1u else 0u
 internal fun <T> Set<T>.len(): Int = this.size
 internal fun <T> Set<T>.intoIter(): Iterator<T> = this.iterator()
 internal fun UIntArray.intoIter(): List<UInt> = this.toList()
-internal fun UIntArray.iter(): List<UInt> = this.toList()
+private fun UIntArray.iter(): List<UInt> = this.toList()
 internal fun ULongArray.intoIter(): List<ULong> = this.toList()
 internal fun <T> List<T>.intoIter(): List<T> = this
 internal fun <T> List<T>.iter(): List<T> = this

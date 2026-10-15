@@ -4,7 +4,6 @@ package io.github.kotlinmania.candle
 import io.github.kotlinmania.candle.CandleException as Error
 
 private val <T> T.self: T get() = this
-private fun <T> Ok(v: T): T = v
 private val Err: (Throwable) -> Nothing get() = { throw it }
 private val unreachable: () -> Nothing get() = { error("unreachable") }
 private val CpuStorage.clone: () -> CpuStorage get() = { this }

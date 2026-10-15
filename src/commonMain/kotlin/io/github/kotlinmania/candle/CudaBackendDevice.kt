@@ -176,6 +176,7 @@ sealed class CudaStorageSlice {
         fun BF16(s: CudaSlice<Short>): BF16 = BF16(CudaSlice(s.data.map { BFloat16.fromBits(it.toUShort()) }.toMutableList()))
         fun F16(s: CudaSlice<Short>): F16 = F16(CudaSlice(s.data.map { Float16.fromBits(it.toUShort()) }.toMutableList()))
         fun F8E4M3(s: CudaSlice<Byte>): F8E4M3Slice = F8E4M3Slice(CudaSlice(s.data.map { io.github.kotlinmania.candle.F8E4M3.fromBits(it.toUByte()) }.toMutableList()))
+        fun F8E4M3(s: CudaSlice<io.github.kotlinmania.candle.F8E4M3>): F8E4M3Slice = F8E4M3Slice(s)
     }
 }
 
@@ -188,7 +189,7 @@ class ModuleStore(
     val mdls: Array<CudaModule?> = arrayOfNulls(32)
 )
 
-class CudaDevice(
+class CudaDevice internal constructor(
     internal val id: DeviceId,
     internal val context: CudaContext,
     internal val modules: ModuleStore,
@@ -680,7 +681,7 @@ class CudaDevice(
         ))
     }
 
-    fun <T : WithDType> storageFromSlice(s: List<T>, cpuStorageRef: (List<T>) -> CpuStorageRef): Result<CudaDeviceStorage> {
+    fun <T> storageFromSlice(s: List<T>, cpuStorageRef: (List<T>) -> CpuStorageRef): Result<CudaDeviceStorage> {
         val ref = cpuStorageRef(s)
         val slice = when (ref) {
             is CpuStorageRef.U8 -> {

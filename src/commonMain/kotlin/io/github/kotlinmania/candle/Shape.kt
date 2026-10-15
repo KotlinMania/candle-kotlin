@@ -50,6 +50,10 @@ public data class Shape(
         public fun fromDims(dims: List<Int>): Shape {
             return Self(dims.toVec())
         }
+
+        public fun fromDims(vararg dims: Int): Shape {
+            return Self(dims.toVec())
+        }
     }
 
     /**
@@ -602,8 +606,6 @@ public data class ShapeWithOneHole5Hole4(
 }
 
 public typealias ShapeDim = Dim
-
-private fun <T> Ok(v: T): T = v
 
 public data class MatmulBroadcastShapes(
     val lhs: Shape,

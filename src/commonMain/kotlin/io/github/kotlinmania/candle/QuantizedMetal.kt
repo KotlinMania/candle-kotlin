@@ -561,13 +561,18 @@ public class QMetalStorage internal constructor(
     }
 }
 
+private fun Device.Cpu.qzeros(elemCount: Int, dtype: GgmlDType): CandleResult<QStorage> =
+    QStorage.zeros(Device.Cpu, elemCount, dtype)
+
+private fun Shape.dims2(): Pair<Int, Int> = Pair(dims[0], dims[1])
+
 public fun <T> loadQuantized(
     device: MetalDevice,
     data: List<T>,
     companion: GgmlTypeCompanion<T, *>? = null,
 ): CandleResult<QStorage> {
     val dtype = companion?.DTYPE ?: when (data.firstOrNull()) {
-        is F32Scalar, is Float -> GgmlDType.F32
+        is Float -> GgmlDType.F32
         is F16 -> GgmlDType.F16
         is BF16 -> GgmlDType.BF16
         is BlockQ40 -> GgmlDType.Q4_0

@@ -8,11 +8,11 @@ import kotlin.math.ln
 import kotlin.math.sin
 import kotlin.math.sqrt
 
-public object CpuDevice : BackendDevice {
-    override fun location(): DeviceLocation = DeviceLocation.Cpu
+public object CpuDevice {
+    public fun location(): DeviceLocation = DeviceLocation.Cpu
 
     public fun sameDevice(other: CpuDevice): Boolean = true
-    override fun sameDevice(other: BackendDevice): Boolean = other is CpuDevice
+    public fun sameDevice(other: BackendDevice): Boolean = false
 
     public fun storageFromSlice(s: FloatArray): CpuStorage = CpuStorage.F32(s.copyOf())
     public fun storageFromSlice(s: DoubleArray): CpuStorage = CpuStorage.F64(s.copyOf())
@@ -22,21 +22,21 @@ public object CpuDevice : BackendDevice {
     public fun storageFromSlice(s: UIntArray): CpuStorage = CpuStorage.U32(s.copyOf())
     public fun storageFromSlice(s: UByteArray): CpuStorage = CpuStorage.U8(s.copyOf())
 
-    override fun storageFromCpuStorage(storage: CpuStorage): CpuStorage = storage
+    public fun storageFromCpuStorage(storage: CpuStorage): CpuStorage = storage
 
-    override fun storageFromCpuStorageOwned(storage: CpuStorage): CpuStorage = storage
+    public fun storageFromCpuStorageOwned(storage: CpuStorage): CpuStorage = storage
 
     public fun new(ordinal: Int = 0): CpuDevice = this
 
-    override fun setSeed(seed: Long) {
+    public fun setSeed(seed: Long) {
         bail("cannot seed the CPU rng with set_seed")
     }
 
-    override fun getCurrentSeed(): Long {
+    public fun getCurrentSeed(): Long {
         bail("cannot get the CPU rng seed with get_current_seed")
     }
 
-    override fun randUniform(shape: Shape, dtype: DType, min: Double, max: Double): CpuStorage {
+    public fun randUniform(shape: Shape, dtype: DType, min: Double, max: Double): CpuStorage {
         val elemCount = shape.elemCount()
         var rng = rng()
         return when (dtype) {
@@ -79,7 +79,7 @@ public object CpuDevice : BackendDevice {
         }
     }
 
-    override fun randNormal(shape: Shape, dtype: DType, mean: Double, std: Double): CpuStorage {
+    public fun randNormal(shape: Shape, dtype: DType, mean: Double, std: Double): CpuStorage {
         val elemCount = shape.elemCount()
         var rng = rng()
         val normalValues = DoubleArray(elemCount)
@@ -118,9 +118,9 @@ public object CpuDevice : BackendDevice {
         }
     }
 
-    override fun allocUninit(shape: Shape, dtype: DType): CpuStorage = zerosImpl(shape, dtype)
+    public fun allocUninit(shape: Shape, dtype: DType): CpuStorage = zerosImpl(shape, dtype)
 
-    override fun zerosImpl(shape: Shape, dtype: DType): CpuStorage {
+    public fun zerosImpl(shape: Shape, dtype: DType): CpuStorage {
         val elemCount = shape.elemCount()
         return when (dtype) {
             DType.U8 -> CpuStorage.U8(UByteArray(elemCount))
@@ -137,7 +137,7 @@ public object CpuDevice : BackendDevice {
         }
     }
 
-    override fun synchronize(): Unit = Unit
+    public fun synchronize(): Unit = Unit
 }
 
 private fun io.github.kotlinmania.rand.rngs.ThreadRng.randomDouble(): Double =

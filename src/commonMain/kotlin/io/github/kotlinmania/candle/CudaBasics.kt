@@ -6,6 +6,7 @@ import io.github.kotlinmania.candle.CandleResult.Ok
 import io.github.kotlinmania.candle.Device
 import io.github.kotlinmania.candle.Shape
 import io.github.kotlinmania.candle.Tensor
+import io.github.kotlinmania.candle.conv1d
 import kotlin.time.TimeSource
 
 // xs: [1024, 64, 1924], c Tensor[dims 128, 64, 8; f32, cuda:0] Conv1dConfig { padding: 0, stride: 4, dilation: 1, groups: 1 }

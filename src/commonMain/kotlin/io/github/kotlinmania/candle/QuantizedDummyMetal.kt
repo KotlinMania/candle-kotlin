@@ -14,7 +14,8 @@ private val Err: (CandleError) -> CandleResult<Nothing> = { CandleResult.Err(it)
 
 public class QMetalStorage(
     private val dtype: GgmlDType,
-    private val device: MetalDevice
+    private val device: MetalDevice,
+    public val buffer: Any? = null,
 ) {
     private val self: QMetalStorage get() = this
 

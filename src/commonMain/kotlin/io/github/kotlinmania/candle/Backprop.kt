@@ -6,7 +6,6 @@ import io.github.kotlinmania.envie.getenv
 import io.github.kotlinmania.threadlocal.ThreadLocal
 
 private val <T> T.self: T get() = this
-private fun <T> Ok(v: T): T = v
 private val Err: (Throwable) -> Nothing get() = { throw it }
 private fun <K, V> MutableMap<K, V>.keys(): Set<K> = this.keys
 private fun <K, V> MutableMap<K, V>.entry(k: K): V? = this[k]

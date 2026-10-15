@@ -11,9 +11,9 @@ import io.github.kotlinmania.thiserror.StdError
  */
 // port-lint: source dummy_metal_backend.rs
 
-private val Err: (CandleException) -> Nothing = { throw it }
+private val Err: (Error) -> Nothing = { throw it }
 private val fail: () -> Nothing = {
-    throw CandleException.Msg("metal support has not been enabled, add `metal` feature to enable.")
+    throw Error.Msg("metal support has not been enabled, add `metal` feature to enable.")
 }
 private val Ok: (Unit) -> Unit = { }
 
@@ -78,6 +78,10 @@ public data class MetalDevice(val gpuId: Int = 0) : BackendDevice {
 
     override fun synchronize() {
         self; Ok(Unit)
+    }
+
+    public fun capture(path: String) {
+        self; path.hashCode(); Err(Error.NotCompiledWithMetalSupport)
     }
 
     public companion object {

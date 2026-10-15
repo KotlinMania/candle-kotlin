@@ -646,7 +646,8 @@ private var PrinterOptions.constDefault: PrinterOptions get() = this
 
 private fun FloatFormatter.Companion.Some(v: Double): Boolean = !v.isNaN()
 private fun FloatFormatter.Companion.Some(v: Boolean?): Boolean? = v
-private fun Ok(): Result<Unit> = Result.success(Unit)
+private fun FmtSize.Ok(): Result<Unit> = Result.success(Unit)
+private fun TensorFormatter<*>.Ok(): Result<Unit> = Result.success(Unit)
 private fun Ok(v: Double): Boolean = !v.isNaN()
 private fun Ok(v: List<*>): Boolean = true
 private fun Ok(v: FloatFormatter<*>): Boolean = true

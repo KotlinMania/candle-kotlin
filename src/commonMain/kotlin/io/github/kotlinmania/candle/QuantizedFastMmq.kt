@@ -26,7 +26,8 @@ private val Int.divCeil: (Int) -> Int get() = { q -> (this + q - 1) / q }
 private val Int.max: (Int) -> Int get() = { m -> maxOf(this, m) }
 private val unreachable: () -> Nothing get() = { throw IllegalStateException("unreachable") }
 private fun <T> T.Some(v: T): T = v
-private fun <T> Some(v: T): Boolean = v != null
+private fun <T> isSomeVal(v: T): Boolean = v != null
+private fun <T> Some(v: T): T = v
 private val None: Nothing? get() = null
 private fun <T> Ok(v: T): Result<T> = Result.success(v)
 private val matches: (Any?, Array<out Any?>) -> Boolean get() = { v, opts -> opts.any { it == v } }
@@ -223,20 +224,18 @@ private fun workspaceEnsure(
 ): Result<Pair<ULong, WorkspaceSlot>> {
     val map = ws.getOrInit { HashMap() }
     val deviceKey = dev.id()
-    val deviceMtx: WorkspaceSlot = run {
-        val guard = map.lock().unwrap()
-        val mtx = guard[deviceKey].copied()
-        if (Some(mtx)) {
-            mtx!!
-        } else {
-            val slice = dev.alloc(bytes.max(1)).getOrElse { return Result.failure(it) }
-            val leaked = leak(newSlot(
-                sliceKey, slice,
-                capKey, bytes.max(1),
-            ))
-            guard.insert(deviceKey, leaked)
-            leaked
-        }
+    val guard = map.lock().unwrap()
+    val mtx = guard[deviceKey].copied()
+    val deviceMtx: WorkspaceSlot = if (isSomeVal(mtx)) {
+        mtx!!
+    } else {
+        val slice = dev.alloc(bytes.max(1)).getOrElse { return Result.failure(it) }
+        val leaked = leak(newSlot(
+            sliceKey, slice,
+            capKey, bytes.max(1),
+        ))
+        guard.insert(deviceKey, leaked)
+        leaked
     }
     val slot = MmqMutex(deviceMtx).lock().unwrap()
     if (slot.cap < bytes) {
@@ -290,9 +289,7 @@ private class CuStreamStub(val ordinal: Int) {
 }
 
 private val CudaDevice.cudaStream: () -> CuStreamStub get() = { CuStreamStub(this.ordinal) }
-private val CudaDevice.clone: () -> CudaDevice get() = { this }
-private val CudaStorage.asCudaSlice: () -> Result<CudaSlice> get() = { Result.success(CudaSlice(ByteArray(0))) }
-private val CudaStorage.Companion.wrapCudaSlice: (CudaSlice, CudaDevice) -> CudaStorage get() = { _, d -> CudaStorage(d, DType.F32) }
+private val CudaStorage.asCudaSliceF32: () -> Result<CudaSlice> get() = { Result.success(CudaSlice(ByteArray(0))) }
 private fun <T> Result<T>.unwrapOr(def: T): T = this.getOrDefault(def)
 private val ccKey: Int get() = 0
 private val smpboKey: Int get() = 0
@@ -308,7 +305,7 @@ private fun getDeviceInfo(dev: CudaDevice): DeviceInfo {
     val key = dev.id()
     val guard = map.lock().unwrap()
     val info = guard[key]
-    if (Some(info)) {
+    if (isSomeVal(info)) {
         return info!!
     }
     val cuDevice = dev.cudaStream().context().cuDevice()
@@ -373,11 +370,12 @@ private fun <T> T?.expect(msg: String): T = this ?: throw IllegalStateException(
 private fun <T> T?.isSome(): Boolean = this != null
 private fun <T> T?.asRef(): T? = this
 private fun <T> T?.unwrapOr(def: T): T = this ?: def
-private val IntArray.toVec: () -> MutableList<Int> get() = { this.toMutableList() }
+private val List<Int>.toVec: () -> MutableList<Int> get() = { this.toMutableList() }
 private fun <T> MutableList<T>.pop(): T = this.removeAt(this.size - 1)
 private fun <T> MutableList<T>.push(v: T): Unit { this.add(v) }
-private val MutableList<Int>.into: () -> Shape get() = { Shape(this.toIntArray()) }
+private val MutableList<Int>.into: () -> Shape get() = { Shape(this) }
 private val MutableList<Int>.clone: () -> MutableList<Int> get() = { this.toMutableList() }
+private fun Shape.dims2(): Result<Pair<Int, Int>> = Result.success(Pair(dims[0], dims[1]))
 
 /**
  * Try the fast MMQ path. Returns `Ok(null)` when the fast path is not applicable:
@@ -434,14 +432,14 @@ fun tryFwd(
     val rhsF32Storage: CudaStorage? = if (inputDtype != DType.F32) {
         val layoutForCast =
             Layout.contiguousWithOffset(rhsL.shape(), rhsL.startOffset())
-        Some(rhs.toDtype(layoutForCast, DType.F32).getOrElse { return Result.failure(it) })
+        Some(rhs.toDtype(layoutForCast, DType.F32) as CudaStorage)
     } else {
         None
     }
 
     // Get the f32 slice (either original or converted)
     val rhsF32Ref = rhsF32Storage.asRef().unwrapOr(rhs)
-    val rhsF32SliceBase = rhsF32Ref.asCudaSlice().getOrElse { return Result.failure(it) }
+    val rhsF32SliceBase = rhsF32Ref.asCudaSliceF32().getOrElse { return Result.failure(it) }
     // For the converted case, offset is 0 (toDtype returns contiguous from 0).
     // For the original f32 case, apply the original offsets.
     val rhsF32Slice = if (rhsF32Storage.isSome()) {
@@ -472,7 +470,7 @@ fun tryFwd(
     val fixupBytes = maxSms * mmqXMax * mmqYMax * std.mem.sizeOf()
     val (fixupPtr, _fixupGuard) = workspaceEnsure(FIXUP_WORKSPACE, dev, fixupBytes).getOrElse { return Result.failure(it) }
 
-    val weightPtr = qstorage.devicePtr().getOrElse { return Result.failure(it) }
+    val weightPtr = qstorage.devicePtr().toULong()
     val strideRowX = (k / qk).toLong()
     val di = getDeviceInfo(dev)
 
@@ -529,8 +527,8 @@ fun tryFwd(
         Ok(Some(Pair(outStorage, outShape.into())))
     } else {
         // Cast f32 output back to input dtype
-        val outLayout = Layout.contiguous(Shape.from(outShape.clone().toIntArray()))
-        val castStorage = outStorage.toDtype(outLayout, inputDtype).getOrElse { return Result.failure(it) }
+        val outLayout = Layout.contiguous(Shape(outShape.clone()))
+        val castStorage = outStorage.toDtype(outLayout, inputDtype) as CudaStorage
         Ok(Some(Pair(castStorage, outShape.into())))
     }
 }

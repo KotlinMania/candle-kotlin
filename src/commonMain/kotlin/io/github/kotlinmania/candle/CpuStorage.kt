@@ -3195,7 +3195,6 @@ internal object Vec {
         CandleResult.Ok(tensor.toVec3())
     }
 }
-private fun <T> MutableList<T>.pop(): T? = if (isEmpty()) null else removeAt(size - 1)
 internal fun <T> List<T>.getUnchecked(i: Int): T = this[i]
 
 internal object bf16 {
@@ -3268,7 +3267,7 @@ internal fun IntRange.rev(): IntProgression = this.reversed()
 internal fun Int.toIndex(shape: Shape, op: String): Int =
     if (this < 0 || this >= shape.dims.size) throw CandleException.DimOutOfRange(shape, this, op) else this
 internal fun <T> Sequence<T>.skip(n: Int): Sequence<T> = this.drop(n)
-internal fun IntArray.iter(): Sequence<Int> = this.asSequence()
+private fun IntArray.iter(): Sequence<Int> = this.asSequence()
 internal fun Sequence<Int>.product(): Int = this.fold(1) { acc, v -> acc * v }
 internal fun debugAssert(cond: Boolean, msg: String = "", a: Int = 0, b: Int = 0) {
     require(cond) { "$msg: $a, $b" }

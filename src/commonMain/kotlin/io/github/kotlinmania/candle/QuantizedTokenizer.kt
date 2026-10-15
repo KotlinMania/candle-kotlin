@@ -204,8 +204,11 @@ private object BPE {
 
 private object Error {
     val msg: (String) -> Throwable = { m -> CandleError.Msg(m) }
-    val wrap: (Throwable) -> Throwable = { e -> CandleError.Wrap(e) }
+    val wrap: (Throwable) -> Throwable = { e -> CandleError.wrap(e) }
 }
+
+private fun <T> CandleResult<T>.ok(): T? = (this as? CandleResult.Ok)?.value
+private fun <T> CandleResult<T>.unwrapOr(default: T): T = if (this is CandleResult.Ok) this.value else default
 
 private val format: (String, Any?) -> String = { fmt, a ->
     fmt.replace("{key}", a.toString())
@@ -222,7 +225,7 @@ private fun <T> T?.withContext(f: () -> String): CandleResult<T> =
 private fun <T> CandleResult<T>.withContext(f: () -> String): CandleResult<T> =
     when (this) {
         is CandleResult.Ok -> this
-        is CandleResult.Err -> CandleResult.Err(CandleError.Context(this.error, f()))
+        is CandleResult.Err -> CandleResult.Err(CandleError.context(this.error, f()))
     }
 
 private val String.splitOnce: (Char) -> Pair<String, String>?
