@@ -3432,3 +3432,184 @@ internal fun assertEq(actual: Any?, expected: Any?) {
         require(actual == expected)
     }
 }
+
+public data class MatmulBroadcastShapes(
+    val lhs: Shape,
+    val rhs: Shape,
+) {
+    public val first: Shape get() = lhs
+    public val second: Shape get() = rhs
+    public val unwrapOrElse: ((CandleError) -> MatmulBroadcastShapes) -> MatmulBroadcastShapes get() = { this }
+    public val getOrThrow: () -> MatmulBroadcastShapes get() = { this }
+}
+
+public data class Dims2(
+    val d0: Int,
+    val d1: Int,
+) {
+    public val first: Int get() = d0
+    public val second: Int get() = d1
+    public val unwrapOrElse: ((CandleError) -> Dims2) -> Dims2 get() = { this }
+    public val getOrThrow: () -> Dims2 get() = { this }
+}
+
+public data class Dims3(
+    val d0: Int,
+    val d1: Int,
+    val d2: Int,
+) {
+    public val first: Int get() = d0
+    public val second: Int get() = d1
+    public val third: Int get() = d2
+    public val unwrapOrElse: ((CandleError) -> Dims3) -> Dims3 get() = { this }
+    public val getOrThrow: () -> Dims3 get() = { this }
+}
+
+public data class Dims4(
+    val d0: Int,
+    val d1: Int,
+    val d2: Int,
+    val d3: Int,
+) {
+    public val unwrapOrElse: ((CandleError) -> Dims4) -> Dims4 get() = { this }
+    public val getOrThrow: () -> Dims4 get() = { this }
+}
+
+public data class Dims5(
+    val d0: Int,
+    val d1: Int,
+    val d2: Int,
+    val d3: Int,
+    val d4: Int,
+) {
+    public val unwrapOrElse: ((CandleError) -> Dims5) -> Dims5 get() = { this }
+    public val getOrThrow: () -> Dims5 get() = { this }
+}
+
+public val Shape.dims0: () -> Unit
+    get() = {
+        if (dims.isNotEmpty()) {
+            throw CandleException.UnexpectedNumberOfDims(0, dims.size, this)
+        }
+    }
+
+public val Shape.dims1: () -> Int
+    get() = {
+        if (dims.size != 1) {
+            throw CandleException.UnexpectedNumberOfDims(1, dims.size, this)
+        }
+        dims[0]
+    }
+
+public val Shape.dims2: () -> Dims2
+    get() = {
+        if (dims.size != 2) {
+            throw CandleException.UnexpectedNumberOfDims(2, dims.size, this)
+        }
+        Dims2(dims[0], dims[1])
+    }
+
+public val Shape.dims3: () -> Dims3
+    get() = {
+        if (dims.size != 3) {
+            throw CandleException.UnexpectedNumberOfDims(3, dims.size, this)
+        }
+        Dims3(dims[0], dims[1], dims[2])
+    }
+
+public val Shape.dims4: () -> Dims4
+    get() = {
+        if (dims.size != 4) {
+            throw CandleException.UnexpectedNumberOfDims(4, dims.size, this)
+        }
+        Dims4(dims[0], dims[1], dims[2], dims[3])
+    }
+
+public val Shape.dims5: () -> Dims5
+    get() = {
+        if (dims.size != 5) {
+            throw CandleException.UnexpectedNumberOfDims(5, dims.size, this)
+        }
+        Dims5(dims[0], dims[1], dims[2], dims[3], dims[4])
+    }
+
+public val Shape.Companion.toIndex: (Int, Shape, String) -> Int
+    get() = { dim, shape, op ->
+        val rank = shape.rank
+        val normalized = if (dim < 0) rank + dim else dim
+        if (normalized < 0 || normalized >= rank) {
+            throw CandleException.DimOutOfRange(shape, dim, op)
+        }
+        normalized
+    }
+
+public val Shape.Companion.toIndexPlusOne: (Int, Shape, String) -> Int
+    get() = { dim, shape, op ->
+        val rank = shape.rank
+        val normalized = if (dim < 0) rank + 1 + dim else dim
+        if (normalized < 0 || normalized > rank) {
+            throw CandleException.DimOutOfRange(shape, dim, op)
+        }
+        normalized
+    }
+
+internal fun Shape.Companion.fromDims(dims: IntArray): Shape = Shape(dims.toList())
+internal fun Shape.Companion.fromDims(vararg dims: Int): Shape = Shape(dims.toList())
+internal fun Shape.Companion.Self(dims: List<Int>): Shape = Shape(dims)
+
+public val List<Int>.intoShapeWithHole: (Int) -> Shape
+    get() = { elCount ->
+        var holeIdx = -1
+        var knownProduct = 1
+        for (i in indices) {
+            val d = this[i]
+            if (d == -1) {
+                if (holeIdx != -1) {
+                    bail("multiple holes in shape: $this")
+                }
+                holeIdx = i
+            } else {
+                if (d < 0) bail("invalid dimension $d in shape $this")
+                knownProduct *= d
+            }
+        }
+        if (holeIdx == -1) {
+            if (knownProduct != elCount && elCount > 0) {
+                bail("cannot reshape tensor with $elCount elements to $this")
+            }
+            Shape(this)
+        } else {
+            if (knownProduct == 0 || elCount % knownProduct != 0) {
+                bail("cannot reshape tensor with $elCount elements to $this")
+            }
+            val hSize = elCount / knownProduct
+            val result = toMutableList()
+            result[holeIdx] = hSize
+            Shape(result)
+        }
+    }
+
+internal fun Int.into(): Shape = Shape(listOf(this))
+internal fun Pair<Int, Int>.into(): Shape = Shape(listOf(first, second))
+internal fun Triple<Int, Int, Int>.into(): Shape = Shape(listOf(first, second, third))
+internal fun List<Int>.into(): Shape = Shape(this)
+internal fun <D> D.toIndex(shape: Shape, op: String): Int = when (this) {
+    is Dim -> this.toIndex(shape, op)
+    is Int -> Shape.toIndex(this, shape, op)
+    else -> Shape.toIndex(0, shape, op)
+}
+internal fun List<Int>.scan(init: Int, f: (IntArray, Int) -> Int): Sequence<Int> = sequence {
+    val state = intArrayOf(init)
+    for (u in this@scan) {
+        yield(f(state, u))
+    }
+}
+internal fun <T> Sequence<T>.collect(): MutableList<T> = this.toMutableList()
+internal fun <T> List<T>.extend(other: List<T>): List<T> = this + other
+internal fun Int.isMultipleOf(other: Int): Boolean = this % other == 0
+internal fun write(f: String, fmt: String, v: Any?): String = if (fmt.isEmpty()) f else f + v.toString()
+internal fun <T> List<List<T>>.concat(): List<T> = this.flatten()
+internal fun Shape.Companion.Self(dims: List<Int>, u: Unit): Shape = if (u == Unit) Shape(dims) else Shape(dims)
+internal fun <T> Ok(v: T, a: Any?): T = if (a == null) v else v
+internal fun <T> Ok(v: T, a: Any?, b: Any?): T = if (a == null && b == null) v else v
+internal fun Array<Int>.toVec(): List<Int> = this.toList()

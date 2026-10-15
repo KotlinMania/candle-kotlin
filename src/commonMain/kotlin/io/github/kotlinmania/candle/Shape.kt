@@ -1,113 +1,11 @@
 // port-lint: source shape.rs
 package io.github.kotlinmania.candle
 
+import kotlin.math.max
+
 /**
  * The shape of a tensor is a tuple with the size of each of its dimensions.
  */
-
-public data class MatmulBroadcastShapes(
-    val lhs: Shape,
-    val rhs: Shape,
-) {
-    public val first: Shape get() = lhs
-    public val second: Shape get() = rhs
-    public val unwrapOrElse: ((CandleError) -> MatmulBroadcastShapes) -> MatmulBroadcastShapes get() = { this }
-    public val getOrThrow: () -> MatmulBroadcastShapes get() = { this }
-}
-
-public data class Dims2(
-    val d0: Int,
-    val d1: Int,
-) {
-    public val first: Int get() = d0
-    public val second: Int get() = d1
-    public val unwrapOrElse: ((CandleError) -> Dims2) -> Dims2 get() = { this }
-    public val getOrThrow: () -> Dims2 get() = { this }
-}
-
-public data class Dims3(
-    val d0: Int,
-    val d1: Int,
-    val d2: Int,
-) {
-    public val first: Int get() = d0
-    public val second: Int get() = d1
-    public val third: Int get() = d2
-    public val unwrapOrElse: ((CandleError) -> Dims3) -> Dims3 get() = { this }
-    public val getOrThrow: () -> Dims3 get() = { this }
-}
-
-public data class Dims4(
-    val d0: Int,
-    val d1: Int,
-    val d2: Int,
-    val d3: Int,
-) {
-    public val unwrapOrElse: ((CandleError) -> Dims4) -> Dims4 get() = { this }
-    public val getOrThrow: () -> Dims4 get() = { this }
-}
-
-public data class Dims5(
-    val d0: Int,
-    val d1: Int,
-    val d2: Int,
-    val d3: Int,
-    val d4: Int,
-) {
-    public val unwrapOrElse: ((CandleError) -> Dims5) -> Dims5 get() = { this }
-    public val getOrThrow: () -> Dims5 get() = { this }
-}
-
-private val <T> List<T>.len: () -> Int get() = { size }
-private val <T> List<T>.iter: () -> List<T> get() = { this }
-private val <T> List<T>.rev: () -> List<T> get() = { reversed() }
-private val List<Int>.product: () -> Int get() = { fold(1) { a, b -> a * b } }
-private val IntArray.toVec: () -> List<Int> get() = { toList() }
-private val <T> List<T>.toVec: () -> List<T> get() = { toList() }
-private val toDimsList: (Any, IntArray) -> List<Int>
-    get() = { dims, rest ->
-        when (dims) {
-            is List<*> -> dims.map { it as Int }
-            is IntArray -> dims.toList()
-            is Int -> listOf(dims) + rest.toList()
-            else -> emptyList()
-        }
-    }
-private val <D> D.toIndex: (Shape, String) -> Int
-    get() = { shape, op ->
-        when (this) {
-            is Dim -> this.toIndex(shape, op)
-            is Int -> Shape.toIndex(this, shape, op)
-            else -> Shape.toIndex(0, shape, op)
-        }
-    }
-private val <T> T.into: () -> Shape
-    get() = {
-        when (this) {
-            is Shape -> this
-            is Int -> Shape(listOf(this))
-            is Pair<*, *> -> Shape(listOf(this.first as Int, this.second as Int))
-            is Triple<*, *, *> -> Shape(listOf(this.first as Int, this.second as Int, this.third as Int))
-            is List<*> -> Shape(this.map { it as Int })
-            else -> Shape(emptyList())
-        }
-    }
-private val <T> T.Ok: (T) -> T get() = { it }
-private val <T> T.Ok2: (T, Any?) -> T get() = { v, _ -> v }
-private val <T> T.Ok3: (T, Any?, Any?) -> T get() = { v, _, _ -> v }
-private val <T> T.Some: (T) -> T get() = { it }
-private val List<Int>.scan: (Int, (IntArray, Int) -> Int) -> List<Int>
-    get() = { init, f ->
-        val state = intArrayOf(init)
-        val out = ArrayList<Int>(size)
-        for (u in this) {
-            out.add(f(state, u))
-        }
-        out
-    }
-private val <T> List<T>.collect: () -> MutableList<T> get() = { toMutableList() }
-private val write: (String, String, Any?) -> String get() = { f, _, v -> f + v.toString() }
-
 public data class Shape(
     val dims: List<Int>,
 ) {
@@ -121,6 +19,38 @@ public data class Shape(
         return write(f, "{:?}", this.dims())
     }
 
+    public companion object {
+        public val SCALAR: Shape = Shape(emptyList())
+
+        public fun from(dims: Array<Int>): Shape {
+            return Self(dims.toVec())
+        }
+
+        public fun from(vararg dims: Int): Shape {
+            return Self(dims.toVec())
+        }
+
+        public fun from(shape: Shape): Shape {
+            return Self(shape.dims.toVec())
+        }
+
+        public fun from(u: Unit): Shape {
+            return Self(vec(), u)
+        }
+
+        public fun from(d1: Int): Shape {
+            return Self(vec(d1))
+        }
+
+        public fun from(dims: List<Int>): Shape {
+            return Self(dims)
+        }
+
+        public fun fromDims(dims: List<Int>): Shape {
+            return Self(dims.toVec())
+        }
+    }
+
     /**
      * The rank is the number of dimensions, 0 for a scalar value, 1 for a vector, etc.
      */
@@ -129,22 +59,22 @@ public data class Shape(
     }
 
     public fun intoDims(): List<Int> {
-        return self.toVec()
+        return self
     }
 
     /**
      * The dimensions as a slice of integers.
      */
     public fun dims(): List<Int> {
-        return self.iter()
+        return self
     }
 
     /**
      * The dimension size for a specified dimension index.
      */
     public fun <D> dim(dim: D): Int {
-        val idx = dim.toIndex(this, "dim")
-        return Ok(this.dims()[idx])
+        val dimIdx = dim.toIndex(this, "dim")
+        return Ok(this.dims()[dimIdx])
     }
 
     /**
@@ -181,11 +111,11 @@ public data class Shape(
             return false
         }
         var acc = 1
-        for (dim in stride.iter().zip(self.iter()).rev()) {
-            if (dim.second > 1 && dim.first != acc) {
+        for ((s, dim) in stride.iter().zip(self.iter()).rev()) {
+            if (dim > 1 && s != acc) {
                 return false
             }
-            acc *= dim.second
+            acc *= dim
         }
         return true
     }
@@ -198,11 +128,11 @@ public data class Shape(
             return false
         }
         var acc = 1
-        for (dim in stride.iter().zip(self.iter())) {
-            if (dim.second > 1 && dim.first != acc) {
+        for ((s, dim) in stride.iter().zip(self.iter())) {
+            if (dim > 1 && s != acc) {
                 return false
             }
-            acc *= dim.second
+            acc *= dim
         }
         return true
     }
@@ -212,8 +142,8 @@ public data class Shape(
      * dimensions.
      */
     public fun extend(additionalDims: List<Int>): Shape {
-        val extended = self + additionalDims
-        return Shape(extended)
+        val s = self.extend(additionalDims)
+        return Shape(s)
     }
 
     /**
@@ -226,7 +156,7 @@ public data class Shape(
         val rhsDims = rhs.dims()
         val lhsNdims = lhsDims.len()
         val rhsNdims = rhsDims.len()
-        val bcastNdims = maxOf(lhsNdims, rhsNdims)
+        val bcastNdims = max(lhsNdims, rhsNdims)
         val bcastDims = MutableList(bcastNdims) { 0 }
         for (idx in 0 until bcastNdims) {
             val revIdx = bcastNdims - idx
@@ -247,12 +177,12 @@ public data class Shape(
             } else if (rValue == 1) {
                 lValue
             } else {
-                throw CandleException
-                    .ShapeMismatchBinaryOp(
-                        lhs = lhs.clone(),
-                        rhs = rhs.clone(),
-                        op = op,
-                    )
+                throw CandleException.ShapeMismatchBinaryOp(
+                    lhs = lhs.clone(),
+                    rhs = rhs.clone(),
+                    op = op,
+                )
+                    .bt()
             }
         }
         return Ok(Shape.from(bcastDims))
@@ -265,119 +195,20 @@ public data class Shape(
         if (lhsDims.len() < 2 || rhsDims.len() < 2) {
             bail("only 2d matrixes are supported $lhs $rhs")
         }
-        val m = lhsDims[lhsDims.len() - 2]
-        val lhsK = lhsDims[lhsDims.len() - 1]
-        val rhsK = rhsDims[rhsDims.len() - 2]
-        val n = rhsDims[rhsDims.len() - 1]
+        val (m, lhsK) = Pair(lhsDims[lhsDims.len() - 2], lhsDims[lhsDims.len() - 1])
+        val (rhsK, n) = Pair(rhsDims[rhsDims.len() - 2], rhsDims[rhsDims.len() - 1])
         if (lhsK != rhsK) {
             bail("different inner dimensions in broadcast matmul $lhs $rhs")
         }
-        val lhsB = from(lhsDims.subList(0, lhsDims.len() - 2))
-        val rhsB = from(rhsDims.subList(0, rhsDims.len() - 2))
+
+        val lhsB = Self.from(lhsDims.subList(0, lhsDims.len() - 2))
+        val rhsB = Self.from(rhsDims.subList(0, rhsDims.len() - 2))
         val bcast = lhsB.broadcastShapeBinaryOp(rhsB, "broadcast_matmul")
         val bcastDims = bcast.dims()
-        val bcastLhs = bcastDims + listOf(m, lhsK)
-        val bcastRhs = bcastDims + listOf(rhsK, n)
-        return MatmulBroadcastShapes(Shape.from(bcastLhs), Shape.from(bcastRhs))
-    }
 
-    public val clone: () -> Shape get() = { Shape(dims.toList()) }
-
-    public val dims0: () -> Unit
-        get() = {
-            if (dims.isNotEmpty()) {
-                throw CandleException.UnexpectedNumberOfDims(0, dims.size, this)
-            }
-        }
-
-    public val dims1: () -> Int
-        get() = {
-            if (dims.size != 1) {
-                throw CandleException.UnexpectedNumberOfDims(1, dims.size, this)
-            }
-            dims[0]
-        }
-
-    public val dims2: () -> Dims2
-        get() = {
-            if (dims.size != 2) {
-                throw CandleException.UnexpectedNumberOfDims(2, dims.size, this)
-            }
-            Dims2(dims[0], dims[1])
-        }
-
-    public val dims3: () -> Dims3
-        get() = {
-            if (dims.size != 3) {
-                throw CandleException.UnexpectedNumberOfDims(3, dims.size, this)
-            }
-            Dims3(dims[0], dims[1], dims[2])
-        }
-
-    public val dims4: () -> Dims4
-        get() = {
-            if (dims.size != 4) {
-                throw CandleException.UnexpectedNumberOfDims(4, dims.size, this)
-            }
-            Dims4(dims[0], dims[1], dims[2], dims[3])
-        }
-
-    public val dims5: () -> Dims5
-        get() = {
-            if (dims.size != 5) {
-                throw CandleException.UnexpectedNumberOfDims(5, dims.size, this)
-            }
-            Dims5(dims[0], dims[1], dims[2], dims[3], dims[4])
-        }
-
-    public companion object {
-        public val SCALAR: Shape = Shape(emptyList())
-
-        public fun from(dims: IntArray, c: Int = dims.size): Shape {
-            return Ok2(Shape(dims.toVec()), c)
-        }
-
-        public fun from(vararg dims: Int): Shape {
-            return Shape(dims.toVec())
-        }
-
-        public fun from(shape: Shape): Shape {
-            return Shape(shape.dims.toVec())
-        }
-
-        public fun from(unit: Unit): Shape {
-            return Ok2(Shape(emptyList()), unit)
-        }
-
-        public fun from(d1: Int): Shape {
-            return Shape(listOf(d1))
-        }
-
-        public fun from(dims: List<Int>): Shape {
-            return Shape(dims)
-        }
-
-        public fun fromDims(dims: Any, vararg rest: Int): Shape {
-            return Shape(toDimsList(dims, rest))
-        }
-
-        public val toIndex: (Int, Shape, String) -> Int = { dim, shape, op ->
-            val rank = shape.rank
-            val normalized = if (dim < 0) rank + dim else dim
-            if (normalized < 0 || normalized >= rank) {
-                throw CandleException.DimOutOfRange(shape, dim, op)
-            }
-            normalized
-        }
-
-        public val toIndexPlusOne: (Int, Shape, String) -> Int = { dim, shape, op ->
-            val rank = shape.rank
-            val normalized = if (dim < 0) rank + 1 + dim else dim
-            if (normalized < 0 || normalized > rank) {
-                throw CandleException.DimOutOfRange(shape, dim, op)
-            }
-            normalized
-        }
+        val bcastLhs = listOf(bcastDims, listOf(m, lhsK)).concat()
+        val bcastRhs = listOf(bcastDims, listOf(rhsK, n)).concat()
+        return Ok(MatmulBroadcastShapes(Shape.from(bcastLhs), Shape.from(bcastRhs)))
     }
 }
 
@@ -394,12 +225,12 @@ public class DimInt(public val self: Int) : Dim {
         return if (dim >= shape.dims().len()) {
             throw CandleException.DimOutOfRange(
                 shape = shape.clone(),
-                dim = dim,
+                dim = dim.toInt(),
                 op = op,
             )
+                .bt()
         } else {
-            val res = Ok(dim)
-            res
+            Ok(dim)
         }
     }
 
@@ -408,12 +239,12 @@ public class DimInt(public val self: Int) : Dim {
         return if (dim > shape.dims().len()) {
             throw CandleException.DimOutOfRange(
                 shape = shape.clone(),
-                dim = dim,
+                dim = dim.toInt(),
                 op = op,
             )
+                .bt()
         } else {
-            val res = Ok(dim)
-            res
+            Ok(dim)
         }
     }
 }
@@ -429,14 +260,14 @@ public sealed class D : Dim {
         val dim = when (self) {
             is Minus1 -> -1
             is Minus2 -> -2
-            is Minus -> -self.u
+            is Minus -> -(self.u.toInt())
         }
-        val err = CandleException.DimOutOfRange(
+        return CandleException.DimOutOfRange(
             shape = shape.clone(),
             dim = dim,
             op = op,
         )
-        return err
+            .bt()
     }
 
     override fun toIndex(shape: Shape, op: String): Int {
@@ -465,52 +296,52 @@ public interface Dims {
 
     public fun toIndexes(shape: Shape, op: String): List<Int> {
         val dims = this.toIndexesInternal(shape, op)
-        for (i in dims.indices) {
-            val dim = dims[i]
+        for ((i, dim) in dims.iter().enumerate()) {
             if (dims.subList(0, i).contains(dim)) {
                 throw CandleException.DuplicateDimIndex(
                     shape = shape.clone(),
-                    dims = dims.toVec(),
+                    dims = dims.clone(),
                     op = op,
                 )
+                    .bt()
             }
             if (dim >= shape.rank()) {
                 throw CandleException.DimOutOfRange(
                     shape = shape.clone(),
-                    dim = dim,
+                    dim = dim.toInt(),
                     op = op,
                 )
+                    .bt()
             }
         }
-        val res = Ok(dims)
-        return res
+        return Ok(dims)
     }
 }
 
 public class DimsList(public val self: List<Int>) : Dims {
     public val dims: List<Int> get() = self
     override fun toIndexesInternal(shape: Shape, op: String): List<Int> {
-        return Ok3(self, shape, op)
+        return Ok(self, shape, op)
     }
 }
 
 public class DimsArray(public val self: IntArray) : Dims {
     public val dims: IntArray get() = self
     override fun toIndexesInternal(shape: Shape, op: String): List<Int> {
-        return Ok3(self.toVec(), shape, op)
+        return Ok(self.toVec(), shape, op)
     }
 }
 
 public class DimsSlice(public val self: IntArray) : Dims {
     public val dims: IntArray get() = self
     override fun toIndexesInternal(shape: Shape, op: String): List<Int> {
-        return Ok3(self.toVec(), shape, op)
+        return Ok(self.toVec(), shape, op)
     }
 }
 
 public object DimsEmpty : Dims {
     override fun toIndexesInternal(shape: Shape, op: String): List<Int> {
-        return Ok3(emptyList(), shape, op)
+        return Ok(vec(), shape, op)
     }
 }
 
@@ -518,77 +349,77 @@ public class DimsDim(public val self: Dim) : Dims {
     public val dim: Dim get() = self
     override fun toIndexesInternal(shape: Shape, op: String): List<Int> {
         val dim = self.toIndex(shape, op)
-        return Ok(listOf(dim))
+        return Ok(vec(dim))
     }
 }
 
-public class DimsTuple1(public val d1: Dim) : Dims {
+public class DimsTuple1(public val v0: Dim) : Dims {
     override fun toIndexesInternal(shape: Shape, op: String): List<Int> {
-        val dim = d1.toIndex(shape, op)
-        return Ok(listOf(dim))
+        val dim = v0.toIndex(shape, op)
+        return Ok(vec(dim))
     }
 }
 
-public class DimsTuple2(public val d1: Dim, public val d2: Dim) : Dims {
+public class DimsTuple2(public val v0: Dim, public val v1: Dim) : Dims {
     override fun toIndexesInternal(shape: Shape, op: String): List<Int> {
-        val d0 = d1.toIndex(shape, op)
-        val d1Idx = d2.toIndex(shape, op)
-        return Ok(listOf(d0, d1Idx))
+        val d0 = v0.toIndex(shape, op)
+        val d1 = v1.toIndex(shape, op)
+        return Ok(vec(d0, d1))
     }
 }
 
-public class DimsTuple3(public val d1: Dim, public val d2: Dim, public val d3: Dim) : Dims {
+public class DimsTuple3(public val v0: Dim, public val v1: Dim, public val v2: Dim) : Dims {
     override fun toIndexesInternal(shape: Shape, op: String): List<Int> {
-        val d0 = d1.toIndex(shape, op)
-        val d1Idx = d2.toIndex(shape, op)
-        val d2Idx = d3.toIndex(shape, op)
-        return Ok(listOf(d0, d1Idx, d2Idx))
+        val d0 = v0.toIndex(shape, op)
+        val d1 = v1.toIndex(shape, op)
+        val d2 = v2.toIndex(shape, op)
+        return Ok(vec(d0, d1, d2))
     }
 }
 
-public class DimsTuple4(public val d1: Dim, public val d2: Dim, public val d3: Dim, public val d4: Dim) : Dims {
+public class DimsTuple4(public val v0: Dim, public val v1: Dim, public val v2: Dim, public val v3: Dim) : Dims {
     override fun toIndexesInternal(shape: Shape, op: String): List<Int> {
-        val d0 = d1.toIndex(shape, op)
-        val d1Idx = d2.toIndex(shape, op)
-        val d2Idx = d3.toIndex(shape, op)
-        val d3Idx = d4.toIndex(shape, op)
-        return Ok(listOf(d0, d1Idx, d2Idx, d3Idx))
+        val d0 = v0.toIndex(shape, op)
+        val d1 = v1.toIndex(shape, op)
+        val d2 = v2.toIndex(shape, op)
+        val d3 = v3.toIndex(shape, op)
+        return Ok(vec(d0, d1, d2, d3))
     }
 }
 
 public class DimsTuple5(
-    public val d1: Dim,
-    public val d2: Dim,
-    public val d3: Dim,
-    public val d4: Dim,
-    public val d5: Dim,
+    public val v0: Dim,
+    public val v1: Dim,
+    public val v2: Dim,
+    public val v3: Dim,
+    public val v4: Dim,
 ) : Dims {
     override fun toIndexesInternal(shape: Shape, op: String): List<Int> {
-        val d0 = d1.toIndex(shape, op)
-        val d1Idx = d2.toIndex(shape, op)
-        val d2Idx = d3.toIndex(shape, op)
-        val d3Idx = d4.toIndex(shape, op)
-        val d4Idx = d5.toIndex(shape, op)
-        return Ok(listOf(d0, d1Idx, d2Idx, d3Idx, d4Idx))
+        val d0 = v0.toIndex(shape, op)
+        val d1 = v1.toIndex(shape, op)
+        val d2 = v2.toIndex(shape, op)
+        val d3 = v3.toIndex(shape, op)
+        val d4 = v4.toIndex(shape, op)
+        return Ok(vec(d0, d1, d2, d3, d4))
     }
 }
 
 public class DimsTuple6(
-    public val d1: Dim,
-    public val d2: Dim,
-    public val d3: Dim,
-    public val d4: Dim,
-    public val d5: Dim,
-    public val d6: Dim,
+    public val v0: Dim,
+    public val v1: Dim,
+    public val v2: Dim,
+    public val v3: Dim,
+    public val v4: Dim,
+    public val v5: Dim,
 ) : Dims {
     override fun toIndexesInternal(shape: Shape, op: String): List<Int> {
-        val d0 = d1.toIndex(shape, op)
-        val d1Idx = d2.toIndex(shape, op)
-        val d2Idx = d3.toIndex(shape, op)
-        val d3Idx = d4.toIndex(shape, op)
-        val d4Idx = d5.toIndex(shape, op)
-        val d5Idx = d6.toIndex(shape, op)
-        return Ok(listOf(d0, d1Idx, d2Idx, d3Idx, d4Idx, d5Idx))
+        val d0 = v0.toIndex(shape, op)
+        val d1 = v1.toIndex(shape, op)
+        val d2 = v2.toIndex(shape, op)
+        val d3 = v3.toIndex(shape, op)
+        val d4 = v4.toIndex(shape, op)
+        val d5 = v5.toIndex(shape, op)
+        return Ok(vec(d0, d1, d2, d3, d4, d5))
     }
 }
 
@@ -599,7 +430,7 @@ public interface ShapeWithOneHole {
 public class ShapeWithOneHoleShape(public val self: Shape) : ShapeWithOneHole {
     public val shape: Shape get() = self
     override fun intoShape(elCount: Int): Shape {
-        return Ok2(self.into(), elCount)
+        return Ok(self.into(), elCount)
     }
 }
 
@@ -609,11 +440,11 @@ public object ShapeWithOneHole1 : ShapeWithOneHole {
     }
 }
 
-public fun holeSize(elCount: Int, prodD: Int, s: Any): Int {
+public fun holeSize(elCount: Int, prodD: Int, s: ShapeWithOneHole): Int {
     if (prodD == 0) {
         bail("cannot reshape tensor of $elCount elements to $s")
     }
-    if (elCount % prodD != 0) {
+    if (!elCount.isMultipleOf(prodD)) {
         bail("cannot reshape tensor with $elCount elements to $s")
     }
     return Ok(elCount / prodD)
@@ -764,35 +595,3 @@ public data class ShapeWithOneHole5Hole4(
         return Ok(listOf(d1, d2, d3, d4, d).into())
     }
 }
-
-public val List<Int>.intoShapeWithHole: (Int) -> Shape
-    get() = { elCount ->
-        var holeIdx = -1
-        var knownProduct = 1
-        for (i in indices) {
-            val d = this[i]
-            if (d == -1) {
-                if (holeIdx != -1) {
-                    bail("multiple holes in shape: $this")
-                }
-                holeIdx = i
-            } else {
-                if (d < 0) bail("invalid dimension $d in shape $this")
-                knownProduct *= d
-            }
-        }
-        if (holeIdx == -1) {
-            if (knownProduct != elCount && elCount > 0) {
-                bail("cannot reshape tensor with $elCount elements to $this")
-            }
-            Shape(this)
-        } else {
-            if (knownProduct == 0 || elCount % knownProduct != 0) {
-                bail("cannot reshape tensor with $elCount elements to $this")
-            }
-            val hSize = elCount / knownProduct
-            val result = toMutableList()
-            result[holeIdx] = hSize
-            Shape(result)
-        }
-    }
