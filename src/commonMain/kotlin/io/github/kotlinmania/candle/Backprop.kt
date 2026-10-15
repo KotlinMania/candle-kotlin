@@ -8,7 +8,6 @@ import io.github.kotlinmania.threadlocal.ThreadLocal
 private val <T> T.self: T get() = this
 private fun <T> Ok(v: T): T = v
 private val Err: (Throwable) -> Nothing get() = { throw it }
-private fun <K, V> MutableMap<K, V>.insert(k: K, v: V): V? = put(k, v)
 private fun <K, V> MutableMap<K, V>.keys(): Set<K> = this.keys
 private fun <K, V> MutableMap<K, V>.entry(k: K): V? = this[k]
 private val Tensor.intoMut: () -> Tensor get() = { this }
@@ -16,14 +15,13 @@ private val Tensor.get: () -> Tensor get() = { this }
 private fun <T : Any> T?.expect(msg: String): T = this ?: error(msg)
 private val Tensor.reshape: (List<Int>) -> Tensor get() = { dims -> reshape(Shape(dims)) }
 private val Tensor.broadcastAs: (List<Int>) -> Tensor get() = { dims -> broadcastAs(Shape(dims)) }
-private val Tensor.Self.zeros: (List<Int>, DType, Device) -> Tensor
+private val Tensor.Companion.zeros: (List<Int>, DType, Device) -> Tensor
     get() = { dims, dtype, dev -> Tensor.zeros(Shape(dims), dtype, dev) }
-private val Tensor.Self.ones3: (Triple<Int, Int, Int>, DType, Device) -> Tensor
+private val Tensor.Companion.ones3: (Triple<Int, Int, Int>, DType, Device) -> Tensor
     get() = { d, dtype, dev -> Tensor.ones(Shape(d.first, d.second, d.third), dtype, dev) }
-private val Tensor.Self.ones4: (List<Int>, DType, Device) -> Tensor
+private val Tensor.Companion.ones4: (List<Int>, DType, Device) -> Tensor
     get() = { dims, dtype, dev -> Tensor.ones(Shape(dims), dtype, dev) }
 private val Double.sqrt: () -> Double get() = { kotlin.math.sqrt(this) }
-private val IntRange.collect: () -> MutableList<Int> get() = { toMutableList() }
 
 private val Pair<GradStore, Tensor>.grad: Tensor get() = first.get(second)!!
 private val Pair<GradStore, Tensor>.add: (Tensor) -> Pair<GradStore, Tensor>
@@ -79,7 +77,7 @@ private val ThreadLocal<Boolean>.with: ((Boolean) -> Boolean) -> Boolean
 
 private val opTernaryArgs: (Op) -> Triple<Tensor, Tensor, Tensor> = { op ->
     when (op) {
-        is Op.IndexAdd -> Triple(op.init, op.indexes, op.src)
+        is Op.IndexAdd -> Triple(op.arg, op.index, op.src)
         is Op.Scatter -> Triple(op.arg, op.index, op.src)
         is Op.ScatterAdd -> Triple(op.arg, op.index, op.src)
         is Op.CustomOp3 -> Triple(op.t1, op.t2, op.t3)
@@ -578,7 +576,7 @@ public fun Tensor.backward(): GradStore {
                     val nodeDims = node.dims()
                     // The number of dims that have been inserted on the left.
                     val leftDims = nodeDims.len() - argDims.len()
-                    val sumDims: MutableList<Int> = (0 until leftDims).collect()
+                    val sumDims: MutableList<Int> = (0 until leftDims).collect().toMutableList()
                     for (dim in argDims.indices) {
                         val nodeDim = nodeDims[leftDims + dim]
                         val argDim = argDims[dim]

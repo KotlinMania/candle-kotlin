@@ -33,15 +33,16 @@ private val Tensor.self: Tensor get() = this
 private val Header.self: Header get() = this
 private val NpzTensors.self: NpzTensors get() = this
 private val Self: Tensor.Companion get() = Tensor.Companion
-private fun Tensor.Companion.fromVecBf16(data: List<BF16>, shape: Shape, device: Device): Tensor = Tensor.fromVec(data, shape, device)
-private fun Tensor.Companion.fromVecF16(data: List<F16>, shape: Shape, device: Device): Tensor = Tensor.fromVec(data, shape, device)
+private fun Tensor.Companion.fromVecBf16(data: List<BF16>, shape: Shape, device: Device): Tensor = Tensor.fromVecImpl(data, shape, device, false)
+private fun Tensor.Companion.fromVecF16(data: List<F16>, shape: Shape, device: Device): Tensor = Tensor.fromVecImpl(data, shape, device, false)
 private fun Tensor.Companion.fromSliceF64(data: DoubleArray, shape: Shape, device: Device): Tensor = Tensor.fromSlice(data, shape, device)
 private fun Tensor.Companion.fromSliceU8(data: UByteArray, shape: Shape, device: Device): Tensor = Tensor.fromSlice(data, shape, device)
 private fun Tensor.Companion.fromSliceU32(data: UIntArray, shape: Shape, device: Device): Tensor = Tensor.fromSlice(data, shape, device)
-private fun Tensor.Companion.fromSliceI16(data: ShortArray, shape: Shape, device: Device): Tensor = Tensor.fromSlice(data, shape, device)
+private fun Tensor.Companion.fromSliceI16(data: ShortArray, shape: Shape, device: Device): Tensor =
+    Tensor.fromStorage(Storage.Cpu(CpuStorage.I16(data.copyOf())), shape, BackpropOp.none(), false)
 private fun Tensor.Companion.fromSliceI32(data: IntArray, shape: Shape, device: Device): Tensor = Tensor.fromSlice(data, shape, device)
 private fun Tensor.Companion.fromSliceI64(data: LongArray, shape: Shape, device: Device): Tensor = Tensor.fromSlice(data, shape, device)
-private fun Tensor.Companion.fromVecF8E4M3(data: List<F8E4M3>, shape: Shape, device: Device): Tensor = Tensor.fromVec(data, shape, device)
+private fun Tensor.Companion.fromVecF8E4M3(data: List<F8E4M3>, shape: Shape, device: Device): Tensor = Tensor.fromVecImpl(data, shape, device, false)
 private val Tensor.writeBytesToWrite: (Write) -> Unit get() = { f ->
     val writer = f as? NpyByteWriter ?: NpyByteWriter()
     this.writeBytes(writer).unwrap()
@@ -365,8 +366,8 @@ public fun writeNpz(
     path: String,
 ) {
     val zip = zip.ZipWriter.new(File.create(path.asRef()).unwrap())
-    val options: zip.write.FileOptions<Unit> =
-        zip.write.FileOptions.default().compressionMethod(zip.CompressionMethod.Stored)
+    val options: io.github.kotlinmania.candle.zip.write.FileOptions<Unit> =
+        io.github.kotlinmania.candle.zip.write.FileOptions.default().compressionMethod(io.github.kotlinmania.candle.zip.CompressionMethod.Stored)
 
     for ((name, tensor) in ts.iter()) {
         zip.startFile("${name.asRef()}.npy", options).unwrap()

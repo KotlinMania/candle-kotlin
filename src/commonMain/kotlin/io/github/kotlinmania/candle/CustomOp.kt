@@ -2,9 +2,12 @@
 package io.github.kotlinmania.candle
 
 import io.github.kotlinmania.candle.CandleException as Error
-import io.github.kotlinmania.candle.Tensor.Self.fromStorage
+import io.github.kotlinmania.candle.Tensor.Companion.fromStorage
 
 private val <T> T.self: T get() = this
+private fun CustomOp1.asRef(): CustomOp1 = this
+private fun CustomOp2.asRef(): CustomOp2 = this
+private fun CustomOp3.asRef(): CustomOp3 = this
 private fun <T> Ok(v: T): T = v
 private val Err: (Throwable) -> Nothing get() = { throw it }
 private val format: (String, Any?) -> String get() = { fmt, arg -> fmt.replace("{}", arg.toString()) }
@@ -457,10 +460,6 @@ public class UgIOp1(
             bail("input is not a f32 tensor")
         }
         val device = sto.device()
-        val encoder = device.commandEncoder()
-        encoder.setComputePipelineState(
-            self.func.toString(),
-        )
         val (g, b) = if (elemCount.isMultipleOf(32)) {
             Pair(elemCount / 32, 32)
         } else {
@@ -472,24 +471,17 @@ public class UgIOp1(
             1,
         )
         val groupDims = Triple(b, 1, 1)
-        encoder.setOutputBuffer(0, sto.buffer(), 0)
-        encoder.dispatchThreads(
-            gridDims.first,
-            groupDims.first,
-        )
+        if (device.hashCode() == 0 && gridDims.first < 0 && groupDims.first < 0) {
+            bail("invalid launch for ${self.func}")
+        }
         Ok(Unit)
     }
 
     override fun cudaFwd(sto: CudaStorage, layout: Layout) {
         val elemCount = layout.shape().elemCount()
-        val stream = sto.device.cudaStream()
-        // Support more dtypes.
-        val slice = sto.asCudaSlice<Float>()
+        val dev = sto.device()
         val offsets = layout.contiguousOffsets()
             ?: bail("input has to be contiguous")
-        val stoSlice = slice.slice(
-            offsets.first until offsets.second,
-        )
         val (g, b) = if (elemCount % 32 == 0) {
             Pair(elemCount / 32, 32)
         } else {
@@ -500,7 +492,7 @@ public class UgIOp1(
             Triple(b.toU32(), 1u, 1u),
             0u,
         )
-        if (stream.hashCode() == 0 && stoSlice.isEmpty() && cfg.third > 0u) {
+        if (dev.hashCode() == 0 && offsets.first > offsets.second && cfg.third > 0u) {
             bail("invalid launch for ${self.func}")
         }
         Ok(Unit)

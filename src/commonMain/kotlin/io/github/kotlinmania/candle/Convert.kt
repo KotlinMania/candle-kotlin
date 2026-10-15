@@ -9,19 +9,19 @@ import io.github.kotlinmania.candle.CandleResult.Ok
  */
 public object TryFromTensorRefVec1 {
     public fun <T : WithDType<*>> tryFrom(tensor: Tensor): CandleResult<List<T>> {
-        return Ok(tensor.toVec1() as List<T>)
+        return Ok(tensor.toVec1<T>())
     }
 }
 
 public object TryFromTensorRefVec2 {
     public fun <T : WithDType<*>> tryFrom(tensor: Tensor): CandleResult<List<List<T>>> {
-        return Ok(tensor.toVec2() as List<List<T>>)
+        return Ok(tensor.toVec2<T>())
     }
 }
 
 public object TryFromTensorRefVec3 {
     public fun <T : WithDType<*>> tryFrom(tensor: Tensor): CandleResult<List<List<List<T>>>> {
-        return Ok(tensor.toVec3() as List<List<List<T>>>)
+        return Ok(tensor.toVec3<T>())
     }
 }
 
@@ -56,6 +56,48 @@ public object TryFromVecTensor {
     }
 }
 
+internal fun Tensor.toVec1Bf16(): List<BF16> {
+    val cont = contiguous()
+    val cpu = (cont.storage() as Storage.Cpu).storage as CpuStorage.BF16
+    return List(elemCount()) { BF16.fromBits(cpu.data[it].toUShort()) }
+}
+
+internal fun Tensor.toVec1F16(): List<F16> {
+    val cont = contiguous()
+    val cpu = (cont.storage() as Storage.Cpu).storage as CpuStorage.F16
+    return List(elemCount()) { F16.fromBits(cpu.data[it].toUShort()) }
+}
+
+internal fun Tensor.toVec1U32(): UIntArray {
+    val cont = contiguous()
+    val cpu = (cont.storage() as Storage.Cpu).storage as CpuStorage.U32
+    return cpu.data.copyOf()
+}
+
+internal fun Tensor.toVec1I16(): ShortArray {
+    val cont = contiguous()
+    val cpu = (cont.storage() as Storage.Cpu).storage as CpuStorage.I16
+    return cpu.data.copyOf()
+}
+
+internal fun Tensor.toVec1I32(): IntArray {
+    val cont = contiguous()
+    val cpu = (cont.storage() as Storage.Cpu).storage as CpuStorage.I32
+    return cpu.data.copyOf()
+}
+
+internal fun Tensor.toVec1U8(): UByteArray {
+    val cont = contiguous()
+    val cpu = (cont.storage() as Storage.Cpu).storage as CpuStorage.U8
+    return cpu.data.copyOf()
+}
+
+internal fun Tensor.toVec1F8E4M3(): List<F8E4M3> {
+    val cont = contiguous()
+    val cpu = (cont.storage() as Storage.Cpu).storage as CpuStorage.F8E4M3
+    return List(elemCount()) { F8E4M3.fromBits(cpu.data[it].toUByte()) }
+}
+
 public fun <W : NpyByteWriter> Tensor.writeBytes(f: W, self: Tensor = this): CandleResult<Unit> {
     val vs = self.flattenAll()
     when (self.dtype()) {
@@ -72,8 +114,8 @@ public fun <W : NpyByteWriter> Tensor.writeBytes(f: W, self: Tensor = this): Can
             }
         }
         DType.F32 -> {
-            for (v in vs.toVec1()) {
-                f.writeF32<io.github.kotlinmania.byteorder.LittleEndian>(v.toFloat()).unwrap()
+            for (v in vs.toVec1F32()) {
+                f.writeF32<io.github.kotlinmania.byteorder.LittleEndian>(v).unwrap()
             }
         }
         DType.F64 -> {
@@ -83,7 +125,7 @@ public fun <W : NpyByteWriter> Tensor.writeBytes(f: W, self: Tensor = this): Can
         }
         DType.U32 -> {
             for (v in vs.toVec1U32()) {
-                f.writeU32<io.github.kotlinmania.byteorder.LittleEndian>(v.toUInt()).unwrap()
+                f.writeU32<io.github.kotlinmania.byteorder.LittleEndian>(v).unwrap()
             }
         }
         DType.I16 -> {

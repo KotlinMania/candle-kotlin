@@ -778,12 +778,13 @@ public class PthTensors(
 
     public companion object {
         public fun <P : Any> new(path: P, key: String?): CandleResult<PthTensors> {
-            val rawInfos = readPthTensorInfo(path.asRef(), false, key).unwrap()
+            val pathStr = path.toString()
+            val rawInfos = readPthTensorInfo(pathStr, false, key).unwrap()
             val tensorInfos = rawInfos
                 .intoIter()
                 .map { ti -> Pair(ti.name.toString(), ti) }
                 .collectMap()
-            val ownedPath = path.asRef().toOwned()
+            val ownedPath = pathStr.toOwned()
             return Ok(PthTensors(tensorInfos, ownedPath))
         }
     }

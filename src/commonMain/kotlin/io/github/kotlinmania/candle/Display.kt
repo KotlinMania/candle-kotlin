@@ -29,12 +29,12 @@ public fun <T> Tensor.fmtDt(
     write(f, "Tensor[")
     when (val dims = self.dims()) {
         emptyList<Int>() -> {
-            val v = self.toScalar<T>(); if (Ok(v)) {
+            val v = self.toScalarDisplay<T>(); if (Ok(v)) {
                 write(f, "{v}")
             }
         }
         if (dims.size == 1 && +s < 10) dims else null -> {
-            val vs = self.toVec1<T>(); if (Ok(vs)) {
+            val vs = self.toVec1Display<T>(); if (Ok(vs)) {
                 for ((i, v) in vs.iter().enumerate()) {
                     if (i > 0) {
                         write(f, ", ")
@@ -203,7 +203,7 @@ public interface TensorFormatter<Elem> {
 
     public fun maxWidth(toDisplay: Tensor): Int {
         var maxWidth = 1
-        val vs = toDisplay.flattenAll().andThen { t -> t.toVec1<Elem>() }; if (Ok(vs)) {
+        val vs = toDisplay.flattenAll().andThen { t -> t.toVec1Display<Elem>() }; if (Ok(vs)) {
             for (v in vs.iter()) {
                 val fmtSize = FmtSize.new()
                 val res = self.fmt(v, 1, fmtSize)
@@ -235,26 +235,26 @@ public interface TensorFormatter<Elem> {
         val v = if (dims.isNotEmpty()) dims[0] else 0
         when (dims) {
             emptyList<Int>() -> {
-                val v = t.toScalar<Elem>(); if (Ok(v)) {
+                val v = t.toScalarDisplay<Elem>(); if (Ok(v)) {
                     self.fmt(v, maxW, f)
                 }
             }
             if (dims.size == 1 && summarize && +v > 2 * edgeItems) dims else null -> {
-                val vs = t
+                val vs1 = t
                     .narrow(0, 0, edgeItems)
-                    .andThen { t -> t.toVec1<Elem>() }
-                if (Ok(vs)) {
-                    for (v in vs.intoIter()) {
+                    .andThen { t -> t.toVec1Display<Elem>() }
+                if (Ok(vs1)) {
+                    for (v in vs1.intoIter()) {
                         self.fmt(v, maxW, f)
                         write(f, ", ")
                     }
                 }
                 write(f, "...")
-                val vs = t
+                val vs2 = t
                     .narrow(0, v - edgeItems, edgeItems)
-                    .andThen { t -> t.toVec1<Elem>() }
-                if (Ok(vs)) {
-                    for (v in vs.intoIter()) {
+                    .andThen { t -> t.toVec1Display<Elem>() }
+                if (Ok(vs2)) {
+                    for (v in vs2.intoIter()) {
                         write(f, ", ")
                         self.fmt(v, maxW, f)
                     }
@@ -262,7 +262,7 @@ public interface TensorFormatter<Elem> {
             }
             if (dims.size == 1) dims else null -> {
                 val elementsPerLine = usize.max(1, po.lineWidth / (maxW + 2))
-                val vs = t.toVec1<Elem>(); if (Ok(vs)) {
+                val vs = t.toVec1Display<Elem>(); if (Ok(vs)) {
                     for ((i, v) in vs.intoIter().enumerate()) {
                         if (i > 0) {
                             if (i % elementsPerLine == 0) {
@@ -364,7 +364,7 @@ public class FloatFormatter<S>(
             // values that end up being displayed according to [threshold].
             val values: List<Double> = t
                 .flattenAll()
-                .toVec1<S>()
+                .toVec1Display<S>()
                 .intoIter()
                 .filter { v: Double -> v.isFinite() && !v.isZero() }
                 .collect()
@@ -615,7 +615,7 @@ private val String.toOwned: () -> String get() = { this }
 
 private val Tensor.clone: () -> Tensor get() = { this }
 private val Tensor.andThen: ((Tensor) -> List<Double>) -> List<Double> get() = { fn -> fn(this) }
-private fun <T> Tensor.toScalar(): Double {
+private fun <T> Tensor.toScalarDisplay(): Double {
     val v = when (dtype()) {
         DType.U8, DType.U32, DType.I16, DType.I32, DType.I64 -> toScalarI64().toDouble()
         else -> toScalarF64()
@@ -623,7 +623,7 @@ private fun <T> Tensor.toScalar(): Double {
     fmtV = v
     return v
 }
-private fun <T> Tensor.toVec1(): List<Double> =
+private fun <T> Tensor.toVec1Display(): List<Double> =
     when (dtype()) {
         DType.U8, DType.U32, DType.I16, DType.I32, DType.I64 -> toVec1I64().map { it.toDouble() }
         else -> toVec1F64().toList()
