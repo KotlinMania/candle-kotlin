@@ -179,6 +179,20 @@ public sealed class Storage {
             is Metal -> throw CandleException.NotCompiledWithMetalSupport
         }
 
+    public fun gather(
+        layout: Layout,
+        indexes: Storage,
+        indexesLayout: Layout,
+        dim: Int,
+    ): Storage {
+        sameDevice(indexes, "gather")
+        return when (this) {
+            is Cpu -> Cpu(storage.gather((indexes as Cpu).storage, layout, indexesLayout, dim))
+            is Cuda -> throw CandleException.NotCompiledWithCudaSupport
+            is Metal -> throw CandleException.NotCompiledWithMetalSupport
+        }
+    }
+
     public fun indexSelect(
         ids: Storage,
         layout: Layout,

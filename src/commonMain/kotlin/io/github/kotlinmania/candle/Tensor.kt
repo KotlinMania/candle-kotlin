@@ -290,6 +290,32 @@ public class Tensor internal constructor(
     }
 
     // --- Indexing ---
+    public fun gather(indexes: Tensor, dim: Int): Tensor {
+        val normalizedDim = Shape.toIndex(dim, shape(), "gather")
+        val selfDims = dims()
+        val indexesDims = indexes.dims()
+        var mismatch = indexesDims.size != selfDims.size
+        if (!mismatch) {
+            for (i in 0 until selfDims.size) {
+                if (i != normalizedDim && selfDims[i] < indexesDims[i]) {
+                    mismatch = true
+                    break
+                }
+            }
+        }
+        if (mismatch) {
+            throw CandleException.ShapeMismatch(shape().elemCount(), indexes.shape())
+        }
+        val newStorage = storage.gather(layout, indexes.storage, indexes.layout, normalizedDim)
+        val op = BackpropOp.new2(this, indexes) { t1, t2 -> Op.Gather(t1, t2, normalizedDim) }
+        return fromStorage(newStorage, indexes.shape(), op, false)
+    }
+
+    public fun gather(indexes: Tensor, dim: ShapeDim): Tensor {
+        val normalizedDim = dim.toIndex(shape(), "gather")
+        return gather(indexes, normalizedDim)
+    }
+
     public fun indexSelect(indexes: Tensor, dim: Int): Tensor {
         val normalizedDim = Shape.toIndex(dim, shape(), "index_select")
         val newStorage = storage.indexSelect(indexes.storage, layout, indexes.layout, normalizedDim)
@@ -526,6 +552,13 @@ public class Tensor internal constructor(
             }
             return fromStorage(Storage.Cpu(CpuStorage.U8(data.copyOf())), shape, BackpropOp.None, false)
         }
+
+        public fun fromSlice(data: FloatArray, shape: Shape, device: Device = Device.Cpu): Tensor = new(data, shape, device)
+        public fun fromSlice(data: DoubleArray, shape: Shape, device: Device = Device.Cpu): Tensor = new(data, shape, device)
+        public fun fromSlice(data: IntArray, shape: Shape, device: Device = Device.Cpu): Tensor = new(data, shape, device)
+        public fun fromSlice(data: LongArray, shape: Shape, device: Device = Device.Cpu): Tensor = new(data, shape, device)
+        public fun fromSlice(data: UIntArray, shape: Shape, device: Device = Device.Cpu): Tensor = new(data, shape, device)
+        public fun fromSlice(data: UByteArray, shape: Shape, device: Device = Device.Cpu): Tensor = new(data, shape, device)
 
         public fun fromVec(data: List<Float>, shape: Shape, device: Device): Tensor =
             new(data.toFloatArray(), shape, device)

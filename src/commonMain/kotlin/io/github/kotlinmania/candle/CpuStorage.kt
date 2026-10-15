@@ -843,6 +843,48 @@ public sealed class CpuStorage {
         return F32(dst).toDType(Layout.contiguous(outShape), dtype())
     }
 
+    public fun gather(
+        ids: CpuStorage,
+        srcL: Layout,
+        idsL: Layout,
+        dim: Int,
+    ): CpuStorage {
+        val idsOffsets = idsL.contiguousOffsets() ?: throw CandleException.RequiresContiguous("gather")
+        val srcOffsets = srcL.contiguousOffsets() ?: throw CandleException.RequiresContiguous("gather")
+        val idsDims = idsL.shape.dims
+        val srcDims = srcL.shape.dims
+        val dstLen = idsDims.fold(1) { a, b -> a * b }
+        var dstLeftLen = 1
+        for (i in 0 until dim) dstLeftLen *= idsDims[i]
+        val dstDimLen = idsDims[dim]
+        var dstRightLen = 1
+        for (i in (dim + 1) until idsDims.size) dstRightLen *= idsDims[i]
+
+        val srcDimLen = srcDims[dim]
+        var srcRightLen = 1
+        for (i in (dim + 1) until srcDims.size) srcRightLen *= srcDims[i]
+
+        val dst = FloatArray(dstLen)
+        for (leftI in 0 until dstLeftLen) {
+            val startSrcIdx = srcOffsets.start + leftI * srcRightLen * srcDimLen
+            val startDstIdx = leftI * dstRightLen * dstDimLen
+            for (i in 0 until dstDimLen) {
+                val curDstIdx = startDstIdx + i * dstRightLen
+                for (rightI in 0 until dstRightLen) {
+                    val dstIdx = curDstIdx + rightI
+                    val idIdx = idsOffsets.start + dstIdx
+                    val indexVal = ids.getAsDouble(idIdx).toLong()
+                    if (indexVal < 0 || indexVal >= srcDimLen) {
+                        throw CandleException.InvalidIndex("gather", indexVal.toInt(), srcDimLen)
+                    }
+                    val srcIdx = startSrcIdx + indexVal.toInt() * srcRightLen + rightI
+                    dst[dstIdx] = getAsFloat(srcIdx)
+                }
+            }
+        }
+        return F32(dst).toDType(Layout.contiguous(idsL.shape), dtype())
+    }
+
     public fun getAsFloat(index: Int): Float =
         when (this) {
             is U8 -> data[index].toFloat()
