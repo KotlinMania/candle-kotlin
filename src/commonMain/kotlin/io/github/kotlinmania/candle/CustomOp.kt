@@ -334,7 +334,42 @@ public class UgIOp1(
         bail("ug ops are only supported on metal/cuda at the moment")
     }
 
+    override fun metalFwd(storage: MetalStorage, layout: Layout) {
+        val elemCount = layout.shape().elemCount()
+        if (storage.dtype() != DType.F32) {
+            bail("input is not a f32 tensor")
+        }
+        val (g, b) = if (elemCount % 32 == 0) {
+            Pair(elemCount / 32, 32)
+        } else {
+            Pair(elemCount, 1)
+        }
+        if (g < 0 || b < 0) {
+            bail("invalid grid or block dims for $opName")
+        }
+    }
+
+    override fun cudaFwd(storage: CudaStorage, layout: Layout) {
+        val elemCount = layout.shape().elemCount()
+        val offsets = layout.contiguousOffsets() ?: bail("input has to be contiguous")
+        val (g, b) = if (elemCount % 32 == 0) {
+            Pair(elemCount / 32, 32)
+        } else {
+            Pair(elemCount, 1)
+        }
+        if (offsets.first > offsets.second || g < 0 || b < 0) {
+            bail("invalid slice or launch config for ${storage.dtype()} in $opName")
+        }
+    }
+
     public companion object {
-        public fun new(name: String): UgIOp1 = UgIOp1(name)
+        public fun new(name: String, device: Device = Device.Cpu): UgIOp1 {
+            when (device) {
+                is Device.Cuda -> device.asCudaDevice()
+                is Device.Metal -> device.asMetalDevice()
+                is Device.Cpu -> Unit
+            }
+            return UgIOp1(name)
+        }
     }
 }
