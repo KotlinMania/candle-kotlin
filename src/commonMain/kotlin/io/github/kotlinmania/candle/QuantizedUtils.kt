@@ -232,7 +232,7 @@ internal fun makeQxQuants(
     return scale
 }
 
-// https://github.com/ggerganov/llama.cpp/blob/8183159cf3def112f6d1fe94815fce70e1bffa12/k_quants.c#L224
+// Reference: llama.cpp kQuants implementation (line 224)
 internal fun makeQkx1Quants(nmax: Int, ntry: Int, x: FloatArray): Pair<Float, Float> {
     val n = x.len()
     val l = UByteArray(n)
@@ -293,7 +293,7 @@ internal fun makeQkx1Quants(nmax: Int, ntry: Int, x: FloatArray): Pair<Float, Fl
     return Pair(scale, -min)
 }
 
-// https://github.com/ggerganov/llama.cpp/blob/8183159cf3def112f6d1fe94815fce70e1bffa12/k_quants.c#L165
+// Reference: llama.cpp kQuants implementation (line 165)
 internal fun makeQ3Quants(x: FloatArray, nmax: Int, doRmse: Boolean): Float {
     val n = x.len()
     val l = ByteArray(n)

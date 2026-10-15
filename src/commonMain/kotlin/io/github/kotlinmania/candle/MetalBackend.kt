@@ -1,4 +1,3 @@
-// port-lint: source metal_backend/mod.rs
 package io.github.kotlinmania.candle.metal
 
 import io.github.kotlinmania.candle.BFloat16

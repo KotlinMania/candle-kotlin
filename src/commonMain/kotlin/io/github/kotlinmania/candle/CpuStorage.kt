@@ -16,7 +16,6 @@ import kotlin.math.sin
 import kotlin.math.sqrt
 import kotlin.math.tanh
 
-// port-lint: source cpu_backend/mod.rs
 /**
  * Implementation of Backend Fns for CPU
  */
