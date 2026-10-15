@@ -236,4 +236,112 @@ public sealed class Storage {
             is Metal -> throw CandleException.NotCompiledWithMetalSupport
         }
     }
+
+    public fun applyOp1(l: Layout, c: CustomOp1): Pair<Storage, Shape> =
+        when (this) {
+            is Cpu -> {
+                val (s, shape) = c.cpuFwd(storage, l)
+                Pair(Cpu(s), shape)
+            }
+            is Cuda -> {
+                val (s, shape) = c.cudaFwd(storage, l)
+                Pair(Cuda(s), shape)
+            }
+            is Metal -> {
+                val (s, shape) = c.metalFwd(storage, l)
+                Pair(Metal(s), shape)
+            }
+        }
+
+    public fun applyOp2(
+        l1: Layout,
+        t2: Storage,
+        l2: Layout,
+        c: CustomOp2,
+    ): Pair<Storage, Shape> {
+        sameDevice(t2, c.name())
+        return when {
+            this is Cpu && t2 is Cpu -> {
+                val (s, shape) = c.cpuFwd(storage, l1, t2.storage, l2)
+                Pair(Cpu(s), shape)
+            }
+            this is Cuda && t2 is Cuda -> {
+                val (s, shape) = c.cudaFwd(storage, l1, t2.storage, l2)
+                Pair(Cuda(s), shape)
+            }
+            this is Metal && t2 is Metal -> {
+                val (s, shape) = c.metalFwd(storage, l1, t2.storage, l2)
+                Pair(Metal(s), shape)
+            }
+            else -> throw CandleException.Msg("unreachable")
+        }
+    }
+
+    public fun applyOp3(
+        l1: Layout,
+        t2: Storage,
+        l2: Layout,
+        t3: Storage,
+        l3: Layout,
+        c: CustomOp3,
+    ): Pair<Storage, Shape> {
+        sameDevice(t2, c.name())
+        sameDevice(t3, c.name())
+        return when {
+            this is Cpu && t2 is Cpu && t3 is Cpu -> {
+                val (s, shape) = c.cpuFwd(storage, l1, t2.storage, l2, t3.storage, l3)
+                Pair(Cpu(s), shape)
+            }
+            this is Cuda && t2 is Cuda && t3 is Cuda -> {
+                val (s, shape) = c.cudaFwd(storage, l1, t2.storage, l2, t3.storage, l3)
+                Pair(Cuda(s), shape)
+            }
+            this is Metal && t2 is Metal && t3 is Metal -> {
+                val (s, shape) = c.metalFwd(storage, l1, t2.storage, l2, t3.storage, l3)
+                Pair(Metal(s), shape)
+            }
+            else -> throw CandleException.Msg("unreachable")
+        }
+    }
+
+    public fun inplaceOp1(l: Layout, c: InplaceOp1) {
+        when (this) {
+            is Cpu -> c.cpuFwd(storage, l)
+            is Cuda -> c.cudaFwd(storage, l)
+            is Metal -> c.metalFwd(storage, l)
+        }
+    }
+
+    public fun inplaceOp2(
+        l1: Layout,
+        t2: Storage,
+        l2: Layout,
+        c: InplaceOp2,
+    ) {
+        sameDevice(t2, c.name())
+        when {
+            this is Cpu && t2 is Cpu -> c.cpuFwd(storage, l1, t2.storage, l2)
+            this is Cuda && t2 is Cuda -> c.cudaFwd(storage, l1, t2.storage, l2)
+            this is Metal && t2 is Metal -> c.metalFwd(storage, l1, t2.storage, l2)
+            else -> throw CandleException.Msg("unreachable")
+        }
+    }
+
+    public fun inplaceOp3(
+        l1: Layout,
+        t2: Storage,
+        l2: Layout,
+        t3: Storage,
+        l3: Layout,
+        c: InplaceOp3,
+    ) {
+        sameDevice(t2, c.name())
+        sameDevice(t3, c.name())
+        when {
+            this is Cpu && t2 is Cpu && t3 is Cpu -> c.cpuFwd(storage, l1, t2.storage, l2, t3.storage, l3)
+            this is Cuda && t2 is Cuda && t3 is Cuda -> c.cudaFwd(storage, l1, t2.storage, l2, t3.storage, l3)
+            this is Metal && t2 is Metal && t3 is Metal -> c.metalFwd(storage, l1, t2.storage, l2, t3.storage, l3)
+            else -> throw CandleException.Msg("unreachable")
+        }
+    }
 }

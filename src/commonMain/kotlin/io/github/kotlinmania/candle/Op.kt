@@ -136,6 +136,24 @@ public sealed class Op {
         val args: List<Tensor>,
         val dim: Int,
     ) : Op()
+
+    public data class CustomOp1(
+        val arg: Tensor,
+        val op: io.github.kotlinmania.candle.CustomOp1,
+    ) : Op()
+
+    public data class CustomOp2(
+        val lhs: Tensor,
+        val rhs: Tensor,
+        val op: io.github.kotlinmania.candle.CustomOp2,
+    ) : Op()
+
+    public data class CustomOp3(
+        val t1: Tensor,
+        val t2: Tensor,
+        val t3: Tensor,
+        val op: io.github.kotlinmania.candle.CustomOp3,
+    ) : Op()
 }
 
 public sealed class BackpropOp {

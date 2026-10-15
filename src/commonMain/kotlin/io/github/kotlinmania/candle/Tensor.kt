@@ -89,6 +89,8 @@ public class Tensor internal constructor(
 
     public fun storage(): Storage = storage
 
+    public fun storageMut(): Storage = storage
+
     internal fun sameStorage(rhs: Tensor): Boolean = this.storage === rhs.storage
 
     // --- Unary Ops ---
