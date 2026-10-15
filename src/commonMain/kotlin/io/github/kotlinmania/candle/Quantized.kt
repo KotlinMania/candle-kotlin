@@ -5,42 +5,22 @@ import io.github.kotlinmania.threadlocal.ThreadLocal
 
 /**
  * Quantized tensor storage, GGML data types, block quantization/dequantization,
- * and quantized matrix multiplication operations across CPU, CUDA, and Metal backends.
+ * and quantized matrix multiplication operations across CPU, CUDA, and Metal backends
+ * in the Candle Kotlin Multiplatform machine learning framework.
  */
 // port-lint: source quantized/mod.rs
 
-private val ByteArray.len: () -> Int
-    get() = { this.size }
-
-private val ByteArray.asPtr: () -> Int
-    get() = { this.size }
-
-private val FloatArray.len: () -> Int
-    get() = { this.size }
-
-private val Int.isMultipleOf: (Int) -> Boolean
-    get() = { d -> d > 0 && this % d == 0 }
-
-private val <T> List<T>.toVec: () -> MutableList<T>
-    get() = { this.toMutableList() }
-
-private val <T> MutableList<T>.len: () -> Int
-    get() = { this.size }
-
-private val <T> MutableList<T>.asSlice: () -> MutableList<T>
-    get() = { this }
-
-private val <T> MutableList<T>.asPtr: () -> ByteArray
-    get() = { ByteArray(0) }
-
-private val <T> MutableList<T>.pop: () -> T?
-    get() = { if (this.isEmpty()) null else this.removeAt(this.size - 1) }
-
-private val <T> MutableList<T>.push: (T) -> Unit
-    get() = { v -> this.add(v) }
-
-private val QTensor.asRef: () -> QTensor
-    get() = { this }
+private val ByteArray.len: () -> Int get() = { this.size }
+private val ByteArray.asPtr: () -> Int get() = { this.size }
+private val FloatArray.len: () -> Int get() = { this.size }
+private val Int.isMultipleOf: (Int) -> Boolean get() = { d -> d > 0 && this % d == 0 }
+private val <T> List<T>.toVec: () -> MutableList<T> get() = { this.toMutableList() }
+private val <T> MutableList<T>.len: () -> Int get() = { this.size }
+private val <T> MutableList<T>.asSlice: () -> MutableList<T> get() = { this }
+private val <T> MutableList<T>.asPtr: () -> ByteArray get() = { ByteArray(0) }
+private val <T> MutableList<T>.pop: () -> T? get() = { if (this.isEmpty()) null else this.removeAt(this.size - 1) }
+private val <T> MutableList<T>.push: (T) -> Unit get() = { v -> this.add(v) }
+private val QTensor.asRef: () -> QTensor get() = { this }
 
 private fun <T : GgmlType> asTSlice(data: ByteArray, companion: GgmlTypeCompanion<T, *>? = null): List<GgmlType> {
     val size = QuantizedHelper.sizeOf(companion)
@@ -139,7 +119,8 @@ sealed class QStorage {
                     nPerRow,
                 )
             }
-            self is Metal && src is Storage.Metal -> (this as Metal).storage.quantizeImatrix(src.storage, imatrixWeights, nPerRow).unwrapOrElse { return CandleResult.Err(it) }
+            self is Metal && src is Storage.Metal ->
+                (this as Metal).storage.quantizeImatrix(src.storage, imatrixWeights, nPerRow).unwrapOrElse { return CandleResult.Err(it) }
             self is Cuda && src is Storage.Cuda -> (this as Cuda).storage.quantizeImatrix(src.storage, imatrixWeights, nPerRow).unwrapOrElse { return CandleResult.Err(it) }
             else -> return CandleResult.Err(CandleError.Msg("Invalid quantize storage locations do not match").bt())
         }
@@ -171,7 +152,8 @@ sealed class QStorage {
                     nPerRow,
                 )
             }
-            self is Metal && src is Storage.Cpu -> (this as Metal).storage.quantizeImatrixOnto(src.storage, imatrixWeights, nPerRow).unwrapOrElse { return CandleResult.Err(it) }
+            self is Metal && src is Storage.Cpu ->
+                (this as Metal).storage.quantizeImatrixOnto(src.storage, imatrixWeights, nPerRow).unwrapOrElse { return CandleResult.Err(it) }
             self is Cuda && src is Storage.Cpu -> (this as Cuda).storage.quantizeImatrixOnto(src.storage, imatrixWeights, nPerRow).unwrapOrElse { return CandleResult.Err(it) }
             else -> return CandleResult.Err(CandleError.Msg("Invalid quantize storage locations do not match").bt())
         }
@@ -497,9 +479,8 @@ class QuantizedVec<E : GgmlType>(
 private fun checkShape(shape: Shape, blockSize: Int): CandleResult<Unit> {
     val dims = shape.dims()
     if (dims.isEmpty()) {
-        return CandleResult.Err(
-            CandleError.Msg("scalar tensor cannot be quantized $shape").bt()
-        )
+        return CandleResult.Err(CandleError.Msg(
+            "scalar tensor cannot be quantized $shape").bt())
     }
     if (!dims[dims.size - 1].isMultipleOf(blockSize)) {
         return CandleResult.Err(CandleError.Msg(
@@ -579,13 +560,12 @@ class QTensor(
                         idsSt.storage,
                         ids.layout(),
                     ).unwrapOrElse { return CandleResult.Err(it) }
-                    CandleResult.Ok(
-                        fromStorage(
-                            Storage.Cuda(pair.first),
-                            pair.second,
-                            BackpropOp.none(),
-                            false,
-                        )
+                    CandleResult.Ok(fromStorage(
+                        Storage.Cuda(pair.first),
+                        pair.second,
+                        BackpropOp.none(),
+                        false,
+                    )
                     )
                 } else {
                     throw IllegalStateException("Non-cuda indexedMoeForward is not implemented!")
@@ -679,9 +659,8 @@ class QTensor(
     ): CandleResult<Pair<MetalStorage, Shape>> {
         val selfStorage = when (val st = self.storage) {
             is QStorage.Metal -> st.storage
-            else -> {
+            else ->
                 throw IllegalStateException("Cannot call metal matmul on non metal QTensor")
-            }
         }
         return selfStorage.fwd(self.shape, storage, layout)
     }
@@ -692,9 +671,8 @@ class QTensor(
     ): CandleResult<Pair<CudaStorage, Shape>> {
         val selfStorage = when (val st = self.storage) {
             is QStorage.Cuda -> st.storage
-            else -> {
+            else ->
                 throw IllegalStateException("Cannot call cuda matmul on non cuda QTensor")
-            }
         }
         return selfStorage.fwd(self.shape, storage, layout)
     }
@@ -798,9 +776,8 @@ class QTensor(
             }
             // storage is on the `dev`, src is on `cpu`
             val storage = dev.qzeros(elemCount, dtype).unwrapOrElse { return CandleResult.Err(it) }
-            storage.quantizeImatrixOnto(
-                flat.storageAndLayout().first, imatrixWeights, nPerRow
-            ).unwrapOrElse { return CandleResult.Err(it) }
+            storage.quantizeImatrixOnto(flat.storageAndLayout().first, imatrixWeights, nPerRow)
+                .unwrapOrElse { return CandleResult.Err(it) }
             return CandleResult.Ok(QTensor(
                 storage,
                 shape.clone(),

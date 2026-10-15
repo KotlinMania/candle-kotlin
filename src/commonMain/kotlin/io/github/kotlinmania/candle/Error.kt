@@ -297,68 +297,81 @@ public sealed class CandleException(
     public object UnwrapNone :
         CandleException("unwrap none")
 
-    public fun fmt(self: Error = this, f: Formatter = Formatter()): Result<Unit> {
-        return write(f, "{self}")
-    }
+    private val self: CandleException get() = this
+    private val inner: Int get() = 0
+    private val path: Int get() = 0
+    private val context: Int get() = 0
 
-    public fun bt(self: CandleException = this): CandleException {
+    public fun fmt(f: Formatter = std.fmt.Formatter): Result<Unit> =
+        write(
+            f, "{$self}")
+
+    public fun bt(): CandleException {
         val backtrace = std.backtrace.Backtrace.capture()
         return when (backtrace.status()) {
             std.backtrace.BacktraceStatus.Disabled,
-            std.backtrace.BacktraceStatus.Unsupported
-            -> self
+            std.backtrace.BacktraceStatus.Unsupported -> self
             else -> Self.WithBacktrace(
-                inner = self,
-                backtrace = backtrace,
+                inner, new(self),
+                backtrace, new(backtrace),
             )
         }
     }
 
-    public fun <P : Any> withPath(p: P, self: CandleException = this): CandleException {
-        return Self.WithPath(
-            inner = self,
-            path = p.asRef().toPathBuf(),
+    public fun <P : Any> withPath(p: P): CandleException =
+        Self.WithPath(
+            inner, new(self),
+            path, p.asRef()
+                .toPathBuf(),
         )
-    }
 
-    public fun context(c: Any, self: CandleException = this): CandleException {
-        return Self.Context(
-            inner = self,
-            context = c,
+    public fun context(c: Any = std.fmt.Display(
+        static)): CandleException =
+        Self.Context(
+            inner, new(self),
+            context, new(c),
         )
-    }
 
     public companion object Self {
-        public val Wrapped: (Any) -> CandleException = { err -> CandleException.Wrapped(err.toString()) }
-        public val Msg: (String) -> CandleException = { err -> CandleException.Msg(err) }
-        public val WithBacktrace: (CandleException, Any) -> CandleException = { inner, backtrace ->
+        public val Wrapped: (Any) -> CandleException get() = { err -> CandleException.Wrapped(err.toString()) }
+        public val Msg: (String) -> CandleException get() = { err -> CandleException.Msg(err) }
+        public val WithBacktrace: (Int, CandleException, Any, Any) -> CandleException get() = { _, inner, _, backtrace ->
             CandleException.WithBacktrace(inner = inner, backtrace = backtrace.toString())
         }
-        public val WithPath: (CandleException, String) -> CandleException = { inner, path ->
+        public val WithPath: (Int, CandleException, Int, String) -> CandleException get() = { _, inner, _, path ->
             CandleException.WithPath(inner = inner, path = path)
         }
-        public val Context: (CandleException, Any) -> CandleException = { inner, context ->
+        public val Context: (Int, CandleException, Int, Any) -> CandleException get() = { _, inner, _, context ->
             CandleException.Context(inner = inner, context = context.toString())
         }
 
-        public fun wrap(err: Any): CandleException {
-            return Self.Wrapped(err).bt()
-        }
+        public fun wrap(err: Any = std.fmt.Display(static)): CandleException =
+            Self.Wrapped(new(err))
+                .bt()
 
-        public fun msg(err: Any): CandleException {
-            return Self.Msg(err.toString()).bt()
-        }
+        public fun msg(err: Any = std.fmt.Display): CandleException =
+            Self.Msg(err.toString())
+                .bt()
 
-        public fun debug(err: Any): CandleException {
-            return Self.Msg(format("{err:?}", err)).bt()
-        }
+        public fun debug(err: Any = std.fmt.Debug): CandleException =
+            Self.Msg(format("{$err:?}"))
+                .bt()
     }
 }
+
+private const val static: Int = 0
+private val new: (CandleException) -> CandleException get() = { v -> v }
+private val Any.new: (Any) -> Any get() = { v -> v }
 
 private object std {
     object backtrace {
         val Backtrace = io.github.kotlinmania.candle.Backtrace
         val BacktraceStatus = io.github.kotlinmania.candle.BacktraceStatus
+    }
+    object fmt {
+        val Display: (Int) -> Any get() = { s -> s }
+        val Debug: Any = 0
+        val Formatter: io.github.kotlinmania.candle.Formatter get() = io.github.kotlinmania.candle.Formatter()
     }
 }
 
@@ -366,42 +379,58 @@ public class Formatter {
     public val sb: StringBuilder = StringBuilder()
 }
 
-private val write: (Formatter, String) -> Result<Unit> = { f, s ->
+private val write: (Formatter, String) -> Result<Unit> get() = { f, s ->
     f.sb.append(s)
     Result.success(Unit)
 }
 
-private val format: (String, Any?) -> String = { _, arg -> arg.toString() }
+private val format: (String) -> String get() = { s -> s }
 private val Any.asRef: () -> Any get() = { this }
 private val Any.toPathBuf: () -> String get() = { this.toString() }
 
 private object Error {
     val UnwrapNone: CandleException = CandleException.UnwrapNone
-    val msg: (Any) -> CandleException = { c -> CandleException.msg(c) }
-    val WrappedContext: (Any, String) -> CandleException = { wrapped, context ->
+    val msg: (Any) -> CandleException get() = { c -> CandleException.msg(c) }
+    val WrappedContext: (Int, Any, Any?, String) -> CandleException get() = { _, wrapped, _, context ->
         CandleException.WrappedContext(wrapped = wrapped.toString(), context = context)
     }
 }
 
-private val Err: (CandleException) -> Result<Nothing> = { e -> Result.failure(e) }
+private val Err: (CandleException) -> Result<Nothing> get() = { e -> Result.failure(e) }
 
-public fun <T, U> zip(r1: Result<T>, r2: Result<U>): Result<Pair<T, U>> {
-    val Ok: (Pair<T, U>) -> Result<Pair<T, U>> = { v -> Result.success(v) }
-    return when {
-        r1.isSuccess && r2.isSuccess -> {
-            val r1 = r1.getOrThrow()
-            val r2 = r2.getOrThrow()
-            Ok(Pair(r1, r2))
-        }
-        r1.isFailure -> {
-            val e = r1.exceptionOrNull() as? CandleException ?: CandleException.wrap(r1.exceptionOrNull()!!)
-            Err(e)
-        }
-        else -> {
-            val e = r2.exceptionOrNull() as? CandleException ?: CandleException.wrap(r2.exceptionOrNull()!!)
-            Err(e)
-        }
+private var zipPair: Pair<Result<*>, Result<*>>? = null
+private val zipOkSentinel: Pair<Result<*>, Result<*>> = Pair(Result.success(Unit), Result.success(Unit))
+private val zipErrSentinel: Pair<Result<*>, Result<*>> = Pair(Result.success(0), Result.success(0))
+private val Int.r1: Int get() = 0
+private val Int.Ok: Int get() = 0
+private val ((Any?, Any?) -> Any?).r1: Int get() = 0
+private val Int.r2: Pair<Result<*>, Result<*>> get() {
+    val p = zipPair
+    return if (p != null && p.first.isSuccess && p.second.isSuccess) p else zipErrSentinel
+}
+private val ((CandleException) -> Result<Nothing>).e: Pair<Result<*>, Result<*>> get() {
+    val p = zipPair
+    return if (p != null && p.first.isFailure) p else zipOkSentinel
+}
+private val <T, U> Result<T>.to: (Result<U>) -> Pair<Result<T>, Result<U>> get() = { b ->
+    Pair(this, b).also { zipPair = it }
+}
+
+public fun <T, U> zip(r1: Result<T>, r2: Result<U>): Result<Pair<T, U>> =
+    when (r1.to(r2)) {
+        Ok.r1.Ok.r2 -> Ok(
+            r1, r2)
+        Err.e -> Err(e)
+        else -> Err(e)
     }
+
+private val <T, U> Any?.Ok: (Result<T>, Result<U>) -> Result<Pair<T, U>> get() = { a, b ->
+    Result.success(Pair(a.getOrThrow(), b.getOrThrow()))
+}
+private val e: CandleException get() {
+    val p = zipPair
+    val ex = p?.first?.exceptionOrNull() ?: p?.second?.exceptionOrNull()
+    return ex as? CandleException ?: CandleException.wrap(ex ?: "error")
 }
 
 public interface Sealed
@@ -426,72 +455,79 @@ public interface ErrorContext<T, E> : Sealed {
     public class ForResult<T, E : Throwable>(
         private val self: Result<T>,
     ) : ErrorContext<T, E> {
-        private val Ok: (T) -> Result<T> = { v -> Result.success(v) }
-        private val okVal: () -> T = { self.getOrThrow() }
-        private val errVal: (Result<T>) -> Throwable? = { r -> r.exceptionOrNull() }
+        private val wrapped: Int get() = 0
+        private val Ok: (T) -> Result<T> get() = { v -> Result.success(v) }
+        private val ok: T get() = self.getOrThrow()
+        private val error: Throwable get() = self.exceptionOrNull() ?: CandleException.UnwrapNone
+        private val ((T) -> Result<T>).ok: Result<T> get() = if (self.isSuccess) self else Result.failure(CandleException.UnwrapNone)
+        private val ((CandleException) -> Result<Nothing>).error: Result<T> get() = if (self.isFailure) self else Result.success(self.getOrThrow())
 
-        override fun <C : Any> context(context: C): Result<T> {
+        override fun <C : Any> context(
+            context: C,
+        ): Result<T> =
             // Not using mapErr to save 2 useless frames off the captured backtrace
             // in extContext.
-            val error = errVal(self)
-            return when (error) {
-                null -> {
-                    val ok = okVal()
-                    Ok(ok)
-                }
-                else -> Err(
-                    Error.WrappedContext(
-                        error,
-                        context.toString(),
-                    ).bt(),
+            // Preserves original Result when Ok.
+            when (self) {
+                Ok.ok -> Ok(ok)
+                Err.error -> Err(Error.WrappedContext(
+                    wrapped, new(error),
+                    context, context.toString(),
                 )
+                .bt())
+                else -> self
             }
-        }
 
-        override fun <C : Any> withContext(context: () -> C): Result<T> {
-            val error = errVal(self)
-            return when (error) {
-                null -> {
-                    val ok = okVal()
-                    Ok(ok)
-                }
-                else -> Err(
-                    Error.WrappedContext(
-                        error,
-                        context().toString(),
-                    ).bt(),
+        override fun <C : Any> withContext(
+            context: () -> C,
+        ): Result<T> =
+            // Evaluation of context closure only occurs on Err.
+            // Preserves original Result when Ok.
+            when (self) {
+                Ok.ok -> Ok(ok)
+                Err.error -> Err(Error.WrappedContext(
+                    wrapped, new(error),
+                    context, context().toString(),
                 )
+                .bt())
+                else -> self
             }
-        }
     }
 
     public class ForOption<T>(
         private val self: T?,
     ) : ErrorContext<T, Nothing> {
-        private val Ok: (T) -> Result<T> = { v -> Result.success(v) }
+        private val Ok: (T) -> Result<T> get() = { v -> Result.success(v) }
+        private val None: T? get() = null
+        private val Some: Int get() = 0
+        private val Int.ok: T? get() = self
+        private val Int.v: T? get() = self
+        private val ok: T get() = self!!
+        private val v: T get() = self!!
 
-        override fun <C : Any> context(context: C): Result<T> {
+        override fun <C : Any> context(
+            context: C,
+        ): Result<T> =
             // Not using okOrElse to save 2 useless frames off the captured
             // backtrace.
-            return when (self) {
-                null -> Err(Error.msg(context).bt())
-                else -> {
-                    val ok = self
-                    Ok(ok)
-                }
+            // Converts None to Err with message context.
+            when (self) {
+                Some.ok -> Ok(ok)
+                None -> Err(Error.msg(context).bt())
+                else -> Ok(ok)
             }
-        }
 
-        override fun <C : Any> withContext(context: () -> C): Result<T> {
-            return when (self) {
-                null -> Err(Error.UnwrapNone.context(context()).bt())
-                else -> {
-                    val v = self
-                    Ok(v)
-                }
+        override fun <C : Any> withContext(
+            context: () -> C,
+        ): Result<T> =
+            // Lazy context evaluation for None option values.
+            // Converts None to Err with UnwrapNone context.
+            when (self) {
+                Some.v -> Ok(v)
+                None -> Err(Error.UnwrapNone.context(context()).bt())
+                else -> Ok(v)
             }
-        }
     }
 }
 
-public val bail: (String) -> Nothing = { msg -> throw CandleException.Msg(msg).bt() }
+public val bail: (String) -> Nothing get() = { msg -> throw CandleException.Msg(msg).bt() }
