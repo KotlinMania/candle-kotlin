@@ -223,7 +223,21 @@ public object Mkl {
         c: FloatArray,
         ldc: Int,
     ) {
-        Ffi.sgemm(transa.toByte(), transb.toByte(), m, n, k, alpha, a, lda, b, ldb, beta, c, ldc)
+        Ffi.sgemm(
+            transa.toByte() as CChar,
+            transb.toByte() as CChar,
+            m,
+            n,
+            k,
+            alpha,
+            a,
+            lda,
+            b,
+            ldb,
+            beta,
+            c,
+            ldc,
+        )
     }
 
     public fun dgemm(
@@ -241,7 +255,21 @@ public object Mkl {
         c: DoubleArray,
         ldc: Int,
     ) {
-        Ffi.dgemm(transa.toByte(), transb.toByte(), m, n, k, alpha, a, lda, b, ldb, beta, c, ldc)
+        Ffi.dgemm(
+            transa.toByte() as CChar,
+            transb.toByte() as CChar,
+            m,
+            n,
+            k,
+            alpha,
+            a,
+            lda,
+            b,
+            ldb,
+            beta,
+            c,
+            ldc,
+        )
     }
 
     public fun hgemm(
@@ -259,7 +287,21 @@ public object Mkl {
         c: ShortArray,
         ldc: Int,
     ) {
-        Ffi.hgemm(transa.toByte(), transb.toByte(), m, n, k, alpha, a, lda, b, ldb, beta, c, ldc)
+        Ffi.hgemm(
+            transa.toByte() as CChar,
+            transb.toByte() as CChar,
+            m,
+            n,
+            k,
+            alpha,
+            a,
+            lda,
+            b,
+            ldb,
+            beta,
+            c,
+            ldc,
+        )
     }
 
     public fun vsExp(a: FloatArray, y: FloatArray) {
@@ -268,7 +310,7 @@ public object Mkl {
         if (aLen != yLen) {
             error("a and y have different lengths $aLen <> $yLen")
         }
-        Ffi.vsExp(aLen, a, y)
+        Ffi.vsExp(aLen as Int, a, y)
     }
 
     public fun vdExp(a: DoubleArray, y: DoubleArray) {
@@ -277,7 +319,7 @@ public object Mkl {
         if (aLen != yLen) {
             error("a and y have different lengths $aLen <> $yLen")
         }
-        Ffi.vdExp(aLen, a, y)
+        Ffi.vdExp(aLen as Int, a, y)
     }
 
     public fun vsLn(a: FloatArray, y: FloatArray) {
@@ -286,7 +328,7 @@ public object Mkl {
         if (aLen != yLen) {
             error("a and y have different lengths $aLen <> $yLen")
         }
-        Ffi.vsLn(aLen, a, y)
+        Ffi.vsLn(aLen as Int, a, y)
     }
 
     public fun vdLn(a: DoubleArray, y: DoubleArray) {
@@ -295,7 +337,7 @@ public object Mkl {
         if (aLen != yLen) {
             error("a and y have different lengths $aLen <> $yLen")
         }
-        Ffi.vdLn(aLen, a, y)
+        Ffi.vdLn(aLen as Int, a, y)
     }
 
     public fun vsSin(a: FloatArray, y: FloatArray) {
@@ -304,7 +346,7 @@ public object Mkl {
         if (aLen != yLen) {
             error("a and y have different lengths $aLen <> $yLen")
         }
-        Ffi.vsSin(aLen, a, y)
+        Ffi.vsSin(aLen as Int, a, y)
     }
 
     public fun vdSin(a: DoubleArray, y: DoubleArray) {
@@ -313,7 +355,7 @@ public object Mkl {
         if (aLen != yLen) {
             error("a and y have different lengths $aLen <> $yLen")
         }
-        Ffi.vdSin(aLen, a, y)
+        Ffi.vdSin(aLen as Int, a, y)
     }
 
     public fun vsCos(a: FloatArray, y: FloatArray) {
@@ -322,7 +364,7 @@ public object Mkl {
         if (aLen != yLen) {
             error("a and y have different lengths $aLen <> $yLen")
         }
-        Ffi.vsCos(aLen, a, y)
+        Ffi.vsCos(aLen as Int, a, y)
     }
 
     public fun vdCos(a: DoubleArray, y: DoubleArray) {
@@ -331,7 +373,7 @@ public object Mkl {
         if (aLen != yLen) {
             error("a and y have different lengths $aLen <> $yLen")
         }
-        Ffi.vdCos(aLen, a, y)
+        Ffi.vdCos(aLen as Int, a, y)
     }
 
     public fun vsSqrt(a: FloatArray, y: FloatArray) {
@@ -340,7 +382,7 @@ public object Mkl {
         if (aLen != yLen) {
             error("a and y have different lengths $aLen <> $yLen")
         }
-        Ffi.vsSqrt(aLen, a, y)
+        Ffi.vsSqrt(aLen as Int, a, y)
     }
 
     public fun vdSqrt(a: DoubleArray, y: DoubleArray) {
@@ -349,7 +391,7 @@ public object Mkl {
         if (aLen != yLen) {
             error("a and y have different lengths $aLen <> $yLen")
         }
-        Ffi.vdSqrt(aLen, a, y)
+        Ffi.vdSqrt(aLen as Int, a, y)
     }
 
     public fun vsSqr(a: FloatArray, y: FloatArray) {
@@ -358,7 +400,7 @@ public object Mkl {
         if (aLen != yLen) {
             error("a and y have different lengths $aLen <> $yLen")
         }
-        Ffi.vsMul(aLen, a, a, y)
+        Ffi.vsMul(aLen as Int, a, a, y)
     }
 
     public fun vdSqr(a: DoubleArray, y: DoubleArray) {
@@ -367,7 +409,7 @@ public object Mkl {
         if (aLen != yLen) {
             error("a and y have different lengths $aLen <> $yLen")
         }
-        Ffi.vdMul(aLen, a, a, y)
+        Ffi.vdMul(aLen as Int, a, a, y)
     }
 
     public fun vsTanh(a: FloatArray, y: FloatArray) {
@@ -376,7 +418,7 @@ public object Mkl {
         if (aLen != yLen) {
             error("a and y have different lengths $aLen <> $yLen")
         }
-        Ffi.vsTanh(aLen, a, y)
+        Ffi.vsTanh(aLen as Int, a, y)
     }
 
     public fun vdTanh(a: DoubleArray, y: DoubleArray) {
@@ -385,72 +427,64 @@ public object Mkl {
         if (aLen != yLen) {
             error("a and y have different lengths $aLen <> $yLen")
         }
-        Ffi.vdTanh(aLen, a, y)
+        Ffi.vdTanh(aLen as Int, a, y)
     }
 
     // The vector functions from mkl can be performed in place by using the same array for input and
     // output.
     public fun vsTanhInplace(y: FloatArray) {
-        Ffi.vsTanh(y.size, y, y)
+        Ffi.vsTanh(y.size as Int, y, y)
     }
 
     public fun vdTanhInplace(y: DoubleArray) {
-        Ffi.vdTanh(y.size, y, y)
+        Ffi.vdTanh(y.size as Int, y, y)
     }
 
     public fun vsExpInplace(y: FloatArray) {
-        Ffi.vsExp(y.size, y, y)
+        Ffi.vsExp(y.size as Int, y, y)
     }
 
     public fun vdExpInplace(y: DoubleArray) {
-        Ffi.vdExp(y.size, y, y)
+        Ffi.vdExp(y.size as Int, y, y)
     }
 
     public fun vsGelu(vs: FloatArray, ys: FloatArray) {
         for (i in vs.indices) {
-            val v = vs[i]
-            ys[i] = sqrt(2.0f / PI.toFloat()) * v * (1.0f + 0.044715f * v * v)
+            val v = vs[i]; ys[i] = sqrt(2.0f / PI.toFloat()) * v * (1.0f + 0.044715f * v * v)
         }
         vsTanhInplace(ys)
         for (i in vs.indices) {
-            val v = vs[i]
-            ys[i] = 0.5f * v * (1.0f + ys[i])
+            val v = vs[i]; ys[i] = 0.5f * v * (1.0f + ys[i])
         }
     }
 
     public fun vdGelu(vs: DoubleArray, ys: DoubleArray) {
         for (i in vs.indices) {
-            val v = vs[i]
-            ys[i] = sqrt(2.0 / PI) * v * (1.0 + 0.044715 * v * v)
+            val v = vs[i]; ys[i] = sqrt(2.0 / PI) * v * (1.0 + 0.044715 * v * v)
         }
         vdTanhInplace(ys)
         for (i in vs.indices) {
-            val v = vs[i]
-            ys[i] = 0.5 * v * (1.0 + ys[i])
+            val v = vs[i]; ys[i] = 0.5 * v * (1.0 + ys[i])
         }
     }
 
     public fun vsSilu(vs: FloatArray, ys: FloatArray) {
         for (i in vs.indices) {
-            val v = vs[i]
-            ys[i] = -v
+            val v = vs[i]; ys[i] = -v
         }
         vsExpInplace(ys)
         for (i in vs.indices) {
-            val v = vs[i]
-            ys[i] = v / (1.0f + ys[i])
+            val v = vs[i]; ys[i] = v / (1.0f + ys[i])
         }
     }
 
     public fun vdSilu(vs: DoubleArray, ys: DoubleArray) {
         for (i in vs.indices) {
-            val v = vs[i]
-            ys[i] = -v
+            val v = vs[i]; ys[i] = -v
         }
         vdExpInplace(ys)
         for (i in vs.indices) {
-            val v = vs[i]
-            ys[i] = v / (1.0 + ys[i])
+            val v = vs[i]; ys[i] = v / (1.0 + ys[i])
         }
     }
 
@@ -461,7 +495,7 @@ public object Mkl {
         if (aLen != yLen || bLen != yLen) {
             error("vsAdd a,b,y len mismatch $aLen $bLen $yLen")
         }
-        Ffi.vsAdd(aLen, a, b, y)
+        Ffi.vsAdd(aLen as Int, a, b, y)
     }
 
     public val vdAdd: (DoubleArray, DoubleArray, DoubleArray) -> Unit = { a, b, y ->
@@ -471,7 +505,7 @@ public object Mkl {
         if (aLen != yLen || bLen != yLen) {
             error("vdAdd a,b,y len mismatch $aLen $bLen $yLen")
         }
-        Ffi.vdAdd(aLen, a, b, y)
+        Ffi.vdAdd(aLen as Int, a, b, y)
     }
 
     public val vsSub: (FloatArray, FloatArray, FloatArray) -> Unit = { a, b, y ->
@@ -481,7 +515,7 @@ public object Mkl {
         if (aLen != yLen || bLen != yLen) {
             error("vsSub a,b,y len mismatch $aLen $bLen $yLen")
         }
-        Ffi.vsSub(aLen, a, b, y)
+        Ffi.vsSub(aLen as Int, a, b, y)
     }
 
     public val vdSub: (DoubleArray, DoubleArray, DoubleArray) -> Unit = { a, b, y ->
@@ -491,7 +525,7 @@ public object Mkl {
         if (aLen != yLen || bLen != yLen) {
             error("vdSub a,b,y len mismatch $aLen $bLen $yLen")
         }
-        Ffi.vdSub(aLen, a, b, y)
+        Ffi.vdSub(aLen as Int, a, b, y)
     }
 
     public val vsMul: (FloatArray, FloatArray, FloatArray) -> Unit = { a, b, y ->
@@ -501,7 +535,7 @@ public object Mkl {
         if (aLen != yLen || bLen != yLen) {
             error("vsMul a,b,y len mismatch $aLen $bLen $yLen")
         }
-        Ffi.vsMul(aLen, a, b, y)
+        Ffi.vsMul(aLen as Int, a, b, y)
     }
 
     public val vdMul: (DoubleArray, DoubleArray, DoubleArray) -> Unit = { a, b, y ->
@@ -511,7 +545,7 @@ public object Mkl {
         if (aLen != yLen || bLen != yLen) {
             error("vdMul a,b,y len mismatch $aLen $bLen $yLen")
         }
-        Ffi.vdMul(aLen, a, b, y)
+        Ffi.vdMul(aLen as Int, a, b, y)
     }
 
     public val vsDiv: (FloatArray, FloatArray, FloatArray) -> Unit = { a, b, y ->
@@ -521,7 +555,7 @@ public object Mkl {
         if (aLen != yLen || bLen != yLen) {
             error("vsDiv a,b,y len mismatch $aLen $bLen $yLen")
         }
-        Ffi.vsDiv(aLen, a, b, y)
+        Ffi.vsDiv(aLen as Int, a, b, y)
     }
 
     public val vdDiv: (DoubleArray, DoubleArray, DoubleArray) -> Unit = { a, b, y ->
@@ -531,7 +565,7 @@ public object Mkl {
         if (aLen != yLen || bLen != yLen) {
             error("vdDiv a,b,y len mismatch $aLen $bLen $yLen")
         }
-        Ffi.vdDiv(aLen, a, b, y)
+        Ffi.vdDiv(aLen as Int, a, b, y)
     }
 
     public val vsMax: (FloatArray, FloatArray, FloatArray) -> Unit = { a, b, y ->
@@ -541,7 +575,7 @@ public object Mkl {
         if (aLen != yLen || bLen != yLen) {
             error("vsMax a,b,y len mismatch $aLen $bLen $yLen")
         }
-        Ffi.vsFmax(aLen, a, b, y)
+        Ffi.vsFmax(aLen as Int, a, b, y)
     }
 
     public val vdMax: (DoubleArray, DoubleArray, DoubleArray) -> Unit = { a, b, y ->
@@ -551,7 +585,7 @@ public object Mkl {
         if (aLen != yLen || bLen != yLen) {
             error("vdMax a,b,y len mismatch $aLen $bLen $yLen")
         }
-        Ffi.vdFmax(aLen, a, b, y)
+        Ffi.vdFmax(aLen as Int, a, b, y)
     }
 
     public val vsMin: (FloatArray, FloatArray, FloatArray) -> Unit = { a, b, y ->
@@ -561,7 +595,7 @@ public object Mkl {
         if (aLen != yLen || bLen != yLen) {
             error("vsMin a,b,y len mismatch $aLen $bLen $yLen")
         }
-        Ffi.vsFmin(aLen, a, b, y)
+        Ffi.vsFmin(aLen as Int, a, b, y)
     }
 
     public val vdMin: (DoubleArray, DoubleArray, DoubleArray) -> Unit = { a, b, y ->
@@ -571,6 +605,6 @@ public object Mkl {
         if (aLen != yLen || bLen != yLen) {
             error("vdMin a,b,y len mismatch $aLen $bLen $yLen")
         }
-        Ffi.vdFmin(aLen, a, b, y)
+        Ffi.vdFmin(aLen as Int, a, b, y)
     }
 }
