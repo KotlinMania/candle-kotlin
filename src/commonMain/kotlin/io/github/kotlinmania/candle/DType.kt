@@ -9,12 +9,6 @@ import io.github.kotlinmania.anyhow.Result
  * Types for elements that can be stored and manipulated using tensors.
  */
 
-public class DTypeParseError(public val raw: String) : Exception("cannot parse '$raw' as a dtype") {
-    public fun fmt(self: DTypeParseError, f: Formatter): Result<Unit> {
-        return write(f, "cannot parse '{}' as a dtype", self.raw)
-    }
-}
-
 /**
  * The different types of elements allowed in tensors.
  */
@@ -42,31 +36,51 @@ public enum class DType(
     F64("f64", 8),
     // 8-bit floating point with 4-bit exponent and 3-bit mantissa.
     F8E4M3("f8e4m3", 1),
-    /**
-     * 6-bit float with 2 exponent bits and 3 mantissa bits (MX6 format)
-     */
+    /** 6-bit float with 2 exponent bits and 3 mantissa bits (MX6 format) */
     F6E2M3("f6e2m3", 0),
-    /**
-     * 6-bit float with 3 exponent bits and 2 mantissa bits (MX6 format)
-     */
+    /** 6-bit float with 3 exponent bits and 2 mantissa bits (MX6 format) */
     F6E3M2("f6e3m2", 0),
-    /**
-     * 4-bit float (MX4 format)
-     */
+    /** 4-bit float (MX4 format) */
     F4("f4", 0),
-    /**
-     * 8-bit float with 8 exponent bits and 0 mantissa bits
-     */
+    /** 8-bit float with 8 exponent bits and 0 mantissa bits */
     F8E8M0("f8e8m0", 1),
     ;
 
     private val self: DType get() = this
 
+    public companion object Self {
+        public interface Err
+
+        public fun fromStr(s: String): Result<DType> {
+            return when (s) {
+                "u8" -> Ok(Self.U8)
+                "u32" -> Ok(Self.U32)
+                "i16" -> Ok(Self.I16)
+                "i32" -> Ok(Self.I32)
+                "i64" -> Ok(Self.I64)
+                "bf16" -> Ok(Self.BF16)
+                "f16" -> Ok(Self.F16)
+                "f32" -> Ok(Self.F32)
+                "f64" -> Ok(Self.F64)
+                "f8e4m3" -> Ok(Self.F8E4M3)
+                "f6e2m3" -> Ok(Self.F6E2M3)
+                "f6e3m2" -> Ok(Self.F6E3M2)
+                "f4" -> Ok(Self.F4)
+                "f8e8m0" -> Ok(Self.F8E8M0)
+                else -> Err(DTypeParseError(s.toString()))
+            }
+        }
+
+        public val fromString: (String) -> DType = { s ->
+            fromStr(s.lowercase()).getOrThrow()
+        }
+    }
+
     /**
      * String representation for dtypes.
      */
-    public fun asStr(): String =
-        when (self) {
+    public fun asStr(): String {
+        return when (self) {
             Self.U8 -> "u8"
             Self.U32 -> "u32"
             Self.I16 -> "i16"
@@ -82,12 +96,13 @@ public enum class DType(
             Self.F4 -> "f4"
             Self.F8E8M0 -> "f8e8m0"
         }
+    }
 
     /**
      * The size used by each element in bytes, i.e. 1 for `U8`, 4 for `F32`.
      */
-    public fun sizeInBytes(): Int =
-        when (self) {
+    public fun sizeInBytes(): Int {
+        return when (self) {
             Self.U8 -> 1
             Self.U32 -> 4
             Self.I16 -> 2
@@ -98,11 +113,12 @@ public enum class DType(
             Self.F32 -> 4
             Self.F64 -> 8
             Self.F8E4M3 -> 1
-            Self.F6E2M3 -> 0
-            Self.F6E3M2 -> 0
-            Self.F4 -> 0
+            Self.F6E2M3 -> 0 // 6 bits
+            Self.F6E3M2 -> 0 // 6 bits
+            Self.F4 -> 0     // 4 bits
             Self.F8E8M0 -> 1
         }
+    }
 
     public fun isInt(): Boolean =
         when (self) {
@@ -133,32 +149,13 @@ public enum class DType(
             Self.F8E8M0
             -> true
         }
+}
 
-    public companion object Self {
-        public interface Err
+public class DTypeParseError(public val raw: String) : Exception("cannot parse '$raw' as a dtype") {
+    private val self: String get() = raw
 
-        public fun fromStr(s: String): Result<DType> =
-            when (s) {
-                "u8" -> Ok(Self.U8)
-                "u32" -> Ok(Self.U32)
-                "i16" -> Ok(Self.I16)
-                "i32" -> Ok(Self.I32)
-                "i64" -> Ok(Self.I64)
-                "bf16" -> Ok(Self.BF16)
-                "f16" -> Ok(Self.F16)
-                "f32" -> Ok(Self.F32)
-                "f64" -> Ok(Self.F64)
-                "f8e4m3" -> Ok(Self.F8E4M3)
-                "f6e2m3" -> Ok(Self.F6E2M3)
-                "f6e3m2" -> Ok(Self.F6E3M2)
-                "f4" -> Ok(Self.F4)
-                "f8e8m0" -> Ok(Self.F8E8M0)
-                else -> Err(DTypeParseError(s.toString()))
-            }
-
-        public val fromString: (String) -> DType = { s ->
-            fromStr(s.lowercase()).getOrThrow()
-        }
+    public fun fmt(f: Formatter): Result<Unit> {
+        return write(f, "cannot parse '{}' as a dtype", self)
     }
 }
 
@@ -170,112 +167,62 @@ public interface WithDType<T> {
     public fun cpuStorageRef(data: List<T>): CpuStorageRef
     public fun toCpuStorageOwned(data: List<T>): CpuStorage
 
-    public fun toCpuStorage(data: List<T>): CpuStorage =
-        toCpuStorageOwned(data.toVec())
+    public fun toCpuStorage(data: List<T>): CpuStorage {
+        return self.toCpuStorageOwned(data.toVec())
+    }
 
     public fun cpuStorageAsSlice(s: CpuStorage): Result<List<T>>
     public fun cpuStorageData(s: CpuStorage): Result<List<T>>
 }
 
-public interface IntDType<T> {
-    public fun isTrue(self: T): Boolean
-    public fun asUsize(self: T): Int
+public interface IntDType {
+    public fun isTrue(): Boolean
+    public fun asUsize(): Int
 }
 
-public object IntDTypeI64 : IntDType<Int> {
-    override fun isTrue(self: Int) = self != 0
-    override fun asUsize(self: Int) = self
+public class IntDTypeI64(public val self: Int) : IntDType {
+    override fun isTrue(): Boolean {
+        return self != 0
+    }
+    override fun asUsize(): Int {
+        return self
+    }
 }
 
-public object IntDTypeU32 : IntDType<Int> {
-    override fun isTrue(self: Int) = self != 0
-    override fun asUsize(self: Int) = self
+public class IntDTypeU32(public val self: Int) : IntDType {
+    override fun isTrue(): Boolean {
+        return self != 0
+    }
+    override fun asUsize(): Int {
+        return self
+    }
 }
 
-public object IntDTypeU8 : IntDType<Int> {
-    override fun isTrue(self: Int) = self != 0
-    override fun asUsize(self: Int) = self
+public class IntDTypeU8(public val self: Int) : IntDType {
+    override fun isTrue(): Boolean {
+        return self != 0
+    }
+    override fun asUsize(): Int {
+        return self
+    }
 }
 
-public object IntDTypeI16 : IntDType<Int> {
-    override fun isTrue(self: Int) = self != 0
-    override fun asUsize(self: Int) = self
+public class IntDTypeI16(public val self: Int) : IntDType {
+    override fun isTrue(): Boolean {
+        return self != 0
+    }
+    override fun asUsize(): Int {
+        return self
+    }
 }
 
-public object IntDTypeI32 : IntDType<Int> {
-    override fun isTrue(self: Int) = self != 0
-    override fun asUsize(self: Int) = self
+public class IntDTypeI32(public val self: Int) : IntDType {
+    override fun isTrue(): Boolean {
+        return self != 0
+    }
+    override fun asUsize(): Int {
+        return self
+    }
 }
 
 public interface FloatDType<T> : WithDType<T>
-
-public object Float16Utils {
-    public val floatToF16Bits: (Float) -> Short = { value ->
-        val fbits = value.toRawBits()
-        val sign = (fbits ushr 16) and 0x8000
-        val exp = ((fbits ushr 23) and 0xFF) - (127 - 15)
-        val mant = fbits and 0x007FFFFF
-
-        if (exp <= 0) {
-            if (exp < -10) {
-                sign.toShort()
-            } else {
-                val m = (mant or 0x00800000) ushr (1 - exp)
-                (sign or (m ushr 13)).toShort()
-            }
-        } else if (exp == 0xFF - (127 - 15)) {
-            if (mant == 0) {
-                (sign or 0x7C00).toShort()
-            } else {
-                (sign or 0x7C00 or (mant ushr 13).coerceAtLeast(1)).toShort()
-            }
-        } else {
-            if (exp > 30) {
-                (sign or 0x7C00).toShort()
-            } else {
-                (sign or (exp shl 10) or (mant ushr 13)).toShort()
-            }
-        }
-    }
-
-    public val f16BitsToFloat: (Short) -> Float = { bits ->
-        val ibits = bits.toInt() and 0xFFFF
-        val sign = (ibits and 0x8000) shl 16
-        val exp = (ibits and 0x7C00) ushr 10
-        val mant = ibits and 0x03FF
-
-        if (exp == 0) {
-            if (mant == 0) {
-                Float.fromBits(sign)
-            } else {
-                var m = mant
-                var shift = 0
-                while ((m and 0x0400) == 0) {
-                    m = m shl 1
-                    shift++
-                }
-                val exponent = (127 - 14 - shift) shl 23
-                val mantissa = (m and 0x03FF) shl 13
-                Float.fromBits(sign or exponent or mantissa)
-            }
-        } else if (exp == 0x1F) {
-            val exponent = 0xFF shl 23
-            val mantissa = mant shl 13
-            Float.fromBits(sign or exponent or mantissa)
-        } else {
-            val exponent = (exp + (127 - 15)) shl 23
-            val mantissa = mant shl 13
-            Float.fromBits(sign or exponent or mantissa)
-        }
-    }
-
-    public val floatToBF16Bits: (Float) -> Short = { value ->
-        val fbits = value.toRawBits()
-        (fbits ushr 16).toShort()
-    }
-
-    public val bf16BitsToFloat: (Short) -> Float = { bits ->
-        val fbits = (bits.toInt() and 0xFFFF) shl 16
-        Float.fromBits(fbits)
-    }
-}
