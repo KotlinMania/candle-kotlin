@@ -15,6 +15,10 @@ import kotlin.math.sin
 import kotlin.math.sqrt
 import kotlin.math.tanh
 
+internal expect val accelVvexpf: (FloatArray, FloatArray, CInt) -> Unit
+internal expect val accelVvsqrtf: (FloatArray, FloatArray, CInt) -> Unit
+internal expect val accelVvtanhf: (FloatArray, FloatArray, CInt) -> Unit
+
 public object Accelerate {
     public object Ffi {
         public fun sgemmFfi(
@@ -80,7 +84,7 @@ public object Accelerate {
         }
 
         public fun vvexpf(dst: FloatArray, src: FloatArray, len: CInt) {
-            for (i in 0 until len) dst[i] = exp(src[i])
+            accelVvexpf(dst, src, len)
         }
 
         public fun vvexp(dst: DoubleArray, src: DoubleArray, len: CInt) {
@@ -88,7 +92,7 @@ public object Accelerate {
         }
 
         public fun vvsqrtf(dst: FloatArray, src: FloatArray, len: CInt) {
-            for (i in 0 until len) dst[i] = sqrt(src[i])
+            accelVvsqrtf(dst, src, len)
         }
 
         public fun vvsqrt(dst: DoubleArray, src: DoubleArray, len: CInt) {
@@ -120,7 +124,7 @@ public object Accelerate {
         }
 
         public fun vvtanhf(dst: FloatArray, src: FloatArray, len: CInt) {
-            for (i in 0 until len) dst[i] = tanh(src[i])
+            accelVvtanhf(dst, src, len)
         }
 
         public fun vvtanh(dst: DoubleArray, src: DoubleArray, len: CInt) {

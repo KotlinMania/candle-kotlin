@@ -73,3 +73,6 @@ flamegraph.svg
 *.swo
 trace-*.json
 bench_results/
+node_modules/
+native/*/build/
+native/*/node_modules/

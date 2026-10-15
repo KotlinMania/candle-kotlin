@@ -1,0 +1,11 @@
+headers = stdlib.h stdint.h string.h candle_wrapper.h
+headerFilter = *
+compilerOpts = -Isrc/nativeInterop/cinterop
+staticLibraries = candle_wrapper.a
+linkerOpts.osx = -framework Accelerate
+linkerOpts.ios_arm64 = -framework Accelerate
+linkerOpts.ios_simulator_arm64 = -framework Accelerate
+linkerOpts.tvos_arm64 = -framework Accelerate
+linkerOpts.tvos_simulator_arm64 = -framework Accelerate
+linkerOpts.watchos_device_arm64 = -framework Accelerate
+linkerOpts.watchos_simulator_arm64 = -framework Accelerate

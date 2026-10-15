@@ -1295,6 +1295,9 @@ if (jvmFfiEnabled) {
                             )
                         if (!isWindows) {
                             cmd.add(2, "-fPIC")
+                            if (isMac) {
+                                cmd.addAll(listOf("-framework", "Accelerate"))
+                            }
                         } else {
                             cmd.addAll(listOf("-lws2_32"))
                         }
