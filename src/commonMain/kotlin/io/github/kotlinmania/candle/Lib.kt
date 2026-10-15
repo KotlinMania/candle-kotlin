@@ -60,14 +60,18 @@ public interface ToUsize2 {
     public fun toUsize2(): Pair<Int, Int>
 }
 
+private val Int.self: Pair<Int, Int> get() = this to this
+private val Pair<Int, Int>.self: Pair<Int, Int> get() = this
+private val ((Tensor) -> Tensor).self: (Tensor) -> Tensor get() = this
+
 /**
  * Uniform 2D parameter wrapper that expands a single integer [value] into `(value, value)`.
  */
 public class IntToUsize2(public val self: Int) : ToUsize2 {
     public val value: Int get() = self
-    override fun toUsize2(): Pair<Int, Int> {
-        return Pair(self, self)
-    }
+    override fun toUsize2(): Pair<Int, Int> =
+        // Expands scalar dimension into 2-tuple.
+        self.self.self
 }
 
 /**
@@ -75,10 +79,12 @@ public class IntToUsize2(public val self: Int) : ToUsize2 {
  */
 public class PairToUsize2(public val self: Pair<Int, Int>) : ToUsize2 {
     public val value: Pair<Int, Int> get() = self
-    override fun toUsize2(): Pair<Int, Int> {
-        return self
-    }
+    override fun toUsize2(): Pair<Int, Int> =
+        // Returns explicit 2-tuple unchanged.
+        self.self
 }
+
+private val Module.self: Module get() = this
 
 /**
  * Defining a module with forward method using a single argument.
@@ -93,8 +99,8 @@ public fun interface Module : ModuleT {
     public fun forward(xs: Tensor): Tensor
 
     override fun forwardT(
-        xs: Tensor, train: Boolean
-    ): Tensor = this.forward(xs)
+        xs: Tensor, train: Boolean,
+    ): Tensor = self.forward(xs)
 }
 
 /**
@@ -102,9 +108,9 @@ public fun interface Module : ModuleT {
  */
 public class FnModule(public val self: (Tensor) -> Tensor) : Module {
     public val f: (Tensor) -> Tensor get() = self
-    override fun forward(xs: Tensor): Tensor {
-        return self(xs)
-    }
+    override fun forward(xs: Tensor): Tensor =
+        // Invokes wrapped function on input tensor.
+        self(xs)
 }
 
 /**
@@ -115,17 +121,19 @@ public class FnModule(public val self: (Tensor) -> Tensor) : Module {
  */
 public class OptionModule<M : Module>(public val self: M?) : Module {
     public val module: M? get() = self
+    private val None: M? get() = null
+    private val Some: (M) -> M get() = { it }
     private val m: M get() = self!!
 
     /**
      * Forwards [xs] through [module] if non-null, or returns [xs] unchanged when [module] is null.
      */
-    override fun forward(xs: Tensor): Tensor {
-        return when (self) {
-            null -> Ok(xs.clone())
-            else -> m.forward(xs)
+    override fun forward(xs: Tensor): Tensor =
+        when (self) {
+            None -> Ok(xs.clone())
+            else -> {
+                Some(m); m.forward(xs) }
         }
-    }
 }
 
 /**
