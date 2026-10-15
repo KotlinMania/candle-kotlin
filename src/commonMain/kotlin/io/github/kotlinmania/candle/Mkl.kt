@@ -124,7 +124,7 @@ public object Mkl {
             CInt,
             CFloat,
             FloatArray,
-            CInt,
+            CInt
         ) -> Unit = { transa, transb, m, n, k, alpha, a, lda, b, ldb, beta, c, ldc ->
             val ta = transa == 'T'.code.toByte() || transa == 't'.code.toByte()
             val tb = transb == 'T'.code.toByte() || transb == 't'.code.toByte()
@@ -155,7 +155,7 @@ public object Mkl {
             CInt,
             CDouble,
             DoubleArray,
-            CInt,
+            CInt
         ) -> Unit = { transa, transb, m, n, k, alpha, a, lda, b, ldb, beta, c, ldc ->
             val ta = transa == 'T'.code.toByte() || transa == 't'.code.toByte()
             val tb = transb == 'T'.code.toByte() || transb == 't'.code.toByte()
@@ -186,7 +186,7 @@ public object Mkl {
             CInt,
             Short,
             ShortArray,
-            CInt,
+            CInt
         ) -> Unit = { transa, transb, m, n, k, alpha, a, lda, b, ldb, beta, c, ldc ->
             val ta = transa == 'T'.code.toByte() || transa == 't'.code.toByte()
             val tb = transb == 'T'.code.toByte() || transb == 't'.code.toByte()

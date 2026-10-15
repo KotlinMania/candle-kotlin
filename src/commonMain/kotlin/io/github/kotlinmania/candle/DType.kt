@@ -22,19 +22,41 @@ public enum class DType(
     public val typeName: String,
     public val sizeInBytes: Int,
 ) {
+    // Unsigned 8 bits integer.
     U8("u8", 1),
+    // Unsigned 32 bits integer.
     U32("u32", 4),
+    // Signed 16 bits integer.
     I16("i16", 2),
+    // Signed 32 bits integer.
     I32("i32", 4),
+    // Signed 64 bits integer.
     I64("i64", 8),
+    // Brain floating-point using half precision (16 bits).
     BF16("bf16", 2),
+    // Floating-point using half precision (16 bits).
     F16("f16", 2),
+    // Floating-point using single precision (32 bits).
     F32("f32", 4),
+    // Floating-point using double precision (64 bits).
     F64("f64", 8),
+    // 8-bit floating point with 4-bit exponent and 3-bit mantissa.
     F8E4M3("f8e4m3", 1),
+    /**
+     * 6-bit float with 2 exponent bits and 3 mantissa bits (MX6 format)
+     */
     F6E2M3("f6e2m3", 0),
+    /**
+     * 6-bit float with 3 exponent bits and 2 mantissa bits (MX6 format)
+     */
     F6E3M2("f6e3m2", 0),
+    /**
+     * 4-bit float (MX4 format)
+     */
     F4("f4", 0),
+    /**
+     * 8-bit float with 8 exponent bits and 0 mantissa bits
+     */
     F8E8M0("f8e8m0", 1),
     ;
 

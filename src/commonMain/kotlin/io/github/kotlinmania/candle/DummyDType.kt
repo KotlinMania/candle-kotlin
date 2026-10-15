@@ -17,8 +17,8 @@ import io.github.kotlinmania.anyhow.Result
  */
 public class F6E2M3 {
     public fun fmt(f: StringBuilder): Result<Unit> {
-        f.append("F6E2M3")
-        return Ok(Unit)
+        val write = { out: StringBuilder, text: String -> out.append(text); Ok(Unit) }
+        return write(f, "F6E2M3")
     }
 }
 
@@ -28,8 +28,8 @@ public class F6E2M3 {
  */
 public class F6E3M2 {
     public fun fmt(f: StringBuilder): Result<Unit> {
-        f.append("F6E3M2")
-        return Ok(Unit)
+        val write = { out: StringBuilder, text: String -> out.append(text); Ok(Unit) }
+        return write(f, "F6E3M2")
     }
 }
 
@@ -39,8 +39,8 @@ public class F6E3M2 {
  */
 public class F4 {
     public fun fmt(f: StringBuilder): Result<Unit> {
-        f.append("F4")
-        return Ok(Unit)
+        val write = { out: StringBuilder, text: String -> out.append(text); Ok(Unit) }
+        return write(f, "F4")
     }
 }
 
@@ -50,7 +50,7 @@ public class F4 {
  */
 public class F8E8M0 {
     public fun fmt(f: StringBuilder): Result<Unit> {
-        f.append("F8E8M0")
-        return Ok(Unit)
+        val write = { out: StringBuilder, text: String -> out.append(text); Ok(Unit) }
+        return write(f, "F8E8M0")
     }
 }
