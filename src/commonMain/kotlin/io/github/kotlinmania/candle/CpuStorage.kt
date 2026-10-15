@@ -24,6 +24,47 @@ import kotlin.math.tanh
 public const val useIm2colConv1d: Boolean = true
 public const val useCol2imConv1dTr: Boolean = true
 
+internal class VecList<T>(
+    private val capacity: Int,
+) : AbstractMutableList<T>() {
+    private val buf: ArrayList<T?> = ArrayList(capacity)
+    override var size: Int = 0
+        private set
+
+    override fun get(index: Int): T = buf[index] as T
+
+    override fun set(index: Int, element: T): T {
+        while (buf.size <= index) buf.add(null)
+        val prev = buf[index]
+        buf[index] = element
+        if (index >= size) size = index + 1
+        return prev ?: element
+    }
+
+    override fun add(index: Int, element: T) {
+        while (buf.size < index) buf.add(null)
+        buf.add(index, element)
+        size = buf.size
+    }
+
+    override fun removeAt(index: Int): T {
+        val prev = buf.removeAt(index) as T
+        size = buf.size
+        return prev
+    }
+
+    fun spareCapacityMut(): MutableList<T> {
+        while (buf.size < capacity) buf.add(null)
+        size = capacity
+        return this
+    }
+
+    fun setLen(len: Int) {
+        while (buf.size > len) buf.removeAt(buf.size - 1)
+        size = len
+    }
+}
+
 // Maybe we should not implement Clone here and instead have an explicit allocator +
 // intercept the oom errors to avoid panicking and provide a proper error.
 public sealed class CpuStorage {
@@ -32,43 +73,81 @@ public sealed class CpuStorage {
 
     public data class U8(
         val data: UByteArray,
-    ) : CpuStorage()
+    ) : CpuStorage() {
+        public constructor(r: List<Double>) : this(UByteArray(r.size) { r[it].toInt().toUByte() })
+    }
 
     public data class U32(
         val data: UIntArray,
-    ) : CpuStorage()
+    ) : CpuStorage() {
+        public constructor(r: List<Double>) : this(UIntArray(r.size) { r[it].toLong().toUInt() })
+    }
 
     public data class I16(
         val data: ShortArray,
-    ) : CpuStorage()
+    ) : CpuStorage() {
+        public constructor(r: List<Double>) : this(ShortArray(r.size) { r[it].toInt().toShort() })
+    }
 
     public data class I32(
         val data: IntArray,
-    ) : CpuStorage()
+    ) : CpuStorage() {
+        public constructor(r: List<Double>) : this(IntArray(r.size) { r[it].toInt() })
+    }
 
     public data class I64(
         val data: LongArray,
-    ) : CpuStorage()
+    ) : CpuStorage() {
+        public constructor(r: List<Double>) : this(LongArray(r.size) { r[it].toLong() })
+    }
 
     public data class BF16(
         val data: ShortArray,
-    ) : CpuStorage()
+    ) : CpuStorage() {
+        public constructor(r: List<Double>) : this(ShortArray(r.size) { Float16Utils.floatToBF16Bits(r[it].toFloat()) })
+    }
 
     public data class F16(
         val data: ShortArray,
-    ) : CpuStorage()
+    ) : CpuStorage() {
+        public constructor(r: List<Double>) : this(ShortArray(r.size) { Float16Utils.floatToF16Bits(r[it].toFloat()) })
+    }
 
     public data class F32(
         val data: FloatArray,
-    ) : CpuStorage()
+    ) : CpuStorage() {
+        public constructor(r: List<Double>) : this(FloatArray(r.size) { r[it].toFloat() })
+    }
 
     public data class F64(
         val data: DoubleArray,
-    ) : CpuStorage()
+    ) : CpuStorage() {
+        public constructor(r: List<Double>) : this(DoubleArray(r.size) { r[it] })
+    }
 
     public data class F8E4M3(
         val data: ByteArray,
-    ) : CpuStorage()
+    ) : CpuStorage() {
+        public constructor(r: List<Double>) : this(ByteArray(r.size) { r[it].toInt().toByte() })
+    }
+
+    public fun applyInPlace(m: Map2InPlace, l1: Layout, v2: CpuStorage, l2: Layout) {
+        val m1 = asSlice().toMutableList()
+        m.f(m1, l1, v2.asSlice(), l2)
+        when (this) {
+            is U8 -> for (i in m1.indices) data[i] = m1[i].toInt().toUByte()
+            is U32 -> for (i in m1.indices) data[i] = m1[i].toLong().toUInt()
+            is I16 -> for (i in m1.indices) data[i] = m1[i].toInt().toShort()
+            is I32 -> for (i in m1.indices) data[i] = m1[i].toInt()
+            is I64 -> for (i in m1.indices) data[i] = m1[i].toLong()
+            is BF16 -> for (i in m1.indices) data[i] = Float16Utils.floatToBF16Bits(m1[i].toFloat())
+            is F16 -> for (i in m1.indices) data[i] = Float16Utils.floatToF16Bits(m1[i].toFloat())
+            is F32 -> for (i in m1.indices) data[i] = m1[i].toFloat()
+            is F64 -> for (i in m1.indices) data[i] = m1[i]
+            is F8E4M3 -> for (i in m1.indices) data[i] = m1[i].toInt().toByte()
+            is F6E2M3, is F6E3M2, is F4, is F8E8M0 -> Unit
+        }
+    }
 
     // Dummy types that store raw bytes
     public data class F6E2M3(

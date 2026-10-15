@@ -2506,6 +2506,16 @@ public class Tensor internal constructor(
             return fromStorage(Storage.Cpu(CpuStorage.F32(data.copyOf())), shape, BackpropOp.None, isVariable)
         }
 
+        internal fun newImpl(array: NdArray, shape: Shape, device: Device, isVariable: Boolean): Tensor {
+            val storage = device.storage(array)
+            return fromStorage(storage, shape, BackpropOp.none(), isVariable)
+        }
+
+        internal fun <D> newImpl(array: List<D>, shape: Shape, device: Device, isVariable: Boolean): Tensor {
+            val storage = device.storageFromSlice(array)
+            return fromStorage(storage, shape, BackpropOp.none(), isVariable)
+        }
+
         /**
          * Creates a zero-filled tensor from shape with default F32 dtype and CPU device.
          */
@@ -2648,6 +2658,11 @@ public class Tensor internal constructor(
 
         internal fun fromVecImpl(data: FloatArray, shape: Shape, device: Device, isVariable: Boolean): Tensor =
             newImpl(data, shape, device, isVariable)
+
+        internal fun <D> fromVecImpl(data: List<D>, shape: Shape, device: Device, isVariable: Boolean): Tensor {
+            val storage = device.storageOwned(data)
+            return fromStorage(storage, shape, BackpropOp.none(), isVariable)
+        }
 
         /**
          * Creates a new tensor initialized with values from the input slice. The number of elements
@@ -2810,6 +2825,418 @@ public class Tensor internal constructor(
                 }
             }
             return Shape(outDims)
+        }
+    }
+}
+
+public interface Read {
+    public val readExact: (ByteArray) -> CandleResult<Unit>
+    public val readU16Into: (UShortArray) -> CandleResult<Unit>
+    public val readF32Into: (FloatArray) -> CandleResult<Unit>
+    public val readF64Into: (DoubleArray) -> CandleResult<Unit>
+    public val readU32Into: (UIntArray) -> CandleResult<Unit>
+    public val readI16Into: (ShortArray) -> CandleResult<Unit>
+    public val readI32Into: (IntArray) -> CandleResult<Unit>
+    public val readI64Into: (LongArray) -> CandleResult<Unit>
+}
+
+public interface Write {
+    public val writeAll: (ByteArray) -> CandleResult<Unit>
+    public val writeU8: (UByte) -> CandleResult<Unit>
+    public val writeU16: (UShort) -> CandleResult<Unit>
+    public val writeI16: (Short) -> CandleResult<Unit>
+    public val writeU32: (UInt) -> CandleResult<Unit>
+    public val writeI32: (Int) -> CandleResult<Unit>
+    public val writeI64: (Long) -> CandleResult<Unit>
+    public val writeF32: (Float) -> CandleResult<Unit>
+    public val writeF64: (Double) -> CandleResult<Unit>
+}
+
+public class NpyByteReader(
+    private val data: ByteArray,
+    private var pos: Int = 0,
+) : Read {
+    override val readExact: (ByteArray) -> CandleResult<Unit> = { buf ->
+        if (pos + buf.size > data.size) {
+            CandleResult.Err(CandleError.Io("unexpected EOF"))
+        } else {
+            data.copyInto(buf, 0, pos, pos + buf.size)
+            pos += buf.size
+            CandleResult.Ok(Unit)
+        }
+    }
+
+    override val readU16Into: (UShortArray) -> CandleResult<Unit> = { dst ->
+        val bytes = ByteArray(dst.size * 2)
+        val r = readExact(bytes)
+        if (r is CandleResult.Err) {
+            r
+        } else {
+            for (i in dst.indices) {
+                val b0 = bytes[i * 2].toInt() and 0xFF
+                val b1 = bytes[i * 2 + 1].toInt() and 0xFF
+                dst[i] = ((b1 shl 8) or b0).toUShort()
+            }
+            CandleResult.Ok(Unit)
+        }
+    }
+
+    override val readF32Into: (FloatArray) -> CandleResult<Unit> = { dst ->
+        val bytes = ByteArray(dst.size * 4)
+        val r = readExact(bytes)
+        if (r is CandleResult.Err) {
+            r
+        } else {
+            for (i in dst.indices) {
+                val base = i * 4
+                val bits = (bytes[base].toInt() and 0xFF) or
+                    ((bytes[base + 1].toInt() and 0xFF) shl 8) or
+                    ((bytes[base + 2].toInt() and 0xFF) shl 16) or
+                    ((bytes[base + 3].toInt() and 0xFF) shl 24)
+                dst[i] = Float.fromBits(bits)
+            }
+            CandleResult.Ok(Unit)
+        }
+    }
+
+    override val readF64Into: (DoubleArray) -> CandleResult<Unit> = { dst ->
+        val bytes = ByteArray(dst.size * 8)
+        val r = readExact(bytes)
+        if (r is CandleResult.Err) {
+            r
+        } else {
+            for (i in dst.indices) {
+                val base = i * 8
+                var bits = 0L
+                for (b in 0 until 8) {
+                    bits = bits or ((bytes[base + b].toLong() and 0xFFL) shl (b * 8))
+                }
+                dst[i] = Double.fromBits(bits)
+            }
+            CandleResult.Ok(Unit)
+        }
+    }
+
+    override val readU32Into: (UIntArray) -> CandleResult<Unit> = { dst ->
+        val bytes = ByteArray(dst.size * 4)
+        val r = readExact(bytes)
+        if (r is CandleResult.Err) {
+            r
+        } else {
+            for (i in dst.indices) {
+                val base = i * 4
+                val bits = (bytes[base].toInt() and 0xFF) or
+                    ((bytes[base + 1].toInt() and 0xFF) shl 8) or
+                    ((bytes[base + 2].toInt() and 0xFF) shl 16) or
+                    ((bytes[base + 3].toInt() and 0xFF) shl 24)
+                dst[i] = bits.toUInt()
+            }
+            CandleResult.Ok(Unit)
+        }
+    }
+
+    override val readI16Into: (ShortArray) -> CandleResult<Unit> = { dst ->
+        val bytes = ByteArray(dst.size * 2)
+        val r = readExact(bytes)
+        if (r is CandleResult.Err) {
+            r
+        } else {
+            for (i in dst.indices) {
+                val b0 = bytes[i * 2].toInt() and 0xFF
+                val b1 = bytes[i * 2 + 1].toInt() and 0xFF
+                dst[i] = ((b1 shl 8) or b0).toShort()
+            }
+            CandleResult.Ok(Unit)
+        }
+    }
+
+    override val readI32Into: (IntArray) -> CandleResult<Unit> = { dst ->
+        val bytes = ByteArray(dst.size * 4)
+        val r = readExact(bytes)
+        if (r is CandleResult.Err) {
+            r
+        } else {
+            for (i in dst.indices) {
+                val base = i * 4
+                dst[i] = (bytes[base].toInt() and 0xFF) or
+                    ((bytes[base + 1].toInt() and 0xFF) shl 8) or
+                    ((bytes[base + 2].toInt() and 0xFF) shl 16) or
+                    ((bytes[base + 3].toInt() and 0xFF) shl 24)
+            }
+            CandleResult.Ok(Unit)
+        }
+    }
+
+    override val readI64Into: (LongArray) -> CandleResult<Unit> = { dst ->
+        val bytes = ByteArray(dst.size * 8)
+        val r = readExact(bytes)
+        if (r is CandleResult.Err) {
+            r
+        } else {
+            for (i in dst.indices) {
+                val base = i * 8
+                var bits = 0L
+                for (b in 0 until 8) {
+                    bits = bits or ((bytes[base + b].toLong() and 0xFFL) shl (b * 8))
+                }
+                dst[i] = bits
+            }
+            CandleResult.Ok(Unit)
+        }
+    }
+}
+
+public class NpyByteWriter : Write {
+    private var buf: ByteArray = ByteArray(1024)
+    private var size: Int = 0
+
+    private val ensureCapacity: (Int) -> Unit = { additional ->
+        if (size + additional > buf.size) {
+            val newSize = maxOf(buf.size * 2, size + additional)
+            buf = buf.copyOf(newSize)
+        }
+    }
+
+    override val writeAll: (ByteArray) -> CandleResult<Unit> = { bytes ->
+        ensureCapacity(bytes.size)
+        bytes.copyInto(buf, size)
+        size += bytes.size
+        CandleResult.Ok(Unit)
+    }
+
+    override val writeU8: (UByte) -> CandleResult<Unit> = { v ->
+        ensureCapacity(1)
+        buf[size++] = v.toByte()
+        CandleResult.Ok(Unit)
+    }
+
+    override val writeU16: (UShort) -> CandleResult<Unit> = { v ->
+        val bits = v.toInt()
+        ensureCapacity(2)
+        buf[size++] = (bits and 0xFF).toByte()
+        buf[size++] = ((bits ushr 8) and 0xFF).toByte()
+        CandleResult.Ok(Unit)
+    }
+
+    override val writeI16: (Short) -> CandleResult<Unit> = { v ->
+        writeU16(v.toUShort())
+    }
+
+    override val writeU32: (UInt) -> CandleResult<Unit> = { v ->
+        val bits = v.toInt()
+        ensureCapacity(4)
+        buf[size++] = (bits and 0xFF).toByte()
+        buf[size++] = ((bits ushr 8) and 0xFF).toByte()
+        buf[size++] = ((bits ushr 16) and 0xFF).toByte()
+        buf[size++] = ((bits ushr 24) and 0xFF).toByte()
+        CandleResult.Ok(Unit)
+    }
+
+    override val writeI32: (Int) -> CandleResult<Unit> = { v ->
+        writeU32(v.toUInt())
+    }
+
+    override val writeI64: (Long) -> CandleResult<Unit> = { v ->
+        ensureCapacity(8)
+        for (i in 0 until 8) {
+            buf[size++] = ((v ushr (i * 8)) and 0xFFL).toByte()
+        }
+        CandleResult.Ok(Unit)
+    }
+
+    override val writeF32: (Float) -> CandleResult<Unit> = { v ->
+        writeI32(v.toRawBits())
+    }
+
+    override val writeF64: (Double) -> CandleResult<Unit> = { v ->
+        writeI64(v.toRawBits())
+    }
+
+    public val toByteArray: () -> ByteArray = {
+        buf.copyOf(size)
+    }
+}
+
+internal class File(
+    val path: String,
+    private val reader: NpyByteReader = NpyByteReader(ByteArray(0)),
+    private val writer: NpyByteWriter = NpyByteWriter(),
+    private val isWrite: Boolean = false,
+) : Read by reader, Write {
+    override val writeAll: (ByteArray) -> CandleResult<Unit> = { bytes ->
+        val r = writer.writeAll(bytes)
+        if (isWrite) platformWriteFileBytes(path, writer.toByteArray())
+        r
+    }
+    override val writeU8: (UByte) -> CandleResult<Unit> = { v ->
+        val r = writer.writeU8(v)
+        if (isWrite) platformWriteFileBytes(path, writer.toByteArray())
+        r
+    }
+    override val writeU16: (UShort) -> CandleResult<Unit> = { v ->
+        val r = writer.writeU16(v)
+        if (isWrite) platformWriteFileBytes(path, writer.toByteArray())
+        r
+    }
+    override val writeI16: (Short) -> CandleResult<Unit> = { v ->
+        val r = writer.writeI16(v)
+        if (isWrite) platformWriteFileBytes(path, writer.toByteArray())
+        r
+    }
+    override val writeU32: (UInt) -> CandleResult<Unit> = { v ->
+        val r = writer.writeU32(v)
+        if (isWrite) platformWriteFileBytes(path, writer.toByteArray())
+        r
+    }
+    override val writeI32: (Int) -> CandleResult<Unit> = { v ->
+        val r = writer.writeI32(v)
+        if (isWrite) platformWriteFileBytes(path, writer.toByteArray())
+        r
+    }
+    override val writeI64: (Long) -> CandleResult<Unit> = { v ->
+        val r = writer.writeI64(v)
+        if (isWrite) platformWriteFileBytes(path, writer.toByteArray())
+        r
+    }
+    override val writeF32: (Float) -> CandleResult<Unit> = { v ->
+        val r = writer.writeF32(v)
+        if (isWrite) platformWriteFileBytes(path, writer.toByteArray())
+        r
+    }
+    override val writeF64: (Double) -> CandleResult<Unit> = { v ->
+        val r = writer.writeF64(v)
+        if (isWrite) platformWriteFileBytes(path, writer.toByteArray())
+        r
+    }
+
+    companion object {
+        val open: (String) -> CandleResult<File> = { p ->
+            CandleResult.Ok(File(p, reader = NpyByteReader(platformReadFileBytes(p))))
+        }
+        val create: (String) -> CandleResult<File> = { p ->
+            CandleResult.Ok(File(p, isWrite = true))
+        }
+    }
+}
+
+internal class BufReader(val file: File) {
+    companion object {
+        val new: (File) -> BufReader = { f -> BufReader(f) }
+    }
+}
+
+internal class ZipEntryReader(
+    private val entryName: String,
+    bytes: ByteArray,
+) : Read by NpyByteReader(bytes) {
+    val name: () -> String = { entryName }
+}
+
+internal object zip {
+    enum class CompressionMethod {
+        Stored,
+    }
+
+    object write {
+        class FileOptions<T> {
+            val compressionMethod: (CompressionMethod) -> FileOptions<T> = { this }
+
+            companion object {
+                val default: () -> FileOptions<Unit> = { FileOptions() }
+            }
+        }
+    }
+
+    class ZipArchive(private val entries: List<Pair<String, ByteArray>>) {
+        val len: () -> Int = { entries.size }
+        val byIndex: (Int) -> CandleResult<ZipEntryReader> = { i ->
+            val e = entries[i]
+            CandleResult.Ok(ZipEntryReader(e.first, e.second))
+        }
+        val byName: (String) -> CandleResult<ZipEntryReader> = { target ->
+            val found = entries.firstOrNull { it.first == target }
+            if (found != null) {
+                CandleResult.Ok(ZipEntryReader(found.first, found.second))
+            } else {
+                CandleResult.Err(CandleError.Zip("entry not found: $target"))
+            }
+        }
+
+        companion object {
+            val new: (BufReader) -> CandleResult<ZipArchive> = { br ->
+                val map = platformReadZipEntries(br.file.path)
+                CandleResult.Ok(ZipArchive(map.entries.map { Pair(it.key, it.value) }))
+            }
+        }
+    }
+
+    class ZipWriter(private val file: File) : Write {
+        private val entries = linkedMapOf<String, ByteArray>()
+        private var currentName: String = ""
+        private var currentWriter: NpyByteWriter = NpyByteWriter()
+
+        private val flushCurrent: () -> Unit = {
+            if (currentName.isNotEmpty()) {
+                entries[currentName] = currentWriter.toByteArray()
+                platformWriteZipEntries(file.path, entries)
+            }
+        }
+
+        val startFile: (String, write.FileOptions<Unit>) -> CandleResult<Unit> = { name, _ ->
+            flushCurrent()
+            currentName = name
+            currentWriter = NpyByteWriter()
+            CandleResult.Ok(Unit)
+        }
+
+        override val writeAll: (ByteArray) -> CandleResult<Unit> = { b ->
+            val r = currentWriter.writeAll(b)
+            flushCurrent()
+            r
+        }
+        override val writeU8: (UByte) -> CandleResult<Unit> = { v ->
+            val r = currentWriter.writeU8(v)
+            flushCurrent()
+            r
+        }
+        override val writeU16: (UShort) -> CandleResult<Unit> = { v ->
+            val r = currentWriter.writeU16(v)
+            flushCurrent()
+            r
+        }
+        override val writeI16: (Short) -> CandleResult<Unit> = { v ->
+            val r = currentWriter.writeI16(v)
+            flushCurrent()
+            r
+        }
+        override val writeU32: (UInt) -> CandleResult<Unit> = { v ->
+            val r = currentWriter.writeU32(v)
+            flushCurrent()
+            r
+        }
+        override val writeI32: (Int) -> CandleResult<Unit> = { v ->
+            val r = currentWriter.writeI32(v)
+            flushCurrent()
+            r
+        }
+        override val writeI64: (Long) -> CandleResult<Unit> = { v ->
+            val r = currentWriter.writeI64(v)
+            flushCurrent()
+            r
+        }
+        override val writeF32: (Float) -> CandleResult<Unit> = { v ->
+            val r = currentWriter.writeF32(v)
+            flushCurrent()
+            r
+        }
+        override val writeF64: (Double) -> CandleResult<Unit> = { v ->
+            val r = currentWriter.writeF64(v)
+            flushCurrent()
+            r
+        }
+
+        companion object {
+            val new: (File) -> ZipWriter = { f -> ZipWriter(f) }
         }
     }
 }

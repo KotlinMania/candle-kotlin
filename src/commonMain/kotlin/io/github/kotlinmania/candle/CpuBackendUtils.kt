@@ -4,165 +4,47 @@ package io.github.kotlinmania.candle
 /**
  * Helper functions to write CPU kernels.
  */
-internal object C {
-    var lastCap: Int = 0
-    val NONE: CpuStorage = CpuStorage.U8(UByteArray(0))
-    val OTHER: CpuStorage = CpuStorage.U8(UByteArray(0))
-    val invoke: (CpuStorage, CpuStorage) -> CpuStorage = { v1, v2 ->
-        if (v1.dtype() == v2.dtype()) v1 else NONE
-    }
-    val vs: (CpuStorage) -> List<Double> = { s ->
-        when (s) {
-            is CpuStorage.U8 -> s.data.map { it.toDouble() }
-            is CpuStorage.U32 -> s.data.map { it.toDouble() }
-            is CpuStorage.I16 -> s.data.map { it.toDouble() }
-            is CpuStorage.I32 -> s.data.map { it.toDouble() }
-            is CpuStorage.I64 -> s.data.map { it.toDouble() }
-            is CpuStorage.BF16 -> FloatArray(s.data.size) { Float16Utils.bf16BitsToFloat(s.data[it]) }.map { it.toDouble() }
-            is CpuStorage.F16 -> FloatArray(s.data.size) { Float16Utils.f16BitsToFloat(s.data[it]) }.map { it.toDouble() }
-            is CpuStorage.F32 -> s.data.map { it.toDouble() }
-            is CpuStorage.F64 -> s.data.toList()
-            is CpuStorage.F8E4M3 -> s.data.map { it.toDouble() }
-            else -> emptyList()
-        }
-    }
-    val U8: (Any?) -> CpuStorage = { r ->
-        when (r) {
-            is CpuStorage.U8 -> r
-            is UByteArray -> CpuStorage.U8(r)
-            is List<*> -> CpuStorage.U8(UByteArray(r.size) { (r[it] as Number).toInt().toUByte() })
-            else -> OTHER
-        }
-    }
-    val U32: (Any?) -> CpuStorage = { r ->
-        when (r) {
-            is CpuStorage.U32 -> r
-            is List<*> -> CpuStorage.U32(UIntArray(r.size) { (r[it] as Number).toLong().toUInt() })
-            else -> OTHER
-        }
-    }
-    val I16: (Any?) -> CpuStorage = { r ->
-        when (r) {
-            is CpuStorage.I16 -> r
-            is List<*> -> CpuStorage.I16(ShortArray(r.size) { (r[it] as Number).toInt().toShort() })
-            else -> OTHER
-        }
-    }
-    val I32: (Any?) -> CpuStorage = { r ->
-        when (r) {
-            is CpuStorage.I32 -> r
-            is List<*> -> CpuStorage.I32(IntArray(r.size) { (r[it] as Number).toInt() })
-            else -> OTHER
-        }
-    }
-    val I64: (Any?) -> CpuStorage = { r ->
-        when (r) {
-            is CpuStorage.I64 -> r
-            is List<*> -> CpuStorage.I64(LongArray(r.size) { (r[it] as Number).toLong() })
-            else -> OTHER
-        }
-    }
-    val BF16: (Any?) -> CpuStorage = { r ->
-        when (r) {
-            is CpuStorage.BF16 -> r
-            is List<*> -> CpuStorage.BF16(ShortArray(r.size) { Float16Utils.floatToBF16Bits((r[it] as Number).toFloat()) })
-            else -> OTHER
-        }
-    }
-    val F16: (Any?) -> CpuStorage = { r ->
-        when (r) {
-            is CpuStorage.F16 -> r
-            is List<*> -> CpuStorage.F16(ShortArray(r.size) { Float16Utils.floatToF16Bits((r[it] as Number).toFloat()) })
-            else -> OTHER
-        }
-    }
-    val F32: (Any?) -> CpuStorage = { r ->
-        when (r) {
-            is CpuStorage.F32 -> r
-            is List<*> -> CpuStorage.F32(FloatArray(r.size) { (r[it] as Number).toFloat() })
-            else -> OTHER
-        }
-    }
-    val F64: (Any?) -> CpuStorage = { r ->
-        when (r) {
-            is CpuStorage.F64 -> r
-            is List<*> -> CpuStorage.F64(DoubleArray(r.size) { (r[it] as Number).toDouble() })
-            else -> OTHER
-        }
-    }
-    val F8E4M3: (Any?) -> CpuStorage = { r ->
-        when (r) {
-            is CpuStorage.F8E4M3 -> r
-            is List<*> -> CpuStorage.F8E4M3(ByteArray(r.size) { (r[it] as Number).toInt().toByte() })
-            else -> OTHER
-        }
-    }
-    val F6E2M3: (Any?) -> CpuStorage = { r -> if (r is CpuStorage.F6E2M3) r else OTHER }
-    val F6E3M2: (Any?) -> CpuStorage = { r -> if (r is CpuStorage.F6E3M2) r else OTHER }
-    val F4: (Any?) -> CpuStorage = { r -> if (r is CpuStorage.F4) r else OTHER }
-    val F8E8M0: (Any?) -> CpuStorage = { r -> if (r is CpuStorage.F8E8M0) r else OTHER }
-    val applyInPlace: (Map2InPlace, CpuStorage, Layout, CpuStorage, Layout) -> Unit = { m, v1, l1, v2, l2 ->
-        val m1 = vs(v1).toMutableList()
-        m.f(m1, l1, vs(v2), l2)
-        when (v1) {
-            is CpuStorage.U8 -> for (i in m1.indices) v1.data[i] = m1[i].toInt().toUByte()
-            is CpuStorage.U32 -> for (i in m1.indices) v1.data[i] = m1[i].toLong().toUInt()
-            is CpuStorage.I16 -> for (i in m1.indices) v1.data[i] = m1[i].toInt().toShort()
-            is CpuStorage.I32 -> for (i in m1.indices) v1.data[i] = m1[i].toInt()
-            is CpuStorage.I64 -> for (i in m1.indices) v1.data[i] = m1[i].toLong()
-            is CpuStorage.BF16 -> for (i in m1.indices) v1.data[i] = Float16Utils.floatToBF16Bits(m1[i].toFloat())
-            is CpuStorage.F16 -> for (i in m1.indices) v1.data[i] = Float16Utils.floatToF16Bits(m1[i].toFloat())
-            is CpuStorage.F32 -> for (i in m1.indices) v1.data[i] = m1[i].toFloat()
-            is CpuStorage.F64 -> for (i in m1.indices) v1.data[i] = m1[i]
-            is CpuStorage.F8E4M3 -> for (i in m1.indices) v1.data[i] = m1[i].toInt().toByte()
-            else -> Unit
-        }
-    }
-    val UnsupportedDTypeForOp: (DType, String) -> CandleException = { d, op ->
-        CandleException.UnsupportedDTypeForOp(d, op)
-    }
-    val DTypeMismatchBinaryOp: (Any?, DType, Any?, DType, Any?, String) -> CandleException = { _, l, _, r, _, op ->
-        CandleException.DTypeMismatchBinaryOp(lhs = l, rhs = r, op = op)
-    }
-}
-
-private val Error: C get() = C
-private val lhs: Any? get() = null
-private val rhs: Any? get() = null
-private val op: Any? get() = null
-private val <T> Any?.Ok: (T) -> T get() = { it }
-private val <R> Any?.Err: (CandleException) -> R get() = { throw it }
+private val Error: CandleException.Companion get() = CandleException.Companion
+private val CandleException.Companion.UnsupportedDTypeForOp: (DType, String) -> CandleException
+    get() = { d, op -> CandleException.UnsupportedDTypeForOp(d, op) }
+private val CandleException.Companion.DTypeMismatchBinaryOp: (DType, DType, String) -> CandleException
+    get() = { lhs, rhs, op -> CandleException.DTypeMismatchBinaryOp(lhs = lhs, rhs = rhs, op = op) }
 private val CandleException.bt: () -> CandleException get() = { this }
 
 private val Map1.self: () -> Map1 get() = { this }
-private val (() -> Map1).f: (CpuStorage, Layout) -> List<Double> get() = { vs, layout -> this().f(C.vs(vs), layout) }
+private val (() -> Map1).f: (CpuStorage, Layout) -> List<Double> get() = { vs, layout -> this().f(vs.asSlice(), layout) }
+private val <T> Map1.Ok: (T) -> T get() = { it }
+private val <R> Map1.Err: (CandleException) -> R get() = { throw it }
 
 public interface Map1 {
     public fun f(vs: List<Double>, layout: Layout): List<Double>
 
     public fun map(vs: CpuStorage, layout: Layout): CpuStorage {
         return when (vs) {
-            C.U8(vs) -> Ok(C.U8(self.f(vs, layout)))
-            C.U32(vs) -> Ok(C.U32(self.f(vs, layout)))
-            C.I16(vs) -> Ok(C.I16(self.f(vs, layout)))
-            C.I32(vs) -> Ok(C.I32(self.f(vs, layout)))
-            C.I64(vs) -> Ok(C.I64(self.f(vs, layout)))
-            C.BF16(vs) -> Ok(C.BF16(self.f(vs, layout)))
-            C.F16(vs) -> Ok(C.F16(self.f(vs, layout)))
-            C.F32(vs) -> Ok(C.F32(self.f(vs, layout)))
-            C.F64(vs) -> Ok(C.F64(self.f(vs, layout)))
-            C.F8E4M3(vs) -> Ok(C.F8E4M3(self.f(vs, layout)))
+            is CpuStorage.U8 -> Ok(CpuStorage.U8(self.f(vs, layout)))
+            is CpuStorage.U32 -> Ok(CpuStorage.U32(self.f(vs, layout)))
+            is CpuStorage.I16 -> Ok(CpuStorage.I16(self.f(vs, layout)))
+            is CpuStorage.I32 -> Ok(CpuStorage.I32(self.f(vs, layout)))
+            is CpuStorage.I64 -> Ok(CpuStorage.I64(self.f(vs, layout)))
+            is CpuStorage.BF16 -> Ok(CpuStorage.BF16(self.f(vs, layout)))
+            is CpuStorage.F16 -> Ok(CpuStorage.F16(self.f(vs, layout)))
+            is CpuStorage.F32 -> Ok(CpuStorage.F32(self.f(vs, layout)))
+            is CpuStorage.F64 -> Ok(CpuStorage.F64(self.f(vs, layout)))
+            is CpuStorage.F8E4M3 -> Ok(CpuStorage.F8E4M3(self.f(vs, layout)))
             // Dummy types don't support Map1 operations
-            C.F6E2M3(vs) -> Err(Error.UnsupportedDTypeForOp(vs.dtype(), "map1").bt())
-            C.F6E3M2(vs) -> Err(Error.UnsupportedDTypeForOp(vs.dtype(), "map1").bt())
-            C.F4(vs) -> Err(Error.UnsupportedDTypeForOp(vs.dtype(), "map1").bt())
-            else -> { C.F8E8M0(vs); Err(Error.UnsupportedDTypeForOp(vs.dtype(), "map1").bt()) }
+            is CpuStorage.F6E2M3 -> Err(Error.UnsupportedDTypeForOp(vs.dtype(), "map1").bt())
+            is CpuStorage.F6E3M2 -> Err(Error.UnsupportedDTypeForOp(vs.dtype(), "map1").bt())
+            is CpuStorage.F4 -> Err(Error.UnsupportedDTypeForOp(vs.dtype(), "map1").bt())
+            is CpuStorage.F8E8M0 -> Err(Error.UnsupportedDTypeForOp(vs.dtype(), "map1").bt())
         }
     }
 }
 
 private val Map1Any.self: () -> Map1Any get() = { this }
-private val (() -> Map1Any).f: (CpuStorage, Layout, (List<Double>) -> CpuStorage) -> CpuStorage get() = { vs, layout, wrap -> this().f(C.vs(vs), layout, wrap) }
+private val (() -> Map1Any).f: (CpuStorage, Layout, (List<Double>) -> CpuStorage) -> CpuStorage
+    get() = { vs, layout, wrap -> this().f(vs.asSlice(), layout, wrap) }
+private val <T> Map1Any.Ok: (T) -> T get() = { it }
+private val <R> Map1Any.Err: (CandleException) -> R get() = { throw it }
 
 public interface Map1Any {
     public fun f(
@@ -173,29 +55,32 @@ public interface Map1Any {
 
     public fun map(vs: CpuStorage, layout: Layout): CpuStorage {
         return when (vs) {
-            C.U8(vs) -> Ok(self.f(vs, layout, C.U8))
-            C.U32(vs) -> Ok(self.f(vs, layout, C.U32))
-            C.I16(vs) -> Ok(self.f(vs, layout, C.I16))
-            C.I32(vs) -> Ok(self.f(vs, layout, C.I32))
-            C.I64(vs) -> Ok(self.f(vs, layout, C.I64))
-            C.BF16(vs) -> Ok(self.f(vs, layout, C.BF16))
-            C.F16(vs) -> Ok(self.f(vs, layout, C.F16))
-            C.F32(vs) -> Ok(self.f(vs, layout, C.F32))
-            C.F64(vs) -> Ok(self.f(vs, layout, C.F64))
-            C.F8E4M3(vs) -> Ok(self.f(vs, layout, C.F8E4M3))
+            is CpuStorage.U8 -> Ok(self.f(vs, layout, CpuStorage::U8))
+            is CpuStorage.U32 -> Ok(self.f(vs, layout, CpuStorage::U32))
+            is CpuStorage.I16 -> Ok(self.f(vs, layout, CpuStorage::I16))
+            is CpuStorage.I32 -> Ok(self.f(vs, layout, CpuStorage::I32))
+            is CpuStorage.I64 -> Ok(self.f(vs, layout, CpuStorage::I64))
+            is CpuStorage.BF16 -> Ok(self.f(vs, layout, CpuStorage::BF16))
+            is CpuStorage.F16 -> Ok(self.f(vs, layout, CpuStorage::F16))
+            is CpuStorage.F32 -> Ok(self.f(vs, layout, CpuStorage::F32))
+            is CpuStorage.F64 -> Ok(self.f(vs, layout, CpuStorage::F64))
+            is CpuStorage.F8E4M3 -> Ok(self.f(vs, layout, CpuStorage::F8E4M3))
             // Dummy types don't support Map1Any operations
-            C.F6E2M3(vs) -> Err(Error.UnsupportedDTypeForOp(vs.dtype(), "map1any").bt())
-            C.F6E3M2(vs) -> Err(Error.UnsupportedDTypeForOp(vs.dtype(), "map1any").bt())
-            C.F4(vs) -> Err(Error.UnsupportedDTypeForOp(vs.dtype(), "map1any").bt())
-            else -> { C.F8E8M0(vs); Err(Error.UnsupportedDTypeForOp(vs.dtype(), "map1any").bt()) }
+            is CpuStorage.F6E2M3 -> Err(Error.UnsupportedDTypeForOp(vs.dtype(), "map1any").bt())
+            is CpuStorage.F6E3M2 -> Err(Error.UnsupportedDTypeForOp(vs.dtype(), "map1any").bt())
+            is CpuStorage.F4 -> Err(Error.UnsupportedDTypeForOp(vs.dtype(), "map1any").bt())
+            is CpuStorage.F8E8M0 -> Err(Error.UnsupportedDTypeForOp(vs.dtype(), "map1any").bt())
         }
     }
 }
 
 private val Map2.self: () -> Map2 get() = { this }
-private val (() -> Map2).f: (CpuStorage, Layout, CpuStorage, Layout) -> List<Double> get() = { v1, l1, v2, l2 -> this().f(C.vs(v1), l1, C.vs(v2), l2) }
+private val (() -> Map2).f: (CpuStorage, Layout, CpuStorage, Layout) -> List<Double>
+    get() = { v1, l1, v2, l2 -> this().f(v1.asSlice(), l1, v2.asSlice(), l2) }
 private val Map2.Self: Map2 get() = this
 private val Map2.OP: String get() = op
+private val <T> Map2.Ok: (T) -> T get() = { it }
+private val <R> Map2.Err: (CandleException) -> R get() = { throw it }
 
 public interface Map2 {
     public val op: String
@@ -203,21 +88,21 @@ public interface Map2 {
     public fun f(v1: List<Double>, l1: Layout, v2: List<Double>, l2: Layout): List<Double>
 
     public fun map(v1: CpuStorage, l1: Layout, v2: CpuStorage, l2: Layout): CpuStorage {
-        return when (C.invoke(v1, v2)) {
-            C.U8(v1), C.U8(v2) -> Ok(C.U8(self.f(v1, l1, v2, l2)))
-            C.U32(v1), C.U32(v2) -> Ok(C.U32(self.f(v1, l1, v2, l2)))
-            C.I16(v1), C.I16(v2) -> Ok(C.I16(self.f(v1, l1, v2, l2)))
-            C.I32(v1), C.I32(v2) -> Ok(C.I32(self.f(v1, l1, v2, l2)))
-            C.I64(v1), C.I64(v2) -> Ok(C.I64(self.f(v1, l1, v2, l2)))
-            C.BF16(v1), C.BF16(v2) -> Ok(C.BF16(self.f(v1, l1, v2, l2)))
-            C.F16(v1), C.F16(v2) -> Ok(C.F16(self.f(v1, l1, v2, l2)))
-            C.F32(v1), C.F32(v2) -> Ok(C.F32(self.f(v1, l1, v2, l2)))
-            C.F64(v1), C.F64(v2) -> Ok(C.F64(self.f(v1, l1, v2, l2)))
-            C.F8E4M3(v1), C.F8E4M3(v2) -> Ok(C.F8E4M3(self.f(v1, l1, v2, l2)))
+        return when {
+            v1 is CpuStorage.U8 && v2 is CpuStorage.U8 -> Ok(CpuStorage.U8(self.f(v1, l1, v2, l2)))
+            v1 is CpuStorage.U32 && v2 is CpuStorage.U32 -> Ok(CpuStorage.U32(self.f(v1, l1, v2, l2)))
+            v1 is CpuStorage.I16 && v2 is CpuStorage.I16 -> Ok(CpuStorage.I16(self.f(v1, l1, v2, l2)))
+            v1 is CpuStorage.I32 && v2 is CpuStorage.I32 -> Ok(CpuStorage.I32(self.f(v1, l1, v2, l2)))
+            v1 is CpuStorage.I64 && v2 is CpuStorage.I64 -> Ok(CpuStorage.I64(self.f(v1, l1, v2, l2)))
+            v1 is CpuStorage.BF16 && v2 is CpuStorage.BF16 -> Ok(CpuStorage.BF16(self.f(v1, l1, v2, l2)))
+            v1 is CpuStorage.F16 && v2 is CpuStorage.F16 -> Ok(CpuStorage.F16(self.f(v1, l1, v2, l2)))
+            v1 is CpuStorage.F32 && v2 is CpuStorage.F32 -> Ok(CpuStorage.F32(self.f(v1, l1, v2, l2)))
+            v1 is CpuStorage.F64 && v2 is CpuStorage.F64 -> Ok(CpuStorage.F64(self.f(v1, l1, v2, l2)))
+            v1 is CpuStorage.F8E4M3 && v2 is CpuStorage.F8E4M3 -> Ok(CpuStorage.F8E4M3(self.f(v1, l1, v2, l2)))
             else -> Err(Error.DTypeMismatchBinaryOp(
-                lhs, v1.dtype(),
-                rhs, v2.dtype(),
-                op, Self.OP,
+                v1.dtype(),
+                v2.dtype(),
+                Self.OP,
             )
             .bt())
         }
@@ -225,9 +110,12 @@ public interface Map2 {
 }
 
 private val Map2InPlace.self: () -> Map2InPlace get() = { this }
-private val (() -> Map2InPlace).f: (CpuStorage, Layout, CpuStorage, Layout) -> Unit get() = { v1, l1, v2, l2 -> C.applyInPlace(this(), v1, l1, v2, l2) }
+private val (() -> Map2InPlace).f: (CpuStorage, Layout, CpuStorage, Layout) -> Unit
+    get() = { v1, l1, v2, l2 -> v1.applyInPlace(this(), l1, v2, l2) }
 private val Map2InPlace.Self: Map2InPlace get() = this
 private val Map2InPlace.OP: String get() = op
+private val <T> Map2InPlace.Ok: (T) -> T get() = { it }
+private val <R> Map2InPlace.Err: (CandleException) -> R get() = { throw it }
 
 public interface Map2InPlace {
     public val op: String
@@ -235,32 +123,35 @@ public interface Map2InPlace {
     public fun f(v1: MutableList<Double>, l1: Layout, v2: List<Double>, l2: Layout)
 
     public fun map(v1: CpuStorage, l1: Layout, v2: CpuStorage, l2: Layout) {
-        when (C.invoke(v1, v2)) {
-            C.U8(v1), C.U8(v2) -> self.f(v1, l1, v2, l2)
-            C.U32(v1), C.U32(v2) -> self.f(v1, l1, v2, l2)
-            C.I16(v1), C.I16(v2) -> self.f(v1, l1, v2, l2)
-            C.I32(v1), C.I32(v2) -> self.f(v1, l1, v2, l2)
-            C.I64(v1), C.I64(v2) -> self.f(v1, l1, v2, l2)
-            C.BF16(v1), C.BF16(v2) -> self.f(v1, l1, v2, l2)
-            C.F16(v1), C.F16(v2) -> self.f(v1, l1, v2, l2)
-            C.F32(v1), C.F32(v2) -> self.f(v1, l1, v2, l2)
-            C.F64(v1), C.F64(v2) -> self.f(v1, l1, v2, l2)
-            C.F8E4M3(v1), C.F8E4M3(v2) -> self.f(v1, l1, v2, l2)
-            else -> { v1 to v2; Err<Unit>(Error.DTypeMismatchBinaryOp(
-                lhs, v1.dtype(),
-                rhs, v2.dtype(),
-                op, Self.OP,
+        when {
+            v1 is CpuStorage.U8 && v2 is CpuStorage.U8 -> self.f(v1, l1, v2, l2)
+            v1 is CpuStorage.U32 && v2 is CpuStorage.U32 -> self.f(v1, l1, v2, l2)
+            v1 is CpuStorage.I16 && v2 is CpuStorage.I16 -> self.f(v1, l1, v2, l2)
+            v1 is CpuStorage.I32 && v2 is CpuStorage.I32 -> self.f(v1, l1, v2, l2)
+            v1 is CpuStorage.I64 && v2 is CpuStorage.I64 -> self.f(v1, l1, v2, l2)
+            v1 is CpuStorage.BF16 && v2 is CpuStorage.BF16 -> self.f(v1, l1, v2, l2)
+            v1 is CpuStorage.F16 && v2 is CpuStorage.F16 -> self.f(v1, l1, v2, l2)
+            v1 is CpuStorage.F32 && v2 is CpuStorage.F32 -> self.f(v1, l1, v2, l2)
+            v1 is CpuStorage.F64 && v2 is CpuStorage.F64 -> self.f(v1, l1, v2, l2)
+            v1 is CpuStorage.F8E4M3 && v2 is CpuStorage.F8E4M3 -> self.f(v1, l1, v2, l2)
+            else -> Err<Unit>(Error.DTypeMismatchBinaryOp(
+                v1.dtype(),
+                v2.dtype(),
+                Self.OP,
             )
-            .bt()) }
+            .bt())
         }
         Ok(Unit)
     }
 }
 
 private val Map2U8.self: () -> Map2U8 get() = { this }
-private val (() -> Map2U8).f: (CpuStorage, Layout, CpuStorage, Layout) -> UByteArray get() = { v1, l1, v2, l2 -> this().f(C.vs(v1), l1, C.vs(v2), l2) }
+private val (() -> Map2U8).f: (CpuStorage, Layout, CpuStorage, Layout) -> UByteArray
+    get() = { v1, l1, v2, l2 -> this().f(v1.asSlice(), l1, v2.asSlice(), l2) }
 private val Map2U8.Self: Map2U8 get() = this
 private val Map2U8.OP: String get() = op
+private val <T> Map2U8.Ok: (T) -> T get() = { it }
+private val <R> Map2U8.Err: (CandleException) -> R get() = { throw it }
 
 public interface Map2U8 {
     public val op: String
@@ -268,41 +159,30 @@ public interface Map2U8 {
     public fun f(v1: List<Double>, l1: Layout, v2: List<Double>, l2: Layout): UByteArray
 
     public fun map(v1: CpuStorage, l1: Layout, v2: CpuStorage, l2: Layout): CpuStorage {
-        return when (C.invoke(v1, v2)) {
-            C.U8(v1), C.U8(v2) -> Ok(C.U8(self.f(v1, l1, v2, l2)))
-            C.U32(v1), C.U32(v2) -> Ok(C.U8(self.f(v1, l1, v2, l2)))
-            C.I16(v1), C.I16(v2) -> Ok(C.U8(self.f(v1, l1, v2, l2)))
-            C.I32(v1), C.I32(v2) -> Ok(C.U8(self.f(v1, l1, v2, l2)))
-            C.I64(v1), C.I64(v2) -> Ok(C.U8(self.f(v1, l1, v2, l2)))
-            C.BF16(v1), C.BF16(v2) -> Ok(C.U8(self.f(v1, l1, v2, l2)))
-            C.F16(v1), C.F16(v2) -> Ok(C.U8(self.f(v1, l1, v2, l2)))
-            C.F32(v1), C.F32(v2) -> Ok(C.U8(self.f(v1, l1, v2, l2)))
-            C.F64(v1), C.F64(v2) -> Ok(C.U8(self.f(v1, l1, v2, l2)))
-            C.F8E4M3(v1), C.F8E4M3(v2) -> Ok(C.U8(self.f(v1, l1, v2, l2)))
+        return when {
+            v1 is CpuStorage.U8 && v2 is CpuStorage.U8 -> Ok(CpuStorage.U8(self.f(v1, l1, v2, l2)))
+            v1 is CpuStorage.U32 && v2 is CpuStorage.U32 -> Ok(CpuStorage.U8(self.f(v1, l1, v2, l2)))
+            v1 is CpuStorage.I16 && v2 is CpuStorage.I16 -> Ok(CpuStorage.U8(self.f(v1, l1, v2, l2)))
+            v1 is CpuStorage.I32 && v2 is CpuStorage.I32 -> Ok(CpuStorage.U8(self.f(v1, l1, v2, l2)))
+            v1 is CpuStorage.I64 && v2 is CpuStorage.I64 -> Ok(CpuStorage.U8(self.f(v1, l1, v2, l2)))
+            v1 is CpuStorage.BF16 && v2 is CpuStorage.BF16 -> Ok(CpuStorage.U8(self.f(v1, l1, v2, l2)))
+            v1 is CpuStorage.F16 && v2 is CpuStorage.F16 -> Ok(CpuStorage.U8(self.f(v1, l1, v2, l2)))
+            v1 is CpuStorage.F32 && v2 is CpuStorage.F32 -> Ok(CpuStorage.U8(self.f(v1, l1, v2, l2)))
+            v1 is CpuStorage.F64 && v2 is CpuStorage.F64 -> Ok(CpuStorage.U8(self.f(v1, l1, v2, l2)))
+            v1 is CpuStorage.F8E4M3 && v2 is CpuStorage.F8E4M3 -> Ok(CpuStorage.U8(self.f(v1, l1, v2, l2)))
             else -> Err(Error.DTypeMismatchBinaryOp(
-                lhs, v1.dtype(),
-                rhs, v2.dtype(),
-                op, Self.OP,
+                v1.dtype(),
+                v2.dtype(),
+                Self.OP,
             )
             .bt())
         }
     }
 }
 
-private val Vec: C get() = C
-private val <T> C.withCapacity: (Int) -> MutableList<T> get() = { cap ->
-    C.lastCap = cap
-    ArrayList(cap)
-}
+private val Vec: CandleException.Companion get() = CandleException.Companion
+private val <T> CandleException.Companion.withCapacity: (Int) -> VecList<T> get() = { cap -> VecList(cap) }
 private val <T> MutableList<T>.push: (T) -> Unit get() = { add(it) }
-private val <T> MutableList<T>.spareCapacityMut: () -> MutableList<T> get() = {
-    val list = this as MutableList<Any?>
-    while (list.size < C.lastCap) list.add(null)
-    this
-}
-private val <T> MutableList<T>.setLen: (Int) -> Unit get() = { len ->
-    while (size > len) removeAt(size - 1)
-}
 private val <T> List<T>.getUnchecked: (Int) -> T get() = { this[it] }
 private val <T> List<T>.iter: () -> Sequence<T> get() = { asSequence() }
 private val <T> Sequence<T>.collect: () -> List<T> get() = { toList() }
@@ -345,7 +225,7 @@ public fun <
     fScalarVec: (T, List<T>, MutableList<T>) -> Unit,
 ): List<T> {
     val elCount = lhsL.shape().elemCount()
-    val ys: MutableList<T> = Vec.withCapacity(elCount)
+    val ys: VecList<T> = Vec.withCapacity(elCount)
     val ysToSet = run {
         val s = ys.spareCapacityMut()
 
@@ -461,7 +341,7 @@ public fun <T, U> unaryMapVec(
     return when (val b = layout.stridedBlocks()) {
         is StridedBlocks.SingleBlock -> {
             val (startOffset, len) = b
-            val ys: MutableList<U> = Vec.withCapacity(len)
+            val ys: VecList<U> = Vec.withCapacity(len)
             val ysToSet =
                 ys.spareCapacityMut()
 
@@ -486,7 +366,7 @@ public fun <T, U> unaryMapVec(
                 }
                 result
             } else {
-                val ys: MutableList<U> = Vec.withCapacity(elCount)
+                val ys: VecList<U> = Vec.withCapacity(elCount)
                 val ysToSet =
                     ys.spareCapacityMut()
 
@@ -519,7 +399,7 @@ public fun <T, U> unaryMapVec(
                 }
                 result
             } else {
-                val ys: MutableList<U> = Vec.withCapacity(elCount)
+                val ys: VecList<U> = Vec.withCapacity(elCount)
                 val ysToSet =
                     ys.spareCapacityMut()
 

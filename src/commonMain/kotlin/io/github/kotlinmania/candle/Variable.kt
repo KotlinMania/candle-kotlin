@@ -13,40 +13,19 @@ private val (() -> Var.Companion).fmt: (Tensor, StringBuilder) -> String get() =
 private val Var.Companion.CannotSetVar: (String) -> CandleException get() = { msg ->
     CandleException.CannotSetVar(msg)
 }
-private val Var.Companion.ShapeMismatchBinaryOp: (Any?, Shape, Any?, Shape, Any?, String) -> CandleException get() = { _, l, _, r, _, op ->
-    CandleException.ShapeMismatchBinaryOp(lhs = l, rhs = r, op = op)
+private val Var.Companion.ShapeMismatchBinaryOp: (Shape, Shape, String) -> CandleException get() = { lhs, rhs, op ->
+    CandleException.ShapeMismatchBinaryOp(lhs = lhs, rhs = rhs, op = op)
 }
 private val Error: Var.Companion get() = Var.Companion
-private val lhs: Any? get() = null
-private val rhs: Any? get() = null
-private val op: Any? get() = null
-private val <T> Any?.Ok: (T) -> T get() = { it }
-private val <R> Any?.Err: (CandleException) -> R get() = { throw it }
+private val <T> Var.Ok: (T) -> T get() = { it }
+private val <R> Var.Err: (CandleException) -> R get() = { throw it }
+private val <T> Var.Companion.Ok: (T) -> T get() = { it }
 private val CandleException.bt: () -> CandleException get() = { this }
 
 private val Var.self: List<Tensor> get() = listOf(tensor)
 private val List<Tensor>.self: List<Tensor> get() = this
 private val List<Tensor>.sameStorage: (Tensor) -> Boolean get() = { this[0].sameStorage(it) }
 private val List<Tensor>.storageMutAndLayout: () -> Pair<Storage, Layout> get() = { this[0].storageMutAndLayout() }
-
-private val Tensor.Companion.randImpl: (Float, Float, Shape, Device, Boolean) -> Tensor
-    get() = { lo, up, s, device, isVar -> randImpl(lo.toDouble(), up.toDouble(), s, DType.F32, device, isVar) }
-private val Tensor.Companion.randnImpl: (Float, Float, Shape, Device, Boolean) -> Tensor
-    get() = { mean, std, s, device, isVar -> randnImpl(mean.toDouble(), std.toDouble(), s, DType.F32, device, isVar) }
-private val Tensor.Companion.newImpl: (Any?, Shape, Device, Boolean) -> Tensor
-    get() = { array, shape, device, isVar ->
-        val storage = when (array) {
-            is NdArray -> device.storage(array)
-            is List<*> -> device.storageFromSlice(array)
-            else -> throw IllegalArgumentException("Unsupported array: $array")
-        }
-        fromStorage(storage, shape, BackpropOp.none(), isVar)
-    }
-private val <D> Tensor.Companion.fromVecImpl: (List<D>, Shape, Device, Boolean) -> Tensor
-    get() = { data, shape, device, isVar ->
-        val storage = device.storageOwned(data)
-        fromStorage(storage, shape, BackpropOp.none(), isVar)
-    }
 
 /**
  * A variable is a wrapper around a tensor, however variables can have their content modified
@@ -101,9 +80,9 @@ public class Var(
         val (src, srcL) = src.storageAndLayout()
         if (layout.shape() != srcL.shape()) {
             Err<Unit>(Error.ShapeMismatchBinaryOp(
-                lhs, layout.shape().clone(),
-                rhs, srcL.shape().clone(),
-                op, "set",
+                layout.shape().clone(),
+                srcL.shape().clone(),
+                "set",
             )
             .bt())
         }
