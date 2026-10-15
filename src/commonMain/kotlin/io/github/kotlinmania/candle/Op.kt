@@ -1,5 +1,9 @@
-// port-lint: source candle-core/src/op.rs
+// port-lint: source op.rs
 package io.github.kotlinmania.candle
+
+/**
+ * Tensor Operation Enums and Traits
+ */
 
 import kotlin.math.PI
 import kotlin.math.abs
@@ -373,4 +377,328 @@ public object MathOps {
     public fun relu(x: Double): Double = if (x > 0.0) x else 0.0
 
     public fun relu(x: Float): Float = if (x > 0.0f) x else 0.0f
+}
+
+public interface UnaryOpT {
+    public val name: String
+    public val kernel: String
+    public fun f32(v1: Float): Float
+    public fun f64(v1: Double): Double
+    public fun u8(v1: UByte): UByte
+    public fun u32(v1: UInt): UInt
+    public fun i16(v1: Short): Short
+    public fun i32(v1: Int): Int
+    public fun i64(v1: Long): Long
+}
+
+public interface BinaryOpT {
+    public val name: String
+    public val kernel: String
+    public fun f32(v1: Float, v2: Float): Float
+    public fun f64(v1: Double, v2: Double): Double
+    public fun u8(v1: UByte, v2: UByte): UByte
+    public fun u32(v1: UInt, v2: UInt): UInt
+    public fun i16(v1: Short, v2: Short): Short
+    public fun i32(v1: Int, v2: Int): Int
+    public fun i64(v1: Long, v2: Long): Long
+}
+
+public object Add : BinaryOpT {
+    override val name: String = "add"
+    override val kernel: String = "badd"
+    override fun f32(v1: Float, v2: Float): Float = v1 + v2
+    override fun f64(v1: Double, v2: Double): Double = v1 + v2
+    override fun u8(v1: UByte, v2: UByte): UByte = (v1 + v2).toUByte()
+    override fun u32(v1: UInt, v2: UInt): UInt = v1 + v2
+    override fun i16(v1: Short, v2: Short): Short = (v1 + v2).toShort()
+    override fun i32(v1: Int, v2: Int): Int = v1 + v2
+    override fun i64(v1: Long, v2: Long): Long = v1 + v2
+}
+
+public object Div : BinaryOpT {
+    override val name: String = "div"
+    override val kernel: String = "bdiv"
+    override fun f32(v1: Float, v2: Float): Float = v1 / v2
+    override fun f64(v1: Double, v2: Double): Double = v1 / v2
+    override fun u8(v1: UByte, v2: UByte): UByte = (v1 / v2).toUByte()
+    override fun u32(v1: UInt, v2: UInt): UInt = v1 / v2
+    override fun i16(v1: Short, v2: Short): Short = (v1 / v2).toShort()
+    override fun i32(v1: Int, v2: Int): Int = v1 / v2
+    override fun i64(v1: Long, v2: Long): Long = v1 / v2
+}
+
+public object Mul : BinaryOpT {
+    override val name: String = "mul"
+    override val kernel: String = "bmul"
+    override fun f32(v1: Float, v2: Float): Float = v1 * v2
+    override fun f64(v1: Double, v2: Double): Double = v1 * v2
+    override fun u8(v1: UByte, v2: UByte): UByte = (v1 * v2).toUByte()
+    override fun u32(v1: UInt, v2: UInt): UInt = v1 * v2
+    override fun i16(v1: Short, v2: Short): Short = (v1 * v2).toShort()
+    override fun i32(v1: Int, v2: Int): Int = v1 * v2
+    override fun i64(v1: Long, v2: Long): Long = v1 * v2
+}
+
+public object Sub : BinaryOpT {
+    override val name: String = "sub"
+    override val kernel: String = "bsub"
+    override fun f32(v1: Float, v2: Float): Float = v1 - v2
+    override fun f64(v1: Double, v2: Double): Double = v1 - v2
+    override fun u8(v1: UByte, v2: UByte): UByte = (v1 - v2).toUByte()
+    override fun u32(v1: UInt, v2: UInt): UInt = v1 - v2
+    override fun i16(v1: Short, v2: Short): Short = (v1 - v2).toShort()
+    override fun i32(v1: Int, v2: Int): Int = v1 - v2
+    override fun i64(v1: Long, v2: Long): Long = v1 - v2
+}
+
+public object Maximum : BinaryOpT {
+    override val name: String = "maximum"
+    override val kernel: String = "bmaximum"
+    override fun f32(v1: Float, v2: Float): Float = maxOf(v1, v2)
+    override fun f64(v1: Double, v2: Double): Double = maxOf(v1, v2)
+    override fun u8(v1: UByte, v2: UByte): UByte = maxOf(v1, v2)
+    override fun u32(v1: UInt, v2: UInt): UInt = maxOf(v1, v2)
+    override fun i16(v1: Short, v2: Short): Short = maxOf(v1, v2)
+    override fun i32(v1: Int, v2: Int): Int = maxOf(v1, v2)
+    override fun i64(v1: Long, v2: Long): Long = maxOf(v1, v2)
+}
+
+public object Minimum : BinaryOpT {
+    override val name: String = "minimum"
+    override val kernel: String = "bminimum"
+    override fun f32(v1: Float, v2: Float): Float = minOf(v1, v2)
+    override fun f64(v1: Double, v2: Double): Double = minOf(v1, v2)
+    override fun u8(v1: UByte, v2: UByte): UByte = minOf(v1, v2)
+    override fun u32(v1: UInt, v2: UInt): UInt = minOf(v1, v2)
+    override fun i16(v1: Short, v2: Short): Short = minOf(v1, v2)
+    override fun i32(v1: Int, v2: Int): Int = minOf(v1, v2)
+    override fun i64(v1: Long, v2: Long): Long = minOf(v1, v2)
+}
+
+public object Exp : UnaryOpT {
+    override val name: String = "exp"
+    override val kernel: String = "uexp"
+    override fun f32(v1: Float): Float = kotlin.math.exp(v1)
+    override fun f64(v1: Double): Double = kotlin.math.exp(v1)
+    override fun u8(v1: UByte): UByte = v1
+    override fun u32(v1: UInt): UInt = v1
+    override fun i16(v1: Short): Short = v1
+    override fun i32(v1: Int): Int = v1
+    override fun i64(v1: Long): Long = v1
+}
+
+public object Log : UnaryOpT {
+    override val name: String = "log"
+    override val kernel: String = "ulog"
+    override fun f32(v1: Float): Float = kotlin.math.ln(v1)
+    override fun f64(v1: Double): Double = kotlin.math.ln(v1)
+    override fun u8(v1: UByte): UByte = v1
+    override fun u32(v1: UInt): UInt = v1
+    override fun i16(v1: Short): Short = v1
+    override fun i32(v1: Int): Int = v1
+    override fun i64(v1: Long): Long = v1
+}
+
+public object Sin : UnaryOpT {
+    override val name: String = "sin"
+    override val kernel: String = "usin"
+    override fun f32(v1: Float): Float = kotlin.math.sin(v1)
+    override fun f64(v1: Double): Double = kotlin.math.sin(v1)
+    override fun u8(v1: UByte): UByte = v1
+    override fun u32(v1: UInt): UInt = v1
+    override fun i16(v1: Short): Short = v1
+    override fun i32(v1: Int): Int = v1
+    override fun i64(v1: Long): Long = v1
+}
+
+public object Cos : UnaryOpT {
+    override val name: String = "cos"
+    override val kernel: String = "ucos"
+    override fun f32(v1: Float): Float = kotlin.math.cos(v1)
+    override fun f64(v1: Double): Double = kotlin.math.cos(v1)
+    override fun u8(v1: UByte): UByte = v1
+    override fun u32(v1: UInt): UInt = v1
+    override fun i16(v1: Short): Short = v1
+    override fun i32(v1: Int): Int = v1
+    override fun i64(v1: Long): Long = v1
+}
+
+public object Abs : UnaryOpT {
+    override val name: String = "abs"
+    override val kernel: String = "uabs"
+    override fun f32(v1: Float): Float = kotlin.math.abs(v1)
+    override fun f64(v1: Double): Double = kotlin.math.abs(v1)
+    override fun u8(v1: UByte): UByte = v1
+    override fun u32(v1: UInt): UInt = v1
+    override fun i16(v1: Short): Short = kotlin.math.abs(v1.toInt()).toShort()
+    override fun i32(v1: Int): Int = kotlin.math.abs(v1)
+    override fun i64(v1: Long): Long = kotlin.math.abs(v1)
+}
+
+public object Neg : UnaryOpT {
+    override val name: String = "neg"
+    override val kernel: String = "uneg"
+    override fun f32(v1: Float): Float = -v1
+    override fun f64(v1: Double): Double = -v1
+    override fun u8(v1: UByte): UByte = v1
+    override fun u32(v1: UInt): UInt = v1
+    override fun i16(v1: Short): Short = (-v1).toShort()
+    override fun i32(v1: Int): Int = -v1
+    override fun i64(v1: Long): Long = -v1
+}
+
+public object Recip : UnaryOpT {
+    override val name: String = "recip"
+    override val kernel: String = "urecip"
+    override fun f32(v1: Float): Float = 1.0f / v1
+    override fun f64(v1: Double): Double = 1.0 / v1
+    override fun u8(v1: UByte): UByte = v1
+    override fun u32(v1: UInt): UInt = v1
+    override fun i16(v1: Short): Short = v1
+    override fun i32(v1: Int): Int = v1
+    override fun i64(v1: Long): Long = v1
+}
+
+public object Sqr : UnaryOpT {
+    override val name: String = "sqr"
+    override val kernel: String = "usqr"
+    override fun f32(v1: Float): Float = v1 * v1
+    override fun f64(v1: Double): Double = v1 * v1
+    override fun u8(v1: UByte): UByte = (v1 * v1).toUByte()
+    override fun u32(v1: UInt): UInt = v1 * v1
+    override fun i16(v1: Short): Short = (v1 * v1).toShort()
+    override fun i32(v1: Int): Int = v1 * v1
+    override fun i64(v1: Long): Long = v1 * v1
+}
+
+public object Sqrt : UnaryOpT {
+    override val name: String = "sqrt"
+    override val kernel: String = "usqrt"
+    override fun f32(v1: Float): Float = kotlin.math.sqrt(v1)
+    override fun f64(v1: Double): Double = kotlin.math.sqrt(v1)
+    override fun u8(v1: UByte): UByte = v1
+    override fun u32(v1: UInt): UInt = v1
+    override fun i16(v1: Short): Short = v1
+    override fun i32(v1: Int): Int = v1
+    override fun i64(v1: Long): Long = v1
+}
+
+public object Gelu : UnaryOpT {
+    override val name: String = "gelu"
+    override val kernel: String = "ugelu"
+    override fun f32(v1: Float): Float = (0.5f * v1 * (1.0f + kotlin.math.tanh(kotlin.math.sqrt(2.0f / kotlin.math.PI.toFloat()) * (v1 + 0.044715f * v1 * v1 * v1))))
+    override fun f64(v1: Double): Double = (0.5 * v1 * (1.0 + kotlin.math.tanh(kotlin.math.sqrt(2.0 / kotlin.math.PI) * (v1 + 0.044715 * v1 * v1 * v1))))
+    override fun u8(v1: UByte): UByte = v1
+    override fun u32(v1: UInt): UInt = v1
+    override fun i16(v1: Short): Short = v1
+    override fun i32(v1: Int): Int = v1
+    override fun i64(v1: Long): Long = v1
+}
+
+public object GeluErf : UnaryOpT {
+    override val name: String = "gelu_erf"
+    override val kernel: String = "ugelu_erf"
+    override fun f32(v1: Float): Float = Gelu.f32(v1)
+    override fun f64(v1: Double): Double = Gelu.f64(v1)
+    override fun u8(v1: UByte): UByte = v1
+    override fun u32(v1: UInt): UInt = v1
+    override fun i16(v1: Short): Short = v1
+    override fun i32(v1: Int): Int = v1
+    override fun i64(v1: Long): Long = v1
+}
+
+public object Erf : UnaryOpT {
+    override val name: String = "erf"
+    override val kernel: String = "uerf"
+    override fun f32(v1: Float): Float = kotlin.math.tanh(v1)
+    override fun f64(v1: Double): Double = kotlin.math.tanh(v1)
+    override fun u8(v1: UByte): UByte = v1
+    override fun u32(v1: UInt): UInt = v1
+    override fun i16(v1: Short): Short = v1
+    override fun i32(v1: Int): Int = v1
+    override fun i64(v1: Long): Long = v1
+}
+
+public object Relu : UnaryOpT {
+    override val name: String = "relu"
+    override val kernel: String = "urelu"
+    override fun f32(v1: Float): Float = maxOf(0.0f, v1)
+    override fun f64(v1: Double): Double = maxOf(0.0, v1)
+    override fun u8(v1: UByte): UByte = v1
+    override fun u32(v1: UInt): UInt = v1
+    override fun i16(v1: Short): Short = maxOf(0.toShort(), v1)
+    override fun i32(v1: Int): Int = maxOf(0, v1)
+    override fun i64(v1: Long): Long = maxOf(0L, v1)
+}
+
+public object Silu : UnaryOpT {
+    override val name: String = "silu"
+    override val kernel: String = "usilu"
+    override fun f32(v1: Float): Float = v1 / (1.0f + kotlin.math.exp(-v1))
+    override fun f64(v1: Double): Double = v1 / (1.0 + kotlin.math.exp(-v1))
+    override fun u8(v1: UByte): UByte = v1
+    override fun u32(v1: UInt): UInt = v1
+    override fun i16(v1: Short): Short = v1
+    override fun i32(v1: Int): Int = v1
+    override fun i64(v1: Long): Long = v1
+}
+
+public object Tanh : UnaryOpT {
+    override val name: String = "tanh"
+    override val kernel: String = "utanh"
+    override fun f32(v1: Float): Float = kotlin.math.tanh(v1)
+    override fun f64(v1: Double): Double = kotlin.math.tanh(v1)
+    override fun u8(v1: UByte): UByte = v1
+    override fun u32(v1: UInt): UInt = v1
+    override fun i16(v1: Short): Short = v1
+    override fun i32(v1: Int): Int = v1
+    override fun i64(v1: Long): Long = v1
+}
+
+public object Floor : UnaryOpT {
+    override val name: String = "floor"
+    override val kernel: String = "ufloor"
+    override fun f32(v1: Float): Float = kotlin.math.floor(v1)
+    override fun f64(v1: Double): Double = kotlin.math.floor(v1)
+    override fun u8(v1: UByte): UByte = v1
+    override fun u32(v1: UInt): UInt = v1
+    override fun i16(v1: Short): Short = v1
+    override fun i32(v1: Int): Int = v1
+    override fun i64(v1: Long): Long = v1
+}
+
+public object Ceil : UnaryOpT {
+    override val name: String = "ceil"
+    override val kernel: String = "uceil"
+    override fun f32(v1: Float): Float = kotlin.math.ceil(v1)
+    override fun f64(v1: Double): Double = kotlin.math.ceil(v1)
+    override fun u8(v1: UByte): UByte = v1
+    override fun u32(v1: UInt): UInt = v1
+    override fun i16(v1: Short): Short = v1
+    override fun i32(v1: Int): Int = v1
+    override fun i64(v1: Long): Long = v1
+}
+
+public object Round : UnaryOpT {
+    override val name: String = "round"
+    override val kernel: String = "uround"
+    override fun f32(v1: Float): Float = kotlin.math.round(v1)
+    override fun f64(v1: Double): Double = kotlin.math.round(v1)
+    override fun u8(v1: UByte): UByte = v1
+    override fun u32(v1: UInt): UInt = v1
+    override fun i16(v1: Short): Short = v1
+    override fun i32(v1: Int): Int = v1
+    override fun i64(v1: Long): Long = v1
+}
+
+public object Sign : UnaryOpT {
+    override val name: String = "sign"
+    override val kernel: String = "usign"
+    override fun f32(v1: Float): Float = kotlin.math.sign(v1)
+    override fun f64(v1: Double): Double = kotlin.math.sign(v1)
+    override fun u8(v1: UByte): UByte = v1
+    override fun u32(v1: UInt): UInt = v1
+    override fun i16(v1: Short): Short = kotlin.math.sign(v1.toFloat()).toInt().toShort()
+    override fun i32(v1: Int): Int = kotlin.math.sign(v1.toFloat()).toInt()
+    override fun i64(v1: Long): Long = kotlin.math.sign(v1.toDouble()).toLong()
 }
