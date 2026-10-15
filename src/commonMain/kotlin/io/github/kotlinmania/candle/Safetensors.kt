@@ -13,6 +13,8 @@
  */
 package io.github.kotlinmania.candle
 
+import kotlin.test.Test
+
 enum class SafeTensorDtype(val wireName: String, val byteSize: Int) {
     U8("U8", 1),
     U16("U16", 2),
@@ -789,7 +791,8 @@ class MmapedFile private constructor(
     }
 }
 
-private fun saveSingleTensor() {
+@Test
+internal fun saveSingleTensor() {
     val t = Tensor.zeros(Shape.fromDims(intArrayOf(2, 2)), DType.F32, Device.Cpu).unwrap()
     t.saveSafetensors("t", "t.safetensors").unwrap()
     val bytes = inMemorySafetensorFiles["t.safetensors"]!!
@@ -797,7 +800,8 @@ private fun saveSingleTensor() {
     inMemorySafetensorFiles.remove("t.safetensors")
 }
 
-private fun saveLoadMultipleTensors() {
+@Test
+internal fun saveLoadMultipleTensors() {
     val t = Tensor.zeros(Shape.fromDims(intArrayOf(2, 2)), DType.F32, Device.Cpu).unwrap()
     val u = Tensor.zeros(Shape.fromDims(intArrayOf(1, 2)), DType.F32, Device.Cpu).unwrap()
     val map = linkedMapOf("t" to t, "u" to u)
@@ -811,7 +815,8 @@ private fun saveLoadMultipleTensors() {
     inMemorySafetensorFiles.remove("multi.safetensors")
 }
 
-private fun loadU8() {
+@Test
+internal fun loadU8() {
     val header = "{\"x\":{\"dtype\":\"U8\",\"shape\":[2],\"data_offsets\":[0,2]}}   "
     val headerBytes = header.encodeToByteArray()
     val bytes = ByteArray(8 + headerBytes.size + 2)

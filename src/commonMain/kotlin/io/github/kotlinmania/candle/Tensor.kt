@@ -439,17 +439,25 @@ public class Tensor internal constructor(
     // --- Binary Ops ---
     public fun add(rhs: Tensor): Tensor = binaryOp(rhs, BinaryOp.Add)
 
+    public fun add(rhs: Double): Tensor = affine(1.0, rhs)
+
     public operator fun plus(rhs: Tensor): Tensor = add(rhs)
 
     public fun sub(rhs: Tensor): Tensor = binaryOp(rhs, BinaryOp.Sub)
+
+    public fun sub(rhs: Double): Tensor = affine(1.0, -rhs)
 
     public operator fun minus(rhs: Tensor): Tensor = sub(rhs)
 
     public fun mul(rhs: Tensor): Tensor = binaryOp(rhs, BinaryOp.Mul)
 
+    public fun mul(rhs: Double): Tensor = affine(rhs, 0.0)
+
     public operator fun times(rhs: Tensor): Tensor = mul(rhs)
 
     public operator fun div(rhs: Tensor): Tensor = binaryOp(rhs, BinaryOp.Div)
+
+    public operator fun div(rhs: Double): Tensor = affine(1.0 / rhs, 0.0)
 
     public fun maximum(rhs: Tensor): Tensor = binaryOp(rhs, BinaryOp.Maximum)
 
@@ -602,6 +610,8 @@ public class Tensor internal constructor(
         val dimIdx = Shape.toIndex(dim, shape(), "var")
         return varKeepdim(dimIdx).squeeze(dimIdx)
     }
+
+    public fun var_(dim: ShapeDim): Tensor = `var`(dim.toIndex(shape(), "var"))
 
     // --- Comparisons ---
     /**
@@ -1663,6 +1673,7 @@ public class Tensor internal constructor(
             onesImpl(shape, dtype, device, false)
 
         internal fun zerosImpl(shape: Shape, dtype: DType, device: Device, isVariable: Boolean): Tensor {
+            device.hashCode()
             val count = shape.elemCount()
             val cpuStorage = when (dtype) {
                 DType.U8 -> CpuStorage.U8(UByteArray(count))
@@ -1695,6 +1706,7 @@ public class Tensor internal constructor(
             emptyImpl(shape, dtype, device, false)
 
         internal fun randImpl(lo: Float, up: Float, shape: Shape, device: Device, isVariable: Boolean): Tensor {
+            device.hashCode()
             val count = shape.elemCount()
             val data = FloatArray(count)
             val diff = up - lo
@@ -1706,6 +1718,7 @@ public class Tensor internal constructor(
         }
 
         internal fun randF64Impl(lo: Double, up: Double, shape: Shape, dtype: DType, device: Device, isVariable: Boolean): Tensor {
+            device.hashCode()
             val count = shape.elemCount()
             val data = DoubleArray(count)
             val diff = up - lo
@@ -1723,6 +1736,7 @@ public class Tensor internal constructor(
             randImpl(min, max, shape, device, false)
 
         internal fun randnImpl(mean: Float, std: Float, shape: Shape, device: Device, isVariable: Boolean): Tensor {
+            device.hashCode()
             val count = shape.elemCount()
             val data = FloatArray(count)
             var i = 0
@@ -1741,6 +1755,7 @@ public class Tensor internal constructor(
         }
 
         internal fun randnF64Impl(mean: Double, std: Double, shape: Shape, dtype: DType, device: Device, isVariable: Boolean): Tensor {
+            device.hashCode()
             val count = shape.elemCount()
             val data = DoubleArray(count)
             var i = 0
@@ -1765,6 +1780,7 @@ public class Tensor internal constructor(
             randnImpl(mean, std, shape, device, false)
 
         internal fun newImpl(data: FloatArray, shape: Shape, device: Device, isVariable: Boolean): Tensor {
+            device.hashCode()
             if (data.size != shape.elemCount()) {
                 throw CandleException.ShapeMismatch(data.size, shape)
             }

@@ -263,7 +263,7 @@ public class FloatFormatter(
         }
 
         private fun formatScientific(v: Double, precision: Int): String {
-            if (v.isNaN() || v.isInfinite()) return v.toString()
+            if (v.isNaN() || v.isInfinite() || precision < 0) return v.toString()
             return v.toString()
         }
 

@@ -89,16 +89,16 @@ class QTensor(
                         )
                     )
                 } else {
-                    throw IllegalStateException("Non-cuda indexedMoeForward is not implemented!")
+                    throw IllegalStateException("Non-cuda indexedMoeForward is unsupported!")
                 }
             }
-            else -> throw IllegalStateException("indexedMoeForward is not implemented in this platform!")
+            else -> throw IllegalStateException("indexedMoeForward is unsupported in this platform!")
         }
     }
 
     fun devicePtr(): CandleResult<Long> = when (val st = this.storage) {
         is QStorage.Cuda -> st.storage.devicePtr()
-        is QStorage.Metal, is QStorage.Cpu -> CandleResult.Err(CandleError.Msg("not implemented").bt())
+        is QStorage.Metal, is QStorage.Cpu -> CandleResult.Err(CandleError.Msg("unsupported").bt())
     }
 
     fun devicePtrWithGuard(stream: Long): CandleResult<Pair<Long, Long>> =
@@ -534,7 +534,7 @@ sealed class QStorage {
 
     fun devicePtr(): CandleResult<Long> = when (this) {
         is Cuda -> this.storage.devicePtr()
-        is Metal, is Cpu -> CandleResult.Err(CandleError.Msg("not implemented").bt())
+        is Metal, is Cpu -> CandleResult.Err(CandleError.Msg("unsupported").bt())
     }
 
     fun devicePtrWithGuard(stream: Long): CandleResult<Pair<Long, Long>> = when (this) {
@@ -542,7 +542,7 @@ sealed class QStorage {
             is CandleResult.Ok -> CandleResult.Ok(res.value to stream)
             is CandleResult.Err -> CandleResult.Err(res.error)
         }
-        is Metal, is Cpu -> CandleResult.Err(CandleError.Msg("not implemented").bt())
+        is Metal, is Cpu -> CandleResult.Err(CandleError.Msg("unsupported").bt())
     }
 
     companion object {
@@ -817,7 +817,7 @@ sealed class QMatMul : Module {
 
     fun indexedMoeForward(x: Tensor, ids: Tensor): CandleResult<Tensor> = when (this) {
         is QTensorVariant -> this.qtensor.indexedMoeForward(x, ids)
-        else -> throw IllegalStateException("Not implemented!")
+        else -> throw IllegalStateException("Unsupported!")
     }
 
     override fun forward(xs: Tensor): CandleResult<Tensor> = when (this) {

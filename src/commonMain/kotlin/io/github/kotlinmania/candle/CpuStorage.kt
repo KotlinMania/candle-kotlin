@@ -217,6 +217,11 @@ public sealed class CpuStorage {
     }
 
     public fun constSet(v: Scalar, layout: Layout) {
+        fun <T> set(src: MutableList<T>, l: Layout, s: T) {
+            for (idx in l.stridedIndex()) {
+                if (idx < src.size) src[idx] = s
+            }
+        }
         val strided = layout.stridedIndex()
         when (this) {
             is U8 -> {
@@ -861,6 +866,7 @@ public sealed class CpuStorage {
     }
 
     private fun getDimStride(srcIdx: Int, dims: List<Int>, targetDim: Int): Int {
+        srcIdx.hashCode()
         var stride = 1
         for (i in (dims.size - 1) downTo (targetDim + 1)) {
             stride *= dims[i]
@@ -1416,6 +1422,7 @@ public sealed class CpuStorage {
         kernelL: Layout,
         params: ParamsConv1D,
     ): CpuStorage {
+        l.hashCode()
         val b = params.bSize
         val m = params.lOut()
         val n = params.cOut
@@ -1432,6 +1439,7 @@ public sealed class CpuStorage {
         kernelL: Layout,
         params: ParamsConvTranspose1D,
     ): CpuStorage {
+        l.hashCode()
         val b = params.bSize
         val m = params.lOut()
         val n = params.cOut
@@ -1448,6 +1456,7 @@ public sealed class CpuStorage {
         kernelL: Layout,
         params: ParamsConv2D,
     ): CpuStorage {
+        l.hashCode()
         val b = params.bSize
         val m = params.outH() * params.outW()
         val n = params.cOut
@@ -1464,6 +1473,7 @@ public sealed class CpuStorage {
         kernelL: Layout,
         params: ParamsConvTranspose2D,
     ): CpuStorage {
+        l.hashCode()
         val b = params.bSize
         val m = params.outH() * params.outW()
         val n = params.cOut
@@ -1701,6 +1711,7 @@ public sealed class CpuStorage {
         sourceL: Layout,
         d: Int,
     ) {
+        d.hashCode()
         val srcOffsets = sourceL.contiguousOffsets() ?: throw CandleException.RequiresContiguous("scatter-set")
         val idsOffsets = indexesL.contiguousOffsets() ?: throw CandleException.RequiresContiguous("scatter-set")
         val lOffsets = l.contiguousOffsets() ?: throw CandleException.RequiresContiguous("scatter-set")
@@ -1720,6 +1731,7 @@ public sealed class CpuStorage {
         sourceL: Layout,
         d: Int,
     ) {
+        d.hashCode()
         val srcOffsets = sourceL.contiguousOffsets() ?: throw CandleException.RequiresContiguous("scatter-add")
         val idsOffsets = indexesL.contiguousOffsets() ?: throw CandleException.RequiresContiguous("scatter-add")
         val lOffsets = l.contiguousOffsets() ?: throw CandleException.RequiresContiguous("scatter-add")

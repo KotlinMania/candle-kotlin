@@ -8,7 +8,8 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class NdIterTest {
-    private fun layout(dims: List<Int>, strides: List<Int>): Layout =
+    @Test
+    fun layout(dims: List<Int> = listOf(1), strides: List<Int> = listOf(1)): Layout =
         Layout(Shape(dims), strides, 0)
 
     @Test

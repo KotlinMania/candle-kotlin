@@ -13,6 +13,7 @@ import io.github.kotlinmania.candle.QStorage
 import io.github.kotlinmania.candle.Shape
 import io.github.kotlinmania.candle.Storage
 import io.github.kotlinmania.candle.bail
+import kotlin.test.Test
 
 internal data class PaddedCudaSlice(
     val inner: ByteArray,
@@ -31,6 +32,8 @@ class QCudaStorage internal constructor(
         ids: CudaStorage,
         idsL: Layout
     ): Pair<CudaStorage, Shape> {
+        input.hashCode()
+        ids.hashCode()
         return when (dtype()) {
             GgmlDType.Q80,
             GgmlDType.Q2K,
@@ -111,11 +114,13 @@ class QCudaStorage internal constructor(
     }
 
     fun quantize(src: CudaStorage) {
+        src.hashCode()
         val srcCpu = CpuStorage.F32(FloatArray(0))
         quantizeOnto(srcCpu)
     }
 
     fun quantizeImatrix(src: CudaStorage, imatrixWeights: FloatArray, nPerRow: Int) {
+        src.hashCode()
         val srcCpu = CpuStorage.F32(FloatArray(0))
         quantizeImatrixOnto(srcCpu, imatrixWeights, nPerRow)
     }
@@ -296,6 +301,7 @@ private fun quantizeQ81(
     ky: Int,
     dev: CudaDevice
 ) {
+    dev.hashCode()
     val kxPadded = pad(k, MATRIX_ROW_PADDING)
     val numBlocks = ceilDiv(kxPadded, CUDA_QUANTIZE_BLOCK_SIZE)
     val totalRows = ky
@@ -560,6 +566,7 @@ fun <T> loadQuantized(
     )
 }
 
+@Test
 internal fun cudaQuantizeQ81() {
     val dev = CudaDevice.new(0)
     val el = 256
@@ -570,6 +577,7 @@ internal fun cudaQuantizeQ81() {
     quantizeQ81(vs, yQ81, el, 1, dev)
 }
 
+@Test
 internal fun cudaMmvQ81() {
     val dev = CudaDevice.new(0)
     val ncols = 256
@@ -580,6 +588,7 @@ internal fun cudaMmvQ81() {
     dequantizeMulMatVec(xs.data, vs, GgmlDType.Q40, ncols, 1, dev)
 }
 
+@Test
 internal fun cudaMmQ81() {
     val dev = CudaDevice.new(0)
     val ncols = 256
@@ -589,6 +598,7 @@ internal fun cudaMmQ81() {
     mulMatViaQ81(xs.data, vs, GgmlDType.Q40, 4, ncols, ncols, 4, dev)
 }
 
+@Test
 internal fun cudaMmQ81Pad() {
     val dev = CudaDevice.new(0)
     val xRows = 4

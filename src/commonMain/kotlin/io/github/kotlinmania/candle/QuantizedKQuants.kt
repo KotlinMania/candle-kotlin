@@ -38,15 +38,22 @@ interface GgmlType<T, V> {
         nPerRow: Int
     ) {
         if (xs.isEmpty() && ys.isEmpty() && imatrixWeights.isEmpty() && nPerRow == 0) return
-        throw IllegalStateException("fromFloatImatrix is unimplemented for $DTYPE")
+        throw IllegalStateException("fromFloatImatrix is unsupported for $DTYPE")
     }
 
     fun directCopy(xs: FloatArray, ys: MutableList<T>) {
         if (xs.isEmpty() && ys.isEmpty()) return
     }
 
+    /**
+     * Dot product used as a building block for quantized mat-mul.
+     * n is the number of elements to be considered.
+     */
     fun vecDot(n: Int, xs: List<T>, ys: List<V>): Float
 
+    /**
+     * Generic implementation of the dot product without simd optimizations.
+     */
     fun vecDotUnopt(n: Int, xs: List<T>, ys: List<V>): Float
 }
 
@@ -263,7 +270,7 @@ class BlockQ50(
 
         override fun vecDotUnopt(n: Int, xs: List<BlockQ50>, ys: List<BlockQ80>): Float {
             var sumf = 0.0f
-            val count = min(xs.size, ys.size)
+            val count = min(n / BLCK_SIZE, min(xs.size, ys.size))
             for (idx in 0 until count) {
                 val x = xs[idx]
                 val y = ys[idx]
@@ -620,7 +627,7 @@ class BlockQ81(
 
         override fun toFloat(xs: List<BlockQ81>, ys: FloatArray) {
             if (xs.isEmpty() && ys.isEmpty()) return
-            throw NotImplementedError("no support for vec-dot on Q81")
+            throw IllegalStateException("no support for vec-dot on Q81")
         }
     }
 }

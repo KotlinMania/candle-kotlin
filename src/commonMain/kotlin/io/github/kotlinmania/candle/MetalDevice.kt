@@ -2,6 +2,7 @@
 package io.github.kotlinmania.candle.metal.device
 
 import io.github.kotlinmania.candle.DType
+import kotlin.test.Test
 
 data class DeviceId(val id: Int) {
     companion object {
@@ -221,6 +222,7 @@ class ReadyBufferBuilder internal constructor(
     }
 }
 
+@Test
 internal fun testBufSizeExactPowersOfTwo() {
     check(bufSize(1) == 1)
     check(bufSize(2) == 2)
@@ -230,6 +232,7 @@ internal fun testBufSizeExactPowersOfTwo() {
     check(bufSize(1024) == 1024)
 }
 
+@Test
 internal fun testBufSizeRoundsUp() {
     check(bufSize(3) == 4)
     check(bufSize(5) == 8)
@@ -240,6 +243,7 @@ internal fun testBufSizeRoundsUp() {
     check(bufSize(1025) == 2048)
 }
 
+@Test
 internal fun testBufSizeBf16F16Scalar() {
     check(bufSize(2) == 2)
 }

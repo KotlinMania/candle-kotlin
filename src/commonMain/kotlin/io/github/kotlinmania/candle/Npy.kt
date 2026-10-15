@@ -30,6 +30,8 @@
  */
 package io.github.kotlinmania.candle
 
+import kotlin.test.Test
+
 private val NPY_MAGIC_STRING: ByteArray = byteArrayOf(
     0x93.toByte(),
     'N'.code.toByte(),
@@ -567,7 +569,8 @@ class NpzTensors private constructor(
     }
 }
 
-private fun parse() {
+@Test
+internal fun parse() {
     val h1 = "{'descr': '<f8', 'fortran_order': False, 'shape': (128,), }"
     check(
         Header.parse(h1).unwrap() ==

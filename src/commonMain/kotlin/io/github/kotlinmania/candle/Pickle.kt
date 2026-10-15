@@ -190,6 +190,8 @@ sealed class Object {
         else -> CandleResult.Err(from(this))
     }
 
+    fun class_(): CandleResult<Pair<String, String>> = `class`()
+
     fun intoTensorInfo(
         nameObj: Object,
         dirName: String,

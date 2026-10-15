@@ -248,7 +248,9 @@ public fun gemmReducedPrecisionF16(): Boolean = true
  * This bool controls whether reduced precision reductions (e.g., with fp16 accumulation type) are
  * allowed with f16 GEMMs.
  */
-public fun setGemmReducedPrecisionF16(b: Boolean) {}
+public fun setGemmReducedPrecisionF16(b: Boolean) {
+    b.hashCode()
+}
 
 /**
  * This bool controls whether reduced precision reductions (e.g., with fp16 accumulation type) are
@@ -260,7 +262,9 @@ public fun gemmReducedPrecisionBf16(): Boolean = true
  * This bool controls whether reduced precision reductions (e.g., with fp16 accumulation type) are
  * allowed with bf16 GEMMs.
  */
-public fun setGemmReducedPrecisionBf16(b: Boolean) {}
+public fun setGemmReducedPrecisionBf16(b: Boolean) {
+    b.hashCode()
+}
 
 /**
  * This bool controls whether reduced precision reductions (e.g., with tf32 accumulation type) are
@@ -272,4 +276,6 @@ public fun gemmReducedPrecisionF32(): Boolean = true
  * This bool controls whether reduced precision reductions (e.g., with tf32 accumulation type) are
  * allowed with f32 GEMMs.
  */
-public fun setGemmReducedPrecisionF32(b: Boolean) {}
+public fun setGemmReducedPrecisionF32(b: Boolean) {
+    b.hashCode()
+}

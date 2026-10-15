@@ -35,6 +35,8 @@ public enum class DType(
      */
     public fun asStr(): String = typeName
 
+    public fun fmt(): String = asStr()
+
     /**
      * The size used by each element in bytes, i.e. 1 for U8, 4 for F32.
      */

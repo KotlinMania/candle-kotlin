@@ -231,6 +231,8 @@ public data class Shape(
         return Dims5(dims[0], dims[1], dims[2], dims[3], dims[4])
     }
 
+    public fun fmt(): String = toString()
+
     override fun toString(): String = dims.toString()
 
     public companion object {
@@ -335,9 +337,26 @@ public class DimsList(public val dims: List<Int>) : Dims {
     override fun toIndexesInternal(shape: Shape, op: String): List<Int> = dims
 }
 
+public class DimsArray(public val dims: IntArray) : Dims {
+    override fun toIndexesInternal(shape: Shape, op: String): List<Int> = dims.toList()
+}
+
+public class DimsSlice(public val dims: IntArray) : Dims {
+    override fun toIndexesInternal(shape: Shape, op: String): List<Int> = dims.toList()
+}
+
+public object DimsEmpty : Dims {
+    override fun toIndexesInternal(shape: Shape, op: String): List<Int> = emptyList()
+}
+
 public class DimsDim(public val dim: Dim) : Dims {
     override fun toIndexesInternal(shape: Shape, op: String): List<Int> =
         listOf(dim.toIndex(shape, op))
+}
+
+public class DimsTuple1(public val d1: Dim) : Dims {
+    override fun toIndexesInternal(shape: Shape, op: String): List<Int> =
+        listOf(d1.toIndex(shape, op))
 }
 
 public class DimsTuple2(public val d1: Dim, public val d2: Dim) : Dims {
@@ -350,8 +369,57 @@ public class DimsTuple3(public val d1: Dim, public val d2: Dim, public val d3: D
         listOf(d1.toIndex(shape, op), d2.toIndex(shape, op), d3.toIndex(shape, op))
 }
 
+public class DimsTuple4(public val d1: Dim, public val d2: Dim, public val d3: Dim, public val d4: Dim) : Dims {
+    override fun toIndexesInternal(shape: Shape, op: String): List<Int> =
+        listOf(d1.toIndex(shape, op), d2.toIndex(shape, op), d3.toIndex(shape, op), d4.toIndex(shape, op))
+}
+
+public class DimsTuple5(
+    public val d1: Dim,
+    public val d2: Dim,
+    public val d3: Dim,
+    public val d4: Dim,
+    public val d5: Dim,
+) : Dims {
+    override fun toIndexesInternal(shape: Shape, op: String): List<Int> =
+        listOf(
+            d1.toIndex(shape, op),
+            d2.toIndex(shape, op),
+            d3.toIndex(shape, op),
+            d4.toIndex(shape, op),
+            d5.toIndex(shape, op),
+        )
+}
+
+public class DimsTuple6(
+    public val d1: Dim,
+    public val d2: Dim,
+    public val d3: Dim,
+    public val d4: Dim,
+    public val d5: Dim,
+    public val d6: Dim,
+) : Dims {
+    override fun toIndexesInternal(shape: Shape, op: String): List<Int> =
+        listOf(
+            d1.toIndex(shape, op),
+            d2.toIndex(shape, op),
+            d3.toIndex(shape, op),
+            d4.toIndex(shape, op),
+            d5.toIndex(shape, op),
+            d6.toIndex(shape, op),
+        )
+}
+
 public interface ShapeWithOneHole {
     public fun intoShape(elCount: Int): Shape
+}
+
+public class ShapeWithOneHoleShape(public val shape: Shape) : ShapeWithOneHole {
+    override fun intoShape(elCount: Int): Shape = shape
+}
+
+public object ShapeWithOneHole1 : ShapeWithOneHole {
+    override fun intoShape(elCount: Int): Shape = Shape.from(elCount)
 }
 
 public fun holeSize(elCount: Int, prodD: Int, s: Any): Int {
@@ -362,6 +430,87 @@ public fun holeSize(elCount: Int, prodD: Int, s: Any): Int {
         bail("cannot reshape tensor with $elCount elements to $s")
     }
     return elCount / prodD
+}
+
+public data class ShapeWithOneHole2Hole0(public val d1: Int) : ShapeWithOneHole {
+    override fun intoShape(elCount: Int): Shape = Shape.from(holeSize(elCount, d1, this), d1)
+}
+
+public data class ShapeWithOneHole2Hole1(public val d1: Int) : ShapeWithOneHole {
+    override fun intoShape(elCount: Int): Shape = Shape.from(d1, holeSize(elCount, d1, this))
+}
+
+public data class ShapeWithOneHole3Hole0(public val d1: Int, public val d2: Int) : ShapeWithOneHole {
+    override fun intoShape(elCount: Int): Shape = Shape.from(holeSize(elCount, d1 * d2, this), d1, d2)
+}
+
+public data class ShapeWithOneHole3Hole1(public val d1: Int, public val d2: Int) : ShapeWithOneHole {
+    override fun intoShape(elCount: Int): Shape = Shape.from(d1, holeSize(elCount, d1 * d2, this), d2)
+}
+
+public data class ShapeWithOneHole3Hole2(public val d1: Int, public val d2: Int) : ShapeWithOneHole {
+    override fun intoShape(elCount: Int): Shape = Shape.from(d1, d2, holeSize(elCount, d1 * d2, this))
+}
+
+public data class ShapeWithOneHole4Hole0(public val d1: Int, public val d2: Int, public val d3: Int) : ShapeWithOneHole {
+    override fun intoShape(elCount: Int): Shape = Shape.from(holeSize(elCount, d1 * d2 * d3, this), d1, d2, d3)
+}
+
+public data class ShapeWithOneHole4Hole1(public val d1: Int, public val d2: Int, public val d3: Int) : ShapeWithOneHole {
+    override fun intoShape(elCount: Int): Shape = Shape.from(d1, holeSize(elCount, d1 * d2 * d3, this), d2, d3)
+}
+
+public data class ShapeWithOneHole4Hole2(public val d1: Int, public val d2: Int, public val d3: Int) : ShapeWithOneHole {
+    override fun intoShape(elCount: Int): Shape = Shape.from(d1, d2, holeSize(elCount, d1 * d2 * d3, this), d3)
+}
+
+public data class ShapeWithOneHole4Hole3(public val d1: Int, public val d2: Int, public val d3: Int) : ShapeWithOneHole {
+    override fun intoShape(elCount: Int): Shape = Shape.from(d1, d2, d3, holeSize(elCount, d1 * d2 * d3, this))
+}
+
+public data class ShapeWithOneHole5Hole0(
+    public val d1: Int,
+    public val d2: Int,
+    public val d3: Int,
+    public val d4: Int,
+) : ShapeWithOneHole {
+    override fun intoShape(elCount: Int): Shape = Shape.from(holeSize(elCount, d1 * d2 * d3 * d4, this), d1, d2, d3, d4)
+}
+
+public data class ShapeWithOneHole5Hole1(
+    public val d1: Int,
+    public val d2: Int,
+    public val d3: Int,
+    public val d4: Int,
+) : ShapeWithOneHole {
+    override fun intoShape(elCount: Int): Shape = Shape.from(d1, holeSize(elCount, d1 * d2 * d3 * d4, this), d2, d3, d4)
+}
+
+public data class ShapeWithOneHole5Hole2(
+    public val d1: Int,
+    public val d2: Int,
+    public val d3: Int,
+    public val d4: Int,
+) : ShapeWithOneHole {
+    override fun intoShape(elCount: Int): Shape = Shape.from(d1, d2, holeSize(elCount, d1 * d2 * d3 * d4, this), d3, d4)
+}
+
+public data class ShapeWithOneHole5Hole3(
+    public val d1: Int,
+    public val d2: Int,
+    public val d3: Int,
+    public val d4: Int,
+) : ShapeWithOneHole {
+    override fun intoShape(elCount: Int): Shape = Shape.from(d1, d2, d3, holeSize(elCount, d1 * d2 * d3 * d4, this), d4)
+}
+
+public data class ShapeWithOneHole5Hole4(
+    public val d1: Int,
+    public val d2: Int,
+    public val d3: Int,
+    public val d4: Int,
+) : ShapeWithOneHole {
+    override fun intoShape(elCount: Int): Shape = Shape.from(d1, d2, d3, d4, holeSize(elCount, d1 * d2 * d3 * d4, this))
 }
 
 public fun List<Int>.intoShapeWithHole(elCount: Int): Shape {

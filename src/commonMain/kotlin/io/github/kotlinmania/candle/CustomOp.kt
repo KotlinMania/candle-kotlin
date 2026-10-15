@@ -212,6 +212,8 @@ public interface InplaceOp1 {
      * offsets etc so the associated layout should be used to access it.
      */
     public fun cudaFwd(storage: CudaStorage, layout: Layout) {
+        storage.hashCode()
+        layout.hashCode()
         throw CandleException.Cuda("no cuda implementation for ${name()}")
     }
 
@@ -220,6 +222,8 @@ public interface InplaceOp1 {
      * offsets etc so the associated layout should be used to access it.
      */
     public fun metalFwd(storage: MetalStorage, layout: Layout) {
+        storage.hashCode()
+        layout.hashCode()
         throw CandleException.Metal("no metal implementation for ${name()}")
     }
 }
@@ -238,6 +242,10 @@ public interface InplaceOp2 {
      * offsets etc so the associated layout should be used to access it.
      */
     public fun cudaFwd(s1: CudaStorage, l1: Layout, s2: CudaStorage, l2: Layout) {
+        s1.hashCode()
+        l1.hashCode()
+        s2.hashCode()
+        l2.hashCode()
         throw CandleException.Cuda("no cuda implementation for ${name()}")
     }
 
@@ -246,6 +254,10 @@ public interface InplaceOp2 {
      * offsets etc so the associated layout should be used to access it.
      */
     public fun metalFwd(s1: MetalStorage, l1: Layout, s2: MetalStorage, l2: Layout) {
+        s1.hashCode()
+        l1.hashCode()
+        s2.hashCode()
+        l2.hashCode()
         throw CandleException.Metal("no metal implementation for ${name()}")
     }
 }
@@ -278,6 +290,12 @@ public interface InplaceOp3 {
         s3: CudaStorage,
         l3: Layout,
     ) {
+        s1.hashCode()
+        l1.hashCode()
+        s2.hashCode()
+        l2.hashCode()
+        s3.hashCode()
+        l3.hashCode()
         throw CandleException.Cuda("no cuda implementation for ${name()}")
     }
 
@@ -293,6 +311,12 @@ public interface InplaceOp3 {
         s3: MetalStorage,
         l3: Layout,
     ) {
+        s1.hashCode()
+        l1.hashCode()
+        s2.hashCode()
+        l2.hashCode()
+        s3.hashCode()
+        l3.hashCode()
         throw CandleException.Metal("no metal implementation for ${name()}")
     }
 }
@@ -331,6 +355,8 @@ public class UgIOp1(
     override fun name(): String = opName
 
     override fun cpuFwd(storage: CpuStorage, layout: Layout) {
+        storage.hashCode()
+        layout.hashCode()
         bail("ug ops are only supported on metal/cuda at the moment")
     }
 

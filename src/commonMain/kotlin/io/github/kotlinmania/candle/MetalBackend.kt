@@ -192,7 +192,7 @@ class MetalStorage(
                 DType.U8 -> "affine_u8"
                 DType.U32 -> "affine_u32"
                 DType.I64 -> "affine_i64"
-                else -> throw MetalError.from("Metal contiguous affine $dt not implemented")
+                else -> throw MetalError.from("Metal contiguous affine $dt unsupported")
             }
             encoder.hashCode()
             name.hashCode()
@@ -207,7 +207,7 @@ class MetalStorage(
                 DType.U8 -> "affine_u8_strided"
                 DType.U32 -> "affine_u32_strided"
                 DType.I64 -> "affine_i64_strided"
-                else -> throw MetalError.from("Metal strided affine $dt not implemented")
+                else -> throw MetalError.from("Metal strided affine $dt unsupported")
             }
             encoder.hashCode()
             name.hashCode()
@@ -236,7 +236,7 @@ class MetalStorage(
                 DType.F32 -> "powf_f32"
                 DType.F16 -> "powf_f16"
                 DType.BF16 -> "powf_bf16"
-                else -> throw MetalError.from("Metal contiguous powf $dt not implemented")
+                else -> throw MetalError.from("Metal contiguous powf $dt unsupported")
             }
             encoder.hashCode()
             name.hashCode()
@@ -247,7 +247,7 @@ class MetalStorage(
                 DType.F32 -> "powf_f32_strided"
                 DType.F16 -> "powf_f16_strided"
                 DType.BF16 -> "powf_bf16_strided"
-                else -> throw MetalError.from("Metal strided powf $dt not implemented")
+                else -> throw MetalError.from("Metal strided powf $dt unsupported")
             }
             encoder.hashCode()
             name.hashCode()
@@ -275,7 +275,7 @@ class MetalStorage(
                 DType.F32 -> "elu_f32"
                 DType.F16 -> "elu_f16"
                 DType.BF16 -> "elu_bf16"
-                else -> throw MetalError.from("Metal contiguous elu $dt not implemented")
+                else -> throw MetalError.from("Metal contiguous elu $dt unsupported")
             }
             encoder.hashCode()
             name.hashCode()
@@ -286,7 +286,7 @@ class MetalStorage(
                 DType.F32 -> "elu_f32_strided"
                 DType.F16 -> "elu_f16_strided"
                 DType.BF16 -> "elu_bf16_strided"
-                else -> throw MetalError.from("Metal strided elu $dt not implemented")
+                else -> throw MetalError.from("Metal strided elu $dt unsupported")
             }
             encoder.hashCode()
             name.hashCode()
@@ -348,7 +348,7 @@ class MetalStorage(
                 Pair(ReduceOp.Max, DType.U8) -> Triple("fast_max_u8", true, false)
                 Pair(ReduceOp.ArgMin, DType.U8) -> Triple("fast_argmin_u8", true, true)
                 Pair(ReduceOp.ArgMax, DType.U8) -> Triple("fast_argmax_u8", true, true)
-                else -> throw MetalError.from("Metal contiguous reduce op $op $dtype not implemented")
+                else -> throw MetalError.from("Metal contiguous reduce op $op $dtype unsupported")
             }
             if (checkEmpty && layout.shape().elemCount() == 0) {
                 throw CandleError.EmptyTensor(op = "reduce").bt()
@@ -399,7 +399,7 @@ class MetalStorage(
             Pair(ReduceOp.Max, DType.U8) -> Triple("fast_max_u8_strided", true, false)
             Pair(ReduceOp.ArgMin, DType.U8) -> Triple("fast_argmin_u8_strided", true, true)
             Pair(ReduceOp.ArgMax, DType.U8) -> Triple("fast_argmax_u8_strided", true, true)
-            else -> throw MetalError.from("Metal strided reduce op $op $dtype not implemented")
+            else -> throw MetalError.from("Metal strided reduce op $op $dtype unsupported")
         }
         if (checkEmpty && layout.shape().elemCount() == 0) {
             throw CandleError.EmptyTensor(op = "reduce").bt()
@@ -546,7 +546,7 @@ class MetalStorage(
                 Pair(DType.BF16, DType.U32) -> "cast_bf16_u32"
                 Pair(DType.BF16, DType.U8) -> "cast_bf16_u8"
 
-                else -> throw MetalError.from("Metal contiguous toDtype $dtype $dstDtype not implemented")
+                else -> throw MetalError.from("Metal contiguous toDtype $dtype $dstDtype unsupported")
             }
             encoder.hashCode()
             kernelName.hashCode()
@@ -589,7 +589,7 @@ class MetalStorage(
                 Pair(DType.U8, DType.I64) -> "cast_u8_i64_strided"
                 Pair(DType.U8, DType.U32) -> "cast_u8_u32_strided"
 
-                else -> throw MetalError.from("Metal strided toDtype $dtype $dstDtype not implemented")
+                else -> throw MetalError.from("Metal strided toDtype $dtype $dstDtype unsupported")
             }
             encoder.hashCode()
             kernelName.hashCode()
@@ -666,7 +666,7 @@ class MetalStorage(
             Pair(DType.U8, DType.I64) -> "where_u8_i64"
             Pair(DType.U8, DType.U32) -> "where_u8_u32"
             Pair(DType.U8, DType.U8) -> "where_u8_u8"
-            else -> throw MetalError.from("Metal whereCond $dtype ${t.dtype()} not implemented")
+            else -> throw MetalError.from("Metal whereCond $dtype ${t.dtype()} unsupported")
         }
         val src = bufferO(buffer, layout, dtype)
         val tBuf = bufferO(t.buffer, tL, t.dtype)
@@ -709,7 +709,7 @@ class MetalStorage(
             DType.BF16 -> "im2col1d_bf16"
             DType.U8 -> "im2col1d_u8"
             DType.U32 -> "im2col1d_u32"
-            else -> throw MetalError.from("Metal conv1d $dtype not implemented")
+            else -> throw MetalError.from("Metal conv1d $dtype unsupported")
         }
         val src = bufferO(buffer, layout, dtype)
         encoder.hashCode()
@@ -777,7 +777,7 @@ class MetalStorage(
                 DType.BF16 -> "col2im1d_bf16"
                 DType.U32 -> "col2im1d_u32"
                 DType.U8 -> "col2im1d_u8"
-                else -> throw MetalError.from("metal col2im1d $dtype not implemented")
+                else -> throw MetalError.from("metal col2im1d $dtype unsupported")
             }
             val kernelLMm = Layout(
                 Shape(listOf(bSize, cIn, kSize * cOut)),
@@ -809,7 +809,7 @@ class MetalStorage(
                 DType.BF16 -> "conv_transpose1d_bf16"
                 DType.U32 -> "conv_transpose1d_u32"
                 DType.U8 -> "conv_transpose1d_u8"
-                else -> throw MetalError.from("Metal convTranspose1d $dtype not implemented")
+                else -> throw MetalError.from("Metal convTranspose1d $dtype unsupported")
             }
             encoder.hashCode()
             name.hashCode()
@@ -850,7 +850,7 @@ class MetalStorage(
             DType.BF16 -> "im2col_bf16"
             DType.U8 -> "im2col_u8"
             DType.U32 -> "im2col_u32"
-            else -> throw MetalError.from("Metal conv2d $dtype not implemented")
+            else -> throw MetalError.from("Metal conv2d $dtype unsupported")
         }
         val src = bufferO(buffer, layout, dtype)
         encoder.hashCode()
@@ -917,7 +917,7 @@ class MetalStorage(
             DType.F32 -> "conv_transpose2d_f32"
             DType.F16 -> "conv_transpose2d_f16"
             DType.BF16 -> "conv_transpose2d_bf16"
-            else -> throw MetalError.from("Metal convTranspose2d $dtype not implemented")
+            else -> throw MetalError.from("Metal convTranspose2d $dtype unsupported")
         }
         val cfg = CallConvTranspose2dCfg(
             dilation = params.dilation,
@@ -957,7 +957,7 @@ class MetalStorage(
             DType.BF16 -> "avg_pool2d_bf16"
             DType.U8 -> "avg_pool2d_u8"
             DType.U32 -> "avg_pool2d_u32"
-            else -> throw MetalError.from("Metal avgPool2d $dtype not implemented")
+            else -> throw MetalError.from("Metal avgPool2d $dtype unsupported")
         }
         val outW = (width - wK) / wStride + 1
         val outH = (height - hK) / hStride + 1
@@ -991,7 +991,7 @@ class MetalStorage(
             DType.BF16 -> "max_pool2d_bf16"
             DType.U8 -> "max_pool2d_u8"
             DType.U32 -> "max_pool2d_u32"
-            else -> throw MetalError.from("Metal maxPool2d $dtype not implemented")
+            else -> throw MetalError.from("Metal maxPool2d $dtype unsupported")
         }
         val outW = (width - wK) / wStride + 1
         val outH = (height - hK) / hStride + 1
@@ -1012,7 +1012,7 @@ class MetalStorage(
     fun upsampleNearest1d(layout: Layout, sz: Int): Result<MetalStorage> = runCatching {
         layout.hashCode()
         sz.hashCode()
-        throw MetalError.from("Metal upsampleNearest1d not implemented")
+        throw MetalError.from("Metal upsampleNearest1d unsupported")
     }
 
     fun upsampleNearest2d(inpL: Layout, outW: Int, outH: Int): Result<MetalStorage> = runCatching {
@@ -1028,7 +1028,7 @@ class MetalStorage(
             DType.BF16 -> "upsample_nearest2d_bf16"
             DType.U8 -> "upsample_nearest2d_u8"
             DType.U32 -> "upsample_nearest2d_u32"
-            else -> throw MetalError.from("Metal upsampleNearest2d $dtype not implemented")
+            else -> throw MetalError.from("Metal upsampleNearest2d $dtype unsupported")
         }
         val dstEl = outW * outH * dims[0] * dims[1]
         val outBuffer = device
@@ -1066,7 +1066,7 @@ class MetalStorage(
             DType.BF16 -> "upsample_bilinear2d_bf16"
             DType.U8 -> "upsample_bilinear2d_u8"
             DType.U32 -> "upsample_bilinear2d_u32"
-            else -> throw MetalError.from("Metal upsampleBilinear2d $dtype not implemented")
+            else -> throw MetalError.from("Metal upsampleBilinear2d $dtype unsupported")
         }
         val dstEl = outW * outH * dims[0] * dims[1]
         val outBuffer = device
@@ -1118,7 +1118,7 @@ class MetalStorage(
             Pair(DType.I64, DType.BF16) -> "gather_i64_bf16"
             Pair(DType.I64, DType.U32) -> "gather_i64_u32"
             Pair(DType.I64, DType.I64) -> "gather_i64_i64"
-            else -> throw MetalError.from("Metal gather ${ids.dtype} $dt not implemented")
+            else -> throw MetalError.from("Metal gather ${ids.dtype} $dt unsupported")
         }
         val encoder = dev.commandEncoder().getOrThrow()
         val src = bufferO(buffer, srcL, dt)
@@ -1249,7 +1249,7 @@ class MetalStorage(
             Pair(DType.I64, DType.F16) -> "is_i64_f16"
             Pair(DType.I64, DType.BF16) -> "is_i64_bf16"
 
-            else -> throw MetalError.from("Metal contiguous indexSelect ${ids.dtype} $dt not implemented")
+            else -> throw MetalError.from("Metal contiguous indexSelect ${ids.dtype} $dt unsupported")
         }
         val encoder = dev.commandEncoder().getOrThrow()
         val src = bufferO(buffer, srcL, dt)
@@ -1385,7 +1385,7 @@ class MetalStorage(
                 DType.I16 -> "copy2d_i16"
                 DType.U32 -> "copy2d_u32"
                 DType.U8 -> "copy2d_u8"
-                else -> throw MetalError.from("Metal copy2d $dtype not implemented")
+                else -> throw MetalError.from("Metal copy2d $dtype unsupported")
             }
             val encoder = device.commandEncoder().getOrThrow()
             encoder.hashCode()
@@ -1435,7 +1435,7 @@ class MetalStorage(
                 DType.I64 -> "copy_strided_i64"
                 DType.U32 -> "copy_strided_u32"
                 DType.U8 -> "copy_strided_u8"
-                else -> throw MetalError.from("Metal copyStrided $dtype not implemented")
+                else -> throw MetalError.from("Metal copyStrided $dtype unsupported")
             }
             val src = bufferO(buffer, srcL, dtype)
             val dstBuf = BufferOffset(
@@ -1664,7 +1664,7 @@ class MetalBackendDevice(val inner: MetalDevice) {
             DType.F32 -> "rand_uniform_f32"
             DType.F16 -> "rand_uniform_f16"
             DType.BF16 -> "rand_uniform_bf16"
-            else -> throw MetalError.from("randUniform not implemented for $dtype")
+            else -> throw MetalError.from("randUniform unsupported for $dtype")
         }
         val buffer = inner
             .newBufferBuilder()
@@ -1695,7 +1695,7 @@ class MetalBackendDevice(val inner: MetalDevice) {
             DType.F32 -> "rand_normal_f32"
             DType.F16 -> "rand_normal_f16"
             DType.BF16 -> "rand_normal_bf16"
-            else -> throw MetalError.from("randUniform not implemented for $dtype")
+            else -> throw MetalError.from("randUniform unsupported for $dtype")
         }
         val buffer = inner
             .newBufferBuilder()
