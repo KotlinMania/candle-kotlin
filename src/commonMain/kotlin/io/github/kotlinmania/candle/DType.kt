@@ -226,3 +226,86 @@ public object IntDTypeI32 : IntDType<Int> {
 }
 
 public interface FloatDType<T> : WithDType<T>
+
+public typealias Float16 = io.github.kotlinmania.half.F16
+public typealias BFloat16 = io.github.kotlinmania.half.BF16
+public typealias F16 = io.github.kotlinmania.half.F16
+public typealias BF16 = io.github.kotlinmania.half.BF16
+public typealias F8E4M3 = io.github.kotlinmania.float8.F8E4M3
+public typealias F8E5M2 = io.github.kotlinmania.float8.F8E5M2
+
+public val Float16.bits: Short get() = rawBits.toShort()
+public val BFloat16.bits: Short get() = rawBits.toShort()
+public val F8E4M3.bits: Byte get() = rawBits.toByte()
+
+public object Float16Utils {
+    public val floatToF16Bits: (Float) -> Short = { value ->
+        val fbits = value.toRawBits()
+        val sign = (fbits ushr 16) and 0x8000
+        val exp = ((fbits ushr 23) and 0xFF) - (127 - 15)
+        val mant = fbits and 0x007FFFFF
+
+        if (exp <= 0) {
+            if (exp < -10) {
+                sign.toShort()
+            } else {
+                val m = (mant or 0x00800000) ushr (1 - exp)
+                (sign or (m ushr 13)).toShort()
+            }
+        } else if (exp == 0xFF - (127 - 15)) {
+            if (mant == 0) {
+                (sign or 0x7C00).toShort()
+            } else {
+                (sign or 0x7C00 or (mant ushr 13).coerceAtLeast(1)).toShort()
+            }
+        } else {
+            if (exp > 30) {
+                (sign or 0x7C00).toShort()
+            } else {
+                (sign or (exp shl 10) or (mant ushr 13)).toShort()
+            }
+        }
+    }
+
+    public val f16BitsToFloat: (Short) -> Float = { bits ->
+        val ibits = bits.toInt() and 0xFFFF
+        val sign = (ibits and 0x8000) shl 16
+        val exp = (ibits and 0x7C00) ushr 10
+        val mant = ibits and 0x03FF
+
+        if (exp == 0) {
+            if (mant == 0) {
+                Float.fromBits(sign)
+            } else {
+                var m = mant
+                var shift = 0
+                while ((m and 0x0400) == 0) {
+                    m = m shl 1
+                    shift++
+                }
+                val exponent = (127 - 14 - shift) shl 23
+                val mantissa = (m and 0x03FF) shl 13
+                Float.fromBits(sign or exponent or mantissa)
+            }
+        } else if (exp == 0x1F) {
+            val exponent = 0xFF shl 23
+            val mantissa = mant shl 13
+            Float.fromBits(sign or exponent or mantissa)
+        } else {
+            val exponent = (exp + (127 - 15)) shl 23
+            val mantissa = mant shl 13
+            Float.fromBits(sign or exponent or mantissa)
+        }
+    }
+
+    public val floatToBF16Bits: (Float) -> Short = { value ->
+        val fbits = value.toRawBits()
+        (fbits ushr 16).toShort()
+    }
+
+    public val bf16BitsToFloat: (Short) -> Float = { bits ->
+        val fbits = (bits.toInt() and 0xFFFF) shl 16
+        Float.fromBits(fbits)
+    }
+}
+

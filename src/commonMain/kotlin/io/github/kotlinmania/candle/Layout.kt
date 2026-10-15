@@ -298,3 +298,12 @@ public data class Layout(
         }
     }
 }
+
+public data class ContiguousOffsets(
+    val start: Int,
+    val end: Int,
+) {
+    public val first: Int get() = start
+    public val second: Int get() = end
+}
+

@@ -601,4 +601,146 @@ public typealias ShapeDim = Dim
 
 private fun <T> Ok(v: T): T = v
 
+public data class MatmulBroadcastShapes(
+    val lhs: Shape,
+    val rhs: Shape,
+) {
+    public val first: Shape get() = lhs
+    public val second: Shape get() = rhs
+    public inline fun unwrapOrElse(f: (CandleError) -> MatmulBroadcastShapes): MatmulBroadcastShapes = this
+    public fun getOrThrow(): MatmulBroadcastShapes = this
+}
+
+public data class Dims2(
+    val d0: Int,
+    val d1: Int,
+) {
+    public val first: Int get() = d0
+    public val second: Int get() = d1
+    public inline fun unwrapOrElse(f: (CandleError) -> Dims2): Dims2 = this
+    public inline fun getOrElse(f: (CandleError) -> Dims2): Dims2 = this
+    public fun getOrThrow(): Dims2 = this
+}
+
+public data class Dims3(
+    val d0: Int,
+    val d1: Int,
+    val d2: Int,
+) {
+    public val first: Int get() = d0
+    public val second: Int get() = d1
+    public val third: Int get() = d2
+    public inline fun unwrapOrElse(f: (CandleError) -> Dims3): Dims3 = this
+    public inline fun getOrElse(f: (CandleError) -> Dims3): Dims3 = this
+    public fun getOrThrow(): Dims3 = this
+}
+
+public data class Dims4(
+    val d0: Int,
+    val d1: Int,
+    val d2: Int,
+    val d3: Int,
+) {
+    public inline fun unwrapOrElse(f: (CandleError) -> Dims4): Dims4 = this
+    public inline fun getOrElse(f: (CandleError) -> Dims4): Dims4 = this
+    public fun getOrThrow(): Dims4 = this
+}
+
+public data class Dims5(
+    val d0: Int,
+    val d1: Int,
+    val d2: Int,
+    val d3: Int,
+    val d4: Int,
+) {
+    public inline fun unwrapOrElse(f: (CandleError) -> Dims5): Dims5 = this
+    public inline fun getOrElse(f: (CandleError) -> Dims5): Dims5 = this
+    public fun getOrThrow(): Dims5 = this
+}
+
+public fun Shape.dims0() {
+    if (dims.isNotEmpty()) throw CandleException.UnexpectedNumberOfDims(0, dims.size, this)
+}
+public fun Shape.dims1(): Int {
+    if (dims.size != 1) throw CandleException.UnexpectedNumberOfDims(1, dims.size, this)
+    return dims[0]
+}
+public fun Shape.dims2(): Dims2 {
+    if (dims.size != 2) throw CandleException.UnexpectedNumberOfDims(2, dims.size, this)
+    return Dims2(dims[0], dims[1])
+}
+public fun Shape.dims3(): Dims3 {
+    if (dims.size != 3) throw CandleException.UnexpectedNumberOfDims(3, dims.size, this)
+    return Dims3(dims[0], dims[1], dims[2])
+}
+public fun Shape.dims4(): Dims4 {
+    if (dims.size != 4) throw CandleException.UnexpectedNumberOfDims(4, dims.size, this)
+    return Dims4(dims[0], dims[1], dims[2], dims[3])
+}
+public fun Shape.dims5(): Dims5 {
+    if (dims.size != 5) throw CandleException.UnexpectedNumberOfDims(5, dims.size, this)
+    return Dims5(dims[0], dims[1], dims[2], dims[3], dims[4])
+}
+public fun dims2(dims: List<Int>): Dims2 = Shape(dims).dims2()
+public fun dims3(dims: List<Int>): Dims3 = Shape(dims).dims3()
+public fun dims4(dims: List<Int>): Dims4 = Shape(dims).dims4()
+public fun dims5(dims: List<Int>): Dims5 = Shape(dims).dims5()
+
+public val Shape.Companion.toIndex: (Int, Shape, String) -> Int
+    get() = { dim, shape, op ->
+        val rank = shape.rank
+        val normalized = if (dim < 0) rank + dim else dim
+        if (normalized < 0 || normalized >= rank) {
+            throw CandleException.DimOutOfRange(shape, dim, op)
+        }
+        normalized
+    }
+
+public val Shape.Companion.toIndexPlusOne: (Int, Shape, String) -> Int
+    get() = { dim, shape, op ->
+        val rank = shape.rank
+        val normalized = if (dim < 0) rank + 1 + dim else dim
+        if (normalized < 0 || normalized > rank) {
+            throw CandleException.DimOutOfRange(shape, dim, op)
+        }
+        normalized
+    }
+
+internal fun Shape.Companion.fromDims(dims: IntArray): Shape = Shape(dims.toList())
+internal fun Shape.Companion.fromDims(vararg dims: Int): Shape = Shape(dims.toList())
+internal fun Shape.Companion.Self(dims: List<Int>): Shape = Shape(dims)
+
+public val List<Int>.intoShapeWithHole: (Int) -> Shape
+    get() = { elCount ->
+        var holeIdx = -1
+        var knownProduct = 1
+        for (i in indices) {
+            val d = this[i]
+            if (d == -1) {
+                if (holeIdx != -1) {
+                    bail("multiple holes in shape: $this")
+                }
+                holeIdx = i
+            } else {
+                if (d < 0) bail("invalid dimension $d in shape $this")
+                knownProduct *= d
+            }
+        }
+        if (holeIdx == -1) {
+            if (knownProduct != elCount && elCount > 0) {
+                bail("cannot reshape tensor with $elCount elements to $this")
+            }
+            Shape(this)
+        } else {
+            if (knownProduct == 0 || elCount % knownProduct != 0) {
+                bail("cannot reshape tensor with $elCount elements to $this")
+            }
+            val hSize = elCount / knownProduct
+            val result = toMutableList()
+            result[holeIdx] = hSize
+            Shape(result)
+        }
+    }
+
+
 

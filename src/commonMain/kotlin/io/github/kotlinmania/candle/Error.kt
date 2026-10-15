@@ -617,3 +617,51 @@ public interface ErrorContext<T, E> : Sealed {
 }
 
 public val bail: (String) -> Nothing get() = { msg -> throw CandleException.Msg(msg).bt() }
+
+public typealias CandleError = CandleException
+
+public val CandleException.Companion.Wrap: (Throwable) -> CandleException
+    get() = { err -> CandleException.Wrapped(err.message ?: err.toString()) }
+public val CandleException.Companion.Context: (Throwable, String) -> CandleException
+    get() = { err, ctx -> CandleException.Context(err as? CandleException ?: CandleException.Wrapped(err.toString()), ctx) }
+
+public sealed class CandleResult<out T> {
+    public data class Ok<out T>(public val value: T) : CandleResult<T>()
+    public data class Err(public val error: Throwable) : CandleResult<Nothing>()
+
+    public val isOk: Boolean get() = this is Ok
+    public val isErr: Boolean get() = this is Err
+
+    public fun unwrap(): T = when (this) {
+        is Ok -> value
+        is Err -> throw error
+    }
+
+    public fun getOrThrow(): T = unwrap()
+
+    public fun exceptionOrNull(): Throwable? = when (this) {
+        is Ok -> null
+        is Err -> error
+    }
+
+    public inline fun unwrapOrElse(onFailure: (CandleException) -> @UnsafeVariance T): T = when (this) {
+        is Ok -> value
+        is Err -> onFailure(error as? CandleException ?: CandleException.wrap(error))
+    }
+
+    public inline fun <R> map(transform: (T) -> R): CandleResult<R> = when (this) {
+        is Ok -> Ok(transform(value))
+        is Err -> this
+    }
+
+    public inline fun mapErr(transform: (CandleException) -> Throwable): CandleResult<T> = when (this) {
+        is Ok -> this
+        is Err -> Err(transform(error as? CandleException ?: CandleException.wrap(error)))
+    }
+
+    public inline fun <R> andThen(transform: (T) -> CandleResult<R>): CandleResult<R> = when (this) {
+        is Ok -> transform(value)
+        is Err -> this
+    }
+}
+
