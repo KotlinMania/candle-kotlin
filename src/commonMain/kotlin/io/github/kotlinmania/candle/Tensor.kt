@@ -3405,7 +3405,9 @@ internal fun List<Int>.product(): Int = this.fold(1) { acc, x -> acc * x }
 
 internal object zip {
     enum class CompressionMethod {
-        Stored,
+        Stored;
+
+        companion object
     }
 
     object write {

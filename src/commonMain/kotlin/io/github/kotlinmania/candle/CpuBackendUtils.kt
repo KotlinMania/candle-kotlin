@@ -96,7 +96,7 @@ public interface Map2InPlace {
             v1 is CpuStorage.F32 && v2 is CpuStorage.F32 -> self.f(v1, l1, v2, l2)
             v1 is CpuStorage.F64 && v2 is CpuStorage.F64 -> self.f(v1, l1, v2, l2)
             v1 is CpuStorage.F8E4M3 && v2 is CpuStorage.F8E4M3 -> self.f(v1, l1, v2, l2)
-            else -> Err<Unit>(Error.DTypeMismatchBinaryOp(
+            else -> Err(Error.DTypeMismatchBinaryOp(
                 v1.dtype(),
                 v2.dtype(),
                 Self.OP,

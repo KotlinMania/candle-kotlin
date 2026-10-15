@@ -49,7 +49,7 @@ enum class GgmlDType {
      */
     fun cpuZeros(elemCount: Int): QuantizedType {
         return when (self) {
-            F32 -> QuantizedVec.new(MutableList(elemCount) { F32Scalar.zeros() }, F32Scalar)
+            F32 -> QuantizedVec.new(MutableList(elemCount) { F32Scalar.zeros() }, F32GgmlType)
             F16 -> QuantizedVec.new(MutableList(elemCount) { F16.zeros() }, F16)
             Q4_0 -> QuantizedVec.new(MutableList(elemCount / BlockQ40.BLCK_SIZE) { BlockQ40.zeros() }, BlockQ40)
             Q4_1 -> QuantizedVec.new(MutableList(elemCount / BlockQ41.BLCK_SIZE) { BlockQ41.zeros() }, BlockQ41)
@@ -70,7 +70,7 @@ enum class GgmlDType {
     fun fromData(data: ByteArray): QuantizedType {
         val rawData = data
         return when (self) {
-            F32 -> QuantizedVec.new(asTSlice(rawData, F32Scalar).toVec(), F32Scalar)
+            F32 -> QuantizedVec.new(asTSlice(rawData, F32GgmlType).toVec(), F32GgmlType)
             F16 -> QuantizedVec.new(asTSlice(rawData, F16).toVec(), F16)
             Q4_0 -> QuantizedVec.new(asTSlice(rawData, BlockQ40).toVec(), BlockQ40)
             Q4_1 -> QuantizedVec.new(asTSlice(rawData, BlockQ41).toVec(), BlockQ41)

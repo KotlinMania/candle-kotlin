@@ -92,7 +92,7 @@ public class NdIter internal constructor(
                 }
                 outLen = 1
 
-                for ((i, d) in dims.iter().enumerate().take(rank).skip(1)) {
+                for ((i, d) in dims.iter().enumerate().take(rank).drop(1)) {
                     val top = outLen - 1
                     val lastD = outDims[top]
 

@@ -112,8 +112,9 @@ public sealed class TensorIndexer {
 
         /** Converts a [UIntArray] of indices into a CPU-backed [IndexSelect] indexer. */
         public fun from(index: UIntArray): TensorIndexer {
+            val t = Tensor.new(index, Shape(index.size), Device.Cpu)
             return when {
-                Tensor.new(index.toLongList(), Device.Cpu).isOk -> TensorIndexer.IndexSelect(Tensor.new(index.toLongList(), Device.Cpu))
+                t.isOk -> TensorIndexer.IndexSelect(t)
                 else -> TensorIndexer.Err(CandleException.Msg("invalid index"))
             }
         }
@@ -121,8 +122,9 @@ public sealed class TensorIndexer {
         /** Converts a [List] of [UInt] indices into a CPU-backed [IndexSelect] indexer. */
         public fun from(index: List<UInt>): TensorIndexer {
             val len = index.len()
+            val t = Tensor.new(index.toUIntArray(), Shape(len), Device.Cpu)
             return when {
-                Tensor.fromVec(index, Shape(len), Device.Cpu).isOk -> TensorIndexer.IndexSelect(Tensor.fromVec(index, Shape(len), Device.Cpu))
+                t.isOk -> TensorIndexer.IndexSelect(t)
                 else -> TensorIndexer.Err(CandleException.Msg("invalid index"))
             }
         }
@@ -217,7 +219,7 @@ public fun Tensor.index(indexers: List<TensorIndexer>): Tensor {
  * Index a tensor along the first dimension using a single [Int] index.
  */
 public fun Tensor.i(index: Int): Tensor {
-    return self.index(listOf(index.into()))
+    return self.index(listOf(TensorIndexer.from(index)))
 }
 
 /**

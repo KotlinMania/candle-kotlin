@@ -256,12 +256,14 @@ public sealed class D : Dim {
     public object Minus1 : D()
     public object Minus2 : D()
     public data class Minus(val u: Int) : D()
+    public data class Custom(val u: Int) : D()
 
     public fun outOfRange(shape: Shape, op: String): CandleException {
         val dim = when (self) {
             is Minus1 -> -1
             is Minus2 -> -2
             is Minus -> -(self.u.toInt())
+            is Custom -> self.u
         }
         return CandleException.DimOutOfRange(
             shape = shape.clone(),
@@ -277,6 +279,7 @@ public sealed class D : Dim {
             self is Minus1 && rank >= 1 -> Ok(rank - 1)
             self is Minus2 && rank >= 2 -> Ok(rank - 2)
             self is Minus && self.u > 0 && rank >= self.u -> Ok(rank - self.u)
+            self is Custom && self.u >= 0 && self.u < rank -> Ok(self.u)
             else -> throw self.outOfRange(shape, op)
         }
     }
@@ -287,6 +290,7 @@ public sealed class D : Dim {
             self is Minus1 -> Ok(rank)
             self is Minus2 && rank >= 1 -> Ok(rank - 1)
             self is Minus && self.u > 0 && rank + 1 >= self.u -> Ok(rank + 1 - self.u)
+            self is Custom && self.u >= 0 && self.u <= rank -> Ok(self.u)
             else -> throw self.outOfRange(shape, op)
         }
     }

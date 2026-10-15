@@ -593,6 +593,8 @@ public sealed class Value {
     }
 }
 
+private fun ByteArray.len(): Int = size
+
 private fun <W : NpyByteWriter> writeString(w: W, str: String): CandleResult<Unit> {
     val bytes = str.asBytes()
     w.writeU64<LittleEndian>(bytes.len().toULong()).unwrap()

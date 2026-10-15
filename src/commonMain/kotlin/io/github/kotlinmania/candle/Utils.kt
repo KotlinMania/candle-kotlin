@@ -35,16 +35,6 @@ private val String?.ok: () -> String? get() = { this }
 private val Int?.ok: () -> Int? get() = { this }
 private val String?.andThen: ((String) -> Int?) -> Int? get() = { f -> if (this != null) f(this) else null }
 private val Int.Companion.fromStr: (String) -> Int? get() = { s -> s.toIntOrNull() }
-private val std: CandlePool = CandlePool()
-private val CandlePool.env: CandlePool get() = this
-private val CandlePool.`var`: (String) -> String? get() = { k -> getenv(k) }
-private val CandlePool.mem: CandlePool get() = this
-private val CandlePool.ptr: CandlePool get() = this
-private val CandlePool.os: CandlePool get() = this
-private val CandlePool.raw: CandlePool get() = this
-private val CandlePool.cVoid: Int get() = 0
-private val CandlePool.sizeOf: () -> ULong get() = { 4uL }
-private val CandlePool.nullMut: () -> Nothing? get() = { null }
 private val String.asPtr: () -> String get() = { this }
 private val String.cast: () -> String get() = { this }
 private val libc: CandlePool = CandlePool()

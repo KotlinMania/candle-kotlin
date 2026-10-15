@@ -4,6 +4,8 @@ package io.github.kotlinmania.candle
 import io.github.kotlinmania.candle.CandleException as Error
 import io.github.kotlinmania.candle.CandleResult.Ok
 
+private fun Any.asRef(): String = toString()
+
 public fun <P : Any> loadImatrix(fname: P): CandleResult<kotlin.collections.HashMap<String, MutableList<Float>>> {
     val allData = HashMap.new<String, MutableList<Float>>()
 
@@ -85,6 +87,6 @@ public fun <P : Any> loadImatrix(fname: P): CandleResult<kotlin.collections.Hash
         allData.insert(name, data)
     }
 
-    return Ok(allData)
+    return Ok(kotlin.collections.HashMap(allData))
 }
 

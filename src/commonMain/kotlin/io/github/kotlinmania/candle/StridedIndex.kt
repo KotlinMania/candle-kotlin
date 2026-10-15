@@ -12,7 +12,7 @@ public class StridedIndex(
     public val stride: List<Int>,
     private var remaining: Int,
 ) : Iterator<Int> {
-    public interface Item
+    public interface Item {}
 
     public constructor(
         dims: List<Int>,

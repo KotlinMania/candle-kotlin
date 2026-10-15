@@ -9,7 +9,7 @@ import io.github.kotlinmania.candle.CandleResult.Err
 import io.github.kotlinmania.candle.CandleResult.Ok
 
 private inline fun <reified T : Any> companionOf(): Any = when (T::class) {
-    F32Scalar::class -> F32Scalar
+    F32Scalar::class -> F32GgmlType
     F16::class -> F16
     BF16::class -> BF16
     BlockQ40::class -> BlockQ40
@@ -24,7 +24,7 @@ private inline fun <reified T : Any> companionOf(): Any = when (T::class) {
     BlockQ5K::class -> BlockQ5K
     BlockQ6K::class -> BlockQ6K
     BlockQ8K::class -> BlockQ8K
-    else -> F32Scalar
+    else -> F32GgmlType
 }
 
 private fun ByteArray.asPtr(): ByteArray = this

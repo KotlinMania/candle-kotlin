@@ -463,7 +463,7 @@ internal typealias Error = CandleException
 private const val static: Int = 0
 private fun <T> new(v: T): T = v
 
-private object std {
+internal object std {
     object backtrace {
         val Backtrace = io.github.kotlinmania.candle.Backtrace
         val BacktraceStatus = io.github.kotlinmania.candle.BacktraceStatus
@@ -472,6 +472,20 @@ private object std {
         val Display: (Int) -> Any get() = { s -> s }
         val Debug: Any = 0
         val Formatter: io.github.kotlinmania.candle.Formatter get() = io.github.kotlinmania.candle.Formatter()
+    }
+    object env {
+        val `var`: (String) -> String? get() = { k -> io.github.kotlinmania.envie.getenv(k) }
+    }
+    object mem {
+        val sizeOf: () -> ULong get() = { 4uL }
+    }
+    object ptr {
+        val nullMut: () -> Nothing? get() = { null }
+    }
+    object os {
+        object raw {
+            const val cVoid: Int = 0
+        }
     }
 }
 

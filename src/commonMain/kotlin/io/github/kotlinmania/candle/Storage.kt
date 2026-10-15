@@ -695,6 +695,7 @@ public sealed class Storage {
             Self.Cpu.storage -> c.cpuFwd(storage, l)
             Self.Cuda.storage -> c.cudaFwd(storage, l)
             Self.Metal.storage -> c.metalFwd(storage, l)
+            else -> unreachable()
         }
     }
 

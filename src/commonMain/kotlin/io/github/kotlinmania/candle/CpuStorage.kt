@@ -3195,7 +3195,7 @@ internal object Vec {
         CandleResult.Ok(tensor.toVec3())
     }
 }
-internal fun <T> MutableList<T>.pop(): T? = if (isEmpty()) null else removeAt(size - 1)
+private fun <T> MutableList<T>.pop(): T? = if (isEmpty()) null else removeAt(size - 1)
 internal fun <T> List<T>.getUnchecked(i: Int): T = this[i]
 
 internal object bf16 {
@@ -3323,10 +3323,10 @@ internal fun write(f: Formatter, fmt: String, v: Any?): CandleResult<Unit> =
     if (fmt.isEmpty() && v == null) CandleResult.Ok(Unit) else CandleResult.Ok(Unit)
 internal fun <T> List<List<T>>.concat(): List<T> = this.flatten()
 internal fun Shape.Companion.Self(dims: List<Int>, u: Unit): Shape = if (u == Unit) Shape(dims) else Shape(dims)
-private fun Ok(): Unit = Unit
-private fun <T> Ok(v: T): T = v
-private fun <T> Ok(v: T, a: Any?): T = if (a == null) v else v
-private fun <T> Ok(v: T, a: Any?, b: Any?): T = if (a == null && b == null) v else v
+internal fun Ok(): Unit = Unit
+internal fun <T> Ok(v: T): T = v
+internal fun <T> Ok(v: T, a: Any?): T = if (a == null) v else v
+internal fun <T> Ok(v: T, a: Any?, b: Any?): T = if (a == null && b == null) v else v
 internal fun Array<Int>.toVec(): List<Int> = this.toList()
 internal val <T> WithDType<T>.self: WithDType<T> get() = this
 internal annotation class Test

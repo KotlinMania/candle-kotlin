@@ -81,20 +81,20 @@ public enum class DType(
      */
     public fun asStr(): String {
         return when (self) {
-            Self.U8 -> "u8"
-            Self.U32 -> "u32"
-            Self.I16 -> "i16"
-            Self.I32 -> "i32"
-            Self.I64 -> "i64"
-            Self.BF16 -> "bf16"
-            Self.F16 -> "f16"
-            Self.F32 -> "f32"
-            Self.F64 -> "f64"
-            Self.F8E4M3 -> "f8e4m3"
-            Self.F6E2M3 -> "f6e2m3"
-            Self.F6E3M2 -> "f6e3m2"
-            Self.F4 -> "f4"
-            Self.F8E8M0 -> "f8e8m0"
+            U8 -> "u8"
+            U32 -> "u32"
+            I16 -> "i16"
+            I32 -> "i32"
+            I64 -> "i64"
+            BF16 -> "bf16"
+            F16 -> "f16"
+            F32 -> "f32"
+            F64 -> "f64"
+            F8E4M3 -> "f8e4m3"
+            F6E2M3 -> "f6e2m3"
+            F6E3M2 -> "f6e3m2"
+            F4 -> "f4"
+            F8E8M0 -> "f8e8m0"
         }
     }
 
@@ -103,50 +103,50 @@ public enum class DType(
      */
     public fun sizeInBytes(): Int {
         return when (self) {
-            Self.U8 -> 1
-            Self.U32 -> 4
-            Self.I16 -> 2
-            Self.I32 -> 4
-            Self.I64 -> 8
-            Self.BF16 -> 2
-            Self.F16 -> 2
-            Self.F32 -> 4
-            Self.F64 -> 8
-            Self.F8E4M3 -> 1
-            Self.F6E2M3 -> 0 // 6 bits
-            Self.F6E3M2 -> 0 // 6 bits
-            Self.F4 -> 0     // 4 bits
-            Self.F8E8M0 -> 1
+            U8 -> 1
+            U32 -> 4
+            I16 -> 2
+            I32 -> 4
+            I64 -> 8
+            BF16 -> 2
+            F16 -> 2
+            F32 -> 4
+            F64 -> 8
+            F8E4M3 -> 1
+            F6E2M3 -> 0 // 6 bits
+            F6E3M2 -> 0 // 6 bits
+            F4 -> 0     // 4 bits
+            F8E8M0 -> 1
         }
     }
 
     public fun isInt(): Boolean =
         when (self) {
-            Self.U8, Self.U32, Self.I16, Self.I32, Self.I64 -> true
-            Self.BF16,
-            Self.F16,
-            Self.F32,
-            Self.F64,
-            Self.F8E4M3,
-            Self.F6E2M3,
-            Self.F6E3M2,
-            Self.F4,
-            Self.F8E8M0
+            U8, U32, I16, I32, I64 -> true
+            BF16,
+            F16,
+            F32,
+            F64,
+            F8E4M3,
+            F6E2M3,
+            F6E3M2,
+            F4,
+            F8E8M0
             -> false
         }
 
     public fun isFloat(): Boolean =
         when (self) {
-            Self.U8, Self.U32, Self.I16, Self.I32, Self.I64 -> false
-            Self.BF16,
-            Self.F16,
-            Self.F32,
-            Self.F64,
-            Self.F8E4M3,
-            Self.F6E2M3,
-            Self.F6E3M2,
-            Self.F4,
-            Self.F8E8M0
+            U8, U32, I16, I32, I64 -> false
+            BF16,
+            F16,
+            F32,
+            F64,
+            F8E4M3,
+            F6E2M3,
+            F6E3M2,
+            F4,
+            F8E8M0
             -> true
         }
 }

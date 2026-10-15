@@ -2274,7 +2274,10 @@ public typealias I32Scalar = Int
 public typealias I64Scalar = Long
 public typealias F32Scalar = Float
 public typealias F64Scalar = Double
-public val F32Scalar: F32GgmlType get() = F32GgmlType
+
+internal fun Float.Companion.zeros(): Float = F32GgmlType.zeros()
+internal fun Float.Companion.fromBytes(data: ByteArray, offset: Int): Float = F32GgmlType.fromBytes(data, offset)
+internal fun Float.Companion.toBytes(list: List<Float>): ByteArray = F32GgmlType.toBytes(list)
 
 object F32GgmlType : GgmlType<Float, Float> {
     override val DTYPE: GgmlDType = GgmlDType.F32

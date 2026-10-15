@@ -169,10 +169,10 @@ public class StreamingBinOp(
 
     public fun forward(lhs: Tensor, rhs: Tensor): Tensor {
         return when (self.op) {
-            BinOp.Add -> Tensor.add(lhs, rhs)
-            BinOp.Mul -> Tensor.mul(lhs, rhs)
-            BinOp.Sub -> Tensor.sub(lhs, rhs)
-            BinOp.Div -> Tensor.div(lhs, rhs)
+            BinOp.Add -> lhs.add(rhs)
+            BinOp.Mul -> lhs.mul(rhs)
+            BinOp.Sub -> lhs.sub(rhs)
+            BinOp.Div -> lhs.div(rhs)
         }
     }
 

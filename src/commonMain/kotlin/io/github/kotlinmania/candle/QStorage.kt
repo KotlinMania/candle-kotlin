@@ -197,7 +197,7 @@ sealed class QStorage {
             return when (device) {
                 is Device.Cpu -> CandleResult.Ok(Cpu(dtype.fromData(QuantizedHelper.cowBorrowed(rawData))))
                 is Device.Metal -> when (dtype) {
-                    GgmlDType.F32 -> loadQuantized(device.device, asTSlice(rawData, F32Scalar))
+                    GgmlDType.F32 -> loadQuantized(device.device, asTSlice(rawData, F32GgmlType))
                     GgmlDType.F16 -> loadQuantized(device.device, asTSlice(rawData, F16))
                     GgmlDType.Q4_0 -> loadQuantized(device.device, asTSlice(rawData, BlockQ40))
                     GgmlDType.Q4_1 -> loadQuantized(device.device, asTSlice(rawData, BlockQ41))
@@ -214,7 +214,7 @@ sealed class QStorage {
                     GgmlDType.BF16 -> loadQuantized(device.device, asTSlice(rawData, BF16))
                 }
                 is Device.Cuda -> when (dtype) {
-                    GgmlDType.F32 -> loadQuantized(device.device, asTSlice(rawData, F32Scalar))
+                    GgmlDType.F32 -> loadQuantized(device.device, asTSlice(rawData, F32GgmlType))
                     GgmlDType.F16 -> loadQuantized(device.device, asTSlice(rawData, F16))
                     GgmlDType.Q4_0 -> loadQuantized(device.device, asTSlice(rawData, BlockQ40))
                     GgmlDType.Q4_1 -> loadQuantized(device.device, asTSlice(rawData, BlockQ41))
@@ -241,7 +241,7 @@ private val DEQUANTIZE_ALL_F16: ThreadLocal<Boolean> = ThreadLocal()
 internal object QuantizedHelper {
     val sizeOf: (Any?) -> Int = { comp ->
         when (comp) {
-            F32Scalar -> 4
+            F32GgmlType, GgmlDType.F32, Float -> 4
             F16GgmlType, BF16GgmlType, GgmlDType.F16, GgmlDType.BF16, F16, BF16 -> 2
             BlockQ40 -> 18
             BlockQ41 -> 20
@@ -267,7 +267,7 @@ internal object QuantizedHelper {
         for (i in 0 until count) {
             val offset = i * size
             val block: Any = when (comp) {
-                F32Scalar -> F32Scalar.fromBytes(data, offset)
+                F32GgmlType, GgmlDType.F32, Float -> F32GgmlType.fromBytes(data, offset)
                 F16GgmlType, GgmlDType.F16, F16 -> F16GgmlType.fromBytes(data, offset)
                 BF16GgmlType, GgmlDType.BF16, BF16 -> BF16GgmlType.fromBytes(data, offset)
                 BlockQ40 -> BlockQ40.fromBytes(data, offset)
@@ -282,7 +282,7 @@ internal object QuantizedHelper {
                 BlockQ5K -> BlockQ5K.fromBytes(data, offset)
                 BlockQ6K -> BlockQ6K.fromBytes(data, offset)
                 BlockQ8K -> BlockQ8K.fromBytes(data, offset)
-                else -> F32Scalar.zeros()
+                else -> F32GgmlType.zeros()
             }
             out.add(block)
         }
@@ -293,7 +293,7 @@ internal object QuantizedHelper {
 
     val asPtrBytes: (ByteArray, MutableList<out Any>, Any) -> ByteArray = { _, list, comp ->
         when (comp) {
-            F32Scalar -> F32Scalar.toBytes(list.map { it as F32Scalar })
+            F32GgmlType, GgmlDType.F32, Float -> F32GgmlType.toBytes(list.map { it as F32Scalar })
             F16GgmlType, GgmlDType.F16, F16 -> F16GgmlType.toBytes(list.map { it as F16 })
             BF16GgmlType, GgmlDType.BF16, BF16 -> BF16GgmlType.toBytes(list.map { it as BF16 })
             BlockQ40 -> BlockQ40.toBytes(list.map { it as BlockQ40 })
@@ -376,7 +376,7 @@ internal object QuantizedHelper {
 
     val createQuantizedVec: (MutableList<out Any>, Any) -> QuantizedType = { list, comp ->
         when (comp) {
-            F32Scalar -> QuantizedVec(list.map { it as F32Scalar }.toMutableList(), F32Scalar)
+            F32GgmlType, GgmlDType.F32, Float -> QuantizedVec(list.map { it as F32Scalar }.toMutableList(), F32GgmlType)
             F16GgmlType, GgmlDType.F16, F16 -> QuantizedVec(list.map { it as F16 }.toMutableList(), F16GgmlType)
             BF16GgmlType, GgmlDType.BF16, BF16 -> QuantizedVec(list.map { it as BF16 }.toMutableList(), BF16GgmlType)
             BlockQ40 -> QuantizedVec(list.map { it as BlockQ40 }.toMutableList(), BlockQ40)
