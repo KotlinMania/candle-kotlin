@@ -6,17 +6,18 @@
  */
 package io.github.kotlinmania.candle.gguf
 
-import io.github.kotlinmania.candle.CandleError
-import io.github.kotlinmania.candle.CandleResult
+import io.github.kotlinmania.anyhow.Ok
+import io.github.kotlinmania.anyhow.Result
 import io.github.kotlinmania.candle.Device
 import io.github.kotlinmania.candle.GgmlDType
 import io.github.kotlinmania.candle.NpyByteReader
 import io.github.kotlinmania.candle.NpyByteWriter
 import io.github.kotlinmania.candle.QTensor
 import io.github.kotlinmania.candle.Shape
+import io.github.kotlinmania.candle.bail
 import io.github.kotlinmania.candle.ggml.qtensorFromGgml
 
-const val DEFAULT_ALIGNMENT: ULong = 32uL
+public const val DEFAULT_ALIGNMENT: ULong = 32uL
 
 // Caps mirror ggml-org/llama.cpp#19856 (GGUF_MAX_STRING_LENGTH,
 // GGUF_MAX_ARRAY_ELEMENTS) and GGML_MAX_DIMS from ggml.h. The depth cap
@@ -29,187 +30,248 @@ private const val GGUF_MAX_VALUE_DEPTH: Int = 64
 
 // `fileSize` is the byte length captured once up front, so this avoids
 // seeking to the end and back on every length-prefixed read.
-private fun remainingBytes(reader: NpyByteReader, fileSize: ULong): CandleResult<ULong> {
-    val cur = reader.position.toULong()
-    return CandleResult.Ok(if (fileSize >= cur) fileSize - cur else 0uL)
+private fun <R : NpyByteReader> remainingBytes(reader: R, fileSize: ULong): Result<ULong> {
+    val cur = reader.streamPosition().unwrap()
+    return Ok(fileSize.saturatingSub(cur))
 }
 
-private fun readLength(reader: NpyByteReader, magic: VersionedMagic): CandleResult<ULong> {
-    return when (magic) {
-        VersionedMagic.GgufV1 -> {
-            val b = ByteArray(4)
-            when (val res = reader.readExact(b)) {
-                is CandleResult.Ok -> {
-                    val v = ((b[0].toInt() and 0xFF) or
-                        ((b[1].toInt() and 0xFF) shl 8) or
-                        ((b[2].toInt() and 0xFF) shl 16) or
-                        ((b[3].toInt() and 0xFF) shl 24)).toUInt()
-                    CandleResult.Ok(v.toULong())
-                }
-                is CandleResult.Err -> CandleResult.Err(res.error)
-            }
-        }
-        VersionedMagic.GgufV2, VersionedMagic.GgufV3 -> {
-            val b = ByteArray(8)
-            when (val res = reader.readExact(b)) {
-                is CandleResult.Ok -> {
-                    var v = 0uL
-                    for (i in 0 until 8) {
-                        v = v or ((b[i].toLong() and 0xFFL).toULong() shl (i * 8))
-                    }
-                    CandleResult.Ok(v)
-                }
-                is CandleResult.Err -> CandleResult.Err(res.error)
-            }
-        }
+private fun <R : NpyByteReader> readLength(reader: R, magic: VersionedMagic): Result<ULong> =
+    when (magic) {
+        VersionedMagic.GgufV1 -> Ok(reader.readU32<LittleEndian>().unwrap().toULong())
+        VersionedMagic.GgufV2, VersionedMagic.GgufV3 -> Ok(reader.readU64<LittleEndian>().unwrap())
     }
-}
 
 private enum class Magic {
-    Gguf;
+    Gguf,
+    ;
 
     interface Error
 
     companion object {
-        fun tryFrom(value: UInt): CandleResult<Magic> {
+        fun tryFrom(value: UInt): Result<Magic> {
             val magic = when (value) {
                 0x46554747u, 0x47475546u -> Gguf
-                else -> return CandleResult.Err(CandleError.Msg("unknown magic 0x${value.toString(16)}").bt())
+                else -> bail("unknown magic 0x${value.toString(16)}")
             }
-            return CandleResult.Ok(magic)
+            return Ok(magic)
         }
     }
 }
 
-enum class VersionedMagic {
+public enum class VersionedMagic {
     GgufV1,
     GgufV2,
-    GgufV3;
+    GgufV3,
+    ;
 
     internal fun lengthPrefixSize(): ULong = when (this) {
         GgufV1 -> 4uL
         GgufV2, GgufV3 -> 8uL
     }
 
-    companion object {
-        internal fun read(reader: NpyByteReader): CandleResult<VersionedMagic> {
-            val b4 = ByteArray(4)
-            when (val res = reader.readExact(b4)) {
-                is CandleResult.Ok -> {}
-                is CandleResult.Err -> return CandleResult.Err(res.error)
+    public companion object {
+        internal fun <R : NpyByteReader> read(reader: R): Result<VersionedMagic> {
+            val rawMagic = reader.readU32<LittleEndian>().unwrap()
+            val magic = Magic.tryFrom(rawMagic).unwrap()
+            val version = reader.readU32<LittleEndian>().unwrap()
+            val versionedMagic = when (Pair(magic, version)) {
+                Pair(Magic.Gguf, 1u) -> GgufV1
+                Pair(Magic.Gguf, 2u) -> GgufV2
+                Pair(Magic.Gguf, 3u) -> GgufV3
+                else -> bail("gguf: unsupported magic/version $magic/$version")
             }
-            val rawMagic = ((b4[0].toInt() and 0xFF) or
-                ((b4[1].toInt() and 0xFF) shl 8) or
-                ((b4[2].toInt() and 0xFF) shl 16) or
-                ((b4[3].toInt() and 0xFF) shl 24)).toUInt()
-            val magic = when (val res = Magic.tryFrom(rawMagic)) {
-                is CandleResult.Ok -> res.value
-                is CandleResult.Err -> return CandleResult.Err(res.error)
-            }
-            when (val res = reader.readExact(b4)) {
-                is CandleResult.Ok -> {}
-                is CandleResult.Err -> return CandleResult.Err(res.error)
-            }
-            val version = ((b4[0].toInt() and 0xFF) or
-                ((b4[1].toInt() and 0xFF) shl 8) or
-                ((b4[2].toInt() and 0xFF) shl 16) or
-                ((b4[3].toInt() and 0xFF) shl 24)).toUInt()
-            val versionedMagic = when {
-                magic == Magic.Gguf && version == 1u -> GgufV1
-                magic == Magic.Gguf && version == 2u -> GgufV2
-                magic == Magic.Gguf && version == 3u -> GgufV3
-                else -> return CandleResult.Err(
-                    CandleError.Msg("gguf: unsupported magic/version $magic/$version").bt()
-                )
-            }
-            return CandleResult.Ok(versionedMagic)
+            return Ok(versionedMagic)
         }
     }
 }
 
-data class TensorInfo(
-    val ggmlDtype: GgmlDType,
-    val shape: Shape,
-    val offset: ULong,
+public data class TensorInfo(
+    public val ggmlDtype: GgmlDType,
+    public val shape: Shape,
+    public val offset: ULong,
 ) {
-    fun read(
-        reader: NpyByteReader,
-        fileSize: ULong,
+    public fun <R : NpyByteReader> read(
+        reader: R,
         tensorDataOffset: ULong,
         device: Device,
-    ): CandleResult<QTensor> {
+    ): Result<QTensor> {
         val tensorElems = this.shape.elemCount()
         val blockSize = this.ggmlDtype.blockSize()
-        if (tensorElems % blockSize != 0) {
-            return CandleResult.Err(
-                CandleError.Msg(
-                    "the number of elements $tensorElems is not divisible by the block size $blockSize"
-                ).bt()
+        if (!tensorElems.isMultipleOf(blockSize)) {
+            bail(
+                "the number of elements $tensorElems is not divisible by the block size $blockSize",
             )
         }
         val sizeInBytes = tensorElems / blockSize * this.ggmlDtype.typeSize()
-        val tensorStart = tensorDataOffset + this.offset
-        val remaining = if (fileSize >= tensorStart) fileSize - tensorStart else 0uL
+        val tensorStart = tensorDataOffset.saturatingAdd(this.offset)
+        val fileSize = reader.seek(SeekFrom.End(0)).unwrap()
+        val remaining = fileSize.saturatingSub(tensorStart)
         if (sizeInBytes.toULong() > remaining) {
-            return CandleResult.Err(
-                CandleError.Msg(
-                    "tensor needs $sizeInBytes bytes at offset $tensorStart, only $remaining remaining in file"
-                ).bt()
+            bail(
+                "tensor needs $sizeInBytes bytes at offset $tensorStart, only $remaining remaining in file",
             )
         }
         val rawData = ByteArray(sizeInBytes)
-        reader.position = tensorStart.toInt()
-        when (val res = reader.readExact(rawData)) {
-            is CandleResult.Ok -> {}
-            is CandleResult.Err -> return CandleResult.Err(res.error)
-        }
+        reader.seek(SeekFrom.Start(tensorStart)).unwrap()
+        reader.readExact(rawData).unwrap()
         return qtensorFromGgml(
             this.ggmlDtype,
             rawData,
-            this.shape.dims().toList(),
+            this.shape.dims().toVec(),
             device,
         )
     }
 }
 
-private fun readString(
-    reader: NpyByteReader,
-    magic: VersionedMagic,
-    fileSize: ULong,
-): CandleResult<String> {
-    val len = when (val res = readLength(reader, magic)) {
-        is CandleResult.Ok -> res.value
-        is CandleResult.Err -> return CandleResult.Err(res.error)
+public class Content(
+    public val magic: VersionedMagic,
+    public val metadata: Map<String, Value>,
+    public val tensorInfos: Map<String, TensorInfo>,
+    public val tensorDataOffset: ULong,
+) {
+    public fun <R : NpyByteReader> tensor(
+        reader: R,
+        name: String,
+        device: Device,
+    ): Result<QTensor> {
+        val info = this.tensorInfos.get(name)
+        val tensorInfo = when (info) {
+            null -> bail("cannot find tensor info for $name")
+            else -> info
+        }
+        return tensorInfo.read(reader, this.tensorDataOffset, device)
     }
-    if (len > GGUF_MAX_STRING_LENGTH) {
-        return CandleResult.Err(
-            CandleError.Msg("gguf: string length $len exceeds max $GGUF_MAX_STRING_LENGTH").bt()
-        )
+
+    public companion object {
+        public fun <R : NpyByteReader> read(reader: R): Result<Content> {
+            // Capture the file size once so the bounds checks below don't have to
+            // seek to the end and back on every length-prefixed read.
+            val start = reader.streamPosition().unwrap()
+            val fileSize = reader.seek(SeekFrom.End(0)).unwrap()
+            reader.seek(SeekFrom.Start(start)).unwrap()
+
+            val magic = VersionedMagic.read(reader).unwrap()
+            val tensorCount = readLength(reader, magic).unwrap()
+            val metadataKvCount = readLength(reader, magic).unwrap()
+
+            if (tensorCount > GGUF_MAX_ARRAY_ELEMENTS) {
+                bail("gguf: tensorCount $tensorCount exceeds max $GGUF_MAX_ARRAY_ELEMENTS")
+            }
+            if (metadataKvCount > GGUF_MAX_ARRAY_ELEMENTS) {
+                bail(
+                    "gguf: metadataKvCount $metadataKvCount exceeds max $GGUF_MAX_ARRAY_ELEMENTS",
+                )
+            }
+
+            // Reject header-declared counts that can't fit in the file at minimum size.
+            // Per-entry minima: a metadata kv is at least `keyLenPrefix + u32 valueType
+            // + 1 byte value`; a tensor info is at least `nameLenPrefix + u32 nDims
+            // + u32 dtype + u64 offset`.
+            val prefix = magic.lengthPrefixSize()
+            val minPerKv = prefix + 4uL + 1uL
+            val minPerTensor = prefix + 4uL + 4uL + 8uL
+            val needed = metadataKvCount
+                .saturatingMul(minPerKv)
+                .saturatingAdd(tensorCount.saturatingMul(minPerTensor))
+            val remaining = remainingBytes(reader, fileSize).unwrap()
+            if (needed > remaining) {
+                bail(
+                    "gguf: header declares $tensorCount tensors and $metadataKvCount metadata entries, needs at least $needed bytes, only $remaining remaining",
+                )
+            }
+
+            val metadata = HashMap.new<String, Value>()
+            for (idx in 0uL until metadataKvCount) {
+                val key = readString(reader, magic, fileSize).unwrap()
+                val rawValueType = reader.readU32<LittleEndian>().unwrap()
+                val valueType = ValueType.fromU32(rawValueType).unwrap()
+                val value = Value.read(reader, valueType, magic, 0, fileSize).unwrap()
+                metadata.insert(key, value)
+            }
+            val tensorInfos = HashMap.new<String, TensorInfo>()
+            for (idx in 0uL until tensorCount) {
+                val tensorName = readString(reader, magic, fileSize).unwrap()
+                val nDimensions = reader.readU32<LittleEndian>().unwrap()
+                if (nDimensions > GGUF_MAX_TENSOR_DIMS) {
+                    bail(
+                        "gguf: tensor '$tensorName' has $nDimensions dimensions, max is $GGUF_MAX_TENSOR_DIMS",
+                    )
+                }
+
+                val dimensions: MutableList<Int> = when (magic) {
+                    VersionedMagic.GgufV1 -> {
+                        val rawDims = UIntArray(nDimensions.toInt())
+                        reader.readU32Into<LittleEndian>(rawDims).unwrap()
+                        rawDims.intoIter().map { c -> c.toInt() }.collect()
+                    }
+                    VersionedMagic.GgufV2, VersionedMagic.GgufV3 -> {
+                        val rawDims = ULongArray(nDimensions.toInt())
+                        reader.readU64Into<LittleEndian>(rawDims).unwrap()
+                        rawDims.intoIter().map { c -> c.toInt() }.collect()
+                    }
+                }
+
+                dimensions.reverse()
+                val rawGgmlDtype = reader.readU32<LittleEndian>().unwrap()
+                val ggmlDtype = GgmlDType.fromU32(rawGgmlDtype).unwrap()
+                val offset = reader.readU64<LittleEndian>().unwrap()
+                tensorInfos.insert(
+                    tensorName,
+                    TensorInfo(
+                        shape = Shape.from(dimensions),
+                        offset = offset,
+                        ggmlDtype = ggmlDtype,
+                    ),
+                )
+            }
+            val position = reader.streamPosition().unwrap()
+            val alignVal = metadata.get("general.alignment")
+            val alignment = when (alignVal) {
+                is Value.U8 -> alignVal.v.toULong()
+                is Value.U16 -> alignVal.v.toULong()
+                is Value.U32 -> alignVal.v.toULong()
+                is Value.I8 -> if (alignVal.v >= 0) alignVal.v.toULong() else DEFAULT_ALIGNMENT
+                is Value.I16 -> if (alignVal.v >= 0) alignVal.v.toULong() else DEFAULT_ALIGNMENT
+                is Value.I32 -> if (alignVal.v >= 0) alignVal.v.toULong() else DEFAULT_ALIGNMENT
+                else -> DEFAULT_ALIGNMENT
+            }
+            val tensorDataOffset = position.divCeil(alignment) * alignment
+            return Ok(
+                Content(
+                    magic = magic,
+                    metadata = metadata,
+                    tensorInfos = tensorInfos,
+                    tensorDataOffset = tensorDataOffset,
+                ),
+            )
+        }
     }
-    val remaining = when (val res = remainingBytes(reader, fileSize)) {
-        is CandleResult.Ok -> res.value
-        is CandleResult.Err -> return CandleResult.Err(res.error)
-    }
-    if (len > remaining) {
-        return CandleResult.Err(
-            CandleError.Msg("gguf: string length $len exceeds remaining file bytes $remaining").bt()
-        )
-    }
-    val v = ByteArray(len.toInt())
-    when (val res = reader.readExact(v)) {
-        is CandleResult.Ok -> {}
-        is CandleResult.Err -> return CandleResult.Err(res.error)
-    }
-    // GGUF strings are supposed to be non-null terminated but in practice this happens.
-    var effectiveLen = v.size
-    while (effectiveLen > 0 && v[effectiveLen - 1] == 0.toByte()) {
-        effectiveLen -= 1
-    }
-    // GGUF strings are utf8 encoded but there are cases that don't seem to be valid.
-    return CandleResult.Ok(v.decodeToString(0, effectiveLen))
 }
 
-enum class ValueType {
+private fun <R : NpyByteReader> readString(
+    reader: R,
+    magic: VersionedMagic,
+    fileSize: ULong,
+): Result<String> {
+    val len = readLength(reader, magic).unwrap()
+    if (len > GGUF_MAX_STRING_LENGTH) {
+        bail("gguf: string length $len exceeds max $GGUF_MAX_STRING_LENGTH")
+    }
+    val remaining = remainingBytes(reader, fileSize).unwrap()
+    if (len > remaining) {
+        bail("gguf: string length $len exceeds remaining file bytes $remaining")
+    }
+    val v = ByteArray(len.toInt())
+    reader.readExact(v).unwrap()
+    // GGUF strings are supposed to be non-null terminated but in practice this happens.
+    while (v.last() == 0.toByte()) {
+        v.pop()
+    }
+    // GGUF strings are utf8 encoded but there are cases that don't seem to be valid.
+    return Ok(String.fromUtf8Lossy(v).intoOwned())
+}
+
+public enum class ValueType {
     // The value is a 8-bit unsigned integer.
     U8,
     // The value is a 8-bit signed integer.
@@ -238,9 +300,10 @@ enum class ValueType {
     String,
     // The value is an array of other values, with the length and type prepended.
     // Arrays can be nested, and the length of the array is the number of elements in the array, not the number of bytes.
-    Array;
+    Array,
+    ;
 
-    fun toU32(): UInt = when (this) {
+    internal fun toU32(): UInt = when (this) {
         U8 -> 0u
         I8 -> 1u
         U16 -> 2u
@@ -269,8 +332,8 @@ enum class ValueType {
         Array -> 4uL + magic.lengthPrefixSize()
     }
 
-    companion object {
-        internal fun fromU32(v: UInt): CandleResult<ValueType> {
+    public companion object {
+        internal fun fromU32(v: UInt): Result<ValueType> {
             val vt = when (v) {
                 0u -> U8
                 1u -> I8
@@ -285,29 +348,29 @@ enum class ValueType {
                 10u -> U64
                 11u -> I64
                 12u -> F64
-                else -> return CandleResult.Err(CandleError.Msg("unrecognized value-type 0x${v.toString(16)}").bt())
+                else -> bail("unrecognized value-type 0x${v.toString(16)}")
             }
-            return CandleResult.Ok(vt)
+            return Ok(vt)
         }
     }
 }
 
-sealed class Value {
-    data class U8(val v: UByte) : Value()
-    data class I8(val v: Byte) : Value()
-    data class U16(val v: UShort) : Value()
-    data class I16(val v: Short) : Value()
-    data class U32(val v: UInt) : Value()
-    data class I32(val v: Int) : Value()
-    data class U64(val v: ULong) : Value()
-    data class I64(val v: Long) : Value()
-    data class F32(val v: Float) : Value()
-    data class F64(val v: Double) : Value()
-    data class Bool(val v: Boolean) : Value()
-    data class String(val v: kotlin.String) : Value()
-    data class Array(val v: List<Value>) : Value()
+public sealed class Value {
+    public data class U8(public val v: UByte) : Value()
+    public data class I8(public val v: Byte) : Value()
+    public data class U16(public val v: UShort) : Value()
+    public data class I16(public val v: Short) : Value()
+    public data class U32(public val v: UInt) : Value()
+    public data class I32(public val v: Int) : Value()
+    public data class U64(public val v: ULong) : Value()
+    public data class I64(public val v: Long) : Value()
+    public data class F32(public val v: Float) : Value()
+    public data class F64(public val v: Double) : Value()
+    public data class Bool(public val v: Boolean) : Value()
+    public data class String(public val v: kotlin.String) : Value()
+    public data class Array(public val v: List<Value>) : Value()
 
-    fun valueType(): ValueType = when (this) {
+    public fun valueType(): ValueType = when (this) {
         is U8 -> ValueType.U8
         is I8 -> ValueType.I8
         is U16 -> ValueType.U16
@@ -323,569 +386,237 @@ sealed class Value {
         is Array -> ValueType.Array
     }
 
-    fun toU8(): CandleResult<UByte> = when (this) {
-        is U8 -> CandleResult.Ok(this.v)
-        else -> CandleResult.Err(CandleError.Msg("not a u8 $this").bt())
+    public fun toU8(): Result<UByte> = when (this) {
+        is U8 -> Ok(this.v)
+        else -> bail("not a u8 $this")
     }
 
-    fun toI8(): CandleResult<Byte> = when (this) {
-        is I8 -> CandleResult.Ok(this.v)
-        else -> CandleResult.Err(CandleError.Msg("not a i8 $this").bt())
+    public fun toI8(): Result<Byte> = when (this) {
+        is I8 -> Ok(this.v)
+        else -> bail("not a i8 $this")
     }
 
-    fun toU16(): CandleResult<UShort> = when (this) {
-        is U16 -> CandleResult.Ok(this.v)
-        else -> CandleResult.Err(CandleError.Msg("not a u16 $this").bt())
+    public fun toU16(): Result<UShort> = when (this) {
+        is U16 -> Ok(this.v)
+        else -> bail("not a u16 $this")
     }
 
-    fun toI16(): CandleResult<Short> = when (this) {
-        is I16 -> CandleResult.Ok(this.v)
-        else -> CandleResult.Err(CandleError.Msg("not a i16 $this").bt())
+    public fun toI16(): Result<Short> = when (this) {
+        is I16 -> Ok(this.v)
+        else -> bail("not a i16 $this")
     }
 
-    fun toU32(): CandleResult<UInt> = when (this) {
-        is U32 -> CandleResult.Ok(this.v)
-        else -> CandleResult.Err(CandleError.Msg("not a u32 $this").bt())
+    public fun toU32(): Result<UInt> = when (this) {
+        is U32 -> Ok(this.v)
+        else -> bail("not a u32 $this")
     }
 
-    fun toI32(): CandleResult<Int> = when (this) {
-        is I32 -> CandleResult.Ok(this.v)
-        else -> CandleResult.Err(CandleError.Msg("not a i32 $this").bt())
+    public fun toI32(): Result<Int> = when (this) {
+        is I32 -> Ok(this.v)
+        else -> bail("not a i32 $this")
     }
 
     /**
      * This will also automatically upcast any integral types which will not truncate.
      */
-    fun toU64(): CandleResult<ULong> = when (this) {
-        is U64 -> CandleResult.Ok(this.v)
+    public fun toU64(): Result<ULong> = when (this) {
+        is U64 -> Ok(this.v)
         // Autoupcast cases here
-        is U8 -> CandleResult.Ok(this.v.toULong())
-        is U16 -> CandleResult.Ok(this.v.toULong())
-        is U32 -> CandleResult.Ok(this.v.toULong())
-        is Bool -> CandleResult.Ok(if (this.v) 1uL else 0uL)
-        else -> CandleResult.Err(CandleError.Msg("not a u64 or upcastable to u64 $this").bt())
+        is U8 -> Ok(this.v.toULong())
+        is U16 -> Ok(this.v.toULong())
+        is U32 -> Ok(this.v.toULong())
+        is Bool -> Ok(if (this.v) 1uL else 0uL)
+        else -> bail("not a u64 or upcastable to u64 $this")
     }
 
-    fun toI64(): CandleResult<Long> = when (this) {
-        is I64 -> CandleResult.Ok(this.v)
-        else -> CandleResult.Err(CandleError.Msg("not a i64 $this").bt())
+    public fun toI64(): Result<Long> = when (this) {
+        is I64 -> Ok(this.v)
+        else -> bail("not a i64 $this")
     }
 
-    fun toF32(): CandleResult<Float> = when (this) {
-        is F32 -> CandleResult.Ok(this.v)
-        else -> CandleResult.Err(CandleError.Msg("not a f32 $this").bt())
+    public fun toF32(): Result<Float> = when (this) {
+        is F32 -> Ok(this.v)
+        else -> bail("not a f32 $this")
     }
 
-    fun toF64(): CandleResult<Double> = when (this) {
-        is F64 -> CandleResult.Ok(this.v)
-        else -> CandleResult.Err(CandleError.Msg("not a f64 $this").bt())
+    public fun toF64(): Result<Double> = when (this) {
+        is F64 -> Ok(this.v)
+        else -> bail("not a f64 $this")
     }
 
-    fun toBool(): CandleResult<Boolean> = when (this) {
-        is Bool -> CandleResult.Ok(this.v)
-        else -> CandleResult.Err(CandleError.Msg("not a bool $this").bt())
+    public fun toBool(): Result<Boolean> = when (this) {
+        is Bool -> Ok(this.v)
+        else -> bail("not a bool $this")
     }
 
-    fun toVec(): CandleResult<List<Value>> = when (this) {
-        is Array -> CandleResult.Ok(this.v)
-        else -> CandleResult.Err(CandleError.Msg("not a vec $this").bt())
+    public fun toVec(): Result<List<Value>> = when (this) {
+        is Array -> Ok(this.v)
+        else -> bail("not a vec $this")
     }
 
-    fun toString(validate: Boolean = true): CandleResult<kotlin.String> = when (this) {
-        is String -> if (validate || this.v.isNotEmpty()) CandleResult.Ok(this.v) else CandleResult.Ok(this.v)
-        else -> CandleResult.Err(CandleError.Msg("not a string $this").bt())
+    public fun toString(validate: Boolean = true): Result<kotlin.String> = when (this) {
+        is String -> if (validate || this.v.isNotEmpty()) Ok(this.v) else Ok(this.v)
+        else -> bail("not a string $this")
     }
 
-    internal fun write(w: NpyByteWriter): CandleResult<Unit> {
-        val writeU16Le = { v: Int ->
-            w.writeAll(byteArrayOf((v and 0xFF).toByte(), ((v ushr 8) and 0xFF).toByte()))
-        }
-        val writeI32Le = { v: Int ->
-            w.writeAll(
-                byteArrayOf(
-                    (v and 0xFF).toByte(),
-                    ((v ushr 8) and 0xFF).toByte(),
-                    ((v ushr 16) and 0xFF).toByte(),
-                    ((v ushr 24) and 0xFF).toByte(),
-                )
-            )
-        }
-        val writeI64Le = { v: Long ->
-            val b = ByteArray(8)
-            for (i in 0 until 8) {
-                b[i] = ((v ushr (i * 8)) and 0xFFL).toByte()
-            }
-            w.writeAll(b)
-        }
-        return when (this) {
-            is U8 -> w.writeAll(byteArrayOf(this.v.toByte()))
-            is I8 -> w.writeAll(byteArrayOf(this.v))
-            is U16 -> writeU16Le(this.v.toInt())
-            is I16 -> writeU16Le(this.v.toInt())
-            is U32 -> writeI32Le(this.v.toInt())
-            is I32 -> writeI32Le(this.v)
-            is U64 -> writeI64Le(this.v.toLong())
-            is I64 -> writeI64Le(this.v)
-            is F32 -> writeI32Le(this.v.toRawBits())
-            is F64 -> writeI64Le(this.v.toRawBits())
-            is Bool -> w.writeAll(byteArrayOf(if (this.v) 1 else 0))
-            is String -> writeString(w, this.v)
+    internal fun <W : NpyByteWriter> write(w: W): Result<Unit> {
+        when (this) {
+            is U8 -> w.writeU8(this.v).unwrap()
+            is I8 -> w.writeI8(this.v).unwrap()
+            is U16 -> w.writeU16<LittleEndian>(this.v).unwrap()
+            is I16 -> w.writeI16<LittleEndian>(this.v).unwrap()
+            is U32 -> w.writeU32<LittleEndian>(this.v).unwrap()
+            is I32 -> w.writeI32<LittleEndian>(this.v).unwrap()
+            is U64 -> w.writeU64<LittleEndian>(this.v).unwrap()
+            is I64 -> w.writeI64<LittleEndian>(this.v).unwrap()
+            is F32 -> w.writeF32<LittleEndian>(this.v).unwrap()
+            is F64 -> w.writeF64<LittleEndian>(this.v).unwrap()
+            is Bool -> w.writeU8(UByte.from(this.v)).unwrap()
+            is String -> writeString(w, this.v.asStr()).unwrap()
             is Array -> {
                 // The `Value` type does not enforce that all the values in an Array have the same
                 // type.
-                val elemValueType = if (this.v.isEmpty()) {
+                val valueType = if (this.v.isEmpty()) {
                     // Doesn't matter, the array is empty.
                     ValueType.U32
                 } else {
-                    val types = this.v.map { it.valueType() }.toSet()
-                    if (types.size != 1) {
-                        return CandleResult.Err(
-                            CandleError.Msg("multiple value-types in the same array $types").bt()
-                        )
+                    val valueTypes: Set<ValueType> =
+                        this.v.iter().map { elem -> elem.valueType() }.collect()
+                    if (valueTypes.len() != 1) {
+                        bail("multiple value-types in the same array $valueTypes")
                     }
-                    types.first()
+                    valueTypes.intoIter().next().context("empty valueType").unwrap()
                 }
-                writeI32Le(elemValueType.toU32().toInt())
-                writeI64Le(this.v.size.toLong())
-                for (elem in this.v) {
-                    when (val res = elem.write(w)) {
-                        is CandleResult.Ok -> {}
-                        is CandleResult.Err -> return CandleResult.Err(res.error)
-                    }
+                w.writeU32<LittleEndian>(valueType.toU32()).unwrap()
+                w.writeU64<LittleEndian>(this.v.len().toULong()).unwrap()
+                for (elem in this.v.iter()) {
+                    elem.write(w).unwrap()
                 }
-                CandleResult.Ok(Unit)
             }
         }
+        return Ok(Unit)
     }
 
-    companion object {
-        internal fun read(
-            reader: NpyByteReader,
+    public companion object {
+        internal fun <R : NpyByteReader> read(
+            reader: R,
             valueType: ValueType,
             magic: VersionedMagic,
             depth: Int,
             fileSize: ULong,
-        ): CandleResult<Value> {
+        ): Result<Value> {
             if (depth > GGUF_MAX_VALUE_DEPTH) {
-                return CandleResult.Err(
-                    CandleError.Msg("gguf: value nesting depth exceeds max $GGUF_MAX_VALUE_DEPTH").bt()
-                )
-            }
-            val readBytes = { count: Int ->
-                val b = ByteArray(count)
-                when (val res = reader.readExact(b)) {
-                    is CandleResult.Ok -> CandleResult.Ok(b)
-                    is CandleResult.Err -> CandleResult.Err(res.error)
-                }
+                bail("gguf: value nesting depth exceeds max $GGUF_MAX_VALUE_DEPTH")
             }
             val v = when (valueType) {
-                ValueType.U8 -> {
-                    val b = when (val r = readBytes(1)) { is CandleResult.Ok -> r.value; is CandleResult.Err -> return CandleResult.Err(r.error) }
-                    U8(b[0].toUByte())
-                }
-                ValueType.I8 -> {
-                    val b = when (val r = readBytes(1)) { is CandleResult.Ok -> r.value; is CandleResult.Err -> return CandleResult.Err(r.error) }
-                    I8(b[0])
-                }
-                ValueType.U16 -> {
-                    val b = when (val r = readBytes(2)) { is CandleResult.Ok -> r.value; is CandleResult.Err -> return CandleResult.Err(r.error) }
-                    U16(((b[0].toInt() and 0xFF) or ((b[1].toInt() and 0xFF) shl 8)).toUShort())
-                }
-                ValueType.I16 -> {
-                    val b = when (val r = readBytes(2)) { is CandleResult.Ok -> r.value; is CandleResult.Err -> return CandleResult.Err(r.error) }
-                    I16(((b[0].toInt() and 0xFF) or ((b[1].toInt() and 0xFF) shl 8)).toShort())
-                }
-                ValueType.U32 -> {
-                    val b = when (val r = readBytes(4)) { is CandleResult.Ok -> r.value; is CandleResult.Err -> return CandleResult.Err(r.error) }
-                    val raw = (b[0].toInt() and 0xFF) or
-                        ((b[1].toInt() and 0xFF) shl 8) or
-                        ((b[2].toInt() and 0xFF) shl 16) or
-                        ((b[3].toInt() and 0xFF) shl 24)
-                    U32(raw.toUInt())
-                }
-                ValueType.I32 -> {
-                    val b = when (val r = readBytes(4)) { is CandleResult.Ok -> r.value; is CandleResult.Err -> return CandleResult.Err(r.error) }
-                    val raw = (b[0].toInt() and 0xFF) or
-                        ((b[1].toInt() and 0xFF) shl 8) or
-                        ((b[2].toInt() and 0xFF) shl 16) or
-                        ((b[3].toInt() and 0xFF) shl 24)
-                    I32(raw)
-                }
-                ValueType.U64 -> {
-                    val b = when (val r = readBytes(8)) { is CandleResult.Ok -> r.value; is CandleResult.Err -> return CandleResult.Err(r.error) }
-                    var raw = 0uL
-                    for (i in 0 until 8) {
-                        raw = raw or ((b[i].toLong() and 0xFFL).toULong() shl (i * 8))
-                    }
-                    U64(raw)
-                }
-                ValueType.I64 -> {
-                    val b = when (val r = readBytes(8)) { is CandleResult.Ok -> r.value; is CandleResult.Err -> return CandleResult.Err(r.error) }
-                    var raw = 0L
-                    for (i in 0 until 8) {
-                        raw = raw or ((b[i].toLong() and 0xFFL) shl (i * 8))
-                    }
-                    I64(raw)
-                }
-                ValueType.F32 -> {
-                    val b = when (val r = readBytes(4)) { is CandleResult.Ok -> r.value; is CandleResult.Err -> return CandleResult.Err(r.error) }
-                    val raw = (b[0].toInt() and 0xFF) or
-                        ((b[1].toInt() and 0xFF) shl 8) or
-                        ((b[2].toInt() and 0xFF) shl 16) or
-                        ((b[3].toInt() and 0xFF) shl 24)
-                    F32(Float.fromBits(raw))
-                }
-                ValueType.F64 -> {
-                    val b = when (val r = readBytes(8)) { is CandleResult.Ok -> r.value; is CandleResult.Err -> return CandleResult.Err(r.error) }
-                    var raw = 0L
-                    for (i in 0 until 8) {
-                        raw = raw or ((b[i].toLong() and 0xFFL) shl (i * 8))
-                    }
-                    F64(Double.fromBits(raw))
-                }
+                ValueType.U8 -> U8(reader.readU8().unwrap())
+                ValueType.I8 -> I8(reader.readI8().unwrap())
+                ValueType.U16 -> U16(reader.readU16<LittleEndian>().unwrap())
+                ValueType.I16 -> I16(reader.readI16<LittleEndian>().unwrap())
+                ValueType.U32 -> U32(reader.readU32<LittleEndian>().unwrap())
+                ValueType.I32 -> I32(reader.readI32<LittleEndian>().unwrap())
+                ValueType.U64 -> U64(reader.readU64<LittleEndian>().unwrap())
+                ValueType.I64 -> I64(reader.readI64<LittleEndian>().unwrap())
+                ValueType.F32 -> F32(reader.readF32<LittleEndian>().unwrap())
+                ValueType.F64 -> F64(reader.readF64<LittleEndian>().unwrap())
                 ValueType.Bool -> {
-                    val b = when (val r = readBytes(1)) { is CandleResult.Ok -> r.value; is CandleResult.Err -> return CandleResult.Err(r.error) }
-                    when (val flag = b[0].toInt() and 0xFF) {
+                    val b = reader.readU8().unwrap().toInt()
+                    when (b) {
                         0 -> Bool(false)
                         1 -> Bool(true)
-                        else -> return CandleResult.Err(CandleError.Msg("unexpected bool value $flag").bt())
+                        else -> bail("unexpected bool value $b")
                     }
                 }
-                ValueType.String -> {
-                    val s = when (val r = readString(reader, magic, fileSize)) {
-                        is CandleResult.Ok -> r.value
-                        is CandleResult.Err -> return CandleResult.Err(r.error)
-                    }
-                    String(s)
-                }
+                ValueType.String -> String(readString(reader, magic, fileSize).unwrap())
                 ValueType.Array -> {
-                    val b4 = when (val r = readBytes(4)) { is CandleResult.Ok -> r.value; is CandleResult.Err -> return CandleResult.Err(r.error) }
-                    val rawVt = ((b4[0].toInt() and 0xFF) or
-                        ((b4[1].toInt() and 0xFF) shl 8) or
-                        ((b4[2].toInt() and 0xFF) shl 16) or
-                        ((b4[3].toInt() and 0xFF) shl 24)).toUInt()
-                    val elemVt = when (val r = ValueType.fromU32(rawVt)) {
-                        is CandleResult.Ok -> r.value
-                        is CandleResult.Err -> return CandleResult.Err(r.error)
-                    }
-                    val len = when (val r = readLength(reader, magic)) {
-                        is CandleResult.Ok -> r.value
-                        is CandleResult.Err -> return CandleResult.Err(r.error)
-                    }
+                    val rawVt = reader.readU32<LittleEndian>().unwrap()
+                    val elemVt = ValueType.fromU32(rawVt).unwrap()
+                    val len = readLength(reader, magic).unwrap()
                     if (len > GGUF_MAX_ARRAY_ELEMENTS) {
-                        return CandleResult.Err(
-                            CandleError.Msg("gguf: array length $len exceeds max $GGUF_MAX_ARRAY_ELEMENTS").bt()
-                        )
+                        bail("gguf: array length $len exceeds max $GGUF_MAX_ARRAY_ELEMENTS")
                     }
-                    val needed = len * elemVt.minDiskSize(magic)
-                    val remaining = when (val r = remainingBytes(reader, fileSize)) {
-                        is CandleResult.Ok -> r.value
-                        is CandleResult.Err -> return CandleResult.Err(r.error)
-                    }
+                    val needed = len.saturatingMul(elemVt.minDiskSize(magic))
+                    val remaining = remainingBytes(reader, fileSize).unwrap()
                     if (needed > remaining) {
-                        return CandleResult.Err(
-                            CandleError.Msg(
-                                "gguf: array of $len elements needs at least $needed bytes, only $remaining remaining"
-                            ).bt()
+                        bail(
+                            "gguf: array of $len elements needs at least $needed bytes, only $remaining remaining",
                         )
                     }
-                    val vs = ArrayList<Value>(len.toInt())
-                    for (i in 0 until len.toInt()) {
-                        val elem = when (val r = read(reader, elemVt, magic, depth + 1, fileSize)) {
-                            is CandleResult.Ok -> r.value
-                            is CandleResult.Err -> return CandleResult.Err(r.error)
-                        }
-                        vs.add(elem)
+                    val vs = Vec.new<Value>()
+                    for (i in 0uL until len) {
+                        vs.push(
+                            Value.read(
+                                reader,
+                                elemVt,
+                                magic,
+                                depth + 1,
+                                fileSize,
+                            ).unwrap(),
+                        )
                     }
                     Array(vs)
                 }
             }
-            return CandleResult.Ok(v)
+            return Ok(v)
         }
     }
 }
 
-class Content(
-    val magic: VersionedMagic,
-    val metadata: Map<String, Value>,
-    val tensorInfos: Map<String, TensorInfo>,
-    val tensorDataOffset: ULong,
-) {
-    fun tensor(
-        reader: NpyByteReader,
-        fileSize: ULong,
-        name: String,
-        device: Device,
-    ): CandleResult<QTensor> {
-        val tensorInfo = this.tensorInfos[name]
-            ?: return CandleResult.Err(CandleError.Msg("cannot find tensor info for $name").bt())
-        return tensorInfo.read(reader, fileSize, this.tensorDataOffset, device)
-    }
-
-    companion object {
-        fun read(reader: NpyByteReader, fileSize: ULong): CandleResult<Content> {
-            // Capture the file size once so the bounds checks below don't have to
-            // seek to the end and back on every length-prefixed read.
-            val readU32 = {
-                val b = ByteArray(4)
-                when (val res = reader.readExact(b)) {
-                    is CandleResult.Ok -> {
-                        val v = (b[0].toInt() and 0xFF) or
-                            ((b[1].toInt() and 0xFF) shl 8) or
-                            ((b[2].toInt() and 0xFF) shl 16) or
-                            ((b[3].toInt() and 0xFF) shl 24)
-                        CandleResult.Ok(v.toUInt())
-                    }
-                    is CandleResult.Err -> CandleResult.Err(res.error)
-                }
-            }
-            val readU64 = {
-                val b = ByteArray(8)
-                when (val res = reader.readExact(b)) {
-                    is CandleResult.Ok -> {
-                        var v = 0uL
-                        for (i in 0 until 8) {
-                            v = v or ((b[i].toLong() and 0xFFL).toULong() shl (i * 8))
-                        }
-                        CandleResult.Ok(v)
-                    }
-                    is CandleResult.Err -> CandleResult.Err(res.error)
-                }
-            }
-
-            val magic = when (val r = VersionedMagic.read(reader)) {
-                is CandleResult.Ok -> r.value
-                is CandleResult.Err -> return CandleResult.Err(r.error)
-            }
-            val tensorCount = when (val r = readLength(reader, magic)) {
-                is CandleResult.Ok -> r.value
-                is CandleResult.Err -> return CandleResult.Err(r.error)
-            }
-            val metadataKvCount = when (val r = readLength(reader, magic)) {
-                is CandleResult.Ok -> r.value
-                is CandleResult.Err -> return CandleResult.Err(r.error)
-            }
-
-            if (tensorCount > GGUF_MAX_ARRAY_ELEMENTS) {
-                return CandleResult.Err(
-                    CandleError.Msg("gguf: tensorCount $tensorCount exceeds max $GGUF_MAX_ARRAY_ELEMENTS").bt()
-                )
-            }
-            if (metadataKvCount > GGUF_MAX_ARRAY_ELEMENTS) {
-                return CandleResult.Err(
-                    CandleError.Msg("gguf: metadataKvCount $metadataKvCount exceeds max $GGUF_MAX_ARRAY_ELEMENTS").bt()
-                )
-            }
-
-            // Reject header-declared counts that can't fit in the file at minimum size.
-            // Per-entry minima: a metadata kv is at least `keyLenPrefix + u32 valueType
-            // + 1 byte value`; a tensor info is at least `nameLenPrefix + u32 nDims
-            // + u32 dtype + u64 offset`.
-            val prefix = magic.lengthPrefixSize()
-            val minPerKv = prefix + 4uL + 1uL
-            val minPerTensor = prefix + 4uL + 4uL + 8uL
-            val needed = metadataKvCount * minPerKv + tensorCount * minPerTensor
-            val remaining = when (val r = remainingBytes(reader, fileSize)) {
-                is CandleResult.Ok -> r.value
-                is CandleResult.Err -> return CandleResult.Err(r.error)
-            }
-            if (needed > remaining) {
-                return CandleResult.Err(
-                    CandleError.Msg(
-                        "gguf: header declares $tensorCount tensors and $metadataKvCount metadata entries, needs at least $needed bytes, only $remaining remaining"
-                    ).bt()
-                )
-            }
-
-            val metadata = HashMap<String, Value>()
-            for (idx in 0 until metadataKvCount.toInt()) {
-                val key = when (val r = readString(reader, magic, fileSize)) {
-                    is CandleResult.Ok -> r.value
-                    is CandleResult.Err -> return CandleResult.Err(r.error)
-                }
-                val rawVt = when (val r = readU32()) {
-                    is CandleResult.Ok -> r.value
-                    is CandleResult.Err -> return CandleResult.Err(r.error)
-                }
-                val valueType = when (val r = ValueType.fromU32(rawVt)) {
-                    is CandleResult.Ok -> r.value
-                    is CandleResult.Err -> return CandleResult.Err(r.error)
-                }
-                val value = when (val r = Value.read(reader, valueType, magic, 0, fileSize)) {
-                    is CandleResult.Ok -> r.value
-                    is CandleResult.Err -> return CandleResult.Err(r.error)
-                }
-                metadata[key] = value
-            }
-            val tensorInfos = HashMap<String, TensorInfo>()
-            for (idx in 0 until tensorCount.toInt()) {
-                val tensorName = when (val r = readString(reader, magic, fileSize)) {
-                    is CandleResult.Ok -> r.value
-                    is CandleResult.Err -> return CandleResult.Err(r.error)
-                }
-                val nDimensions = when (val r = readU32()) {
-                    is CandleResult.Ok -> r.value
-                    is CandleResult.Err -> return CandleResult.Err(r.error)
-                }
-                if (nDimensions > GGUF_MAX_TENSOR_DIMS) {
-                    return CandleResult.Err(
-                        CandleError.Msg(
-                            "gguf: tensor '$tensorName' has $nDimensions dimensions, max is $GGUF_MAX_TENSOR_DIMS"
-                        ).bt()
-                    )
-                }
-
-                val dimensions = ArrayList<Int>(nDimensions.toInt())
-                when (magic) {
-                    VersionedMagic.GgufV1 -> {
-                        for (d in 0 until nDimensions.toInt()) {
-                            val dim = when (val r = readU32()) {
-                                is CandleResult.Ok -> r.value.toInt()
-                                is CandleResult.Err -> return CandleResult.Err(r.error)
-                            }
-                            dimensions.add(dim)
-                        }
-                    }
-                    VersionedMagic.GgufV2, VersionedMagic.GgufV3 -> {
-                        for (d in 0 until nDimensions.toInt()) {
-                            val dim = when (val r = readU64()) {
-                                is CandleResult.Ok -> r.value.toInt()
-                                is CandleResult.Err -> return CandleResult.Err(r.error)
-                            }
-                            dimensions.add(dim)
-                        }
-                    }
-                }
-
-                dimensions.reverse()
-                val rawGgmlDtype = when (val r = readU32()) {
-                    is CandleResult.Ok -> r.value
-                    is CandleResult.Err -> return CandleResult.Err(r.error)
-                }
-                val ggmlDtype = when (val r = GgmlDType.fromU32(rawGgmlDtype)) {
-                    is CandleResult.Ok -> r.value
-                    is CandleResult.Err -> return CandleResult.Err(r.error)
-                }
-                val offset = when (val r = readU64()) {
-                    is CandleResult.Ok -> r.value
-                    is CandleResult.Err -> return CandleResult.Err(r.error)
-                }
-                tensorInfos[tensorName] = TensorInfo(
-                    ggmlDtype = ggmlDtype,
-                    shape = Shape.fromDims(dimensions.toIntArray()),
-                    offset = offset,
-                )
-            }
-            val position = reader.position.toULong()
-            val alignment = when (val alignVal = metadata["general.alignment"]) {
-                is Value.U8 -> alignVal.v.toULong()
-                is Value.U16 -> alignVal.v.toULong()
-                is Value.U32 -> alignVal.v.toULong()
-                is Value.I8 -> if (alignVal.v >= 0) alignVal.v.toULong() else DEFAULT_ALIGNMENT
-                is Value.I16 -> if (alignVal.v >= 0) alignVal.v.toULong() else DEFAULT_ALIGNMENT
-                is Value.I32 -> if (alignVal.v >= 0) alignVal.v.toULong() else DEFAULT_ALIGNMENT
-                else -> DEFAULT_ALIGNMENT
-            }
-            val tensorDataOffset = ((position + alignment - 1uL) / alignment) * alignment
-            return CandleResult.Ok(
-                Content(
-                    magic = magic,
-                    metadata = metadata,
-                    tensorInfos = tensorInfos,
-                    tensorDataOffset = tensorDataOffset,
-                )
-            )
-        }
-    }
+private fun <W : NpyByteWriter> writeString(w: W, str: String): Result<Unit> {
+    val bytes = str.asBytes()
+    w.writeU64<LittleEndian>(bytes.len().toULong()).unwrap()
+    w.writeAll(bytes).unwrap()
+    return Ok(Unit)
 }
 
-private fun writeString(w: NpyByteWriter, str: String): CandleResult<Unit> {
-    val bytes = str.encodeToByteArray()
-    val len = bytes.size.toLong()
-    val lenBytes = ByteArray(8)
-    for (i in 0 until 8) {
-        lenBytes[i] = ((len ushr (i * 8)) and 0xFFL).toByte()
-    }
-    w.writeAll(lenBytes)
-    w.writeAll(bytes)
-    return CandleResult.Ok(Unit)
-}
-
-fun write(
-    w: NpyByteWriter,
+public fun <W : NpyByteWriter> write(
+    w: W,
     metadata: List<Pair<String, Value>>,
     tensors: List<Pair<String, QTensor>>,
-): CandleResult<Unit> {
-    val writeU32 = { v: UInt ->
-        val iv = v.toInt()
-        w.writeAll(
-            byteArrayOf(
-                (iv and 0xFF).toByte(),
-                ((iv ushr 8) and 0xFF).toByte(),
-                ((iv ushr 16) and 0xFF).toByte(),
-                ((iv ushr 24) and 0xFF).toByte(),
-            )
-        )
-    }
-    val writeU64 = { v: ULong ->
-        val lv = v.toLong()
-        val b = ByteArray(8)
-        for (i in 0 until 8) {
-            b[i] = ((lv ushr (i * 8)) and 0xFFL).toByte()
-        }
-        w.writeAll(b)
-    }
-    writeU32(0x46554747u)
-    writeU32(2u) // version 2.
-    writeU64(tensors.size.toULong())
-    writeU64(metadata.size.toULong())
-    for ((name, value) in metadata) {
-        writeString(w, name)
-        writeU32(value.valueType().toU32())
-        when (val res = value.write(w)) {
-            is CandleResult.Ok -> {}
-            is CandleResult.Err -> return CandleResult.Err(res.error)
-        }
+): Result<Unit> {
+    w.writeU32<LittleEndian>(0x46554747u).unwrap()
+    w.writeU32<LittleEndian>(2u).unwrap() // version 2.
+    w.writeU64<LittleEndian>(tensors.len().toULong()).unwrap()
+    w.writeU64<LittleEndian>(metadata.len().toULong()).unwrap()
+    for ((name, value) in metadata.iter()) {
+        writeString(w, name).unwrap()
+        w.writeU32<LittleEndian>(value.valueType().toU32()).unwrap()
+        value.write(w).unwrap()
     }
     var offset = 0
-    val offsets = ArrayList<Int>(tensors.size)
-    for ((name, tensor) in tensors) {
-        writeString(w, name)
+    val offsets = Vec.withCapacity<Int>(tensors.len())
+    for ((name, tensor) in tensors.iter()) {
+        writeString(w, name).unwrap()
         val dims = tensor.shape().dims()
-        writeU32(dims.size.toUInt())
-        for (idx in dims.indices.reversed()) {
-            writeU64(dims[idx].toULong())
+        w.writeU32<LittleEndian>(dims.len().toUInt()).unwrap()
+        for (dim in dims.iter().rev()) {
+            w.writeU64<LittleEndian>(dim.toULong()).unwrap()
         }
-        writeU32(tensor.dtype().toU32())
-        writeU64(offset.toULong())
-        offsets.add(offset)
+        w.writeU32<LittleEndian>(tensor.dtype().toU32()).unwrap()
+        w.writeU64<LittleEndian>(offset.toULong()).unwrap()
+        offsets.push(offset)
         val sizeInBytes = tensor.storageSizeInBytes()
         val padding = 31 - (31 + sizeInBytes) % 32
         offset += sizeInBytes + padding
     }
-    val pos = w.size
+    val pos = w.streamPosition().unwrap().toInt()
     val padding = 31 - (31 + pos) % 32
-    w.writeAll(ByteArray(padding))
-    val tensorStartPos = w.size
-    for (i in tensors.indices) {
-        val expectedOffset = offsets[i]
-        val tensor = tensors[i].second
-        val curPos = w.size
+    w.writeAll(ByteArray(padding)).unwrap()
+    val tensorStartPos = w.streamPosition().unwrap().toInt()
+    for ((expectedOffset, pair) in offsets.iter().zip(tensors.iter())) {
+        val tensor = pair.second
+        val curPos = w.streamPosition().unwrap().toInt()
         if (tensorStartPos + expectedOffset != curPos) {
-            return CandleResult.Err(
-                CandleError.Msg(
-                    "internal error, unexpected current position $tensorStartPos $expectedOffset $curPos"
-                ).bt()
+            bail(
+                "internal error, unexpected current position $tensorStartPos $expectedOffset $curPos",
             )
         }
-        val data = when (val res = tensor.data()) {
-            is CandleResult.Ok -> res.value
-            is CandleResult.Err -> return CandleResult.Err(res.error)
-        }
-        val sizeInBytes = data.size
-        w.writeAll(data)
+        val data = tensor.data().unwrap()
+        val sizeInBytes = data.len()
+        w.writeAll(data).unwrap()
         val tensorPad = 31 - (31 + sizeInBytes) % 32
-        w.writeAll(ByteArray(tensorPad))
+        w.writeAll(ByteArray(tensorPad)).unwrap()
     }
-    return CandleResult.Ok(Unit)
+    return Ok(Unit)
 }
+
