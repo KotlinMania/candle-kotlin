@@ -30,12 +30,12 @@ public interface Map1 {
                 CpuStorage.I64(LongArray(res.size) { res[it].toLong() })
             }
             is CpuStorage.BF16 -> {
-                val res = f(FloatArray(vs.data.size) { bfloat16BitsToFloat(vs.data[it]) }.map { it.toDouble() }, layout)
-                CpuStorage.BF16(UShortArray(res.size) { floatToBFloat16Bits(res[it].toFloat()) })
+                val res = f(FloatArray(vs.data.size) { Float16Utils.bf16BitsToFloat(vs.data[it]) }.map { it.toDouble() }, layout)
+                CpuStorage.BF16(ShortArray(res.size) { Float16Utils.floatToBF16Bits(res[it].toFloat()) })
             }
             is CpuStorage.F16 -> {
-                val res = f(FloatArray(vs.data.size) { halfBitsToFloat(vs.data[it]) }.map { it.toDouble() }, layout)
-                CpuStorage.F16(UShortArray(res.size) { floatToHalfBits(res[it].toFloat()) })
+                val res = f(FloatArray(vs.data.size) { Float16Utils.f16BitsToFloat(vs.data[it]) }.map { it.toDouble() }, layout)
+                CpuStorage.F16(ShortArray(res.size) { Float16Utils.floatToF16Bits(res[it].toFloat()) })
             }
             is CpuStorage.F32 -> {
                 val res = f(vs.data.map { it.toDouble() }, layout)
@@ -46,8 +46,8 @@ public interface Map1 {
                 CpuStorage.F64(DoubleArray(res.size) { res[it] })
             }
             is CpuStorage.F8E4M3 -> {
-                val res = f(FloatArray(vs.data.size) { f8e4m3ToFloat(vs.data[it]) }.map { it.toDouble() }, layout)
-                CpuStorage.F8E4M3(ByteArray(res.size) { floatToF8e4m3(res[it].toFloat()) })
+                val res = f(vs.data.map { it.toDouble() }, layout)
+                CpuStorage.F8E4M3(ByteArray(res.size) { res[it].toInt().toByte() })
             }
             // Dummy types don't support Map1 operations
             is CpuStorage.F6E2M3 -> throw CandleException.UnsupportedDTypeForOp(vs.dtype(), "map1")
@@ -87,13 +87,13 @@ public interface Map1Any {
                 layout,
             ) { res -> CpuStorage.I64(LongArray(res.size) { res[it].toLong() }) }
             is CpuStorage.BF16 -> f(
-                FloatArray(vs.data.size) { bfloat16BitsToFloat(vs.data[it]) }.map { it.toDouble() },
+                FloatArray(vs.data.size) { Float16Utils.bf16BitsToFloat(vs.data[it]) }.map { it.toDouble() },
                 layout,
-            ) { res -> CpuStorage.BF16(UShortArray(res.size) { floatToBFloat16Bits(res[it].toFloat()) }) }
+            ) { res -> CpuStorage.BF16(ShortArray(res.size) { Float16Utils.floatToBF16Bits(res[it].toFloat()) }) }
             is CpuStorage.F16 -> f(
-                FloatArray(vs.data.size) { halfBitsToFloat(vs.data[it]) }.map { it.toDouble() },
+                FloatArray(vs.data.size) { Float16Utils.f16BitsToFloat(vs.data[it]) }.map { it.toDouble() },
                 layout,
-            ) { res -> CpuStorage.F16(UShortArray(res.size) { floatToHalfBits(res[it].toFloat()) }) }
+            ) { res -> CpuStorage.F16(ShortArray(res.size) { Float16Utils.floatToF16Bits(res[it].toFloat()) }) }
             is CpuStorage.F32 -> f(
                 vs.data.map { it.toDouble() },
                 layout,
@@ -103,9 +103,9 @@ public interface Map1Any {
                 layout,
             ) { res -> CpuStorage.F64(DoubleArray(res.size) { res[it] }) }
             is CpuStorage.F8E4M3 -> f(
-                FloatArray(vs.data.size) { f8e4m3ToFloat(vs.data[it]) }.map { it.toDouble() },
+                vs.data.map { it.toDouble() },
                 layout,
-            ) { res -> CpuStorage.F8E4M3(ByteArray(res.size) { floatToF8e4m3(res[it].toFloat()) }) }
+            ) { res -> CpuStorage.F8E4M3(ByteArray(res.size) { res[it].toInt().toByte() }) }
             // Dummy types don't support Map1Any operations
             is CpuStorage.F6E2M3 -> throw CandleException.UnsupportedDTypeForOp(vs.dtype(), "map1any")
             is CpuStorage.F6E3M2 -> throw CandleException.UnsupportedDTypeForOp(vs.dtype(), "map1any")
@@ -142,16 +142,16 @@ public interface Map2 {
                 CpuStorage.I64(LongArray(res.size) { res[it].toLong() })
             }
             v1 is CpuStorage.BF16 && v2 is CpuStorage.BF16 -> {
-                val d1 = FloatArray(v1.data.size) { bfloat16BitsToFloat(v1.data[it]) }.map { it.toDouble() }
-                val d2 = FloatArray(v2.data.size) { bfloat16BitsToFloat(v2.data[it]) }.map { it.toDouble() }
+                val d1 = FloatArray(v1.data.size) { Float16Utils.bf16BitsToFloat(v1.data[it]) }.map { it.toDouble() }
+                val d2 = FloatArray(v2.data.size) { Float16Utils.bf16BitsToFloat(v2.data[it]) }.map { it.toDouble() }
                 val res = f(d1, l1, d2, l2)
-                CpuStorage.BF16(UShortArray(res.size) { floatToBFloat16Bits(res[it].toFloat()) })
+                CpuStorage.BF16(ShortArray(res.size) { Float16Utils.floatToBF16Bits(res[it].toFloat()) })
             }
             v1 is CpuStorage.F16 && v2 is CpuStorage.F16 -> {
-                val d1 = FloatArray(v1.data.size) { halfBitsToFloat(v1.data[it]) }.map { it.toDouble() }
-                val d2 = FloatArray(v2.data.size) { halfBitsToFloat(v2.data[it]) }.map { it.toDouble() }
+                val d1 = FloatArray(v1.data.size) { Float16Utils.f16BitsToFloat(v1.data[it]) }.map { it.toDouble() }
+                val d2 = FloatArray(v2.data.size) { Float16Utils.f16BitsToFloat(v2.data[it]) }.map { it.toDouble() }
                 val res = f(d1, l1, d2, l2)
-                CpuStorage.F16(UShortArray(res.size) { floatToHalfBits(res[it].toFloat()) })
+                CpuStorage.F16(ShortArray(res.size) { Float16Utils.floatToF16Bits(res[it].toFloat()) })
             }
             v1 is CpuStorage.F32 && v2 is CpuStorage.F32 -> {
                 val res = f(v1.data.map { it.toDouble() }, l1, v2.data.map { it.toDouble() }, l2)
@@ -162,10 +162,10 @@ public interface Map2 {
                 CpuStorage.F64(DoubleArray(res.size) { res[it] })
             }
             v1 is CpuStorage.F8E4M3 && v2 is CpuStorage.F8E4M3 -> {
-                val d1 = FloatArray(v1.data.size) { f8e4m3ToFloat(v1.data[it]) }.map { it.toDouble() }
-                val d2 = FloatArray(v2.data.size) { f8e4m3ToFloat(v2.data[it]) }.map { it.toDouble() }
+                val d1 = v1.data.map { it.toDouble() }
+                val d2 = v2.data.map { it.toDouble() }
                 val res = f(d1, l1, d2, l2)
-                CpuStorage.F8E4M3(ByteArray(res.size) { floatToF8e4m3(res[it].toFloat()) })
+                CpuStorage.F8E4M3(ByteArray(res.size) { res[it].toInt().toByte() })
             }
             else -> throw CandleException.DTypeMismatchBinaryOp(
                 lhs = v1.dtype(),
@@ -208,16 +208,16 @@ public interface Map2InPlace {
                 for (i in m1.indices) v1.data[i] = m1[i].toLong()
             }
             v1 is CpuStorage.BF16 && v2 is CpuStorage.BF16 -> {
-                val m1 = FloatArray(v1.data.size) { bfloat16BitsToFloat(v1.data[it]) }.map { it.toDouble() }.toMutableList()
-                val d2 = FloatArray(v2.data.size) { bfloat16BitsToFloat(v2.data[it]) }.map { it.toDouble() }
+                val m1 = FloatArray(v1.data.size) { Float16Utils.bf16BitsToFloat(v1.data[it]) }.map { it.toDouble() }.toMutableList()
+                val d2 = FloatArray(v2.data.size) { Float16Utils.bf16BitsToFloat(v2.data[it]) }.map { it.toDouble() }
                 f(m1, l1, d2, l2)
-                for (i in m1.indices) v1.data[i] = floatToBFloat16Bits(m1[i].toFloat())
+                for (i in m1.indices) v1.data[i] = Float16Utils.floatToBF16Bits(m1[i].toFloat())
             }
             v1 is CpuStorage.F16 && v2 is CpuStorage.F16 -> {
-                val m1 = FloatArray(v1.data.size) { halfBitsToFloat(v1.data[it]) }.map { it.toDouble() }.toMutableList()
-                val d2 = FloatArray(v2.data.size) { halfBitsToFloat(v2.data[it]) }.map { it.toDouble() }
+                val m1 = FloatArray(v1.data.size) { Float16Utils.f16BitsToFloat(v1.data[it]) }.map { it.toDouble() }.toMutableList()
+                val d2 = FloatArray(v2.data.size) { Float16Utils.f16BitsToFloat(v2.data[it]) }.map { it.toDouble() }
                 f(m1, l1, d2, l2)
-                for (i in m1.indices) v1.data[i] = floatToHalfBits(m1[i].toFloat())
+                for (i in m1.indices) v1.data[i] = Float16Utils.floatToF16Bits(m1[i].toFloat())
             }
             v1 is CpuStorage.F32 && v2 is CpuStorage.F32 -> {
                 val m1 = v1.data.map { it.toDouble() }.toMutableList()
@@ -230,10 +230,10 @@ public interface Map2InPlace {
                 for (i in m1.indices) v1.data[i] = m1[i]
             }
             v1 is CpuStorage.F8E4M3 && v2 is CpuStorage.F8E4M3 -> {
-                val m1 = FloatArray(v1.data.size) { f8e4m3ToFloat(v1.data[it]) }.map { it.toDouble() }.toMutableList()
-                val d2 = FloatArray(v2.data.size) { f8e4m3ToFloat(v2.data[it]) }.map { it.toDouble() }
+                val m1 = v1.data.map { it.toDouble() }.toMutableList()
+                val d2 = v2.data.map { it.toDouble() }
                 f(m1, l1, d2, l2)
-                for (i in m1.indices) v1.data[i] = floatToF8e4m3(m1[i].toFloat())
+                for (i in m1.indices) v1.data[i] = m1[i].toInt().toByte()
             }
             else -> throw CandleException.DTypeMismatchBinaryOp(
                 lhs = v1.dtype(),
@@ -262,13 +262,13 @@ public interface Map2U8 {
             v1 is CpuStorage.I64 && v2 is CpuStorage.I64 ->
                 CpuStorage.U8(f(v1.data.map { it.toDouble() }, l1, v2.data.map { it.toDouble() }, l2))
             v1 is CpuStorage.BF16 && v2 is CpuStorage.BF16 -> {
-                val d1 = FloatArray(v1.data.size) { bfloat16BitsToFloat(v1.data[it]) }.map { it.toDouble() }
-                val d2 = FloatArray(v2.data.size) { bfloat16BitsToFloat(v2.data[it]) }.map { it.toDouble() }
+                val d1 = FloatArray(v1.data.size) { Float16Utils.bf16BitsToFloat(v1.data[it]) }.map { it.toDouble() }
+                val d2 = FloatArray(v2.data.size) { Float16Utils.bf16BitsToFloat(v2.data[it]) }.map { it.toDouble() }
                 CpuStorage.U8(f(d1, l1, d2, l2))
             }
             v1 is CpuStorage.F16 && v2 is CpuStorage.F16 -> {
-                val d1 = FloatArray(v1.data.size) { halfBitsToFloat(v1.data[it]) }.map { it.toDouble() }
-                val d2 = FloatArray(v2.data.size) { halfBitsToFloat(v2.data[it]) }.map { it.toDouble() }
+                val d1 = FloatArray(v1.data.size) { Float16Utils.f16BitsToFloat(v1.data[it]) }.map { it.toDouble() }
+                val d2 = FloatArray(v2.data.size) { Float16Utils.f16BitsToFloat(v2.data[it]) }.map { it.toDouble() }
                 CpuStorage.U8(f(d1, l1, d2, l2))
             }
             v1 is CpuStorage.F32 && v2 is CpuStorage.F32 ->
@@ -276,8 +276,8 @@ public interface Map2U8 {
             v1 is CpuStorage.F64 && v2 is CpuStorage.F64 ->
                 CpuStorage.U8(f(v1.data.toList(), l1, v2.data.toList(), l2))
             v1 is CpuStorage.F8E4M3 && v2 is CpuStorage.F8E4M3 -> {
-                val d1 = FloatArray(v1.data.size) { f8e4m3ToFloat(v1.data[it]) }.map { it.toDouble() }
-                val d2 = FloatArray(v2.data.size) { f8e4m3ToFloat(v2.data[it]) }.map { it.toDouble() }
+                val d1 = v1.data.map { it.toDouble() }
+                val d2 = v2.data.map { it.toDouble() }
                 CpuStorage.U8(f(d1, l1, d2, l2))
             }
             else -> throw CandleException.DTypeMismatchBinaryOp(
