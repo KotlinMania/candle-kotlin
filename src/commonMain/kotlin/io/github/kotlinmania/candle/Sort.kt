@@ -250,6 +250,10 @@ public data class ArgSort(
             is CpuStorage.F32 -> asort(storage.data, layout)
             is CpuStorage.F64 -> asort(storage.data, layout)
             is CpuStorage.F8E4M3 -> asort(storage.data, layout)
+            is CpuStorage.F6E2M3 -> throw CandleException.UnsupportedDTypeForOp(DType.F6E2M3, "argsort")
+            is CpuStorage.F6E3M2 -> throw CandleException.UnsupportedDTypeForOp(DType.F6E3M2, "argsort")
+            is CpuStorage.F4 -> throw CandleException.UnsupportedDTypeForOp(DType.F4, "argsort")
+            is CpuStorage.F8E8M0 -> throw CandleException.UnsupportedDTypeForOp(DType.F8E8M0, "argsort")
         }
         return Pair(CpuStorage.U32(sortIndexes), layout.shape())
     }
