@@ -2,12 +2,7 @@
 package io.github.kotlinmania.candle
 
 import kotlin.math.PI
-import kotlin.math.cos
-import kotlin.math.exp
-import kotlin.math.ln
-import kotlin.math.sin
 import kotlin.math.sqrt
-import kotlin.math.tanh
 
 public object Mkl {
     public object Ffi {
@@ -16,7 +11,7 @@ public object Mkl {
         }
 
         public val vdTanh: (Int, DoubleArray, DoubleArray) -> Unit = { n, a, y ->
-            for (i in 0 until n) y[i] = tanh(a[i])
+            accelVvtanh(y, a, n)
         }
 
         public val vsExp: (Int, FloatArray, FloatArray) -> Unit = { n, a, y ->
@@ -24,31 +19,31 @@ public object Mkl {
         }
 
         public val vdExp: (Int, DoubleArray, DoubleArray) -> Unit = { n, a, y ->
-            for (i in 0 until n) y[i] = exp(a[i])
+            accelVvexp(y, a, n)
         }
 
         public val vsLn: (Int, FloatArray, FloatArray) -> Unit = { n, a, y ->
-            for (i in 0 until n) y[i] = ln(a[i])
+            accelVvlogf(y, a, n)
         }
 
         public val vdLn: (Int, DoubleArray, DoubleArray) -> Unit = { n, a, y ->
-            for (i in 0 until n) y[i] = ln(a[i])
+            accelVvlog(y, a, n)
         }
 
         public val vsSin: (Int, FloatArray, FloatArray) -> Unit = { n, a, y ->
-            for (i in 0 until n) y[i] = sin(a[i])
+            accelVvsinf(y, a, n)
         }
 
         public val vdSin: (Int, DoubleArray, DoubleArray) -> Unit = { n, a, y ->
-            for (i in 0 until n) y[i] = sin(a[i])
+            accelVvsin(y, a, n)
         }
 
         public val vsCos: (Int, FloatArray, FloatArray) -> Unit = { n, a, y ->
-            for (i in 0 until n) y[i] = cos(a[i])
+            accelVvcosf(y, a, n)
         }
 
         public val vdCos: (Int, DoubleArray, DoubleArray) -> Unit = { n, a, y ->
-            for (i in 0 until n) y[i] = cos(a[i])
+            accelVvcos(y, a, n)
         }
 
         public val vsSqrt: (Int, FloatArray, FloatArray) -> Unit = { n, a, y ->
@@ -56,55 +51,55 @@ public object Mkl {
         }
 
         public val vdSqrt: (Int, DoubleArray, DoubleArray) -> Unit = { n, a, y ->
-            for (i in 0 until n) y[i] = sqrt(a[i])
+            accelVvsqrt(y, a, n)
         }
 
         public val vsAdd: (Int, FloatArray, FloatArray, FloatArray) -> Unit = { n, a, b, y ->
-            for (i in 0 until n) y[i] = a[i] + b[i]
+            accelVdspVadd(b, 1L, a, 1L, y, 1L, n.toULong())
         }
 
         public val vdAdd: (Int, DoubleArray, DoubleArray, DoubleArray) -> Unit = { n, a, b, y ->
-            for (i in 0 until n) y[i] = a[i] + b[i]
+            accelVdspVaddD(b, 1L, a, 1L, y, 1L, n.toULong())
         }
 
         public val vsSub: (Int, FloatArray, FloatArray, FloatArray) -> Unit = { n, a, b, y ->
-            for (i in 0 until n) y[i] = a[i] - b[i]
+            accelVdspVsub(b, 1L, a, 1L, y, 1L, n.toULong())
         }
 
         public val vdSub: (Int, DoubleArray, DoubleArray, DoubleArray) -> Unit = { n, a, b, y ->
-            for (i in 0 until n) y[i] = a[i] - b[i]
+            accelVdspVsubD(b, 1L, a, 1L, y, 1L, n.toULong())
         }
 
         public val vsMul: (Int, FloatArray, FloatArray, FloatArray) -> Unit = { n, a, b, y ->
-            for (i in 0 until n) y[i] = a[i] * b[i]
+            accelVdspVmul(b, 1L, a, 1L, y, 1L, n.toULong())
         }
 
         public val vdMul: (Int, DoubleArray, DoubleArray, DoubleArray) -> Unit = { n, a, b, y ->
-            for (i in 0 until n) y[i] = a[i] * b[i]
+            accelVdspVmulD(b, 1L, a, 1L, y, 1L, n.toULong())
         }
 
         public val vsDiv: (Int, FloatArray, FloatArray, FloatArray) -> Unit = { n, a, b, y ->
-            for (i in 0 until n) y[i] = a[i] / b[i]
+            accelVdspVdiv(b, 1L, a, 1L, y, 1L, n.toULong())
         }
 
         public val vdDiv: (Int, DoubleArray, DoubleArray, DoubleArray) -> Unit = { n, a, b, y ->
-            for (i in 0 until n) y[i] = a[i] / b[i]
+            accelVdspVdivD(b, 1L, a, 1L, y, 1L, n.toULong())
         }
 
         public val vsFmax: (Int, FloatArray, FloatArray, FloatArray) -> Unit = { n, a, b, y ->
-            for (i in 0 until n) y[i] = maxOf(a[i], b[i])
+            accelVdspVmax(b, 1L, a, 1L, y, 1L, n.toULong())
         }
 
         public val vdFmax: (Int, DoubleArray, DoubleArray, DoubleArray) -> Unit = { n, a, b, y ->
-            for (i in 0 until n) y[i] = maxOf(a[i], b[i])
+            accelVdspVmaxD(b, 1L, a, 1L, y, 1L, n.toULong())
         }
 
         public val vsFmin: (Int, FloatArray, FloatArray, FloatArray) -> Unit = { n, a, b, y ->
-            for (i in 0 until n) y[i] = minOf(a[i], b[i])
+            accelVdspVmin(b, 1L, a, 1L, y, 1L, n.toULong())
         }
 
         public val vdFmin: (Int, DoubleArray, DoubleArray, DoubleArray) -> Unit = { n, a, b, y ->
-            for (i in 0 until n) y[i] = minOf(a[i], b[i])
+            accelVdspVminD(b, 1L, a, 1L, y, 1L, n.toULong())
         }
 
         public val sgemm: (
@@ -122,20 +117,7 @@ public object Mkl {
             FloatArray,
             Int,
         ) -> Unit = { transa, transb, m, n, k, alpha, a, lda, b, ldb, beta, c, ldc ->
-            val ta = transa == 'T'.code.toByte() || transa == 't'.code.toByte()
-            val tb = transb == 'T'.code.toByte() || transb == 't'.code.toByte()
-            for (j in 0 until n) {
-                for (i in 0 until m) {
-                    var sum = 0.0f
-                    for (p in 0 until k) {
-                        val aVal = if (ta) a[i * lda + p] else a[p * lda + i]
-                        val bVal = if (tb) b[p * ldb + j] else b[j * ldb + p]
-                        sum += aVal * bVal
-                    }
-                    val idx = j * ldc + i
-                    c[idx] = alpha * sum + beta * c[idx]
-                }
-            }
+            accelSgemm(transa, transb, m, n, k, alpha, a, lda, b, ldb, beta, c, ldc)
         }
 
         public val dgemm: (
@@ -153,20 +135,7 @@ public object Mkl {
             DoubleArray,
             Int,
         ) -> Unit = { transa, transb, m, n, k, alpha, a, lda, b, ldb, beta, c, ldc ->
-            val ta = transa == 'T'.code.toByte() || transa == 't'.code.toByte()
-            val tb = transb == 'T'.code.toByte() || transb == 't'.code.toByte()
-            for (j in 0 until n) {
-                for (i in 0 until m) {
-                    var sum = 0.0
-                    for (p in 0 until k) {
-                        val aVal = if (ta) a[i * lda + p] else a[p * lda + i]
-                        val bVal = if (tb) b[p * ldb + j] else b[j * ldb + p]
-                        sum += aVal * bVal
-                    }
-                    val idx = j * ldc + i
-                    c[idx] = alpha * sum + beta * c[idx]
-                }
-            }
+            accelDgemm(transa, transb, m, n, k, alpha, a, lda, b, ldb, beta, c, ldc)
         }
 
         public val hgemm: (

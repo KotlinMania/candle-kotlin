@@ -44,6 +44,14 @@ internal object CandleJni {
 
     @JvmStatic external fun neonBf16VecFma(a: ShortArray, b: ShortArray, c: ShortArray, out: ShortArray)
 
+    @JvmStatic external fun avxZero(out: FloatArray)
+
+    @JvmStatic external fun avxSet1Ps(v: Float, out: FloatArray)
+
+    @JvmStatic external fun avxLoaduPs(memAddr: FloatArray, offset: Int, out: FloatArray)
+
+    @JvmStatic external fun avxStoreuPs(memAddr: FloatArray, offset: Int, a: FloatArray)
+
     @JvmStatic external fun avxReduceOnePs(x: FloatArray): Float
 
     @JvmStatic external fun avxAddPs(a: FloatArray, b: FloatArray, out: FloatArray)
@@ -54,11 +62,103 @@ internal object CandleJni {
 
     @JvmStatic external fun avxCvtpsPh(a: FloatArray, memAddr: ShortArray, offset: Int)
 
+    @JvmStatic external fun avxCvtpbhPs(memAddr: ShortArray, offset: Int, out: FloatArray)
+
+    @JvmStatic external fun avxCvtnepsPbh(a: FloatArray, memAddr: ShortArray, offset: Int)
+
+    @JvmStatic external fun simd128SplatF32(v: Float, out: FloatArray)
+
+    @JvmStatic external fun simd128LoadF32(memAddr: FloatArray, offset: Int, out: FloatArray)
+
+    @JvmStatic external fun simd128AddF32(a: FloatArray, b: FloatArray, out: FloatArray)
+
+    @JvmStatic external fun simd128MulF32(a: FloatArray, b: FloatArray, out: FloatArray)
+
+    @JvmStatic external fun simd128FmaF32(a: FloatArray, b: FloatArray, c: FloatArray, out: FloatArray)
+
+    @JvmStatic external fun simd128StoreF32(memAddr: FloatArray, offset: Int, a: FloatArray)
+
+    @JvmStatic external fun simd128ReduceOneF32(x: FloatArray): Float
+
+    @JvmStatic external fun accelerateSgemm(
+        transa: Byte,
+        transb: Byte,
+        m: Int,
+        n: Int,
+        k: Int,
+        alpha: Float,
+        a: FloatArray,
+        lda: Int,
+        b: FloatArray,
+        ldb: Int,
+        beta: Float,
+        c: FloatArray,
+        ldc: Int,
+    )
+
+    @JvmStatic external fun accelerateDgemm(
+        transa: Byte,
+        transb: Byte,
+        m: Int,
+        n: Int,
+        k: Int,
+        alpha: Double,
+        a: DoubleArray,
+        lda: Int,
+        b: DoubleArray,
+        ldb: Int,
+        beta: Double,
+        c: DoubleArray,
+        ldc: Int,
+    )
+
     @JvmStatic external fun accelerateVvexpf(dst: FloatArray, src: FloatArray, len: Int)
+
+    @JvmStatic external fun accelerateVvexp(dst: DoubleArray, src: DoubleArray, len: Int)
 
     @JvmStatic external fun accelerateVvsqrtf(dst: FloatArray, src: FloatArray, len: Int)
 
+    @JvmStatic external fun accelerateVvsqrt(dst: DoubleArray, src: DoubleArray, len: Int)
+
+    @JvmStatic external fun accelerateVvsinf(dst: FloatArray, src: FloatArray, len: Int)
+
+    @JvmStatic external fun accelerateVvsin(dst: DoubleArray, src: DoubleArray, len: Int)
+
+    @JvmStatic external fun accelerateVvcosf(dst: FloatArray, src: FloatArray, len: Int)
+
+    @JvmStatic external fun accelerateVvcos(dst: DoubleArray, src: DoubleArray, len: Int)
+
+    @JvmStatic external fun accelerateVvlogf(dst: FloatArray, src: FloatArray, len: Int)
+
+    @JvmStatic external fun accelerateVvlog(dst: DoubleArray, src: DoubleArray, len: Int)
+
     @JvmStatic external fun accelerateVvtanhf(dst: FloatArray, src: FloatArray, len: Int)
+
+    @JvmStatic external fun accelerateVvtanh(dst: DoubleArray, src: DoubleArray, len: Int)
+
+    @JvmStatic external fun accelerateVdspVadd(a: FloatArray, ia: Long, b: FloatArray, ib: Long, c: FloatArray, ic: Long, n: Long)
+
+    @JvmStatic external fun accelerateVdspVaddD(a: DoubleArray, ia: Long, b: DoubleArray, ib: Long, c: DoubleArray, ic: Long, n: Long)
+
+    @JvmStatic external fun accelerateVdspVsub(a: FloatArray, ia: Long, b: FloatArray, ib: Long, c: FloatArray, ic: Long, n: Long)
+
+    @JvmStatic external fun accelerateVdspVsubD(a: DoubleArray, ia: Long, b: DoubleArray, ib: Long, c: DoubleArray, ic: Long, n: Long)
+
+    @JvmStatic external fun accelerateVdspVmul(a: FloatArray, ia: Long, b: FloatArray, ib: Long, c: FloatArray, ic: Long, n: Long)
+
+    @JvmStatic external fun accelerateVdspVmulD(a: DoubleArray, ia: Long, b: DoubleArray, ib: Long, c: DoubleArray, ic: Long, n: Long)
+
+    @JvmStatic external fun accelerateVdspVdiv(a: FloatArray, ia: Long, b: FloatArray, ib: Long, c: FloatArray, ic: Long, n: Long)
+
+    @JvmStatic external fun accelerateVdspVdivD(a: DoubleArray, ia: Long, b: DoubleArray, ib: Long, c: DoubleArray, ic: Long, n: Long)
+
+    @JvmStatic external fun accelerateVdspVmin(a: FloatArray, ia: Long, b: FloatArray, ib: Long, c: FloatArray, ic: Long, n: Long)
+
+    @JvmStatic external fun accelerateVdspVminD(a: DoubleArray, ia: Long, b: DoubleArray, ib: Long, c: DoubleArray, ic: Long, n: Long)
+
+    @JvmStatic external fun accelerateVdspVmax(a: FloatArray, ia: Long, b: FloatArray, ib: Long, c: FloatArray, ic: Long, n: Long)
+
+    @JvmStatic external fun accelerateVdspVmaxD(a: DoubleArray, ia: Long, b: DoubleArray, ib: Long, c: DoubleArray, ic: Long, n: Long)
 
     @JvmStatic external fun qneonVdotqS32(a: ByteArray, b: ByteArray, out: IntArray)
 

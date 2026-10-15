@@ -2,16 +2,62 @@
 package io.github.kotlinmania.candle
 
 import kotlin.math.PI
-import kotlin.math.cos
-import kotlin.math.exp
-import kotlin.math.ln
-import kotlin.math.sin
 import kotlin.math.sqrt
-import kotlin.math.tanh
 
+internal expect val accelSgemm: (
+    Byte,
+    Byte,
+    Int,
+    Int,
+    Int,
+    Float,
+    FloatArray,
+    Int,
+    FloatArray,
+    Int,
+    Float,
+    FloatArray,
+    Int,
+) -> Unit
+internal expect val accelDgemm: (
+    Byte,
+    Byte,
+    Int,
+    Int,
+    Int,
+    Double,
+    DoubleArray,
+    Int,
+    DoubleArray,
+    Int,
+    Double,
+    DoubleArray,
+    Int,
+) -> Unit
 internal expect val accelVvexpf: (FloatArray, FloatArray, Int) -> Unit
+internal expect val accelVvexp: (DoubleArray, DoubleArray, Int) -> Unit
 internal expect val accelVvsqrtf: (FloatArray, FloatArray, Int) -> Unit
+internal expect val accelVvsqrt: (DoubleArray, DoubleArray, Int) -> Unit
+internal expect val accelVvsinf: (FloatArray, FloatArray, Int) -> Unit
+internal expect val accelVvsin: (DoubleArray, DoubleArray, Int) -> Unit
+internal expect val accelVvcosf: (FloatArray, FloatArray, Int) -> Unit
+internal expect val accelVvcos: (DoubleArray, DoubleArray, Int) -> Unit
+internal expect val accelVvlogf: (FloatArray, FloatArray, Int) -> Unit
+internal expect val accelVvlog: (DoubleArray, DoubleArray, Int) -> Unit
 internal expect val accelVvtanhf: (FloatArray, FloatArray, Int) -> Unit
+internal expect val accelVvtanh: (DoubleArray, DoubleArray, Int) -> Unit
+internal expect val accelVdspVadd: (FloatArray, Long, FloatArray, Long, FloatArray, Long, ULong) -> Unit
+internal expect val accelVdspVaddD: (DoubleArray, Long, DoubleArray, Long, DoubleArray, Long, ULong) -> Unit
+internal expect val accelVdspVsub: (FloatArray, Long, FloatArray, Long, FloatArray, Long, ULong) -> Unit
+internal expect val accelVdspVsubD: (DoubleArray, Long, DoubleArray, Long, DoubleArray, Long, ULong) -> Unit
+internal expect val accelVdspVmul: (FloatArray, Long, FloatArray, Long, FloatArray, Long, ULong) -> Unit
+internal expect val accelVdspVmulD: (DoubleArray, Long, DoubleArray, Long, DoubleArray, Long, ULong) -> Unit
+internal expect val accelVdspVdiv: (FloatArray, Long, FloatArray, Long, FloatArray, Long, ULong) -> Unit
+internal expect val accelVdspVdivD: (DoubleArray, Long, DoubleArray, Long, DoubleArray, Long, ULong) -> Unit
+internal expect val accelVdspVmin: (FloatArray, Long, FloatArray, Long, FloatArray, Long, ULong) -> Unit
+internal expect val accelVdspVminD: (DoubleArray, Long, DoubleArray, Long, DoubleArray, Long, ULong) -> Unit
+internal expect val accelVdspVmax: (FloatArray, Long, FloatArray, Long, FloatArray, Long, ULong) -> Unit
+internal expect val accelVdspVmaxD: (DoubleArray, Long, DoubleArray, Long, DoubleArray, Long, ULong) -> Unit
 
 public object Accelerate {
     public object Ffi {
@@ -30,20 +76,7 @@ public object Accelerate {
             FloatArray,
             Int,
         ) -> Unit = { transa, transb, m, n, k, alpha, a, lda, b, ldb, beta, c, ldc ->
-            val ta = transa == 'T'.code.toByte() || transa == 't'.code.toByte()
-            val tb = transb == 'T'.code.toByte() || transb == 't'.code.toByte()
-            for (j in 0 until n) {
-                for (i in 0 until m) {
-                    var sum = 0.0f
-                    for (p in 0 until k) {
-                        val aVal = if (ta) a[i * lda + p] else a[p * lda + i]
-                        val bVal = if (tb) b[p * ldb + j] else b[j * ldb + p]
-                        sum += aVal * bVal
-                    }
-                    val idx = j * ldc + i
-                    c[idx] = alpha * sum + beta * c[idx]
-                }
-            }
+            accelSgemm(transa, transb, m, n, k, alpha, a, lda, b, ldb, beta, c, ldc)
         }
 
         public val dgemmFfi: (
@@ -61,20 +94,7 @@ public object Accelerate {
             DoubleArray,
             Int,
         ) -> Unit = { transa, transb, m, n, k, alpha, a, lda, b, ldb, beta, c, ldc ->
-            val ta = transa == 'T'.code.toByte() || transa == 't'.code.toByte()
-            val tb = transb == 'T'.code.toByte() || transb == 't'.code.toByte()
-            for (j in 0 until n) {
-                for (i in 0 until m) {
-                    var sum = 0.0
-                    for (p in 0 until k) {
-                        val aVal = if (ta) a[i * lda + p] else a[p * lda + i]
-                        val bVal = if (tb) b[p * ldb + j] else b[j * ldb + p]
-                        sum += aVal * bVal
-                    }
-                    val idx = j * ldc + i
-                    c[idx] = alpha * sum + beta * c[idx]
-                }
-            }
+            accelDgemm(transa, transb, m, n, k, alpha, a, lda, b, ldb, beta, c, ldc)
         }
 
         public val vvexpf: (FloatArray, FloatArray, Int) -> Unit = { dst, src, len ->
@@ -82,7 +102,7 @@ public object Accelerate {
         }
 
         public val vvexp: (DoubleArray, DoubleArray, Int) -> Unit = { dst, src, len ->
-            for (i in 0 until len) dst[i] = exp(src[i])
+            accelVvexp(dst, src, len)
         }
 
         public val vvsqrtf: (FloatArray, FloatArray, Int) -> Unit = { dst, src, len ->
@@ -90,31 +110,31 @@ public object Accelerate {
         }
 
         public val vvsqrt: (DoubleArray, DoubleArray, Int) -> Unit = { dst, src, len ->
-            for (i in 0 until len) dst[i] = sqrt(src[i])
+            accelVvsqrt(dst, src, len)
         }
 
         public val vvsinf: (FloatArray, FloatArray, Int) -> Unit = { dst, src, len ->
-            for (i in 0 until len) dst[i] = sin(src[i])
+            accelVvsinf(dst, src, len)
         }
 
         public val vvsin: (DoubleArray, DoubleArray, Int) -> Unit = { dst, src, len ->
-            for (i in 0 until len) dst[i] = sin(src[i])
+            accelVvsin(dst, src, len)
         }
 
         public val vvcosf: (FloatArray, FloatArray, Int) -> Unit = { dst, src, len ->
-            for (i in 0 until len) dst[i] = cos(src[i])
+            accelVvcosf(dst, src, len)
         }
 
         public val vvcos: (DoubleArray, DoubleArray, Int) -> Unit = { dst, src, len ->
-            for (i in 0 until len) dst[i] = cos(src[i])
+            accelVvcos(dst, src, len)
         }
 
         public val vvlogf: (FloatArray, FloatArray, Int) -> Unit = { dst, src, len ->
-            for (i in 0 until len) dst[i] = ln(src[i])
+            accelVvlogf(dst, src, len)
         }
 
         public val vvlog: (DoubleArray, DoubleArray, Int) -> Unit = { dst, src, len ->
-            for (i in 0 until len) dst[i] = ln(src[i])
+            accelVvlog(dst, src, len)
         }
 
         public val vvtanhf: (FloatArray, FloatArray, Int) -> Unit = { dst, src, len ->
@@ -122,103 +142,67 @@ public object Accelerate {
         }
 
         public val vvtanh: (DoubleArray, DoubleArray, Int) -> Unit = { dst, src, len ->
-            for (i in 0 until len) dst[i] = tanh(src[i])
+            accelVvtanh(dst, src, len)
         }
 
         public val vdspVaddD: (DoubleArray, Long, DoubleArray, Long, DoubleArray, Long, ULong) -> Unit =
             { a, ia, b, ib, c, ic, n ->
-                val count = n.toInt()
-                for (i in 0 until count) {
-                    c[(i * ic).toInt()] = b[(i * ib).toInt()] + a[(i * ia).toInt()]
-                }
+                accelVdspVaddD(a, ia, b, ib, c, ic, n)
             }
 
         public val vdspVadd: (FloatArray, Long, FloatArray, Long, FloatArray, Long, ULong) -> Unit =
             { a, ia, b, ib, c, ic, n ->
-                val count = n.toInt()
-                for (i in 0 until count) {
-                    c[(i * ic).toInt()] = b[(i * ib).toInt()] + a[(i * ia).toInt()]
-                }
+                accelVdspVadd(a, ia, b, ib, c, ic, n)
             }
 
         public val vdspVsubD: (DoubleArray, Long, DoubleArray, Long, DoubleArray, Long, ULong) -> Unit =
             { a, ia, b, ib, c, ic, n ->
-                val count = n.toInt()
-                for (i in 0 until count) {
-                    c[(i * ic).toInt()] = b[(i * ib).toInt()] - a[(i * ia).toInt()]
-                }
+                accelVdspVsubD(a, ia, b, ib, c, ic, n)
             }
 
         public val vdspVsub: (FloatArray, Long, FloatArray, Long, FloatArray, Long, ULong) -> Unit =
             { a, ia, b, ib, c, ic, n ->
-                val count = n.toInt()
-                for (i in 0 until count) {
-                    c[(i * ic).toInt()] = b[(i * ib).toInt()] - a[(i * ia).toInt()]
-                }
+                accelVdspVsub(a, ia, b, ib, c, ic, n)
             }
 
         public val vdspVmulD: (DoubleArray, Long, DoubleArray, Long, DoubleArray, Long, ULong) -> Unit =
             { a, ia, b, ib, c, ic, n ->
-                val count = n.toInt()
-                for (i in 0 until count) {
-                    c[(i * ic).toInt()] = b[(i * ib).toInt()] * a[(i * ia).toInt()]
-                }
+                accelVdspVmulD(a, ia, b, ib, c, ic, n)
             }
 
         public val vdspVmul: (FloatArray, Long, FloatArray, Long, FloatArray, Long, ULong) -> Unit =
             { a, ia, b, ib, c, ic, n ->
-                val count = n.toInt()
-                for (i in 0 until count) {
-                    c[(i * ic).toInt()] = b[(i * ib).toInt()] * a[(i * ia).toInt()]
-                }
+                accelVdspVmul(a, ia, b, ib, c, ic, n)
             }
 
         public val vdspVdivD: (DoubleArray, Long, DoubleArray, Long, DoubleArray, Long, ULong) -> Unit =
             { a, ia, b, ib, c, ic, n ->
-                val count = n.toInt()
-                for (i in 0 until count) {
-                    c[(i * ic).toInt()] = b[(i * ib).toInt()] / a[(i * ia).toInt()]
-                }
+                accelVdspVdivD(a, ia, b, ib, c, ic, n)
             }
 
         public val vdspVdiv: (FloatArray, Long, FloatArray, Long, FloatArray, Long, ULong) -> Unit =
             { a, ia, b, ib, c, ic, n ->
-                val count = n.toInt()
-                for (i in 0 until count) {
-                    c[(i * ic).toInt()] = b[(i * ib).toInt()] / a[(i * ia).toInt()]
-                }
+                accelVdspVdiv(a, ia, b, ib, c, ic, n)
             }
 
         public val vdspVminD: (DoubleArray, Long, DoubleArray, Long, DoubleArray, Long, ULong) -> Unit =
             { a, ia, b, ib, c, ic, n ->
-                val count = n.toInt()
-                for (i in 0 until count) {
-                    c[(i * ic).toInt()] = minOf(b[(i * ib).toInt()], a[(i * ia).toInt()])
-                }
+                accelVdspVminD(a, ia, b, ib, c, ic, n)
             }
 
         public val vdspVmin: (FloatArray, Long, FloatArray, Long, FloatArray, Long, ULong) -> Unit =
             { a, ia, b, ib, c, ic, n ->
-                val count = n.toInt()
-                for (i in 0 until count) {
-                    c[(i * ic).toInt()] = minOf(b[(i * ib).toInt()], a[(i * ia).toInt()])
-                }
+                accelVdspVmin(a, ia, b, ib, c, ic, n)
             }
 
         public val vdspVmaxD: (DoubleArray, Long, DoubleArray, Long, DoubleArray, Long, ULong) -> Unit =
             { a, ia, b, ib, c, ic, n ->
-                val count = n.toInt()
-                for (i in 0 until count) {
-                    c[(i * ic).toInt()] = maxOf(b[(i * ib).toInt()], a[(i * ia).toInt()])
-                }
+                accelVdspVmaxD(a, ia, b, ib, c, ic, n)
             }
 
         public val vdspVmax: (FloatArray, Long, FloatArray, Long, FloatArray, Long, ULong) -> Unit =
             { a, ia, b, ib, c, ic, n ->
-                val count = n.toInt()
-                for (i in 0 until count) {
-                    c[(i * ic).toInt()] = maxOf(b[(i * ib).toInt()], a[(i * ia).toInt()])
-                }
+                accelVdspVmax(a, ia, b, ib, c, ic, n)
             }
     }
 

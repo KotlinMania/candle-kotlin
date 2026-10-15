@@ -189,6 +189,39 @@ Napi::Value NeonBf16VecFma(const Napi::CallbackInfo& info) {
     return out;
 }
 
+Napi::Value AvxZero(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    Napi::Float32Array out = Napi::Float32Array::New(env, 8);
+    candle_avx_zero(out.Data());
+    return out;
+}
+
+Napi::Value AvxSet1Ps(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    float v = info[0].As<Napi::Number>().FloatValue();
+    Napi::Float32Array out = Napi::Float32Array::New(env, 8);
+    candle_avx_set1_ps(v, out.Data());
+    return out;
+}
+
+Napi::Value AvxLoaduPs(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    Napi::Float32Array mem = info[0].As<Napi::Float32Array>();
+    int32_t offset = info[1].As<Napi::Number>().Int32Value();
+    Napi::Float32Array out = Napi::Float32Array::New(env, 8);
+    candle_avx_loadu_ps(mem.Data() + offset, out.Data());
+    return out;
+}
+
+Napi::Value AvxStoreuPs(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    Napi::Float32Array mem = info[0].As<Napi::Float32Array>();
+    int32_t offset = info[1].As<Napi::Number>().Int32Value();
+    Napi::Float32Array a = info[2].As<Napi::Float32Array>();
+    candle_avx_storeu_ps(mem.Data() + offset, a.Data());
+    return env.Undefined();
+}
+
 Napi::Value AvxReduceOnePs(const Napi::CallbackInfo& info) {
     Napi::Env env = info.Env();
     Napi::Float32Array x = info[0].As<Napi::Float32Array>();
@@ -232,12 +265,137 @@ Napi::Value AvxCvtpsPh(const Napi::CallbackInfo& info) {
     return env.Undefined();
 }
 
+Napi::Value AvxCvtpbhPs(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    Napi::Int16Array mem = info[0].As<Napi::Int16Array>();
+    int32_t offset = info[1].As<Napi::Number>().Int32Value();
+    Napi::Float32Array out = Napi::Float32Array::New(env, 8);
+    candle_avx_cvtpbh_ps(reinterpret_cast<const uint16_t*>(mem.Data() + offset), out.Data());
+    return out;
+}
+
+Napi::Value AvxCvtnepsPbh(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    Napi::Float32Array a = info[0].As<Napi::Float32Array>();
+    Napi::Int16Array mem = info[1].As<Napi::Int16Array>();
+    int32_t offset = info[2].As<Napi::Number>().Int32Value();
+    candle_avx_cvtneps_pbh(a.Data(), reinterpret_cast<uint16_t*>(mem.Data() + offset));
+    return env.Undefined();
+}
+
+Napi::Value Simd128SplatF32(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    float v = info[0].As<Napi::Number>().FloatValue();
+    Napi::Float32Array out = Napi::Float32Array::New(env, 4);
+    candle_simd128_splat_f32(v, out.Data());
+    return out;
+}
+
+Napi::Value Simd128LoadF32(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    Napi::Float32Array mem = info[0].As<Napi::Float32Array>();
+    int32_t offset = info[1].As<Napi::Number>().Int32Value();
+    Napi::Float32Array out = Napi::Float32Array::New(env, 4);
+    candle_simd128_load_f32(mem.Data() + offset, out.Data());
+    return out;
+}
+
+Napi::Value Simd128AddF32(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    Napi::Float32Array a = info[0].As<Napi::Float32Array>();
+    Napi::Float32Array b = info[1].As<Napi::Float32Array>();
+    Napi::Float32Array out = Napi::Float32Array::New(env, 4);
+    candle_simd128_add_f32(a.Data(), b.Data(), out.Data());
+    return out;
+}
+
+Napi::Value Simd128MulF32(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    Napi::Float32Array a = info[0].As<Napi::Float32Array>();
+    Napi::Float32Array b = info[1].As<Napi::Float32Array>();
+    Napi::Float32Array out = Napi::Float32Array::New(env, 4);
+    candle_simd128_mul_f32(a.Data(), b.Data(), out.Data());
+    return out;
+}
+
+Napi::Value Simd128FmaF32(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    Napi::Float32Array a = info[0].As<Napi::Float32Array>();
+    Napi::Float32Array b = info[1].As<Napi::Float32Array>();
+    Napi::Float32Array c = info[2].As<Napi::Float32Array>();
+    Napi::Float32Array out = Napi::Float32Array::New(env, 4);
+    candle_simd128_fma_f32(a.Data(), b.Data(), c.Data(), out.Data());
+    return out;
+}
+
+Napi::Value Simd128StoreF32(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    Napi::Float32Array mem = info[0].As<Napi::Float32Array>();
+    int32_t offset = info[1].As<Napi::Number>().Int32Value();
+    Napi::Float32Array a = info[2].As<Napi::Float32Array>();
+    candle_simd128_store_f32(mem.Data() + offset, a.Data());
+    return env.Undefined();
+}
+
+Napi::Value Simd128ReduceOneF32(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    Napi::Float32Array x = info[0].As<Napi::Float32Array>();
+    return Napi::Number::New(env, candle_simd128_reduce_one_f32(x.Data()));
+}
+
+Napi::Value AccelerateSgemm(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    int8_t transa = static_cast<int8_t>(info[0].As<Napi::Number>().Int32Value());
+    int8_t transb = static_cast<int8_t>(info[1].As<Napi::Number>().Int32Value());
+    int32_t m = info[2].As<Napi::Number>().Int32Value();
+    int32_t n = info[3].As<Napi::Number>().Int32Value();
+    int32_t k = info[4].As<Napi::Number>().Int32Value();
+    float alpha = info[5].As<Napi::Number>().FloatValue();
+    Napi::Float32Array a = info[6].As<Napi::Float32Array>();
+    int32_t lda = info[7].As<Napi::Number>().Int32Value();
+    Napi::Float32Array b = info[8].As<Napi::Float32Array>();
+    int32_t ldb = info[9].As<Napi::Number>().Int32Value();
+    float beta = info[10].As<Napi::Number>().FloatValue();
+    Napi::Float32Array c = info[11].As<Napi::Float32Array>();
+    int32_t ldc = info[12].As<Napi::Number>().Int32Value();
+    candle_accelerate_sgemm(transa, transb, m, n, k, alpha, a.Data(), lda, b.Data(), ldb, beta, c.Data(), ldc);
+    return env.Undefined();
+}
+
+Napi::Value AccelerateDgemm(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    int8_t transa = static_cast<int8_t>(info[0].As<Napi::Number>().Int32Value());
+    int8_t transb = static_cast<int8_t>(info[1].As<Napi::Number>().Int32Value());
+    int32_t m = info[2].As<Napi::Number>().Int32Value();
+    int32_t n = info[3].As<Napi::Number>().Int32Value();
+    int32_t k = info[4].As<Napi::Number>().Int32Value();
+    double alpha = info[5].As<Napi::Number>().DoubleValue();
+    Napi::Float64Array a = info[6].As<Napi::Float64Array>();
+    int32_t lda = info[7].As<Napi::Number>().Int32Value();
+    Napi::Float64Array b = info[8].As<Napi::Float64Array>();
+    int32_t ldb = info[9].As<Napi::Number>().Int32Value();
+    double beta = info[10].As<Napi::Number>().DoubleValue();
+    Napi::Float64Array c = info[11].As<Napi::Float64Array>();
+    int32_t ldc = info[12].As<Napi::Number>().Int32Value();
+    candle_accelerate_dgemm(transa, transb, m, n, k, alpha, a.Data(), lda, b.Data(), ldb, beta, c.Data(), ldc);
+    return env.Undefined();
+}
+
 Napi::Value AccelerateVvexpf(const Napi::CallbackInfo& info) {
     Napi::Env env = info.Env();
     Napi::Float32Array dst = info[0].As<Napi::Float32Array>();
     Napi::Float32Array src = info[1].As<Napi::Float32Array>();
     int32_t len = info[2].As<Napi::Number>().Int32Value();
     candle_accelerate_vvexpf(dst.Data(), src.Data(), len);
+    return env.Undefined();
+}
+
+Napi::Value AccelerateVvexp(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    Napi::Float64Array dst = info[0].As<Napi::Float64Array>();
+    Napi::Float64Array src = info[1].As<Napi::Float64Array>();
+    int32_t len = info[2].As<Napi::Number>().Int32Value();
+    candle_accelerate_vvexp(dst.Data(), src.Data(), len);
     return env.Undefined();
 }
 
@@ -250,6 +408,69 @@ Napi::Value AccelerateVvsqrtf(const Napi::CallbackInfo& info) {
     return env.Undefined();
 }
 
+Napi::Value AccelerateVvsqrt(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    Napi::Float64Array dst = info[0].As<Napi::Float64Array>();
+    Napi::Float64Array src = info[1].As<Napi::Float64Array>();
+    int32_t len = info[2].As<Napi::Number>().Int32Value();
+    candle_accelerate_vvsqrt(dst.Data(), src.Data(), len);
+    return env.Undefined();
+}
+
+Napi::Value AccelerateVvsinf(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    Napi::Float32Array dst = info[0].As<Napi::Float32Array>();
+    Napi::Float32Array src = info[1].As<Napi::Float32Array>();
+    int32_t len = info[2].As<Napi::Number>().Int32Value();
+    candle_accelerate_vvsinf(dst.Data(), src.Data(), len);
+    return env.Undefined();
+}
+
+Napi::Value AccelerateVvsin(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    Napi::Float64Array dst = info[0].As<Napi::Float64Array>();
+    Napi::Float64Array src = info[1].As<Napi::Float64Array>();
+    int32_t len = info[2].As<Napi::Number>().Int32Value();
+    candle_accelerate_vvsin(dst.Data(), src.Data(), len);
+    return env.Undefined();
+}
+
+Napi::Value AccelerateVvcosf(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    Napi::Float32Array dst = info[0].As<Napi::Float32Array>();
+    Napi::Float32Array src = info[1].As<Napi::Float32Array>();
+    int32_t len = info[2].As<Napi::Number>().Int32Value();
+    candle_accelerate_vvcosf(dst.Data(), src.Data(), len);
+    return env.Undefined();
+}
+
+Napi::Value AccelerateVvcos(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    Napi::Float64Array dst = info[0].As<Napi::Float64Array>();
+    Napi::Float64Array src = info[1].As<Napi::Float64Array>();
+    int32_t len = info[2].As<Napi::Number>().Int32Value();
+    candle_accelerate_vvcos(dst.Data(), src.Data(), len);
+    return env.Undefined();
+}
+
+Napi::Value AccelerateVvlogf(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    Napi::Float32Array dst = info[0].As<Napi::Float32Array>();
+    Napi::Float32Array src = info[1].As<Napi::Float32Array>();
+    int32_t len = info[2].As<Napi::Number>().Int32Value();
+    candle_accelerate_vvlogf(dst.Data(), src.Data(), len);
+    return env.Undefined();
+}
+
+Napi::Value AccelerateVvlog(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    Napi::Float64Array dst = info[0].As<Napi::Float64Array>();
+    Napi::Float64Array src = info[1].As<Napi::Float64Array>();
+    int32_t len = info[2].As<Napi::Number>().Int32Value();
+    candle_accelerate_vvlog(dst.Data(), src.Data(), len);
+    return env.Undefined();
+}
+
 Napi::Value AccelerateVvtanhf(const Napi::CallbackInfo& info) {
     Napi::Env env = info.Env();
     Napi::Float32Array dst = info[0].As<Napi::Float32Array>();
@@ -258,6 +479,56 @@ Napi::Value AccelerateVvtanhf(const Napi::CallbackInfo& info) {
     candle_accelerate_vvtanhf(dst.Data(), src.Data(), len);
     return env.Undefined();
 }
+
+Napi::Value AccelerateVvtanh(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    Napi::Float64Array dst = info[0].As<Napi::Float64Array>();
+    Napi::Float64Array src = info[1].As<Napi::Float64Array>();
+    int32_t len = info[2].As<Napi::Number>().Int32Value();
+    candle_accelerate_vvtanh(dst.Data(), src.Data(), len);
+    return env.Undefined();
+}
+
+#define DEFINE_VDSP_F32_NAPI(NapiName, CFunc) \
+Napi::Value NapiName(const Napi::CallbackInfo& info) { \
+    Napi::Env env = info.Env(); \
+    Napi::Float32Array a = info[0].As<Napi::Float32Array>(); \
+    int64_t ia = info[1].As<Napi::Number>().Int64Value(); \
+    Napi::Float32Array b = info[2].As<Napi::Float32Array>(); \
+    int64_t ib = info[3].As<Napi::Number>().Int64Value(); \
+    Napi::Float32Array c = info[4].As<Napi::Float32Array>(); \
+    int64_t ic = info[5].As<Napi::Number>().Int64Value(); \
+    uint64_t n = static_cast<uint64_t>(info[6].As<Napi::Number>().Int64Value()); \
+    CFunc(a.Data(), ia, b.Data(), ib, c.Data(), ic, n); \
+    return env.Undefined(); \
+}
+
+#define DEFINE_VDSP_F64_NAPI(NapiName, CFunc) \
+Napi::Value NapiName(const Napi::CallbackInfo& info) { \
+    Napi::Env env = info.Env(); \
+    Napi::Float64Array a = info[0].As<Napi::Float64Array>(); \
+    int64_t ia = info[1].As<Napi::Number>().Int64Value(); \
+    Napi::Float64Array b = info[2].As<Napi::Float64Array>(); \
+    int64_t ib = info[3].As<Napi::Number>().Int64Value(); \
+    Napi::Float64Array c = info[4].As<Napi::Float64Array>(); \
+    int64_t ic = info[5].As<Napi::Number>().Int64Value(); \
+    uint64_t n = static_cast<uint64_t>(info[6].As<Napi::Number>().Int64Value()); \
+    CFunc(a.Data(), ia, b.Data(), ib, c.Data(), ic, n); \
+    return env.Undefined(); \
+}
+
+DEFINE_VDSP_F32_NAPI(AccelerateVdspVadd, candle_accelerate_vdsp_vadd)
+DEFINE_VDSP_F64_NAPI(AccelerateVdspVaddD, candle_accelerate_vdsp_vaddd)
+DEFINE_VDSP_F32_NAPI(AccelerateVdspVsub, candle_accelerate_vdsp_vsub)
+DEFINE_VDSP_F64_NAPI(AccelerateVdspVsubD, candle_accelerate_vdsp_vsubd)
+DEFINE_VDSP_F32_NAPI(AccelerateVdspVmul, candle_accelerate_vdsp_vmul)
+DEFINE_VDSP_F64_NAPI(AccelerateVdspVmulD, candle_accelerate_vdsp_vmuld)
+DEFINE_VDSP_F32_NAPI(AccelerateVdspVdiv, candle_accelerate_vdsp_vdiv)
+DEFINE_VDSP_F64_NAPI(AccelerateVdspVdivD, candle_accelerate_vdsp_vdivd)
+DEFINE_VDSP_F32_NAPI(AccelerateVdspVmin, candle_accelerate_vdsp_vmin)
+DEFINE_VDSP_F64_NAPI(AccelerateVdspVminD, candle_accelerate_vdsp_vmind)
+DEFINE_VDSP_F32_NAPI(AccelerateVdspVmax, candle_accelerate_vdsp_vmax)
+DEFINE_VDSP_F64_NAPI(AccelerateVdspVmaxD, candle_accelerate_vdsp_vmaxd)
 
 Napi::Value QneonVdotqS32(const Napi::CallbackInfo& info) {
     Napi::Env env = info.Env();
@@ -404,14 +675,50 @@ Napi::Object Init(Napi::Env env, Napi::Object exports) {
     exports.Set("neonBf16StoreShrn", Napi::Function::New(env, NeonBf16StoreShrn));
     exports.Set("neonBf16VecAdd", Napi::Function::New(env, NeonBf16VecAdd));
     exports.Set("neonBf16VecFma", Napi::Function::New(env, NeonBf16VecFma));
+    exports.Set("avxZero", Napi::Function::New(env, AvxZero));
+    exports.Set("avxSet1Ps", Napi::Function::New(env, AvxSet1Ps));
+    exports.Set("avxLoaduPs", Napi::Function::New(env, AvxLoaduPs));
+    exports.Set("avxStoreuPs", Napi::Function::New(env, AvxStoreuPs));
     exports.Set("avxReduceOnePs", Napi::Function::New(env, AvxReduceOnePs));
     exports.Set("avxAddPs", Napi::Function::New(env, AvxAddPs));
     exports.Set("avxFmaPs", Napi::Function::New(env, AvxFmaPs));
     exports.Set("avxCvtphPs", Napi::Function::New(env, AvxCvtphPs));
     exports.Set("avxCvtpsPh", Napi::Function::New(env, AvxCvtpsPh));
+    exports.Set("avxCvtpbhPs", Napi::Function::New(env, AvxCvtpbhPs));
+    exports.Set("avxCvtnepsPbh", Napi::Function::New(env, AvxCvtnepsPbh));
+    exports.Set("simd128SplatF32", Napi::Function::New(env, Simd128SplatF32));
+    exports.Set("simd128LoadF32", Napi::Function::New(env, Simd128LoadF32));
+    exports.Set("simd128AddF32", Napi::Function::New(env, Simd128AddF32));
+    exports.Set("simd128MulF32", Napi::Function::New(env, Simd128MulF32));
+    exports.Set("simd128FmaF32", Napi::Function::New(env, Simd128FmaF32));
+    exports.Set("simd128StoreF32", Napi::Function::New(env, Simd128StoreF32));
+    exports.Set("simd128ReduceOneF32", Napi::Function::New(env, Simd128ReduceOneF32));
+    exports.Set("accelerateSgemm", Napi::Function::New(env, AccelerateSgemm));
+    exports.Set("accelerateDgemm", Napi::Function::New(env, AccelerateDgemm));
     exports.Set("accelerateVvexpf", Napi::Function::New(env, AccelerateVvexpf));
+    exports.Set("accelerateVvexp", Napi::Function::New(env, AccelerateVvexp));
     exports.Set("accelerateVvsqrtf", Napi::Function::New(env, AccelerateVvsqrtf));
+    exports.Set("accelerateVvsqrt", Napi::Function::New(env, AccelerateVvsqrt));
+    exports.Set("accelerateVvsinf", Napi::Function::New(env, AccelerateVvsinf));
+    exports.Set("accelerateVvsin", Napi::Function::New(env, AccelerateVvsin));
+    exports.Set("accelerateVvcosf", Napi::Function::New(env, AccelerateVvcosf));
+    exports.Set("accelerateVvcos", Napi::Function::New(env, AccelerateVvcos));
+    exports.Set("accelerateVvlogf", Napi::Function::New(env, AccelerateVvlogf));
+    exports.Set("accelerateVvlog", Napi::Function::New(env, AccelerateVvlog));
     exports.Set("accelerateVvtanhf", Napi::Function::New(env, AccelerateVvtanhf));
+    exports.Set("accelerateVvtanh", Napi::Function::New(env, AccelerateVvtanh));
+    exports.Set("accelerateVdspVadd", Napi::Function::New(env, AccelerateVdspVadd));
+    exports.Set("accelerateVdspVaddD", Napi::Function::New(env, AccelerateVdspVaddD));
+    exports.Set("accelerateVdspVsub", Napi::Function::New(env, AccelerateVdspVsub));
+    exports.Set("accelerateVdspVsubD", Napi::Function::New(env, AccelerateVdspVsubD));
+    exports.Set("accelerateVdspVmul", Napi::Function::New(env, AccelerateVdspVmul));
+    exports.Set("accelerateVdspVmulD", Napi::Function::New(env, AccelerateVdspVmulD));
+    exports.Set("accelerateVdspVdiv", Napi::Function::New(env, AccelerateVdspVdiv));
+    exports.Set("accelerateVdspVdivD", Napi::Function::New(env, AccelerateVdspVdivD));
+    exports.Set("accelerateVdspVmin", Napi::Function::New(env, AccelerateVdspVmin));
+    exports.Set("accelerateVdspVminD", Napi::Function::New(env, AccelerateVdspVminD));
+    exports.Set("accelerateVdspVmax", Napi::Function::New(env, AccelerateVdspVmax));
+    exports.Set("accelerateVdspVmaxD", Napi::Function::New(env, AccelerateVdspVmaxD));
     exports.Set("qneonVdotqS32", Napi::Function::New(env, QneonVdotqS32));
     exports.Set("qneonVmullS8", Napi::Function::New(env, QneonVmullS8));
     exports.Set("qneonVmullS16", Napi::Function::New(env, QneonVmullS16));

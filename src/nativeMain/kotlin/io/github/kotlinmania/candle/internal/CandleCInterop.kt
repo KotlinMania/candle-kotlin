@@ -194,6 +194,36 @@ internal object CandleCInterop {
         return out
     }
 
+    fun avxZero(): FloatArray {
+        val out = FloatArray(8)
+        out.usePinned { pout -> candle_avx_zero(pout.addressOf(0)) }
+        return out
+    }
+
+    fun avxSet1Ps(v: Float): FloatArray {
+        val out = FloatArray(8)
+        out.usePinned { pout -> candle_avx_set1_ps(v, pout.addressOf(0)) }
+        return out
+    }
+
+    fun avxLoaduPs(memAddr: FloatArray, offset: Int): FloatArray {
+        val out = FloatArray(8)
+        memAddr.usePinned { src ->
+            out.usePinned { dst ->
+                candle_avx_loadu_ps(src.addressOf(offset), dst.addressOf(0))
+            }
+        }
+        return out
+    }
+
+    fun avxStoreuPs(memAddr: FloatArray, offset: Int, a: FloatArray) {
+        memAddr.usePinned { dst ->
+            a.usePinned { src ->
+                candle_avx_storeu_ps(dst.addressOf(offset), src.addressOf(0))
+            }
+        }
+    }
+
     fun avxReduceOnePs(x: FloatArray): Float =
         x.usePinned { pinned -> candle_avx_reduce_one_ps(pinned.addressOf(0)) }
 
@@ -241,11 +271,181 @@ internal object CandleCInterop {
         }
     }
 
+    fun avxCvtpbhPs(memAddr: ShortArray, offset: Int): FloatArray {
+        val out = FloatArray(8)
+        memAddr.usePinned { src ->
+            out.usePinned { dst ->
+                candle_avx_cvtpbh_ps(src.addressOf(offset).reinterpret(), dst.addressOf(0))
+            }
+        }
+        return out
+    }
+
+    fun avxCvtnepsPbh(a: FloatArray, memAddr: ShortArray, offset: Int) {
+        a.usePinned { src ->
+            memAddr.usePinned { dst ->
+                candle_avx_cvtneps_pbh(src.addressOf(0), dst.addressOf(offset).reinterpret())
+            }
+        }
+    }
+
+    fun simd128SplatF32(v: Float): FloatArray {
+        val out = FloatArray(4)
+        out.usePinned { pout -> candle_simd128_splat_f32(v, pout.addressOf(0)) }
+        return out
+    }
+
+    fun simd128LoadF32(memAddr: FloatArray, offset: Int): FloatArray {
+        val out = FloatArray(4)
+        memAddr.usePinned { src ->
+            out.usePinned { dst ->
+                candle_simd128_load_f32(src.addressOf(offset), dst.addressOf(0))
+            }
+        }
+        return out
+    }
+
+    fun simd128AddF32(a: FloatArray, b: FloatArray): FloatArray {
+        val out = FloatArray(4)
+        a.usePinned { pa ->
+            b.usePinned { pb ->
+                out.usePinned { pout ->
+                    candle_simd128_add_f32(pa.addressOf(0), pb.addressOf(0), pout.addressOf(0))
+                }
+            }
+        }
+        return out
+    }
+
+    fun simd128MulF32(a: FloatArray, b: FloatArray): FloatArray {
+        val out = FloatArray(4)
+        a.usePinned { pa ->
+            b.usePinned { pb ->
+                out.usePinned { pout ->
+                    candle_simd128_mul_f32(pa.addressOf(0), pb.addressOf(0), pout.addressOf(0))
+                }
+            }
+        }
+        return out
+    }
+
+    fun simd128FmaF32(a: FloatArray, b: FloatArray, c: FloatArray): FloatArray {
+        val out = FloatArray(4)
+        a.usePinned { pa ->
+            b.usePinned { pb ->
+                c.usePinned { pc ->
+                    out.usePinned { pout ->
+                        candle_simd128_fma_f32(pa.addressOf(0), pb.addressOf(0), pc.addressOf(0), pout.addressOf(0))
+                    }
+                }
+            }
+        }
+        return out
+    }
+
+    fun simd128StoreF32(memAddr: FloatArray, offset: Int, a: FloatArray) {
+        memAddr.usePinned { dst ->
+            a.usePinned { src ->
+                candle_simd128_store_f32(dst.addressOf(offset), src.addressOf(0))
+            }
+        }
+    }
+
+    fun simd128ReduceOneF32(x: FloatArray): Float =
+        x.usePinned { px -> candle_simd128_reduce_one_f32(px.addressOf(0)) }
+
+    fun accelerateSgemm(
+        transa: Byte,
+        transb: Byte,
+        m: Int,
+        n: Int,
+        k: Int,
+        alpha: Float,
+        a: FloatArray,
+        lda: Int,
+        b: FloatArray,
+        ldb: Int,
+        beta: Float,
+        c: FloatArray,
+        ldc: Int,
+    ) {
+        if (m <= 0 || n <= 0 || k <= 0) return
+        a.usePinned { pa ->
+            b.usePinned { pb ->
+                c.usePinned { pc ->
+                    candle_accelerate_sgemm(
+                        transa,
+                        transb,
+                        m,
+                        n,
+                        k,
+                        alpha,
+                        pa.addressOf(0),
+                        lda,
+                        pb.addressOf(0),
+                        ldb,
+                        beta,
+                        pc.addressOf(0),
+                        ldc,
+                    )
+                }
+            }
+        }
+    }
+
+    fun accelerateDgemm(
+        transa: Byte,
+        transb: Byte,
+        m: Int,
+        n: Int,
+        k: Int,
+        alpha: Double,
+        a: DoubleArray,
+        lda: Int,
+        b: DoubleArray,
+        ldb: Int,
+        beta: Double,
+        c: DoubleArray,
+        ldc: Int,
+    ) {
+        if (m <= 0 || n <= 0 || k <= 0) return
+        a.usePinned { pa ->
+            b.usePinned { pb ->
+                c.usePinned { pc ->
+                    candle_accelerate_dgemm(
+                        transa,
+                        transb,
+                        m,
+                        n,
+                        k,
+                        alpha,
+                        pa.addressOf(0),
+                        lda,
+                        pb.addressOf(0),
+                        ldb,
+                        beta,
+                        pc.addressOf(0),
+                        ldc,
+                    )
+                }
+            }
+        }
+    }
+
     fun accelerateVvexpf(dst: FloatArray, src: FloatArray, len: Int) {
         if (len <= 0) return
         dst.usePinned { pdst ->
             src.usePinned { psrc ->
                 candle_accelerate_vvexpf(pdst.addressOf(0), psrc.addressOf(0), len)
+            }
+        }
+    }
+
+    fun accelerateVvexp(dst: DoubleArray, src: DoubleArray, len: Int) {
+        if (len <= 0) return
+        dst.usePinned { pdst ->
+            src.usePinned { psrc ->
+                candle_accelerate_vvexp(pdst.addressOf(0), psrc.addressOf(0), len)
             }
         }
     }
@@ -259,11 +459,215 @@ internal object CandleCInterop {
         }
     }
 
+    fun accelerateVvsqrt(dst: DoubleArray, src: DoubleArray, len: Int) {
+        if (len <= 0) return
+        dst.usePinned { pdst ->
+            src.usePinned { psrc ->
+                candle_accelerate_vvsqrt(pdst.addressOf(0), psrc.addressOf(0), len)
+            }
+        }
+    }
+
+    fun accelerateVvsinf(dst: FloatArray, src: FloatArray, len: Int) {
+        if (len <= 0) return
+        dst.usePinned { pdst ->
+            src.usePinned { psrc ->
+                candle_accelerate_vvsinf(pdst.addressOf(0), psrc.addressOf(0), len)
+            }
+        }
+    }
+
+    fun accelerateVvsin(dst: DoubleArray, src: DoubleArray, len: Int) {
+        if (len <= 0) return
+        dst.usePinned { pdst ->
+            src.usePinned { psrc ->
+                candle_accelerate_vvsin(pdst.addressOf(0), psrc.addressOf(0), len)
+            }
+        }
+    }
+
+    fun accelerateVvcosf(dst: FloatArray, src: FloatArray, len: Int) {
+        if (len <= 0) return
+        dst.usePinned { pdst ->
+            src.usePinned { psrc ->
+                candle_accelerate_vvcosf(pdst.addressOf(0), psrc.addressOf(0), len)
+            }
+        }
+    }
+
+    fun accelerateVvcos(dst: DoubleArray, src: DoubleArray, len: Int) {
+        if (len <= 0) return
+        dst.usePinned { pdst ->
+            src.usePinned { psrc ->
+                candle_accelerate_vvcos(pdst.addressOf(0), psrc.addressOf(0), len)
+            }
+        }
+    }
+
+    fun accelerateVvlogf(dst: FloatArray, src: FloatArray, len: Int) {
+        if (len <= 0) return
+        dst.usePinned { pdst ->
+            src.usePinned { psrc ->
+                candle_accelerate_vvlogf(pdst.addressOf(0), psrc.addressOf(0), len)
+            }
+        }
+    }
+
+    fun accelerateVvlog(dst: DoubleArray, src: DoubleArray, len: Int) {
+        if (len <= 0) return
+        dst.usePinned { pdst ->
+            src.usePinned { psrc ->
+                candle_accelerate_vvlog(pdst.addressOf(0), psrc.addressOf(0), len)
+            }
+        }
+    }
+
     fun accelerateVvtanhf(dst: FloatArray, src: FloatArray, len: Int) {
         if (len <= 0) return
         dst.usePinned { pdst ->
             src.usePinned { psrc ->
                 candle_accelerate_vvtanhf(pdst.addressOf(0), psrc.addressOf(0), len)
+            }
+        }
+    }
+
+    fun accelerateVvtanh(dst: DoubleArray, src: DoubleArray, len: Int) {
+        if (len <= 0) return
+        dst.usePinned { pdst ->
+            src.usePinned { psrc ->
+                candle_accelerate_vvtanh(pdst.addressOf(0), psrc.addressOf(0), len)
+            }
+        }
+    }
+
+    fun accelerateVdspVadd(a: FloatArray, ia: Long, b: FloatArray, ib: Long, c: FloatArray, ic: Long, n: ULong) {
+        if (n == 0uL) return
+        a.usePinned { pa ->
+            b.usePinned { pb ->
+                c.usePinned { pc ->
+                    candle_accelerate_vdsp_vadd(pa.addressOf(0), ia, pb.addressOf(0), ib, pc.addressOf(0), ic, n)
+                }
+            }
+        }
+    }
+
+    fun accelerateVdspVaddD(a: DoubleArray, ia: Long, b: DoubleArray, ib: Long, c: DoubleArray, ic: Long, n: ULong) {
+        if (n == 0uL) return
+        a.usePinned { pa ->
+            b.usePinned { pb ->
+                c.usePinned { pc ->
+                    candle_accelerate_vdsp_vaddd(pa.addressOf(0), ia, pb.addressOf(0), ib, pc.addressOf(0), ic, n)
+                }
+            }
+        }
+    }
+
+    fun accelerateVdspVsub(a: FloatArray, ia: Long, b: FloatArray, ib: Long, c: FloatArray, ic: Long, n: ULong) {
+        if (n == 0uL) return
+        a.usePinned { pa ->
+            b.usePinned { pb ->
+                c.usePinned { pc ->
+                    candle_accelerate_vdsp_vsub(pa.addressOf(0), ia, pb.addressOf(0), ib, pc.addressOf(0), ic, n)
+                }
+            }
+        }
+    }
+
+    fun accelerateVdspVsubD(a: DoubleArray, ia: Long, b: DoubleArray, ib: Long, c: DoubleArray, ic: Long, n: ULong) {
+        if (n == 0uL) return
+        a.usePinned { pa ->
+            b.usePinned { pb ->
+                c.usePinned { pc ->
+                    candle_accelerate_vdsp_vsubd(pa.addressOf(0), ia, pb.addressOf(0), ib, pc.addressOf(0), ic, n)
+                }
+            }
+        }
+    }
+
+    fun accelerateVdspVmul(a: FloatArray, ia: Long, b: FloatArray, ib: Long, c: FloatArray, ic: Long, n: ULong) {
+        if (n == 0uL) return
+        a.usePinned { pa ->
+            b.usePinned { pb ->
+                c.usePinned { pc ->
+                    candle_accelerate_vdsp_vmul(pa.addressOf(0), ia, pb.addressOf(0), ib, pc.addressOf(0), ic, n)
+                }
+            }
+        }
+    }
+
+    fun accelerateVdspVmulD(a: DoubleArray, ia: Long, b: DoubleArray, ib: Long, c: DoubleArray, ic: Long, n: ULong) {
+        if (n == 0uL) return
+        a.usePinned { pa ->
+            b.usePinned { pb ->
+                c.usePinned { pc ->
+                    candle_accelerate_vdsp_vmuld(pa.addressOf(0), ia, pb.addressOf(0), ib, pc.addressOf(0), ic, n)
+                }
+            }
+        }
+    }
+
+    fun accelerateVdspVdiv(a: FloatArray, ia: Long, b: FloatArray, ib: Long, c: FloatArray, ic: Long, n: ULong) {
+        if (n == 0uL) return
+        a.usePinned { pa ->
+            b.usePinned { pb ->
+                c.usePinned { pc ->
+                    candle_accelerate_vdsp_vdiv(pa.addressOf(0), ia, pb.addressOf(0), ib, pc.addressOf(0), ic, n)
+                }
+            }
+        }
+    }
+
+    fun accelerateVdspVdivD(a: DoubleArray, ia: Long, b: DoubleArray, ib: Long, c: DoubleArray, ic: Long, n: ULong) {
+        if (n == 0uL) return
+        a.usePinned { pa ->
+            b.usePinned { pb ->
+                c.usePinned { pc ->
+                    candle_accelerate_vdsp_vdivd(pa.addressOf(0), ia, pb.addressOf(0), ib, pc.addressOf(0), ic, n)
+                }
+            }
+        }
+    }
+
+    fun accelerateVdspVmin(a: FloatArray, ia: Long, b: FloatArray, ib: Long, c: FloatArray, ic: Long, n: ULong) {
+        if (n == 0uL) return
+        a.usePinned { pa ->
+            b.usePinned { pb ->
+                c.usePinned { pc ->
+                    candle_accelerate_vdsp_vmin(pa.addressOf(0), ia, pb.addressOf(0), ib, pc.addressOf(0), ic, n)
+                }
+            }
+        }
+    }
+
+    fun accelerateVdspVminD(a: DoubleArray, ia: Long, b: DoubleArray, ib: Long, c: DoubleArray, ic: Long, n: ULong) {
+        if (n == 0uL) return
+        a.usePinned { pa ->
+            b.usePinned { pb ->
+                c.usePinned { pc ->
+                    candle_accelerate_vdsp_vmind(pa.addressOf(0), ia, pb.addressOf(0), ib, pc.addressOf(0), ic, n)
+                }
+            }
+        }
+    }
+
+    fun accelerateVdspVmax(a: FloatArray, ia: Long, b: FloatArray, ib: Long, c: FloatArray, ic: Long, n: ULong) {
+        if (n == 0uL) return
+        a.usePinned { pa ->
+            b.usePinned { pb ->
+                c.usePinned { pc ->
+                    candle_accelerate_vdsp_vmax(pa.addressOf(0), ia, pb.addressOf(0), ib, pc.addressOf(0), ic, n)
+                }
+            }
+        }
+    }
+
+    fun accelerateVdspVmaxD(a: DoubleArray, ia: Long, b: DoubleArray, ib: Long, c: DoubleArray, ic: Long, n: ULong) {
+        if (n == 0uL) return
+        a.usePinned { pa ->
+            b.usePinned { pb ->
+                c.usePinned { pc ->
+                    candle_accelerate_vdsp_vmaxd(pa.addressOf(0), ia, pb.addressOf(0), ib, pc.addressOf(0), ic, n)
+                }
             }
         }
     }
