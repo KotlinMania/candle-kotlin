@@ -126,7 +126,7 @@ public data class Layout(
         }
         val addedDims = targetShape.rank - shape.rank
         val newStride = ArrayList<Int>(targetShape.rank)
-        for (i in 0 until addedDims) {
+        repeat(addedDims) {
             newStride.add(0)
         }
         val srcDims = dims

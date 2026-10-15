@@ -307,14 +307,12 @@ public class Tensor internal constructor(
         if (shape.elemCount() != elemCount()) {
             throw CandleException.ShapeMismatch(elemCount(), shape)
         }
-        val newLayout =
-            if (isContiguous()) {
-                Layout.contiguousWithOffset(shape, layout.startOffset)
-            } else {
-                val cont = contiguous()
-                Layout.contiguous(shape)
-            }
-        return Tensor(TensorId.next(), storage, newLayout, BackpropOp.None, false)
+        if (isContiguous()) {
+            val newLayout = Layout.contiguousWithOffset(shape, layout.startOffset)
+            return Tensor(TensorId.next(), storage, newLayout, BackpropOp.None, false)
+        } else {
+            return contiguous().reshape(shape)
+        }
     }
 
     public fun reshape(vararg dims: Int): Tensor =
