@@ -15,117 +15,117 @@ import kotlin.math.tanh
 
 public object Mkl {
     public object Ffi {
-        public fun vsTanh(n: CInt, a: FloatArray, y: FloatArray) {
+        public val vsTanh: (CInt, FloatArray, FloatArray) -> Unit = { n, a, y ->
+            accelVvtanhf(y, a, n)
+        }
+
+        public val vdTanh: (CInt, DoubleArray, DoubleArray) -> Unit = { n, a, y ->
             for (i in 0 until n) y[i] = tanh(a[i])
         }
 
-        public fun vdTanh(n: CInt, a: DoubleArray, y: DoubleArray) {
-            for (i in 0 until n) y[i] = tanh(a[i])
+        public val vsExp: (CInt, FloatArray, FloatArray) -> Unit = { n, a, y ->
+            accelVvexpf(y, a, n)
         }
 
-        public fun vsExp(n: CInt, a: FloatArray, y: FloatArray) {
+        public val vdExp: (CInt, DoubleArray, DoubleArray) -> Unit = { n, a, y ->
             for (i in 0 until n) y[i] = exp(a[i])
         }
 
-        public fun vdExp(n: CInt, a: DoubleArray, y: DoubleArray) {
-            for (i in 0 until n) y[i] = exp(a[i])
-        }
-
-        public fun vsLn(n: CInt, a: FloatArray, y: FloatArray) {
+        public val vsLn: (CInt, FloatArray, FloatArray) -> Unit = { n, a, y ->
             for (i in 0 until n) y[i] = ln(a[i])
         }
 
-        public fun vdLn(n: CInt, a: DoubleArray, y: DoubleArray) {
+        public val vdLn: (CInt, DoubleArray, DoubleArray) -> Unit = { n, a, y ->
             for (i in 0 until n) y[i] = ln(a[i])
         }
 
-        public fun vsSin(n: CInt, a: FloatArray, y: FloatArray) {
+        public val vsSin: (CInt, FloatArray, FloatArray) -> Unit = { n, a, y ->
             for (i in 0 until n) y[i] = sin(a[i])
         }
 
-        public fun vdSin(n: CInt, a: DoubleArray, y: DoubleArray) {
+        public val vdSin: (CInt, DoubleArray, DoubleArray) -> Unit = { n, a, y ->
             for (i in 0 until n) y[i] = sin(a[i])
         }
 
-        public fun vsCos(n: CInt, a: FloatArray, y: FloatArray) {
+        public val vsCos: (CInt, FloatArray, FloatArray) -> Unit = { n, a, y ->
             for (i in 0 until n) y[i] = cos(a[i])
         }
 
-        public fun vdCos(n: CInt, a: DoubleArray, y: DoubleArray) {
+        public val vdCos: (CInt, DoubleArray, DoubleArray) -> Unit = { n, a, y ->
             for (i in 0 until n) y[i] = cos(a[i])
         }
 
-        public fun vsSqrt(n: CInt, a: FloatArray, y: FloatArray) {
+        public val vsSqrt: (CInt, FloatArray, FloatArray) -> Unit = { n, a, y ->
+            accelVvsqrtf(y, a, n)
+        }
+
+        public val vdSqrt: (CInt, DoubleArray, DoubleArray) -> Unit = { n, a, y ->
             for (i in 0 until n) y[i] = sqrt(a[i])
         }
 
-        public fun vdSqrt(n: CInt, a: DoubleArray, y: DoubleArray) {
-            for (i in 0 until n) y[i] = sqrt(a[i])
-        }
-
-        public fun vsAdd(n: CInt, a: FloatArray, b: FloatArray, y: FloatArray) {
+        public val vsAdd: (CInt, FloatArray, FloatArray, FloatArray) -> Unit = { n, a, b, y ->
             for (i in 0 until n) y[i] = a[i] + b[i]
         }
 
-        public fun vdAdd(n: CInt, a: DoubleArray, b: DoubleArray, y: DoubleArray) {
+        public val vdAdd: (CInt, DoubleArray, DoubleArray, DoubleArray) -> Unit = { n, a, b, y ->
             for (i in 0 until n) y[i] = a[i] + b[i]
         }
 
-        public fun vsSub(n: CInt, a: FloatArray, b: FloatArray, y: FloatArray) {
+        public val vsSub: (CInt, FloatArray, FloatArray, FloatArray) -> Unit = { n, a, b, y ->
             for (i in 0 until n) y[i] = a[i] - b[i]
         }
 
-        public fun vdSub(n: CInt, a: DoubleArray, b: DoubleArray, y: DoubleArray) {
+        public val vdSub: (CInt, DoubleArray, DoubleArray, DoubleArray) -> Unit = { n, a, b, y ->
             for (i in 0 until n) y[i] = a[i] - b[i]
         }
 
-        public fun vsMul(n: CInt, a: FloatArray, b: FloatArray, y: FloatArray) {
+        public val vsMul: (CInt, FloatArray, FloatArray, FloatArray) -> Unit = { n, a, b, y ->
             for (i in 0 until n) y[i] = a[i] * b[i]
         }
 
-        public fun vdMul(n: CInt, a: DoubleArray, b: DoubleArray, y: DoubleArray) {
+        public val vdMul: (CInt, DoubleArray, DoubleArray, DoubleArray) -> Unit = { n, a, b, y ->
             for (i in 0 until n) y[i] = a[i] * b[i]
         }
 
-        public fun vsDiv(n: CInt, a: FloatArray, b: FloatArray, y: FloatArray) {
+        public val vsDiv: (CInt, FloatArray, FloatArray, FloatArray) -> Unit = { n, a, b, y ->
             for (i in 0 until n) y[i] = a[i] / b[i]
         }
 
-        public fun vdDiv(n: CInt, a: DoubleArray, b: DoubleArray, y: DoubleArray) {
+        public val vdDiv: (CInt, DoubleArray, DoubleArray, DoubleArray) -> Unit = { n, a, b, y ->
             for (i in 0 until n) y[i] = a[i] / b[i]
         }
 
-        public fun vsFmax(n: CInt, a: FloatArray, b: FloatArray, y: FloatArray) {
+        public val vsFmax: (CInt, FloatArray, FloatArray, FloatArray) -> Unit = { n, a, b, y ->
             for (i in 0 until n) y[i] = maxOf(a[i], b[i])
         }
 
-        public fun vdFmax(n: CInt, a: DoubleArray, b: DoubleArray, y: DoubleArray) {
+        public val vdFmax: (CInt, DoubleArray, DoubleArray, DoubleArray) -> Unit = { n, a, b, y ->
             for (i in 0 until n) y[i] = maxOf(a[i], b[i])
         }
 
-        public fun vsFmin(n: CInt, a: FloatArray, b: FloatArray, y: FloatArray) {
+        public val vsFmin: (CInt, FloatArray, FloatArray, FloatArray) -> Unit = { n, a, b, y ->
             for (i in 0 until n) y[i] = minOf(a[i], b[i])
         }
 
-        public fun vdFmin(n: CInt, a: DoubleArray, b: DoubleArray, y: DoubleArray) {
+        public val vdFmin: (CInt, DoubleArray, DoubleArray, DoubleArray) -> Unit = { n, a, b, y ->
             for (i in 0 until n) y[i] = minOf(a[i], b[i])
         }
 
-        public fun sgemm(
-            transa: CChar,
-            transb: CChar,
-            m: CInt,
-            n: CInt,
-            k: CInt,
-            alpha: CFloat,
-            a: FloatArray,
-            lda: CInt,
-            b: FloatArray,
-            ldb: CInt,
-            beta: CFloat,
-            c: FloatArray,
-            ldc: CInt,
-        ) {
+        public val sgemm: (
+            CChar,
+            CChar,
+            CInt,
+            CInt,
+            CInt,
+            CFloat,
+            FloatArray,
+            CInt,
+            FloatArray,
+            CInt,
+            CFloat,
+            FloatArray,
+            CInt,
+        ) -> Unit = { transa, transb, m, n, k, alpha, a, lda, b, ldb, beta, c, ldc ->
             val ta = transa == 'T'.code.toByte() || transa == 't'.code.toByte()
             val tb = transb == 'T'.code.toByte() || transb == 't'.code.toByte()
             for (j in 0 until n) {
@@ -142,21 +142,21 @@ public object Mkl {
             }
         }
 
-        public fun dgemm(
-            transa: CChar,
-            transb: CChar,
-            m: CInt,
-            n: CInt,
-            k: CInt,
-            alpha: CDouble,
-            a: DoubleArray,
-            lda: CInt,
-            b: DoubleArray,
-            ldb: CInt,
-            beta: CDouble,
-            c: DoubleArray,
-            ldc: CInt,
-        ) {
+        public val dgemm: (
+            CChar,
+            CChar,
+            CInt,
+            CInt,
+            CInt,
+            CDouble,
+            DoubleArray,
+            CInt,
+            DoubleArray,
+            CInt,
+            CDouble,
+            DoubleArray,
+            CInt,
+        ) -> Unit = { transa, transb, m, n, k, alpha, a, lda, b, ldb, beta, c, ldc ->
             val ta = transa == 'T'.code.toByte() || transa == 't'.code.toByte()
             val tb = transb == 'T'.code.toByte() || transb == 't'.code.toByte()
             for (j in 0 until n) {
@@ -173,21 +173,21 @@ public object Mkl {
             }
         }
 
-        public fun hgemm(
-            transa: CChar,
-            transb: CChar,
-            m: CInt,
-            n: CInt,
-            k: CInt,
-            alpha: Short,
-            a: ShortArray,
-            lda: CInt,
-            b: ShortArray,
-            ldb: CInt,
-            beta: Short,
-            c: ShortArray,
-            ldc: CInt,
-        ) {
+        public val hgemm: (
+            CChar,
+            CChar,
+            CInt,
+            CInt,
+            CInt,
+            Short,
+            ShortArray,
+            CInt,
+            ShortArray,
+            CInt,
+            Short,
+            ShortArray,
+            CInt,
+        ) -> Unit = { transa, transb, m, n, k, alpha, a, lda, b, ldb, beta, c, ldc ->
             val ta = transa == 'T'.code.toByte() || transa == 't'.code.toByte()
             val tb = transb == 'T'.code.toByte() || transb == 't'.code.toByte()
             val alphaF = Float16Utils.f16BitsToFloat(alpha)
@@ -265,101 +265,131 @@ public object Mkl {
     public fun vsExp(a: FloatArray, y: FloatArray) {
         val aLen = a.size
         val yLen = y.size
-        require(aLen == yLen) { "a and y have different lengths $aLen <> $yLen" }
+        if (aLen != yLen) {
+            error("a and y have different lengths $aLen <> $yLen")
+        }
         Ffi.vsExp(aLen, a, y)
     }
 
     public fun vdExp(a: DoubleArray, y: DoubleArray) {
         val aLen = a.size
         val yLen = y.size
-        require(aLen == yLen) { "a and y have different lengths $aLen <> $yLen" }
+        if (aLen != yLen) {
+            error("a and y have different lengths $aLen <> $yLen")
+        }
         Ffi.vdExp(aLen, a, y)
     }
 
     public fun vsLn(a: FloatArray, y: FloatArray) {
         val aLen = a.size
         val yLen = y.size
-        require(aLen == yLen) { "a and y have different lengths $aLen <> $yLen" }
+        if (aLen != yLen) {
+            error("a and y have different lengths $aLen <> $yLen")
+        }
         Ffi.vsLn(aLen, a, y)
     }
 
     public fun vdLn(a: DoubleArray, y: DoubleArray) {
         val aLen = a.size
         val yLen = y.size
-        require(aLen == yLen) { "a and y have different lengths $aLen <> $yLen" }
+        if (aLen != yLen) {
+            error("a and y have different lengths $aLen <> $yLen")
+        }
         Ffi.vdLn(aLen, a, y)
     }
 
     public fun vsSin(a: FloatArray, y: FloatArray) {
         val aLen = a.size
         val yLen = y.size
-        require(aLen == yLen) { "a and y have different lengths $aLen <> $yLen" }
+        if (aLen != yLen) {
+            error("a and y have different lengths $aLen <> $yLen")
+        }
         Ffi.vsSin(aLen, a, y)
     }
 
     public fun vdSin(a: DoubleArray, y: DoubleArray) {
         val aLen = a.size
         val yLen = y.size
-        require(aLen == yLen) { "a and y have different lengths $aLen <> $yLen" }
+        if (aLen != yLen) {
+            error("a and y have different lengths $aLen <> $yLen")
+        }
         Ffi.vdSin(aLen, a, y)
     }
 
     public fun vsCos(a: FloatArray, y: FloatArray) {
         val aLen = a.size
         val yLen = y.size
-        require(aLen == yLen) { "a and y have different lengths $aLen <> $yLen" }
+        if (aLen != yLen) {
+            error("a and y have different lengths $aLen <> $yLen")
+        }
         Ffi.vsCos(aLen, a, y)
     }
 
     public fun vdCos(a: DoubleArray, y: DoubleArray) {
         val aLen = a.size
         val yLen = y.size
-        require(aLen == yLen) { "a and y have different lengths $aLen <> $yLen" }
+        if (aLen != yLen) {
+            error("a and y have different lengths $aLen <> $yLen")
+        }
         Ffi.vdCos(aLen, a, y)
     }
 
     public fun vsSqrt(a: FloatArray, y: FloatArray) {
         val aLen = a.size
         val yLen = y.size
-        require(aLen == yLen) { "a and y have different lengths $aLen <> $yLen" }
+        if (aLen != yLen) {
+            error("a and y have different lengths $aLen <> $yLen")
+        }
         Ffi.vsSqrt(aLen, a, y)
     }
 
     public fun vdSqrt(a: DoubleArray, y: DoubleArray) {
         val aLen = a.size
         val yLen = y.size
-        require(aLen == yLen) { "a and y have different lengths $aLen <> $yLen" }
+        if (aLen != yLen) {
+            error("a and y have different lengths $aLen <> $yLen")
+        }
         Ffi.vdSqrt(aLen, a, y)
     }
 
     public fun vsSqr(a: FloatArray, y: FloatArray) {
         val aLen = a.size
         val yLen = y.size
-        require(aLen == yLen) { "a and y have different lengths $aLen <> $yLen" }
+        if (aLen != yLen) {
+            error("a and y have different lengths $aLen <> $yLen")
+        }
         Ffi.vsMul(aLen, a, a, y)
     }
 
     public fun vdSqr(a: DoubleArray, y: DoubleArray) {
         val aLen = a.size
         val yLen = y.size
-        require(aLen == yLen) { "a and y have different lengths $aLen <> $yLen" }
+        if (aLen != yLen) {
+            error("a and y have different lengths $aLen <> $yLen")
+        }
         Ffi.vdMul(aLen, a, a, y)
     }
 
     public fun vsTanh(a: FloatArray, y: FloatArray) {
         val aLen = a.size
         val yLen = y.size
-        require(aLen == yLen) { "a and y have different lengths $aLen <> $yLen" }
+        if (aLen != yLen) {
+            error("a and y have different lengths $aLen <> $yLen")
+        }
         Ffi.vsTanh(aLen, a, y)
     }
 
     public fun vdTanh(a: DoubleArray, y: DoubleArray) {
         val aLen = a.size
         val yLen = y.size
-        require(aLen == yLen) { "a and y have different lengths $aLen <> $yLen" }
+        if (aLen != yLen) {
+            error("a and y have different lengths $aLen <> $yLen")
+        }
         Ffi.vdTanh(aLen, a, y)
     }
 
+    // The vector functions from mkl can be performed in place by using the same array for input and
+    // output.
     public fun vsTanhInplace(y: FloatArray) {
         Ffi.vsTanh(y.size, y, y)
     }
@@ -377,98 +407,170 @@ public object Mkl {
     }
 
     public fun vsGelu(vs: FloatArray, ys: FloatArray) {
-        val c = sqrt(2.0f / PI.toFloat())
         for (i in vs.indices) {
             val v = vs[i]
-            ys[i] = c * v * (1.0f + 0.044715f * v * v)
+            ys[i] = sqrt(2.0f / PI.toFloat()) * v * (1.0f + 0.044715f * v * v)
         }
         vsTanhInplace(ys)
         for (i in vs.indices) {
-            ys[i] = 0.5f * vs[i] * (1.0f + ys[i])
+            val v = vs[i]
+            ys[i] = 0.5f * v * (1.0f + ys[i])
         }
     }
 
     public fun vdGelu(vs: DoubleArray, ys: DoubleArray) {
-        val c = sqrt(2.0 / PI)
         for (i in vs.indices) {
             val v = vs[i]
-            ys[i] = c * v * (1.0 + 0.044715 * v * v)
+            ys[i] = sqrt(2.0 / PI) * v * (1.0 + 0.044715 * v * v)
         }
         vdTanhInplace(ys)
         for (i in vs.indices) {
-            ys[i] = 0.5 * vs[i] * (1.0 + ys[i])
+            val v = vs[i]
+            ys[i] = 0.5 * v * (1.0 + ys[i])
         }
     }
 
     public fun vsSilu(vs: FloatArray, ys: FloatArray) {
-        for (i in vs.indices) ys[i] = -vs[i]
+        for (i in vs.indices) {
+            val v = vs[i]
+            ys[i] = -v
+        }
         vsExpInplace(ys)
-        for (i in vs.indices) ys[i] = vs[i] / (1.0f + ys[i])
+        for (i in vs.indices) {
+            val v = vs[i]
+            ys[i] = v / (1.0f + ys[i])
+        }
     }
 
     public fun vdSilu(vs: DoubleArray, ys: DoubleArray) {
-        for (i in vs.indices) ys[i] = -vs[i]
+        for (i in vs.indices) {
+            val v = vs[i]
+            ys[i] = -v
+        }
         vdExpInplace(ys)
-        for (i in vs.indices) ys[i] = vs[i] / (1.0 + ys[i])
+        for (i in vs.indices) {
+            val v = vs[i]
+            ys[i] = v / (1.0 + ys[i])
+        }
     }
 
-    public fun vsAdd(a: FloatArray, b: FloatArray, y: FloatArray) {
-        require(a.size == y.size && b.size == y.size) { "vsAdd a,b,y len mismatch ${a.size} ${b.size} ${y.size}" }
-        Ffi.vsAdd(a.size, a, b, y)
+    public val vsAdd: (FloatArray, FloatArray, FloatArray) -> Unit = { a, b, y ->
+        val aLen = a.size
+        val bLen = b.size
+        val yLen = y.size
+        if (aLen != yLen || bLen != yLen) {
+            error("vsAdd a,b,y len mismatch $aLen $bLen $yLen")
+        }
+        Ffi.vsAdd(aLen, a, b, y)
     }
 
-    public fun vdAdd(a: DoubleArray, b: DoubleArray, y: DoubleArray) {
-        require(a.size == y.size && b.size == y.size) { "vdAdd a,b,y len mismatch ${a.size} ${b.size} ${y.size}" }
-        Ffi.vdAdd(a.size, a, b, y)
+    public val vdAdd: (DoubleArray, DoubleArray, DoubleArray) -> Unit = { a, b, y ->
+        val aLen = a.size
+        val bLen = b.size
+        val yLen = y.size
+        if (aLen != yLen || bLen != yLen) {
+            error("vdAdd a,b,y len mismatch $aLen $bLen $yLen")
+        }
+        Ffi.vdAdd(aLen, a, b, y)
     }
 
-    public fun vsSub(a: FloatArray, b: FloatArray, y: FloatArray) {
-        require(a.size == y.size && b.size == y.size) { "vsSub a,b,y len mismatch ${a.size} ${b.size} ${y.size}" }
-        Ffi.vsSub(a.size, a, b, y)
+    public val vsSub: (FloatArray, FloatArray, FloatArray) -> Unit = { a, b, y ->
+        val aLen = a.size
+        val bLen = b.size
+        val yLen = y.size
+        if (aLen != yLen || bLen != yLen) {
+            error("vsSub a,b,y len mismatch $aLen $bLen $yLen")
+        }
+        Ffi.vsSub(aLen, a, b, y)
     }
 
-    public fun vdSub(a: DoubleArray, b: DoubleArray, y: DoubleArray) {
-        require(a.size == y.size && b.size == y.size) { "vdSub a,b,y len mismatch ${a.size} ${b.size} ${y.size}" }
-        Ffi.vdSub(a.size, a, b, y)
+    public val vdSub: (DoubleArray, DoubleArray, DoubleArray) -> Unit = { a, b, y ->
+        val aLen = a.size
+        val bLen = b.size
+        val yLen = y.size
+        if (aLen != yLen || bLen != yLen) {
+            error("vdSub a,b,y len mismatch $aLen $bLen $yLen")
+        }
+        Ffi.vdSub(aLen, a, b, y)
     }
 
-    public fun vsMul(a: FloatArray, b: FloatArray, y: FloatArray) {
-        require(a.size == y.size && b.size == y.size) { "vsMul a,b,y len mismatch ${a.size} ${b.size} ${y.size}" }
-        Ffi.vsMul(a.size, a, b, y)
+    public val vsMul: (FloatArray, FloatArray, FloatArray) -> Unit = { a, b, y ->
+        val aLen = a.size
+        val bLen = b.size
+        val yLen = y.size
+        if (aLen != yLen || bLen != yLen) {
+            error("vsMul a,b,y len mismatch $aLen $bLen $yLen")
+        }
+        Ffi.vsMul(aLen, a, b, y)
     }
 
-    public fun vdMul(a: DoubleArray, b: DoubleArray, y: DoubleArray) {
-        require(a.size == y.size && b.size == y.size) { "vdMul a,b,y len mismatch ${a.size} ${b.size} ${y.size}" }
-        Ffi.vdMul(a.size, a, b, y)
+    public val vdMul: (DoubleArray, DoubleArray, DoubleArray) -> Unit = { a, b, y ->
+        val aLen = a.size
+        val bLen = b.size
+        val yLen = y.size
+        if (aLen != yLen || bLen != yLen) {
+            error("vdMul a,b,y len mismatch $aLen $bLen $yLen")
+        }
+        Ffi.vdMul(aLen, a, b, y)
     }
 
-    public fun vsDiv(a: FloatArray, b: FloatArray, y: FloatArray) {
-        require(a.size == y.size && b.size == y.size) { "vsDiv a,b,y len mismatch ${a.size} ${b.size} ${y.size}" }
-        Ffi.vsDiv(a.size, a, b, y)
+    public val vsDiv: (FloatArray, FloatArray, FloatArray) -> Unit = { a, b, y ->
+        val aLen = a.size
+        val bLen = b.size
+        val yLen = y.size
+        if (aLen != yLen || bLen != yLen) {
+            error("vsDiv a,b,y len mismatch $aLen $bLen $yLen")
+        }
+        Ffi.vsDiv(aLen, a, b, y)
     }
 
-    public fun vdDiv(a: DoubleArray, b: DoubleArray, y: DoubleArray) {
-        require(a.size == y.size && b.size == y.size) { "vdDiv a,b,y len mismatch ${a.size} ${b.size} ${y.size}" }
-        Ffi.vdDiv(a.size, a, b, y)
+    public val vdDiv: (DoubleArray, DoubleArray, DoubleArray) -> Unit = { a, b, y ->
+        val aLen = a.size
+        val bLen = b.size
+        val yLen = y.size
+        if (aLen != yLen || bLen != yLen) {
+            error("vdDiv a,b,y len mismatch $aLen $bLen $yLen")
+        }
+        Ffi.vdDiv(aLen, a, b, y)
     }
 
-    public fun vsMax(a: FloatArray, b: FloatArray, y: FloatArray) {
-        require(a.size == y.size && b.size == y.size) { "vsMax a,b,y len mismatch ${a.size} ${b.size} ${y.size}" }
-        Ffi.vsFmax(a.size, a, b, y)
+    public val vsMax: (FloatArray, FloatArray, FloatArray) -> Unit = { a, b, y ->
+        val aLen = a.size
+        val bLen = b.size
+        val yLen = y.size
+        if (aLen != yLen || bLen != yLen) {
+            error("vsMax a,b,y len mismatch $aLen $bLen $yLen")
+        }
+        Ffi.vsFmax(aLen, a, b, y)
     }
 
-    public fun vdMax(a: DoubleArray, b: DoubleArray, y: DoubleArray) {
-        require(a.size == y.size && b.size == y.size) { "vdMax a,b,y len mismatch ${a.size} ${b.size} ${y.size}" }
-        Ffi.vdFmax(a.size, a, b, y)
+    public val vdMax: (DoubleArray, DoubleArray, DoubleArray) -> Unit = { a, b, y ->
+        val aLen = a.size
+        val bLen = b.size
+        val yLen = y.size
+        if (aLen != yLen || bLen != yLen) {
+            error("vdMax a,b,y len mismatch $aLen $bLen $yLen")
+        }
+        Ffi.vdFmax(aLen, a, b, y)
     }
 
-    public fun vsMin(a: FloatArray, b: FloatArray, y: FloatArray) {
-        require(a.size == y.size && b.size == y.size) { "vsMin a,b,y len mismatch ${a.size} ${b.size} ${y.size}" }
-        Ffi.vsFmin(a.size, a, b, y)
+    public val vsMin: (FloatArray, FloatArray, FloatArray) -> Unit = { a, b, y ->
+        val aLen = a.size
+        val bLen = b.size
+        val yLen = y.size
+        if (aLen != yLen || bLen != yLen) {
+            error("vsMin a,b,y len mismatch $aLen $bLen $yLen")
+        }
+        Ffi.vsFmin(aLen, a, b, y)
     }
 
-    public fun vdMin(a: DoubleArray, b: DoubleArray, y: DoubleArray) {
-        require(a.size == y.size && b.size == y.size) { "vdMin a,b,y len mismatch ${a.size} ${b.size} ${y.size}" }
-        Ffi.vdFmin(a.size, a, b, y)
+    public val vdMin: (DoubleArray, DoubleArray, DoubleArray) -> Unit = { a, b, y ->
+        val aLen = a.size
+        val bLen = b.size
+        val yLen = y.size
+        if (aLen != yLen || bLen != yLen) {
+            error("vdMin a,b,y len mismatch $aLen $bLen $yLen")
+        }
+        Ffi.vdFmin(aLen, a, b, y)
     }
 }
