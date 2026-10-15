@@ -1,6 +1,12 @@
 // port-lint: source accelerate.rs
 package io.github.kotlinmania.candle
 
+import io.github.kotlinmania.libc.CChar
+import io.github.kotlinmania.libc.CDouble
+import io.github.kotlinmania.libc.CFloat
+import io.github.kotlinmania.libc.CInt
+import io.github.kotlinmania.libc.CLong
+import io.github.kotlinmania.libc.CULong
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.exp
@@ -12,19 +18,19 @@ import kotlin.math.tanh
 public object Accelerate {
     public object Ffi {
         public fun sgemmFfi(
-            transa: Byte,
-            transb: Byte,
-            m: Int,
-            n: Int,
-            k: Int,
-            alpha: Float,
+            transa: CChar,
+            transb: CChar,
+            m: CInt,
+            n: CInt,
+            k: CInt,
+            alpha: CFloat,
             a: FloatArray,
-            lda: Int,
+            lda: CInt,
             b: FloatArray,
-            ldb: Int,
-            beta: Float,
+            ldb: CInt,
+            beta: CFloat,
             c: FloatArray,
-            ldc: Int,
+            ldc: CInt,
         ) {
             val ta = transa == 'T'.code.toByte() || transa == 't'.code.toByte()
             val tb = transb == 'T'.code.toByte() || transb == 't'.code.toByte()
@@ -43,19 +49,19 @@ public object Accelerate {
         }
 
         public fun dgemmFfi(
-            transa: Byte,
-            transb: Byte,
-            m: Int,
-            n: Int,
-            k: Int,
-            alpha: Double,
+            transa: CChar,
+            transb: CChar,
+            m: CInt,
+            n: CInt,
+            k: CInt,
+            alpha: CDouble,
             a: DoubleArray,
-            lda: Int,
+            lda: CInt,
             b: DoubleArray,
-            ldb: Int,
-            beta: Double,
+            ldb: CInt,
+            beta: CDouble,
             c: DoubleArray,
-            ldc: Int,
+            ldc: CInt,
         ) {
             val ta = transa == 'T'.code.toByte() || transa == 't'.code.toByte()
             val tb = transb == 'T'.code.toByte() || transb == 't'.code.toByte()
@@ -73,62 +79,62 @@ public object Accelerate {
             }
         }
 
-        public fun vvexpf(dst: FloatArray, src: FloatArray, len: Int) {
+        public fun vvexpf(dst: FloatArray, src: FloatArray, len: CInt) {
             for (i in 0 until len) dst[i] = exp(src[i])
         }
 
-        public fun vvexp(dst: DoubleArray, src: DoubleArray, len: Int) {
+        public fun vvexp(dst: DoubleArray, src: DoubleArray, len: CInt) {
             for (i in 0 until len) dst[i] = exp(src[i])
         }
 
-        public fun vvsqrtf(dst: FloatArray, src: FloatArray, len: Int) {
+        public fun vvsqrtf(dst: FloatArray, src: FloatArray, len: CInt) {
             for (i in 0 until len) dst[i] = sqrt(src[i])
         }
 
-        public fun vvsqrt(dst: DoubleArray, src: DoubleArray, len: Int) {
+        public fun vvsqrt(dst: DoubleArray, src: DoubleArray, len: CInt) {
             for (i in 0 until len) dst[i] = sqrt(src[i])
         }
 
-        public fun vvsinf(dst: FloatArray, src: FloatArray, len: Int) {
+        public fun vvsinf(dst: FloatArray, src: FloatArray, len: CInt) {
             for (i in 0 until len) dst[i] = sin(src[i])
         }
 
-        public fun vvsin(dst: DoubleArray, src: DoubleArray, len: Int) {
+        public fun vvsin(dst: DoubleArray, src: DoubleArray, len: CInt) {
             for (i in 0 until len) dst[i] = sin(src[i])
         }
 
-        public fun vvcosf(dst: FloatArray, src: FloatArray, len: Int) {
+        public fun vvcosf(dst: FloatArray, src: FloatArray, len: CInt) {
             for (i in 0 until len) dst[i] = cos(src[i])
         }
 
-        public fun vvcos(dst: DoubleArray, src: DoubleArray, len: Int) {
+        public fun vvcos(dst: DoubleArray, src: DoubleArray, len: CInt) {
             for (i in 0 until len) dst[i] = cos(src[i])
         }
 
-        public fun vvlogf(dst: FloatArray, src: FloatArray, len: Int) {
+        public fun vvlogf(dst: FloatArray, src: FloatArray, len: CInt) {
             for (i in 0 until len) dst[i] = ln(src[i])
         }
 
-        public fun vvlog(dst: DoubleArray, src: DoubleArray, len: Int) {
+        public fun vvlog(dst: DoubleArray, src: DoubleArray, len: CInt) {
             for (i in 0 until len) dst[i] = ln(src[i])
         }
 
-        public fun vvtanhf(dst: FloatArray, src: FloatArray, len: Int) {
+        public fun vvtanhf(dst: FloatArray, src: FloatArray, len: CInt) {
             for (i in 0 until len) dst[i] = tanh(src[i])
         }
 
-        public fun vvtanh(dst: DoubleArray, src: DoubleArray, len: Int) {
+        public fun vvtanh(dst: DoubleArray, src: DoubleArray, len: CInt) {
             for (i in 0 until len) dst[i] = tanh(src[i])
         }
 
         public fun vdspVaddD(
             a: DoubleArray,
-            ia: Long,
+            ia: CLong,
             b: DoubleArray,
-            ib: Long,
+            ib: CLong,
             c: DoubleArray,
-            ic: Long,
-            n: ULong,
+            ic: CLong,
+            n: CULong,
         ) {
             val count = n.toInt()
             for (i in 0 until count) {
@@ -138,12 +144,12 @@ public object Accelerate {
 
         public fun vdspVadd(
             a: FloatArray,
-            ia: Long,
+            ia: CLong,
             b: FloatArray,
-            ib: Long,
+            ib: CLong,
             c: FloatArray,
-            ic: Long,
-            n: ULong,
+            ic: CLong,
+            n: CULong,
         ) {
             val count = n.toInt()
             for (i in 0 until count) {
@@ -153,12 +159,12 @@ public object Accelerate {
 
         public fun vdspVsubD(
             a: DoubleArray,
-            ia: Long,
+            ia: CLong,
             b: DoubleArray,
-            ib: Long,
+            ib: CLong,
             c: DoubleArray,
-            ic: Long,
-            n: ULong,
+            ic: CLong,
+            n: CULong,
         ) {
             val count = n.toInt()
             for (i in 0 until count) {
@@ -168,12 +174,12 @@ public object Accelerate {
 
         public fun vdspVsub(
             a: FloatArray,
-            ia: Long,
+            ia: CLong,
             b: FloatArray,
-            ib: Long,
+            ib: CLong,
             c: FloatArray,
-            ic: Long,
-            n: ULong,
+            ic: CLong,
+            n: CULong,
         ) {
             val count = n.toInt()
             for (i in 0 until count) {
@@ -183,12 +189,12 @@ public object Accelerate {
 
         public fun vdspVmulD(
             a: DoubleArray,
-            ia: Long,
+            ia: CLong,
             b: DoubleArray,
-            ib: Long,
+            ib: CLong,
             c: DoubleArray,
-            ic: Long,
-            n: ULong,
+            ic: CLong,
+            n: CULong,
         ) {
             val count = n.toInt()
             for (i in 0 until count) {
@@ -198,12 +204,12 @@ public object Accelerate {
 
         public fun vdspVmul(
             a: FloatArray,
-            ia: Long,
+            ia: CLong,
             b: FloatArray,
-            ib: Long,
+            ib: CLong,
             c: FloatArray,
-            ic: Long,
-            n: ULong,
+            ic: CLong,
+            n: CULong,
         ) {
             val count = n.toInt()
             for (i in 0 until count) {
@@ -213,12 +219,12 @@ public object Accelerate {
 
         public fun vdspVdivD(
             a: DoubleArray,
-            ia: Long,
+            ia: CLong,
             b: DoubleArray,
-            ib: Long,
+            ib: CLong,
             c: DoubleArray,
-            ic: Long,
-            n: ULong,
+            ic: CLong,
+            n: CULong,
         ) {
             val count = n.toInt()
             for (i in 0 until count) {
@@ -228,12 +234,12 @@ public object Accelerate {
 
         public fun vdspVdiv(
             a: FloatArray,
-            ia: Long,
+            ia: CLong,
             b: FloatArray,
-            ib: Long,
+            ib: CLong,
             c: FloatArray,
-            ic: Long,
-            n: ULong,
+            ic: CLong,
+            n: CULong,
         ) {
             val count = n.toInt()
             for (i in 0 until count) {
@@ -243,12 +249,12 @@ public object Accelerate {
 
         public fun vdspVminD(
             a: DoubleArray,
-            ia: Long,
+            ia: CLong,
             b: DoubleArray,
-            ib: Long,
+            ib: CLong,
             c: DoubleArray,
-            ic: Long,
-            n: ULong,
+            ic: CLong,
+            n: CULong,
         ) {
             val count = n.toInt()
             for (i in 0 until count) {
@@ -258,12 +264,12 @@ public object Accelerate {
 
         public fun vdspVmin(
             a: FloatArray,
-            ia: Long,
+            ia: CLong,
             b: FloatArray,
-            ib: Long,
+            ib: CLong,
             c: FloatArray,
-            ic: Long,
-            n: ULong,
+            ic: CLong,
+            n: CULong,
         ) {
             val count = n.toInt()
             for (i in 0 until count) {
@@ -273,12 +279,12 @@ public object Accelerate {
 
         public fun vdspVmaxD(
             a: DoubleArray,
-            ia: Long,
+            ia: CLong,
             b: DoubleArray,
-            ib: Long,
+            ib: CLong,
             c: DoubleArray,
-            ic: Long,
-            n: ULong,
+            ic: CLong,
+            n: CULong,
         ) {
             val count = n.toInt()
             for (i in 0 until count) {
@@ -288,12 +294,12 @@ public object Accelerate {
 
         public fun vdspVmax(
             a: FloatArray,
-            ia: Long,
+            ia: CLong,
             b: FloatArray,
-            ib: Long,
+            ib: CLong,
             c: FloatArray,
-            ic: Long,
-            n: ULong,
+            ic: CLong,
+            n: CULong,
         ) {
             val count = n.toInt()
             for (i in 0 until count) {

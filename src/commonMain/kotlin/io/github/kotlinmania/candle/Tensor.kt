@@ -9,7 +9,6 @@ import kotlin.math.ln
 import kotlin.math.pow
 import kotlin.math.sin
 import kotlin.math.sqrt
-import kotlin.random.Random
 
 /**
  * Unique identifier for a tensor.
@@ -1709,27 +1708,13 @@ public class Tensor internal constructor(
             emptyImpl(shape, dtype, device, false)
 
         internal fun randImpl(lo: Float, up: Float, shape: Shape, device: Device, isVariable: Boolean): Tensor {
-            device.hashCode()
-            val count = shape.elemCount()
-            val data = FloatArray(count)
-            val diff = up - lo
-            for (i in 0 until count) {
-                data[i] = lo + Random.nextFloat() * diff
-            }
-            val storage = Storage.Cpu(CpuStorage.F32(data))
+            val storage = device.randUniform(lo.toDouble(), up.toDouble(), shape, DType.F32)
             return fromStorage(storage, shape, BackpropOp.None, isVariable)
         }
 
         internal fun randF64Impl(lo: Double, up: Double, shape: Shape, dtype: DType, device: Device, isVariable: Boolean): Tensor {
-            device.hashCode()
-            val count = shape.elemCount()
-            val data = DoubleArray(count)
-            val diff = up - lo
-            for (i in 0 until count) {
-                data[i] = lo + Random.nextDouble() * diff
-            }
-            val t = fromStorage(Storage.Cpu(CpuStorage.F64(data)), shape, BackpropOp.None, isVariable)
-            return if (dtype == DType.F64) t else t.toDtype(dtype)
+            val storage = device.randUniformF64(lo, up, shape, dtype)
+            return fromStorage(storage, shape, BackpropOp.None, isVariable)
         }
 
         /**
@@ -1739,41 +1724,13 @@ public class Tensor internal constructor(
             randImpl(min, max, shape, device, false)
 
         internal fun randnImpl(mean: Float, std: Float, shape: Shape, device: Device, isVariable: Boolean): Tensor {
-            device.hashCode()
-            val count = shape.elemCount()
-            val data = FloatArray(count)
-            var i = 0
-            while (i < count) {
-                val u1 = Random.nextDouble().coerceAtLeast(1e-15)
-                val u2 = Random.nextDouble()
-                val z0 = sqrt(-2.0 * ln(u1)) * cos(2.0 * PI * u2)
-                val z1 = sqrt(-2.0 * ln(u1)) * sin(2.0 * PI * u2)
-                data[i++] = (mean + std * z0).toFloat()
-                if (i < count) {
-                    data[i++] = (mean + std * z1).toFloat()
-                }
-            }
-            val storage = Storage.Cpu(CpuStorage.F32(data))
+            val storage = device.randNormal(mean.toDouble(), std.toDouble(), shape, DType.F32)
             return fromStorage(storage, shape, BackpropOp.None, isVariable)
         }
 
         internal fun randnF64Impl(mean: Double, std: Double, shape: Shape, dtype: DType, device: Device, isVariable: Boolean): Tensor {
-            device.hashCode()
-            val count = shape.elemCount()
-            val data = DoubleArray(count)
-            var i = 0
-            while (i < count) {
-                val u1 = Random.nextDouble().coerceAtLeast(1e-15)
-                val u2 = Random.nextDouble()
-                val z0 = sqrt(-2.0 * ln(u1)) * cos(2.0 * PI * u2)
-                val z1 = sqrt(-2.0 * ln(u1)) * sin(2.0 * PI * u2)
-                data[i++] = mean + std * z0
-                if (i < count) {
-                    data[i++] = mean + std * z1
-                }
-            }
-            val t = fromStorage(Storage.Cpu(CpuStorage.F64(data)), shape, BackpropOp.None, isVariable)
-            return if (dtype == DType.F64) t else t.toDtype(dtype)
+            val storage = device.randNormalF64(mean, std, shape, dtype)
+            return fromStorage(storage, shape, BackpropOp.None, isVariable)
         }
 
         /**

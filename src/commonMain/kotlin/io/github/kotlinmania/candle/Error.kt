@@ -1,6 +1,9 @@
 // port-lint: source error.rs
 package io.github.kotlinmania.candle
 
+import io.github.kotlinmania.thiserror.StdError
+import io.github.kotlinmania.zip.ZipError
+
 /**
  * Candle-specific Error and Result
  */
@@ -18,7 +21,10 @@ public data class MatMulUnexpectedStriding(
 public sealed class CandleException(
     message: String,
     cause: Throwable? = null,
-) : Exception(message, cause) {
+) : Exception(message, cause),
+    StdError {
+    override fun source(): StdError? = cause as? StdError
+
     public interface Error
     public interface Result
 
@@ -196,7 +202,10 @@ public sealed class CandleException(
      */
     public data class Zip(
         val details: String,
-    ) : CandleException("zip error: $details")
+        val zipError: ZipError? = null,
+    ) : CandleException("zip error: $details", zipError) {
+        public constructor(err: ZipError) : this(err.message ?: err.toString(), err)
+    }
 
     /**
      * Integer parse error.

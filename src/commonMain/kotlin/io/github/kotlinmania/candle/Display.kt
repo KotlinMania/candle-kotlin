@@ -478,11 +478,7 @@ public fun Tensor.displayText(): String {
     val po = printOptions()
     val summarize = elemCount() > po.threshold
     val toDisplay = if (summarize) {
-        try {
-            getSummarizedData(this, po.edgeItems)
-        } catch (_: Exception) {
-            this
-        }
+        getSummarizedData(this, po.edgeItems)
     } else {
         this
     }

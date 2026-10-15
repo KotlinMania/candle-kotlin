@@ -1,7 +1,10 @@
 // port-lint: source dummy_metal_backend.rs
 package io.github.kotlinmania.candle
 
-public sealed class MetalError : Exception() {
+import io.github.kotlinmania.thiserror.StdError
+
+public sealed class MetalError : Exception(), StdError {
+    override fun source(): StdError? = cause as? StdError
     public data class Message(
         override val message: String,
     ) : MetalError() {

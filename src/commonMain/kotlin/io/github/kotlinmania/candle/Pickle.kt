@@ -4,6 +4,10 @@
  */
 package io.github.kotlinmania.candle
 
+import io.github.kotlinmania.zip.ByteArrayZipSource
+import io.github.kotlinmania.zip.ZipArchive
+import io.github.kotlinmania.zip.ZipError
+
 // This hardcodes objects that are required for tensor reading, we may want to make this a bit more
 // composable/tensor agnostic at some point.
 
@@ -836,7 +840,7 @@ data class TensorInfo(
     val storageSize: Int,
 )
 
-private val inMemoryPthArchives: MutableMap<String, LinkedHashMap<String, ByteArray>> = LinkedHashMap()
+private val inMemoryPthArchives: MutableMap<String, ByteArray> = LinkedHashMap()
 
 /**
  * Read the tensor info from a .pth file.
@@ -851,9 +855,12 @@ fun readPthTensorInfo(
     verbose: Boolean,
     key: String?,
 ): CandleResult<List<TensorInfo>> {
-    val zip = inMemoryPthArchives[file]
+    val zipBytes = inMemoryPthArchives[file]
         ?: return CandleResult.Err(CandleError.Msg("pth file not found: $file").withPath(file))
-    val zipFileNames = zip.keys.toList()
+    val zip = ZipArchive.new(ByteArrayZipSource(zipBytes)).getOrElse { err ->
+        return CandleResult.Err(CandleError.Zip(err.message ?: err.toString(), err as? ZipError))
+    }
+    val zipFileNames = zip.fileNames()
 
     val tensorInfos = ArrayList<TensorInfo>()
     for (fileName in zipFileNames) {
@@ -861,9 +868,10 @@ fun readPthTensorInfo(
             continue
         }
         val dirName = fileName.removeSuffix(".pkl")
-        val pklBytes = zip[fileName]
-            ?: return CandleResult.Err(CandleError.Msg("missing entry $fileName").bt())
-        val reader = NpyByteReader(pklBytes)
+        val zipFile = zip.byName(fileName).getOrElse { err ->
+            return CandleResult.Err(CandleError.Zip(err.message ?: err.toString(), err as? ZipError))
+        }
+        val reader = NpyByteReader(zipFile.readToEnd())
         val stack = Stack.empty()
         when (val res = stack.readLoop(reader)) {
             is CandleResult.Ok -> {}
@@ -933,11 +941,15 @@ class PthTensors private constructor(
     fun get(name: String): CandleResult<Tensor?> {
         val tensorInfo = this.tensorInfosMap[name] ?: return CandleResult.Ok(null)
         // We hope that the file has not changed since first reading it.
-        val zip = inMemoryPthArchives[this.path]
+        val zipBytes = inMemoryPthArchives[this.path]
             ?: return CandleResult.Err(CandleError.Msg("pth file not found: ${this.path}").withPath(this.path))
-        val entryBytes = zip[tensorInfo.path]
-            ?: return CandleResult.Err(CandleError.Msg("missing tensor data ${tensorInfo.path}").bt())
-        val reader = NpyByteReader(entryBytes)
+        val zip = ZipArchive.new(ByteArrayZipSource(zipBytes)).getOrElse { err ->
+            return CandleResult.Err(CandleError.Zip(err.message ?: err.toString(), err as? ZipError))
+        }
+        val zipFile = zip.byName(tensorInfo.path).getOrElse { err ->
+            return CandleResult.Err(CandleError.Zip(err.message ?: err.toString(), err as? ZipError))
+        }
+        val reader = NpyByteReader(zipFile.readToEnd())
         val isFortranContiguous = tensorInfo.layout.isFortranContiguous()
         val rank = tensorInfo.layout.shape().rank()
 

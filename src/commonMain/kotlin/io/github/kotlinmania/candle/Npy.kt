@@ -30,6 +30,13 @@
  */
 package io.github.kotlinmania.candle
 
+import io.github.kotlinmania.zip.ByteArrayZipSink
+import io.github.kotlinmania.zip.ByteArrayZipSource
+import io.github.kotlinmania.zip.CompressionMethod
+import io.github.kotlinmania.zip.FileOptions
+import io.github.kotlinmania.zip.ZipArchive
+import io.github.kotlinmania.zip.ZipError
+import io.github.kotlinmania.zip.ZipWriter
 import kotlin.test.Test
 
 private val NPY_MAGIC_STRING: ByteArray = byteArrayOf(
@@ -101,7 +108,7 @@ class NpyByteWriter {
 }
 
 private val inMemoryNpyFiles: MutableMap<String, ByteArray> = LinkedHashMap()
-private val inMemoryNpzFiles: MutableMap<String, LinkedHashMap<String, ByteArray>> = LinkedHashMap()
+private val inMemoryNpzFiles: MutableMap<String, ByteArray> = LinkedHashMap()
 
 private fun readHeader(reader: NpyByteReader): CandleResult<String> {
     val magicString = ByteArray(NPY_MAGIC_STRING.size)
@@ -413,12 +420,18 @@ fun readNpy(path: String): CandleResult<Tensor> {
  * Reads a npz file and returns the stored multi-dimensional arrays together with their names.
  */
 fun readNpz(path: String): CandleResult<List<Pair<String, Tensor>>> {
-    val archive = inMemoryNpzFiles[path]
+    val zipBytes = inMemoryNpzFiles[path]
         ?: return CandleResult.Err(CandleError.Npy("npz file not found: $path"))
-    val result = ArrayList<Pair<String, Tensor>>(archive.size)
-    for ((entryName, entryBytes) in archive) {
-        val name = entryName.removeSuffix(NPY_SUFFIX)
-        val reader = NpyByteReader(entryBytes)
+    val zip = ZipArchive.new(ByteArrayZipSource(zipBytes)).getOrElse { err ->
+        return CandleResult.Err(CandleError.Zip(err.message ?: err.toString(), err as? ZipError))
+    }
+    val result = ArrayList<Pair<String, Tensor>>(zip.len())
+    for (i in 0 until zip.len()) {
+        val zipFile = zip.byIndex(i).getOrElse { err ->
+            return CandleResult.Err(CandleError.Zip(err.message ?: err.toString(), err as? ZipError))
+        }
+        val name = zipFile.name().removeSuffix(NPY_SUFFIX)
+        val reader = NpyByteReader(zipFile.readToEnd())
         val headerStr = when (val res = readHeader(reader)) {
             is CandleResult.Ok -> res.value
             is CandleResult.Err -> return CandleResult.Err(res.error)
@@ -443,13 +456,17 @@ fun readNpz(path: String): CandleResult<List<Pair<String, Tensor>>> {
  * Reads a npz file and returns the stored multi-dimensional arrays for some specified names.
  */
 fun readNpzByName(path: String, names: Array<String>): CandleResult<List<Tensor>> {
-    val archive = inMemoryNpzFiles[path]
+    val zipBytes = inMemoryNpzFiles[path]
         ?: return CandleResult.Err(CandleError.Npy("npz file not found: $path"))
+    val zip = ZipArchive.new(ByteArrayZipSource(zipBytes)).getOrElse { err ->
+        return CandleResult.Err(CandleError.Zip(err.message ?: err.toString(), err as? ZipError))
+    }
     val result = ArrayList<Tensor>(names.size)
     for (name in names) {
-        val entryBytes = archive["$name$NPY_SUFFIX"] ?: archive[name]
-            ?: return CandleResult.Err(CandleError.Npy("no array for $name in $path"))
-        val reader = NpyByteReader(entryBytes)
+        val zipFile = zip.byName("$name$NPY_SUFFIX").getOrElse {
+            return CandleResult.Err(CandleError.Npy("no array for $name in $path"))
+        }
+        val reader = NpyByteReader(zipFile.readToEnd())
         val headerStr = when (val res = readHeader(reader)) {
             is CandleResult.Ok -> res.value
             is CandleResult.Err -> return CandleResult.Err(res.error)
@@ -509,16 +526,26 @@ fun Tensor.writeNpy(path: String): CandleResult<Unit> {
  * Writes multiple multi-dimensional arrays using the npz format.
  */
 fun writeNpz(ts: List<Pair<String, Tensor>>, path: String): CandleResult<Unit> {
-    val archive = LinkedHashMap<String, ByteArray>()
+    val sink = ByteArrayZipSink()
+    val zip = ZipWriter(sink)
+    val options = FileOptions.default().compressionMethod(CompressionMethod.Stored)
     for ((name, tensor) in ts) {
+        zip.startFile("$name.npy", options).getOrElse { err ->
+            return CandleResult.Err(CandleError.Zip(err.message ?: err.toString(), err as? ZipError))
+        }
         val writer = NpyByteWriter()
         when (val res = tensor.write(writer)) {
             is CandleResult.Ok -> {}
             is CandleResult.Err -> return CandleResult.Err(res.error)
         }
-        archive["$name$NPY_SUFFIX"] = writer.toByteArray()
+        zip.write(writer.toByteArray()).getOrElse { err ->
+            return CandleResult.Err(CandleError.Zip(err.message ?: err.toString(), err as? ZipError))
+        }
     }
-    inMemoryNpzFiles[path] = archive
+    zip.finish().getOrElse { err ->
+        return CandleResult.Err(CandleError.Zip(err.message ?: err.toString(), err as? ZipError))
+    }
+    inMemoryNpzFiles[path] = sink.toByteArray()
     return CandleResult.Ok(Unit)
 }
 
@@ -527,8 +554,9 @@ fun writeNpz(ts: List<Pair<String, Tensor>>, path: String): CandleResult<Unit> {
  */
 class NpzTensors private constructor(
     private val indexPerName: Map<String, Int>,
-    private val entries: List<Pair<String, ByteArray>>,
     private val path: String,
+    // We do not store a zip reader as it needs mutable access to extract data. Instead we
+    // re-create a zip reader for each tensor.
 ) {
     fun names(): List<String> = this.indexPerName.keys.toList()
 
@@ -539,8 +567,15 @@ class NpzTensors private constructor(
     fun getShapeAndDtype(name: String): CandleResult<Pair<Shape, DType>> {
         val index = this.indexPerName[name]
             ?: return CandleResult.Err(CandleError.Msg("cannot find tensor $name").bt())
-        val entryBytes = this.entries[index].second
-        val reader = NpyByteReader(entryBytes)
+        val zipBytes = inMemoryNpzFiles[this.path]
+            ?: return CandleResult.Err(CandleError.Npy("npz file not found: ${this.path}"))
+        val zip = ZipArchive.new(ByteArrayZipSource(zipBytes)).getOrElse { err ->
+            return CandleResult.Err(CandleError.Zip(err.message ?: err.toString(), err as? ZipError))
+        }
+        val zipFile = zip.byIndex(index).getOrElse { err ->
+            return CandleResult.Err(CandleError.Zip(err.message ?: err.toString(), err as? ZipError))
+        }
+        val reader = NpyByteReader(zipFile.readToEnd())
         val headerStr = when (val res = readHeader(reader)) {
             is CandleResult.Ok -> res.value
             is CandleResult.Err -> return CandleResult.Err(res.error)
@@ -555,8 +590,15 @@ class NpzTensors private constructor(
     fun get(name: String): CandleResult<Tensor?> {
         val index = this.indexPerName[name] ?: return CandleResult.Ok(null)
         // We hope that the file has not changed since first reading it.
-        val entryBytes = this.entries[index].second
-        val reader = NpyByteReader(entryBytes)
+        val zipBytes = inMemoryNpzFiles[this.path]
+            ?: return CandleResult.Err(CandleError.Npy("npz file not found: ${this.path}"))
+        val zip = ZipArchive.new(ByteArrayZipSource(zipBytes)).getOrElse { err ->
+            return CandleResult.Err(CandleError.Zip(err.message ?: err.toString(), err as? ZipError))
+        }
+        val zipFile = zip.byIndex(index).getOrElse { err ->
+            return CandleResult.Err(CandleError.Zip(err.message ?: err.toString(), err as? ZipError))
+        }
+        val reader = NpyByteReader(zipFile.readToEnd())
         val headerStr = when (val res = readHeader(reader)) {
             is CandleResult.Ok -> res.value
             is CandleResult.Err -> return CandleResult.Err(res.error)
@@ -577,16 +619,20 @@ class NpzTensors private constructor(
 
     companion object {
         fun new(path: String): CandleResult<NpzTensors> {
-            val archive = inMemoryNpzFiles[path]
+            val zipBytes = inMemoryNpzFiles[path]
                 ?: return CandleResult.Err(CandleError.Npy("npz file not found: $path"))
-            val entries = archive.entries.map { it.key to it.value }
+            val zip = ZipArchive.new(ByteArrayZipSource(zipBytes)).getOrElse { err ->
+                return CandleResult.Err(CandleError.Zip(err.message ?: err.toString(), err as? ZipError))
+            }
             val indexPerName = LinkedHashMap<String, Int>()
-            for (i in entries.indices) {
-                val rawName = entries[i].first
-                val name = rawName.removeSuffix(NPY_SUFFIX)
+            for (i in 0 until zip.len()) {
+                val file = zip.byIndex(i).getOrElse { err ->
+                    return CandleResult.Err(CandleError.Zip(err.message ?: err.toString(), err as? ZipError))
+                }
+                val name = file.name().removeSuffix(NPY_SUFFIX)
                 indexPerName[name] = i
             }
-            return CandleResult.Ok(NpzTensors(indexPerName, entries, path))
+            return CandleResult.Ok(NpzTensors(indexPerName, path))
         }
     }
 }

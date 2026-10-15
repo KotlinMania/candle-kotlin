@@ -1,6 +1,10 @@
 // port-lint: source utils.rs
 package io.github.kotlinmania.candle
 
+import io.github.kotlinmania.libc.new.apple.libpthread.pthread.pthreadSetQosClassSelfNp
+import io.github.kotlinmania.libc.new.apple.libpthread.sys.QosClassT
+import io.github.kotlinmania.libc.unix.bsd.apple.sysctlbyname
+
 /**
  * Useful functions for checking features.
  */
@@ -10,7 +14,9 @@ public class CandlePool(
 ) {
     public fun <R> install(f: () -> R): R = f()
 
-    public fun setThreadAffinity() {}
+    public fun setThreadAffinity() {
+        io.github.kotlinmania.candle.setThreadAffinity()
+    }
 }
 
 private var pool: CandlePool? = null
@@ -35,7 +41,12 @@ public fun defaultNumThreads(): Int {
  * On Apple Silicon: P-core count via `hw.perflevel0.logicalcpu`.
  * Returns None on Intel Macs (key absent) or on error.
  */
-public fun perfCoreCount(): Int? = null
+public fun perfCoreCount(): Int? {
+    val count = 0u
+    val size = 4uL
+    val ret = sysctlbyname("hw.perflevel0.logicalcpu", null, size, null, 0uL)
+    return if (ret == 0 && count > 0u) count.toInt() else null
+}
 
 public fun candlePool(): CandlePool {
     val current = pool
@@ -50,7 +61,7 @@ public fun candlePool(): CandlePool {
  * Elevate the thread QoS so macOS prefers running on Performance (P) cores.
  */
 public fun setThreadAffinity() {
-    // On non-macOS platforms we currently leave thread affinity untouched.
+    pthreadSetQosClassSelfNp(QosClassT.QOS_CLASS_USER_INTERACTIVE, 0)
 }
 
 public fun <R> withThreadpool(f: () -> R): R = candlePool().install(f)

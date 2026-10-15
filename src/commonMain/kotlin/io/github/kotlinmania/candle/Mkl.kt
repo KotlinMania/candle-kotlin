@@ -1,6 +1,10 @@
 // port-lint: source mkl.rs
 package io.github.kotlinmania.candle
 
+import io.github.kotlinmania.libc.CChar
+import io.github.kotlinmania.libc.CDouble
+import io.github.kotlinmania.libc.CFloat
+import io.github.kotlinmania.libc.CInt
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.exp
@@ -11,116 +15,116 @@ import kotlin.math.tanh
 
 public object Mkl {
     public object Ffi {
-        public fun vsTanh(n: Int, a: FloatArray, y: FloatArray) {
+        public fun vsTanh(n: CInt, a: FloatArray, y: FloatArray) {
             for (i in 0 until n) y[i] = tanh(a[i])
         }
 
-        public fun vdTanh(n: Int, a: DoubleArray, y: DoubleArray) {
+        public fun vdTanh(n: CInt, a: DoubleArray, y: DoubleArray) {
             for (i in 0 until n) y[i] = tanh(a[i])
         }
 
-        public fun vsExp(n: Int, a: FloatArray, y: FloatArray) {
+        public fun vsExp(n: CInt, a: FloatArray, y: FloatArray) {
             for (i in 0 until n) y[i] = exp(a[i])
         }
 
-        public fun vdExp(n: Int, a: DoubleArray, y: DoubleArray) {
+        public fun vdExp(n: CInt, a: DoubleArray, y: DoubleArray) {
             for (i in 0 until n) y[i] = exp(a[i])
         }
 
-        public fun vsLn(n: Int, a: FloatArray, y: FloatArray) {
+        public fun vsLn(n: CInt, a: FloatArray, y: FloatArray) {
             for (i in 0 until n) y[i] = ln(a[i])
         }
 
-        public fun vdLn(n: Int, a: DoubleArray, y: DoubleArray) {
+        public fun vdLn(n: CInt, a: DoubleArray, y: DoubleArray) {
             for (i in 0 until n) y[i] = ln(a[i])
         }
 
-        public fun vsSin(n: Int, a: FloatArray, y: FloatArray) {
+        public fun vsSin(n: CInt, a: FloatArray, y: FloatArray) {
             for (i in 0 until n) y[i] = sin(a[i])
         }
 
-        public fun vdSin(n: Int, a: DoubleArray, y: DoubleArray) {
+        public fun vdSin(n: CInt, a: DoubleArray, y: DoubleArray) {
             for (i in 0 until n) y[i] = sin(a[i])
         }
 
-        public fun vsCos(n: Int, a: FloatArray, y: FloatArray) {
+        public fun vsCos(n: CInt, a: FloatArray, y: FloatArray) {
             for (i in 0 until n) y[i] = cos(a[i])
         }
 
-        public fun vdCos(n: Int, a: DoubleArray, y: DoubleArray) {
+        public fun vdCos(n: CInt, a: DoubleArray, y: DoubleArray) {
             for (i in 0 until n) y[i] = cos(a[i])
         }
 
-        public fun vsSqrt(n: Int, a: FloatArray, y: FloatArray) {
+        public fun vsSqrt(n: CInt, a: FloatArray, y: FloatArray) {
             for (i in 0 until n) y[i] = sqrt(a[i])
         }
 
-        public fun vdSqrt(n: Int, a: DoubleArray, y: DoubleArray) {
+        public fun vdSqrt(n: CInt, a: DoubleArray, y: DoubleArray) {
             for (i in 0 until n) y[i] = sqrt(a[i])
         }
 
-        public fun vsAdd(n: Int, a: FloatArray, b: FloatArray, y: FloatArray) {
+        public fun vsAdd(n: CInt, a: FloatArray, b: FloatArray, y: FloatArray) {
             for (i in 0 until n) y[i] = a[i] + b[i]
         }
 
-        public fun vdAdd(n: Int, a: DoubleArray, b: DoubleArray, y: DoubleArray) {
+        public fun vdAdd(n: CInt, a: DoubleArray, b: DoubleArray, y: DoubleArray) {
             for (i in 0 until n) y[i] = a[i] + b[i]
         }
 
-        public fun vsSub(n: Int, a: FloatArray, b: FloatArray, y: FloatArray) {
+        public fun vsSub(n: CInt, a: FloatArray, b: FloatArray, y: FloatArray) {
             for (i in 0 until n) y[i] = a[i] - b[i]
         }
 
-        public fun vdSub(n: Int, a: DoubleArray, b: DoubleArray, y: DoubleArray) {
+        public fun vdSub(n: CInt, a: DoubleArray, b: DoubleArray, y: DoubleArray) {
             for (i in 0 until n) y[i] = a[i] - b[i]
         }
 
-        public fun vsMul(n: Int, a: FloatArray, b: FloatArray, y: FloatArray) {
+        public fun vsMul(n: CInt, a: FloatArray, b: FloatArray, y: FloatArray) {
             for (i in 0 until n) y[i] = a[i] * b[i]
         }
 
-        public fun vdMul(n: Int, a: DoubleArray, b: DoubleArray, y: DoubleArray) {
+        public fun vdMul(n: CInt, a: DoubleArray, b: DoubleArray, y: DoubleArray) {
             for (i in 0 until n) y[i] = a[i] * b[i]
         }
 
-        public fun vsDiv(n: Int, a: FloatArray, b: FloatArray, y: FloatArray) {
+        public fun vsDiv(n: CInt, a: FloatArray, b: FloatArray, y: FloatArray) {
             for (i in 0 until n) y[i] = a[i] / b[i]
         }
 
-        public fun vdDiv(n: Int, a: DoubleArray, b: DoubleArray, y: DoubleArray) {
+        public fun vdDiv(n: CInt, a: DoubleArray, b: DoubleArray, y: DoubleArray) {
             for (i in 0 until n) y[i] = a[i] / b[i]
         }
 
-        public fun vsFmax(n: Int, a: FloatArray, b: FloatArray, y: FloatArray) {
+        public fun vsFmax(n: CInt, a: FloatArray, b: FloatArray, y: FloatArray) {
             for (i in 0 until n) y[i] = maxOf(a[i], b[i])
         }
 
-        public fun vdFmax(n: Int, a: DoubleArray, b: DoubleArray, y: DoubleArray) {
+        public fun vdFmax(n: CInt, a: DoubleArray, b: DoubleArray, y: DoubleArray) {
             for (i in 0 until n) y[i] = maxOf(a[i], b[i])
         }
 
-        public fun vsFmin(n: Int, a: FloatArray, b: FloatArray, y: FloatArray) {
+        public fun vsFmin(n: CInt, a: FloatArray, b: FloatArray, y: FloatArray) {
             for (i in 0 until n) y[i] = minOf(a[i], b[i])
         }
 
-        public fun vdFmin(n: Int, a: DoubleArray, b: DoubleArray, y: DoubleArray) {
+        public fun vdFmin(n: CInt, a: DoubleArray, b: DoubleArray, y: DoubleArray) {
             for (i in 0 until n) y[i] = minOf(a[i], b[i])
         }
 
         public fun sgemm(
-            transa: Byte,
-            transb: Byte,
-            m: Int,
-            n: Int,
-            k: Int,
-            alpha: Float,
+            transa: CChar,
+            transb: CChar,
+            m: CInt,
+            n: CInt,
+            k: CInt,
+            alpha: CFloat,
             a: FloatArray,
-            lda: Int,
+            lda: CInt,
             b: FloatArray,
-            ldb: Int,
-            beta: Float,
+            ldb: CInt,
+            beta: CFloat,
             c: FloatArray,
-            ldc: Int,
+            ldc: CInt,
         ) {
             val ta = transa == 'T'.code.toByte() || transa == 't'.code.toByte()
             val tb = transb == 'T'.code.toByte() || transb == 't'.code.toByte()
@@ -139,19 +143,19 @@ public object Mkl {
         }
 
         public fun dgemm(
-            transa: Byte,
-            transb: Byte,
-            m: Int,
-            n: Int,
-            k: Int,
-            alpha: Double,
+            transa: CChar,
+            transb: CChar,
+            m: CInt,
+            n: CInt,
+            k: CInt,
+            alpha: CDouble,
             a: DoubleArray,
-            lda: Int,
+            lda: CInt,
             b: DoubleArray,
-            ldb: Int,
-            beta: Double,
+            ldb: CInt,
+            beta: CDouble,
             c: DoubleArray,
-            ldc: Int,
+            ldc: CInt,
         ) {
             val ta = transa == 'T'.code.toByte() || transa == 't'.code.toByte()
             val tb = transb == 'T'.code.toByte() || transb == 't'.code.toByte()
@@ -170,19 +174,19 @@ public object Mkl {
         }
 
         public fun hgemm(
-            transa: Byte,
-            transb: Byte,
-            m: Int,
-            n: Int,
-            k: Int,
+            transa: CChar,
+            transb: CChar,
+            m: CInt,
+            n: CInt,
+            k: CInt,
             alpha: Short,
             a: ShortArray,
-            lda: Int,
+            lda: CInt,
             b: ShortArray,
-            ldb: Int,
+            ldb: CInt,
             beta: Short,
             c: ShortArray,
-            ldc: Int,
+            ldc: CInt,
         ) {
             val ta = transa == 'T'.code.toByte() || transa == 't'.code.toByte()
             val tb = transb == 'T'.code.toByte() || transb == 't'.code.toByte()

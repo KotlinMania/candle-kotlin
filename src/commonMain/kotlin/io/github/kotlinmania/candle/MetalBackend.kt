@@ -31,6 +31,7 @@ import io.github.kotlinmania.candle.metal.device.DeviceId
 import io.github.kotlinmania.candle.metal.device.Kernels
 import io.github.kotlinmania.candle.metal.device.MetalDevice
 import io.github.kotlinmania.candle.metal.device.ResidencySet
+import io.github.kotlinmania.thiserror.StdError
 
 /**
  * Implementation of Backend traits for Metal.
@@ -63,7 +64,9 @@ fun bufferO(buffer: Buffer, l: Layout, dtype: DType): BufferOffset {
  * Simple way to catch lock error without
  * depending on T
  */
-sealed class LockError : Exception() {
+sealed class LockError : Exception(), StdError {
+    override fun source(): StdError? = cause as? StdError
+
     data class Poisoned(val msg: String) : LockError() {
         override val message: String get() = msg
     }
@@ -78,7 +81,8 @@ class TryLockError<out T>(val isPoisoned: Boolean, val description: String)
 class PoisonError<out T>(val description: String)
 
 /** Metal related errors */
-sealed class MetalError : Exception() {
+sealed class MetalError : Exception(), StdError {
+    override fun source(): StdError? = cause as? StdError
     data class Message(val msg: String) : MetalError() {
         override val message: String get() = msg
     }

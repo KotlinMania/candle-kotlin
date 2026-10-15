@@ -5,8 +5,10 @@ import io.github.kotlinmania.candle.CandleError
 import io.github.kotlinmania.candle.CandleResult
 import io.github.kotlinmania.candle.DType
 import io.github.kotlinmania.candle.Layout
+import io.github.kotlinmania.thiserror.StdError
 
-sealed class CudaError(message: String) : Exception(message) {
+sealed class CudaError(message: String) : Exception(message), StdError {
+    override fun source(): StdError? = cause as? StdError
     data class Cuda(val err: String) : CudaError(err)
 
     data class Compiler(val err: String) : CudaError(err)

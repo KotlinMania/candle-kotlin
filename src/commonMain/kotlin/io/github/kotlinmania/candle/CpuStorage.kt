@@ -1,6 +1,8 @@
 // port-lint: source cpu_backend/mod.rs
 package io.github.kotlinmania.candle
 
+import io.github.kotlinmania.rand.distr.Uniform
+import io.github.kotlinmania.rand.rng
 import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.ceil
@@ -14,7 +16,6 @@ import kotlin.math.sign
 import kotlin.math.sin
 import kotlin.math.sqrt
 import kotlin.math.tanh
-import kotlin.random.Random
 
 /**
  * Implementation of Backend Fns for CPU
@@ -3092,35 +3093,40 @@ public object CpuDevice {
 
     public fun randUniform(shape: Shape, dtype: DType, min: Double, max: Double): CpuStorage {
         val elemCount = shape.elemCount()
-        val diff = max - min
+        var rng = rng()
         return when (dtype) {
             DType.BF16 -> {
+                val uniform = Uniform.new(min.toFloat(), max.toFloat()).map { it }.unwrap()
                 val data = ShortArray(elemCount) {
-                    Float16Utils.floatToBF16Bits((min + Random.nextDouble() * diff).toFloat())
+                    Float16Utils.floatToBF16Bits(uniform.sample(rng))
                 }
                 CpuStorage.BF16(data)
             }
             DType.F16 -> {
+                val uniform = Uniform.new(min.toFloat(), max.toFloat()).map { it }.unwrap()
                 val data = ShortArray(elemCount) {
-                    Float16Utils.floatToF16Bits((min + Random.nextDouble() * diff).toFloat())
+                    Float16Utils.floatToF16Bits(uniform.sample(rng))
                 }
                 CpuStorage.F16(data)
             }
             DType.F32 -> {
+                val uniform = Uniform.new(min.toFloat(), max.toFloat()).map { it }.unwrap()
                 val data = FloatArray(elemCount) {
-                    (min + Random.nextDouble() * diff).toFloat()
+                    uniform.sample(rng)
                 }
                 CpuStorage.F32(data)
             }
             DType.F64 -> {
+                val uniform = Uniform.new(min, max).map { it }.unwrap()
                 val data = DoubleArray(elemCount) {
-                    min + Random.nextDouble() * diff
+                    uniform.sample(rng)
                 }
                 CpuStorage.F64(data)
             }
             DType.F8E4M3 -> {
+                val uniform = Uniform.new(min, max).map { it }.unwrap()
                 val data = ByteArray(elemCount) {
-                    (min + Random.nextDouble() * diff).toInt().toByte()
+                    uniform.sample(rng).toInt().toByte()
                 }
                 CpuStorage.F8E4M3(data)
             }
@@ -3130,11 +3136,12 @@ public object CpuDevice {
 
     public fun randNormal(shape: Shape, dtype: DType, mean: Double, std: Double): CpuStorage {
         val elemCount = shape.elemCount()
+        var rng = rng()
         val normalValues = DoubleArray(elemCount)
         var i = 0
         while (i < elemCount) {
-            val u1 = Random.nextDouble().coerceAtLeast(1e-15)
-            val u2 = Random.nextDouble()
+            val u1 = rng.randomDouble().coerceAtLeast(1e-15)
+            val u2 = rng.randomDouble()
             val z0 = sqrt(-2.0 * ln(u1)) * cos(2.0 * PI * u2)
             val z1 = sqrt(-2.0 * ln(u1)) * sin(2.0 * PI * u2)
             normalValues[i++] = mean + std * z0
