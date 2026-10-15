@@ -1,5 +1,7 @@
-// port-lint: source candle-core/src/nditer.rs
+// port-lint: source nditer.rs
 package io.github.kotlinmania.candle
+
+public typealias Item = IntArray
 
 /**
  * Maximum tensor rank supported by [NdIter].
@@ -134,5 +136,13 @@ public class NdIter(
         }
 
         return item
+    }
+
+    public fun sizeHint(): Pair<Int, Int?> = Pair(remaining, remaining)
+
+    public companion object {
+        public fun new(vararg layouts: Layout): NdIter = NdIter(*layouts)
+
+        public fun new(layouts: List<Layout>): NdIter = NdIter(layouts)
     }
 }
