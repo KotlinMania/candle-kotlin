@@ -335,10 +335,19 @@ fun requestedTaskWantsAndroid(rawTaskName: String): Boolean {
     val taskName = rawTaskName.substringAfterLast(':')
     if (taskName.contains("AndroidNative")) return false // Kotlin/Native, no SDK
     if (taskName.contains("Android")) return true // direct AGP tasks
-    return taskName in setOf("build", "assemble", "check") // aggregates pull android
+    return taskName in setOf("build", "assemble", "check", "test", "hostTests") // aggregates pull android
 }
 
-if (gradle.startParameter.taskNames.any(::requestedTaskWantsAndroid)) {
+val allRequestedTaskNames =
+    buildList {
+        var currentGradle: org.gradle.api.invocation.Gradle? = gradle
+        while (currentGradle != null) {
+            addAll(currentGradle.startParameter.taskNames)
+            currentGradle = currentGradle.parent
+        }
+    }
+
+if (allRequestedTaskNames.any(::requestedTaskWantsAndroid)) {
     installProjectAndroidSdk(serviceOf())
 }
 
