@@ -913,6 +913,20 @@ public sealed class CpuStorage {
             is F8E4M3 -> data[index].toDouble()
         }
 
+    public fun getAsLong(index: Int): Long =
+        when (this) {
+            is U8 -> data[index].toLong() and 0xFFL
+            is U32 -> data[index].toLong() and 0xFFFFFFFFL
+            is I16 -> data[index].toLong()
+            is I32 -> data[index].toLong()
+            is I64 -> data[index]
+            is BF16 -> Float16Utils.bf16BitsToFloat(data[index]).toLong()
+            is F16 -> Float16Utils.f16BitsToFloat(data[index]).toLong()
+            is F32 -> data[index].toLong()
+            is F64 -> data[index].toLong()
+            is F8E4M3 -> data[index].toLong()
+        }
+
     private fun applyUnaryFloat(v: Float, op: UnaryOp): Float =
         when (op) {
             UnaryOp.Exp -> exp(v)

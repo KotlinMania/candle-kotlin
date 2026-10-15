@@ -478,6 +478,39 @@ public class Tensor internal constructor(
         return toVec1F64()[0]
     }
 
+    public fun toVec1I64(): LongArray {
+        val cont = contiguous()
+        val cpu = (cont.storage as Storage.Cpu).storage
+        val count = elemCount()
+        val res = LongArray(count)
+        for (i in 0 until count) res[i] = cpu.getAsLong(i)
+        return res
+    }
+
+    public fun toScalarI64(): Long {
+        if (elemCount() != 1) throw CandleException.UnexpectedNumberOfDims(0, rank(), shape())
+        return toVec1I64()[0]
+    }
+
+    public fun get(i: Int): Tensor {
+        val dims = dims()
+        return if (dims.isEmpty()) {
+            this
+        } else {
+            narrow(0, i, 1).reshape(Shape(dims.subList(1, dims.size)))
+        }
+    }
+
+    public fun getOnDim(dim: Int, index: Int): Tensor {
+        val dimIdx = Shape.toIndex(dim, shape(), "get_on_dim")
+        val dims = dims()
+        val targetDims = dims.subList(0, dimIdx) + dims.subList(dimIdx + 1, dims.size)
+        return narrow(dimIdx, index, 1).reshape(Shape(targetDims))
+    }
+
+    public fun getOnDim(dim: ShapeDim, index: Int): Tensor =
+        getOnDim(dim.toIndex(shape(), "get_on_dim"), index)
+
     override fun toString(): String = "Tensor[${shape()}, ${dtype()}, ${device()}]"
 
     public companion object {
