@@ -1,6 +1,10 @@
-// port-lint: source candle-core/src/strided_index.rs
+// port-lint: source strided_index.rs
 package io.github.kotlinmania.candle
 
+/**
+ * An iterator over offset position for items of an N-dimensional arrays stored in a
+ * flat buffer using some potential strides.
+ */
 public class StridedIndex(
     public val dims: List<Int>,
     public val stride: List<Int>,
@@ -13,10 +17,17 @@ public class StridedIndex(
     init {
         val elemCount = if (dims.isEmpty()) 1 else dims.fold(1) { acc, d -> acc * d }
         remaining = elemCount
-        nextStorageIndex = if (elemCount == 0) null else startOffset
+        nextStorageIndex = if (elemCount == 0) {
+            null
+        } else {
+            // This applies to the scalar case.
+            startOffset
+        }
     }
 
     public fun len(): Int = remaining
+
+    public fun sizeHint(): Pair<Int, Int?> = Pair(remaining, remaining)
 
     override fun hasNext(): Boolean = nextStorageIndex != null
 
@@ -42,8 +53,11 @@ public class StridedIndex(
     }
 
     public companion object {
-        public fun fromLayout(layout: Layout): StridedIndex =
-            StridedIndex(layout.dims, layout.stride, layout.startOffset)
+        public fun new(dims: List<Int>, stride: List<Int>, startOffset: Int): StridedIndex =
+            StridedIndex(dims, stride, startOffset)
+
+        public fun fromLayout(l: Layout): StridedIndex =
+            new(l.dims(), l.stride(), l.startOffset())
     }
 }
 
