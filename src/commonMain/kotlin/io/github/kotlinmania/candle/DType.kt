@@ -175,52 +175,52 @@ public interface WithDType<T> {
     public fun cpuStorageData(s: CpuStorage): Result<List<T>>
 }
 
-public interface IntDType {
-    public fun isTrue(): Boolean
-    public fun asUsize(): Int
+public interface IntDType<T> {
+    public fun isTrue(self: T): Boolean
+    public fun asUsize(self: T): Int
 }
 
-public class IntDTypeI64(public val self: Int) : IntDType {
-    override fun isTrue(): Boolean {
+public object IntDTypeI64 : IntDType<Int> {
+    override fun isTrue(self: Int): Boolean {
         return self != 0
     }
-    override fun asUsize(): Int {
+    override fun asUsize(self: Int): Int {
         return self
     }
 }
 
-public class IntDTypeU32(public val self: Int) : IntDType {
-    override fun isTrue(): Boolean {
+public object IntDTypeU32 : IntDType<Int> {
+    override fun isTrue(self: Int): Boolean {
         return self != 0
     }
-    override fun asUsize(): Int {
+    override fun asUsize(self: Int): Int {
         return self
     }
 }
 
-public class IntDTypeU8(public val self: Int) : IntDType {
-    override fun isTrue(): Boolean {
+public object IntDTypeU8 : IntDType<Int> {
+    override fun isTrue(self: Int): Boolean {
         return self != 0
     }
-    override fun asUsize(): Int {
+    override fun asUsize(self: Int): Int {
         return self
     }
 }
 
-public class IntDTypeI16(public val self: Int) : IntDType {
-    override fun isTrue(): Boolean {
+public object IntDTypeI16 : IntDType<Int> {
+    override fun isTrue(self: Int): Boolean {
         return self != 0
     }
-    override fun asUsize(): Int {
+    override fun asUsize(self: Int): Int {
         return self
     }
 }
 
-public class IntDTypeI32(public val self: Int) : IntDType {
-    override fun isTrue(): Boolean {
+public object IntDTypeI32 : IntDType<Int> {
+    override fun isTrue(self: Int): Boolean {
         return self != 0
     }
-    override fun asUsize(): Int {
+    override fun asUsize(self: Int): Int {
         return self
     }
 }
