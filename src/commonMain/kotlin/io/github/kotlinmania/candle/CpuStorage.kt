@@ -55,7 +55,7 @@ internal class VecList<T>(
     }
 
     fun setLen(len: Int) {
-        while (buf.size > len) buf.removeAt(buf.size - 1)
+        while (buf.size > len) buf.remove(buf.size - 1)
         size = len
     }
 }
