@@ -305,7 +305,7 @@ public sealed class CandleException(
         val backtrace = std.backtrace.Backtrace.capture()
         return when (backtrace.status()) {
             std.backtrace.BacktraceStatus.Disabled,
-            std.backtrace.BacktraceStatus.Unsupported,
+            std.backtrace.BacktraceStatus.Unsupported
             -> self
             else -> Self.WithBacktrace(
                 inner = self,

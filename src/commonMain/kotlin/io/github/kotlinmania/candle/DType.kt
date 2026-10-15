@@ -115,7 +115,7 @@ public enum class DType(
             Self.F6E2M3,
             Self.F6E3M2,
             Self.F4,
-            Self.F8E8M0,
+            Self.F8E8M0
             -> false
         }
 
@@ -130,7 +130,7 @@ public enum class DType(
             Self.F6E2M3,
             Self.F6E3M2,
             Self.F4,
-            Self.F8E8M0,
+            Self.F8E8M0
             -> true
         }
 
