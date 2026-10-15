@@ -6,43 +6,15 @@ package io.github.kotlinmania.candle
 // We do not expose a public way to create variables as this would break the invariant that the
 // tensor within a variable is actually with `isVariable` set to `true`.
 
-private val std: Var.Companion get() = Var.Companion
-private val Var.Companion.fmt: Var.Companion get() = this
-private val Var.Companion.Display: () -> Var.Companion get() = { this }
-private val (() -> Var.Companion).fmt: (Tensor, StringBuilder) -> String get() = { t, f -> val s = t.toString(); f.append(s); s }
-private val Var.Companion.CannotSetVar: (String) -> CandleException get() = { msg ->
-    CandleException.CannotSetVar(msg)
-}
-private val Var.Companion.ShapeMismatchBinaryOp: (Shape, Shape, String) -> CandleException get() = { lhs, rhs, op ->
-    CandleException.ShapeMismatchBinaryOp(lhs = lhs, rhs = rhs, op = op)
-}
-private val Error: Var.Companion get() = Var.Companion
-private val <T> Var.Ok: (T) -> T get() = { it }
-private val <R> Var.Err: (CandleException) -> R get() = { throw it }
-private val <T> Var.Companion.Ok: (T) -> T get() = { it }
-private val CandleException.bt: () -> CandleException get() = { this }
-
-private val Var.self: List<Tensor> get() = listOf(tensor)
-private val List<Tensor>.self: List<Tensor> get() = this
-private val List<Tensor>.sameStorage: (Tensor) -> Boolean get() = { this[0].sameStorage(it) }
-private val List<Tensor>.storageMutAndLayout: () -> Pair<Storage, Layout> get() = { this[0].storageMutAndLayout() }
-
-/**
- * A variable is a wrapper around a tensor, however variables can have their content modified
- * whereas tensors are immutable.
- */
-public class Var(
-    public val tensor: Tensor,
-) {
-    public interface Target
-
-    public val shape: () -> Shape get() = { tensor.shape() }
-    public val dtype: () -> DType get() = { tensor.dtype() }
-    public val device: () -> Device get() = { tensor.device() }
+// A variable is a wrapper around a tensor, however variables can have their content modified
+// whereas tensors are immutable.
+public class Var(public val tensor: Tensor) {
 
     public fun fmt(f: StringBuilder = StringBuilder()): String {
         return std.fmt.Display.fmt(self[0], f)
     }
+
+    public interface Target
 
     public fun deref(): Tensor {
         return self[0].asRef()
@@ -56,17 +28,13 @@ public class Var(
         return self.self[0]
     }
 
-    /**
-     * Consumes this `Var` and return the underlying tensor.
-     */
+    // Consumes this `Var` and return the underlying tensor.
     public fun intoInner(): Tensor {
         return self.self[0]
     }
 
-    /**
-     * Sets the content of the inner tensor, this does not require a mutable reference as inner
-     * mutability is used.
-     */
+    // Sets the content of the inner tensor, this does not require a mutable reference as inner
+    // mutability is used.
     public fun set(src: Tensor) {
         if (self.sameStorage(src)) {
             val msg = "cannot set a variable to a tensor that is derived from its value"
@@ -91,8 +59,6 @@ public class Var(
     }
 
     public companion object {
-        private val Self: (Tensor) -> Var get() = { Var(it) }
-
         public fun zeros(shape: Shape, dtype: DType, device: Device): Var {
             val inner = Tensor.zerosImpl(shape, dtype, device, true)
             return Ok(Self(inner))

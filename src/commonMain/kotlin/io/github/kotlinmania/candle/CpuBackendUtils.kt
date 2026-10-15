@@ -1,21 +1,9 @@
 // port-lint: source cpu_backend/utils.rs
 package io.github.kotlinmania.candle
 
-/**
- * Helper functions to write CPU kernels.
- */
-private val Error: CandleException.Companion get() = CandleException.Companion
-private val CandleException.Companion.UnsupportedDTypeForOp: (DType, String) -> CandleException
-    get() = { d, op -> CandleException.UnsupportedDTypeForOp(d, op) }
-private val CandleException.Companion.DTypeMismatchBinaryOp: (DType, DType, String) -> CandleException
-    get() = { lhs, rhs, op -> CandleException.DTypeMismatchBinaryOp(lhs = lhs, rhs = rhs, op = op) }
-private val CandleException.bt: () -> CandleException get() = { this }
+// Helper functions to write CPU kernels.
 
-private val Map1.self: () -> Map1 get() = { this }
-private val (() -> Map1).f: (CpuStorage, Layout) -> List<Double> get() = { vs, layout -> this().f(vs.asSlice(), layout) }
-private val <T> Map1.Ok: (T) -> T get() = { it }
-private val <R> Map1.Err: (CandleException) -> R get() = { throw it }
-
+private interface C
 public interface Map1 {
     public fun f(vs: List<Double>, layout: Layout): List<Double>
 
@@ -40,18 +28,8 @@ public interface Map1 {
     }
 }
 
-private val Map1Any.self: () -> Map1Any get() = { this }
-private val (() -> Map1Any).f: (CpuStorage, Layout, (List<Double>) -> CpuStorage) -> CpuStorage
-    get() = { vs, layout, wrap -> this().f(vs.asSlice(), layout, wrap) }
-private val <T> Map1Any.Ok: (T) -> T get() = { it }
-private val <R> Map1Any.Err: (CandleException) -> R get() = { throw it }
-
 public interface Map1Any {
-    public fun f(
-        vs: List<Double>,
-        layout: Layout,
-        wrap: (List<Double>) -> CpuStorage,
-    ): CpuStorage
+    public fun f(vs: List<Double>, layout: Layout, wrap: (List<Double>) -> CpuStorage): CpuStorage
 
     public fun map(vs: CpuStorage, layout: Layout): CpuStorage {
         return when (vs) {
@@ -74,17 +52,8 @@ public interface Map1Any {
     }
 }
 
-private val Map2.self: () -> Map2 get() = { this }
-private val (() -> Map2).f: (CpuStorage, Layout, CpuStorage, Layout) -> List<Double>
-    get() = { v1, l1, v2, l2 -> this().f(v1.asSlice(), l1, v2.asSlice(), l2) }
-private val Map2.Self: Map2 get() = this
-private val Map2.OP: String get() = op
-private val <T> Map2.Ok: (T) -> T get() = { it }
-private val <R> Map2.Err: (CandleException) -> R get() = { throw it }
-
 public interface Map2 {
     public val op: String
-
     public fun f(v1: List<Double>, l1: Layout, v2: List<Double>, l2: Layout): List<Double>
 
     public fun map(v1: CpuStorage, l1: Layout, v2: CpuStorage, l2: Layout): CpuStorage {
@@ -109,17 +78,8 @@ public interface Map2 {
     }
 }
 
-private val Map2InPlace.self: () -> Map2InPlace get() = { this }
-private val (() -> Map2InPlace).f: (CpuStorage, Layout, CpuStorage, Layout) -> Unit
-    get() = { v1, l1, v2, l2 -> v1.applyInPlace(this(), l1, v2, l2) }
-private val Map2InPlace.Self: Map2InPlace get() = this
-private val Map2InPlace.OP: String get() = op
-private val <T> Map2InPlace.Ok: (T) -> T get() = { it }
-private val <R> Map2InPlace.Err: (CandleException) -> R get() = { throw it }
-
 public interface Map2InPlace {
     public val op: String
-
     public fun f(v1: MutableList<Double>, l1: Layout, v2: List<Double>, l2: Layout)
 
     public fun map(v1: CpuStorage, l1: Layout, v2: CpuStorage, l2: Layout) {
@@ -145,17 +105,8 @@ public interface Map2InPlace {
     }
 }
 
-private val Map2U8.self: () -> Map2U8 get() = { this }
-private val (() -> Map2U8).f: (CpuStorage, Layout, CpuStorage, Layout) -> UByteArray
-    get() = { v1, l1, v2, l2 -> this().f(v1.asSlice(), l1, v2.asSlice(), l2) }
-private val Map2U8.Self: Map2U8 get() = this
-private val Map2U8.OP: String get() = op
-private val <T> Map2U8.Ok: (T) -> T get() = { it }
-private val <R> Map2U8.Err: (CandleException) -> R get() = { throw it }
-
 public interface Map2U8 {
     public val op: String
-
     public fun f(v1: List<Double>, l1: Layout, v2: List<Double>, l2: Layout): UByteArray
 
     public fun map(v1: CpuStorage, l1: Layout, v2: CpuStorage, l2: Layout): CpuStorage {
@@ -179,13 +130,6 @@ public interface Map2U8 {
         }
     }
 }
-
-private val Vec: CandleException.Companion get() = CandleException.Companion
-private val <T> CandleException.Companion.withCapacity: (Int) -> VecList<T> get() = { cap -> VecList(cap) }
-private val <T> MutableList<T>.push: (T) -> Unit get() = { add(it) }
-private val <T> List<T>.getUnchecked: (Int) -> T get() = { this[it] }
-private val <T> List<T>.iter: () -> Sequence<T> get() = { asSequence() }
-private val <T> Sequence<T>.collect: () -> List<T> get() = { toList() }
 
 public fun <T, U> binaryMap(
     lhsL: Layout,

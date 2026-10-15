@@ -3241,3 +3241,25 @@ internal object zip {
     }
 }
 
+internal val std: Var.Companion get() = Var.Companion
+internal val Var.Companion.fmt: Var.Companion get() = this
+internal val Var.Companion.Display: () -> Var.Companion get() = { this }
+internal val (() -> Var.Companion).fmt: (Tensor, StringBuilder) -> String get() = { t, f -> val s = t.toString(); f.append(s); s }
+internal val Var.Companion.CannotSetVar: (String) -> CandleException get() = { msg ->
+    CandleException.CannotSetVar(msg)
+}
+internal val Var.Companion.ShapeMismatchBinaryOp: (Shape, Shape, String) -> CandleException get() = { lhs, rhs, op ->
+    CandleException.ShapeMismatchBinaryOp(lhs = lhs, rhs = rhs, op = op)
+}
+internal val <T> Var.Ok: (T) -> T get() = { it }
+internal val <R> Var.Err: (CandleException) -> R get() = { throw it }
+internal val <T> Var.Companion.Ok: (T) -> T get() = { it }
+internal val Var.Companion.Self: (Tensor) -> Var get() = { Var(it) }
+
+internal val Var.self: List<Tensor> get() = listOf(tensor)
+internal val List<Tensor>.self: List<Tensor> get() = this
+internal val List<Tensor>.sameStorage: (Tensor) -> Boolean get() = { this[0].sameStorage(it) }
+internal val List<Tensor>.storageMutAndLayout: () -> Pair<Storage, Layout> get() = { this[0].storageMutAndLayout() }
+internal val Var.shape: () -> Shape get() = { tensor.shape() }
+internal val Var.dtype: () -> DType get() = { tensor.dtype() }
+internal val Var.device: () -> Device get() = { tensor.device() }

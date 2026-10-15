@@ -3274,4 +3274,51 @@ public object CpuDevice {
     public fun synchronize(): Unit = Unit
 }
 
+internal val Error: CandleException.Companion get() = CandleException.Companion
+internal val CandleException.Companion.UnsupportedDTypeForOp: (DType, String) -> CandleException
+    get() = { d, op -> CandleException.UnsupportedDTypeForOp(d, op) }
+internal val CandleException.Companion.DTypeMismatchBinaryOp: (DType, DType, String) -> CandleException
+    get() = { lhs, rhs, op -> CandleException.DTypeMismatchBinaryOp(lhs = lhs, rhs = rhs, op = op) }
+internal val CandleException.bt: () -> CandleException get() = { this }
 
+internal val Map1.self: () -> Map1 get() = { this }
+internal val (() -> Map1).f: (CpuStorage, Layout) -> List<Double> get() = { vs, layout -> this().f(vs.asSlice(), layout) }
+internal val <T> Map1.Ok: (T) -> T get() = { it }
+internal val <R> Map1.Err: (CandleException) -> R get() = { throw it }
+
+internal val Map1Any.self: () -> Map1Any get() = { this }
+internal val (() -> Map1Any).f: (CpuStorage, Layout, (List<Double>) -> CpuStorage) -> CpuStorage
+    get() = { vs, layout, wrap -> this().f(vs.asSlice(), layout, wrap) }
+internal val <T> Map1Any.Ok: (T) -> T get() = { it }
+internal val <R> Map1Any.Err: (CandleException) -> R get() = { throw it }
+
+internal val Map2.self: () -> Map2 get() = { this }
+internal val (() -> Map2).f: (CpuStorage, Layout, CpuStorage, Layout) -> List<Double>
+    get() = { v1, l1, v2, l2 -> this().f(v1.asSlice(), l1, v2.asSlice(), l2) }
+internal val Map2.Self: Map2 get() = this
+internal val Map2.OP: String get() = op
+internal val <T> Map2.Ok: (T) -> T get() = { it }
+internal val <R> Map2.Err: (CandleException) -> R get() = { throw it }
+
+internal val Map2InPlace.self: () -> Map2InPlace get() = { this }
+internal val (() -> Map2InPlace).f: (CpuStorage, Layout, CpuStorage, Layout) -> Unit
+    get() = { v1, l1, v2, l2 -> v1.applyInPlace(this(), l1, v2, l2) }
+internal val Map2InPlace.Self: Map2InPlace get() = this
+internal val Map2InPlace.OP: String get() = op
+internal val <T> Map2InPlace.Ok: (T) -> T get() = { it }
+internal val <R> Map2InPlace.Err: (CandleException) -> R get() = { throw it }
+
+internal val Map2U8.self: () -> Map2U8 get() = { this }
+internal val (() -> Map2U8).f: (CpuStorage, Layout, CpuStorage, Layout) -> UByteArray
+    get() = { v1, l1, v2, l2 -> this().f(v1.asSlice(), l1, v2.asSlice(), l2) }
+internal val Map2U8.Self: Map2U8 get() = this
+internal val Map2U8.OP: String get() = op
+internal val <T> Map2U8.Ok: (T) -> T get() = { it }
+internal val <R> Map2U8.Err: (CandleException) -> R get() = { throw it }
+
+internal val Vec: CandleException.Companion get() = CandleException.Companion
+internal val <T> CandleException.Companion.withCapacity: (Int) -> VecList<T> get() = { cap -> VecList(cap) }
+internal val <T> MutableList<T>.push: (T) -> Unit get() = { add(it) }
+internal val <T> List<T>.getUnchecked: (Int) -> T get() = { this[it] }
+internal val <T> List<T>.iter: () -> Sequence<T> get() = { asSequence() }
+internal val <T> Sequence<T>.collect: () -> List<T> get() = { toList() }

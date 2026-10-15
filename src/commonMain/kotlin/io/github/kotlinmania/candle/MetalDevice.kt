@@ -1,7 +1,15 @@
 // port-lint: source metal_backend/device.rs
 package io.github.kotlinmania.candle.metal.device
 
+import io.github.kotlinmania.candle.CandleException
+import io.github.kotlinmania.candle.CpuStorage
+import io.github.kotlinmania.candle.CpuStorageRef
 import io.github.kotlinmania.candle.DType
+import io.github.kotlinmania.candle.Layout
+import io.github.kotlinmania.candle.Shape
+import io.github.kotlinmania.candle.metal.MetalBackendDevice
+import io.github.kotlinmania.candle.metal.MetalError
+import io.github.kotlinmania.candle.metal.MetalStorage
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -29,12 +37,19 @@ class Buffer(
     val length: () -> Int = { lengthVal }
     val setLabel: (String) -> Unit = { labelVal = it }
     val clone: () -> Buffer = { this }
+    val data: () -> ByteArray = { ByteArray(lengthVal) }
+    val didModifyRange: (NSRange) -> Unit = {}
 }
 
 class CommandsGuard
 class BlitCommandsGuard {
     val setLabel: (String) -> Unit = {}
     val fillBuffer: (Buffer, Pair<Int, Int>, Int) -> Unit = { _, _, _ -> }
+    val copyFromBuffer: (Buffer, Int, Buffer, Int, Int) -> Unit = { _, _, _, _, _ -> }
+}
+
+class CommandQueue {
+    val setLabel: (String?) -> Unit = {}
 }
 
 class Commands {
@@ -42,6 +57,10 @@ class Commands {
     val blitCommandEncoder: () -> Result<BlitCommandsGuard> = { Result.success(BlitCommandsGuard()) }
     val waitUntilCompleted: () -> Result<Unit> = { Result.success(Unit) }
     val flushAndWaitCurrent: () -> Result<Unit> = { Result.success(Unit) }
+
+    companion object {
+        val new: (CommandQueue, ResidencySet) -> Result<Commands> = { _, _ -> Result.success(Commands()) }
+    }
 }
 
 class ComputePipeline
@@ -52,17 +71,31 @@ class MetalLibrary {
 class Device(val registryIdVal: ULong = 0uL) {
     val registryId: () -> ULong = { registryIdVal }
     val asRef: () -> Device = { this }
+    val newCommandQueue: () -> Result<CommandQueue> = { Result.success(CommandQueue()) }
     val newLibraryWithSource: (String, Any?) -> Result<MetalLibrary> = { _, _ -> Result.success(MetalLibrary()) }
     val newComputePipelineStateWithFunction: (Any) -> Result<ComputePipeline> = { Result.success(ComputePipeline()) }
     val newBuffer: (Int, Int) -> Result<Buffer> = { size, _ -> Result.success(Buffer(size)) }
     val newBufferWithData: (Any?, Int, Int) -> Result<Buffer> = { _, size, _ -> Result.success(Buffer(size)) }
+
+    companion object {
+        val all: () -> MutableList<Device> = { mutableListOf(Device()) }
+    }
 }
 
-class Kernels
+class Kernels {
+    companion object {
+        val new: () -> Kernels = { Kernels() }
+    }
+}
+
 class ResidencySet {
     private val set: MutableSet<Buffer> = mutableSetOf()
     val insert: (Buffer) -> Unit = { set.add(it) }
     val remove: (Buffer) -> Unit = { set.remove(it) }
+
+    companion object {
+        val new: (Device) -> ResidencySet = { ResidencySet() }
+    }
 }
 
 /**
@@ -537,8 +570,8 @@ private fun findAvailableBuffer(size: Int, buffers: Map<Int, List<Buffer>>): Buf
     return bestBuffer.cloned()
 }
 
-private val Ok: (Any?) -> Result<Nothing> = { Result.success(it as Nothing) }
-private val Some: (Any?) -> Nothing = { it as Nothing }
+internal val Ok: (Any?) -> Result<Nothing> = { Result.success(it as Nothing) }
+internal val Some: (Any?) -> Nothing = { it as Nothing }
 private val Int.nextPowerOfTwo: () -> Int
     get() = {
         if (this <= 1) 1 else (this - 1).takeHighestOneBit() shl 1
@@ -553,9 +586,9 @@ private val <K, V> MutableMap<K, MutableList<V>>.entry: (K) -> Pair<MutableMap<K
     get() = { k -> Pair(this, k) }
 private val <K, V> Pair<MutableMap<K, MutableList<V>>, K>.orInsert: (MutableList<V>) -> MutableList<V>
     get() = { default -> first.getOrPut(second) { default } }
-private val Arc: DeviceId.Companion get() = DeviceId.Companion
-private val DeviceId.Companion.strongCount: (Buffer) -> Int get() = { it.strongCount }
-private val DeviceId.Companion.new: (Buffer) -> Buffer get() = { it }
+internal val Arc: DeviceId.Companion get() = DeviceId.Companion
+internal val DeviceId.Companion.strongCount: (Buffer) -> Int get() = { it.strongCount }
+internal val DeviceId.Companion.new: (Buffer) -> Buffer get() = { it }
 private val UploadBox: DeviceId.Companion get() = DeviceId.Companion
 private val DeviceId.Companion.new: ((MetalDevice) -> Result<Buffer>) -> ((MetalDevice) -> Result<Buffer>)
     get() = { it }
@@ -583,3 +616,419 @@ private val String.asDeref: () -> String get() = { this }
 private val currentDir: () -> String = { "." }
 private val NSURL: DeviceId.Companion get() = DeviceId.Companion
 private val DeviceId.Companion.fromFilePath: (String) -> String get() = { it }
+
+data class NSRange(val location: Int, val length: Int) {
+    companion object {
+        val new: (Int, Int) -> NSRange = { loc, len -> NSRange(loc, len) }
+    }
+}
+
+data class BufferOffset(
+    val buffer: Buffer,
+    val offsetInBytes: Int
+) {
+    companion object {
+        val zeroOffset: (Buffer) -> BufferOffset = { buf -> BufferOffset(buf, 0) }
+    }
+}
+
+sealed class TryLockError<out T> {
+    data class Poisoned<out T>(val p: String) : TryLockError<T>()
+    data object WouldBlock : TryLockError<Nothing>()
+}
+
+data class PoisonError<out T>(val description: String)
+
+data class CallConvTranspose2dCfg(
+    val dilation: Int,
+    val stride: Int,
+    val padding: Int,
+    val outputPadding: Int,
+    val cOut: Int,
+    val outH: Int,
+    val outW: Int,
+    val bSize: Int,
+    val inputDims: List<Int>,
+    val inputStride: List<Int>,
+    val kernelDims: List<Int>,
+    val kernelStride: List<Int>,
+    val inputOffset: Int,
+    val kernelOffset: Int
+)
+
+object candleMetalKernels {
+    enum class GemmDType {
+        F32,
+        F16,
+        BF16,
+    }
+
+    object copy2d {
+        const val FLOAT: String = "copy2d_f32"
+        const val HALF: String = "copy2d_f16"
+        const val BFLOAT: String = "copy2d_bf16"
+        const val I64: String = "copy2d_i64"
+        const val I32: String = "copy2d_i32"
+        const val I16: String = "copy2d_i16"
+        const val U32: String = "copy2d_u32"
+        const val U8: String = "copy2d_u8"
+    }
+
+    object unary {
+        object contiguous {
+            object constSet {
+                const val HALF: String = "const_set_f16"
+                const val BFLOAT: String = "const_set_bf16"
+                const val FLOAT: String = "const_set_f32"
+                const val I64: String = "const_set_i64"
+                const val U32: String = "const_set_u32"
+                const val U8: String = "const_set_u8"
+            }
+            object abs {
+                const val HALF: String = "uabs_f16"
+                const val FLOAT: String = "uabs_f32"
+                const val BFLOAT: String = "uabs_bf16"
+            }
+            object ceil {
+                const val HALF: String = "uceil_f16"
+                const val FLOAT: String = "uceil_f32"
+                const val BFLOAT: String = "uceil_bf16"
+            }
+            object cos {
+                const val HALF: String = "ucos_f16"
+                const val FLOAT: String = "ucos_f32"
+                const val BFLOAT: String = "ucos_bf16"
+            }
+            object erf {
+                const val HALF: String = "uerf_f16"
+                const val FLOAT: String = "uerf_f32"
+                const val BFLOAT: String = "uerf_bf16"
+            }
+            object exp {
+                const val HALF: String = "uexp_f16"
+                const val FLOAT: String = "uexp_f32"
+                const val BFLOAT: String = "uexp_bf16"
+            }
+            object floor {
+                const val HALF: String = "ufloor_f16"
+                const val FLOAT: String = "ufloor_f32"
+                const val BFLOAT: String = "ufloor_bf16"
+            }
+            object geluErf {
+                const val HALF: String = "ugelu_erf_f16"
+                const val FLOAT: String = "ugelu_erf_f32"
+                const val BFLOAT: String = "ugelu_erf_bf16"
+            }
+            object gelu {
+                const val HALF: String = "ugelu_f16"
+                const val FLOAT: String = "ugelu_f32"
+                const val BFLOAT: String = "ugelu_bf16"
+            }
+            object log {
+                const val HALF: String = "ulog_f16"
+                const val FLOAT: String = "ulog_f32"
+                const val BFLOAT: String = "ulog_bf16"
+            }
+            object neg {
+                const val HALF: String = "uneg_f16"
+                const val FLOAT: String = "uneg_f32"
+                const val BFLOAT: String = "uneg_bf16"
+            }
+            object recip {
+                const val HALF: String = "urecip_f16"
+                const val FLOAT: String = "urecip_f32"
+                const val BFLOAT: String = "urecip_bf16"
+            }
+            object relu {
+                const val HALF: String = "urelu_f16"
+                const val FLOAT: String = "urelu_f32"
+                const val BFLOAT: String = "urelu_bf16"
+            }
+            object round {
+                const val HALF: String = "uround_f16"
+                const val FLOAT: String = "uround_f32"
+                const val BFLOAT: String = "uround_bf16"
+            }
+            object silu {
+                const val HALF: String = "usilu_f16"
+                const val FLOAT: String = "usilu_f32"
+                const val BFLOAT: String = "usilu_bf16"
+            }
+            object sin {
+                const val HALF: String = "usin_f16"
+                const val FLOAT: String = "usin_f32"
+                const val BFLOAT: String = "usin_bf16"
+            }
+            object sqr {
+                const val HALF: String = "usqr_f16"
+                const val FLOAT: String = "usqr_f32"
+                const val BFLOAT: String = "usqr_bf16"
+            }
+            object sqrt {
+                const val HALF: String = "usqrt_f16"
+                const val FLOAT: String = "usqrt_f32"
+                const val BFLOAT: String = "usqrt_bf16"
+            }
+            object tanh {
+                const val HALF: String = "utanh_f16"
+                const val FLOAT: String = "utanh_f32"
+                const val BFLOAT: String = "utanh_bf16"
+            }
+            object sign {
+                const val HALF: String = "usign_f16"
+                const val FLOAT: String = "usign_f32"
+                const val BFLOAT: String = "usign_bf16"
+                const val I64: String = "usign_i64"
+            }
+        }
+
+        object strided {
+            object constSet {
+                const val HALF: String = "const_set_f16_strided"
+                const val BFLOAT: String = "const_set_bf16_strided"
+                const val FLOAT: String = "const_set_f32_strided"
+                const val I64: String = "const_set_i64_strided"
+                const val U32: String = "const_set_u32_strided"
+                const val U8: String = "const_set_u8_strided"
+            }
+            object copy {
+                const val FLOAT: String = "copy_strided_f32"
+                const val HALF: String = "copy_strided_f16"
+                const val BFLOAT: String = "copy_strided_bf16"
+                const val I64: String = "copy_strided_i64"
+                const val U32: String = "copy_strided_u32"
+                const val U8: String = "copy_strided_u8"
+            }
+            object abs {
+                const val HALF: String = "uabs_f16_strided"
+                const val FLOAT: String = "uabs_f32_strided"
+                const val BFLOAT: String = "uabs_bf16_strided"
+            }
+            object ceil {
+                const val HALF: String = "uceil_f16_strided"
+                const val FLOAT: String = "uceil_f32_strided"
+                const val BFLOAT: String = "uceil_bf16_strided"
+            }
+            object cos {
+                const val HALF: String = "ucos_f16_strided"
+                const val FLOAT: String = "ucos_f32_strided"
+                const val BFLOAT: String = "ucos_bf16_strided"
+            }
+            object erf {
+                const val HALF: String = "uerf_f16_strided"
+                const val FLOAT: String = "uerf_f32_strided"
+                const val BFLOAT: String = "uerf_bf16_strided"
+            }
+            object exp {
+                const val HALF: String = "uexp_f16_strided"
+                const val FLOAT: String = "uexp_f32_strided"
+                const val BFLOAT: String = "uexp_bf16_strided"
+            }
+            object floor {
+                const val HALF: String = "ufloor_f16_strided"
+                const val FLOAT: String = "ufloor_f32_strided"
+                const val BFLOAT: String = "ufloor_bf16_strided"
+            }
+            object geluErf {
+                const val HALF: String = "ugelu_erf_f16_strided"
+                const val FLOAT: String = "ugelu_erf_f32_strided"
+                const val BFLOAT: String = "ugelu_erf_bf16_strided"
+            }
+            object gelu {
+                const val HALF: String = "ugelu_f16_strided"
+                const val FLOAT: String = "ugelu_f32_strided"
+                const val BFLOAT: String = "ugelu_bf16_strided"
+            }
+            object log {
+                const val HALF: String = "ulog_f16_strided"
+                const val FLOAT: String = "ulog_f32_strided"
+                const val BFLOAT: String = "ulog_bf16_strided"
+            }
+            object neg {
+                const val HALF: String = "uneg_f16_strided"
+                const val FLOAT: String = "uneg_f32_strided"
+                const val BFLOAT: String = "uneg_bf16_strided"
+            }
+            object relu {
+                const val HALF: String = "urelu_f16_strided"
+                const val FLOAT: String = "urelu_f32_strided"
+                const val BFLOAT: String = "urelu_bf16_strided"
+            }
+            object round {
+                const val HALF: String = "uround_f16_strided"
+                const val FLOAT: String = "uround_f32_strided"
+                const val BFLOAT: String = "uround_bf16_strided"
+            }
+            object silu {
+                const val HALF: String = "usilu_f16_strided"
+                const val FLOAT: String = "usilu_f32_strided"
+                const val BFLOAT: String = "usilu_bf16_strided"
+            }
+            object sin {
+                const val HALF: String = "usin_f16_strided"
+                const val FLOAT: String = "usin_f32_strided"
+                const val BFLOAT: String = "usin_bf16_strided"
+            }
+            object sqr {
+                const val HALF: String = "usqr_f16_strided"
+                const val FLOAT: String = "usqr_f32_strided"
+                const val BFLOAT: String = "usqr_bf16_strided"
+            }
+            object sqrt {
+                const val HALF: String = "usqrt_f16_strided"
+                const val FLOAT: String = "usqrt_f32_strided"
+                const val BFLOAT: String = "usqrt_bf16_strided"
+            }
+            object tanh {
+                const val HALF: String = "utanh_f16_strided"
+                const val FLOAT: String = "utanh_f32_strided"
+                const val BFLOAT: String = "utanh_bf16_strided"
+            }
+        }
+    }
+
+    val callAffine: (Device, CommandsGuard, Kernels, String, Int, Int, BufferOffset, Buffer, Float, Float) -> Result<Unit> =
+        { _, _, _, _, _, _, _, _, _, _ -> Result.success(Unit) }
+    val callAffineStrided: (Device, CommandsGuard, Kernels, String, List<Int>, BufferOffset, List<Int>, Buffer, Float, Float) -> Result<Unit> =
+        { _, _, _, _, _, _, _, _, _, _ -> Result.success(Unit) }
+    val callPowf: (Device, CommandsGuard, Kernels, String, Int, Int, BufferOffset, Buffer, Float) -> Result<Unit> =
+        { _, _, _, _, _, _, _, _, _ -> Result.success(Unit) }
+    val callPowfStrided: (Device, CommandsGuard, Kernels, String, List<Int>, BufferOffset, List<Int>, Buffer, Float) -> Result<Unit> =
+        { _, _, _, _, _, _, _, _, _ -> Result.success(Unit) }
+    val callElu: (Device, CommandsGuard, Kernels, String, Int, Int, BufferOffset, Buffer, Float) -> Result<Unit> =
+        { _, _, _, _, _, _, _, _, _ -> Result.success(Unit) }
+    val callEluStrided: (Device, CommandsGuard, Kernels, String, List<Int>, BufferOffset, List<Int>, Buffer, Float) -> Result<Unit> =
+        { _, _, _, _, _, _, _, _, _ -> Result.success(Unit) }
+    val callReduceContiguous: (Device, CommandsGuard, Kernels, String, List<Int>, Int, BufferOffset, Buffer) -> Result<Unit> =
+        { _, _, _, _, _, _, _, _ -> Result.success(Unit) }
+    val callReduceStrided: (Device, CommandsGuard, Kernels, String, List<Int>, List<Int>, Int, BufferOffset, Buffer) -> Result<Unit> =
+        { _, _, _, _, _, _, _, _, _ -> Result.success(Unit) }
+    val callConstSetContiguous: (Device, CommandsGuard, Kernels, String, Int, Int, Any?, BufferOffset) -> Result<Unit> =
+        { _, _, _, _, _, _, _, _ -> Result.success(Unit) }
+    val callConstSetStrided: (Device, CommandsGuard, Kernels, String, List<Int>, Any?, List<Int>, BufferOffset) -> Result<Unit> =
+        { _, _, _, _, _, _, _, _ -> Result.success(Unit) }
+    val callCastContiguous: (Device, CommandsGuard, Kernels, String, Int, Int, BufferOffset, Buffer) -> Result<Unit> =
+        { _, _, _, _, _, _, _, _ -> Result.success(Unit) }
+    val callCastStrided: (Device, CommandsGuard, Kernels, String, List<Int>, BufferOffset, List<Int>, Buffer) -> Result<Unit> =
+        { _, _, _, _, _, _, _, _ -> Result.success(Unit) }
+    val callUnaryContiguous: (Device, CommandsGuard, Kernels, String, Int, Int, BufferOffset, Buffer) -> Result<Unit> =
+        { _, _, _, _, _, _, _, _ -> Result.success(Unit) }
+    val callUnaryStrided: (Device, CommandsGuard, Kernels, String, List<Int>, BufferOffset, List<Int>, BufferOffset) -> Result<Unit> =
+        { _, _, _, _, _, _, _, _ -> Result.success(Unit) }
+    val callWhereCond: (Device, CommandsGuard, Kernels, String, Int, List<Int>, BufferOffset, List<Int>, Boolean, BufferOffset, List<Int>, Boolean, BufferOffset, List<Int>, Boolean, Buffer) -> Result<Unit> =
+        { _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _ -> Result.success(Unit) }
+    val callIm2col1dStrided: (Device, CommandsGuard, Kernels, String, List<Int>, List<Int>, List<Int>, BufferOffset, Buffer) -> Result<Unit> =
+        { _, _, _, _, _, _, _, _, _ -> Result.success(Unit) }
+    val callCol2im1d: (Device, CommandsGuard, Kernels, String, List<Int>, Int, Int, BufferOffset, Buffer) -> Result<Unit> =
+        { _, _, _, _, _, _, _, _, _ -> Result.success(Unit) }
+    val callConvTranspose1d: (Device, CommandsGuard, Kernels, String, Int, Int, Int, Int, Int, Int, Int, List<Int>, List<Int>, List<Int>, List<Int>, Buffer, Int, Buffer, Int, Buffer) -> Result<Unit> =
+        { _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _ -> Result.success(Unit) }
+    val callIm2colStrided: (Device, CommandsGuard, Kernels, String, List<Int>, List<Int>, List<Int>, BufferOffset, Buffer) -> Result<Unit> =
+        { _, _, _, _, _, _, _, _, _ -> Result.success(Unit) }
+    val callConvTranspose2d: (Device, CommandsGuard, Kernels, String, CallConvTranspose2dCfg, Buffer, Buffer, Buffer) -> Result<Unit> =
+        { _, _, _, _, _, _, _, _ -> Result.success(Unit) }
+    val callPool2d: (Device, CommandsGuard, Kernels, String, List<Int>, List<Int>, Int, Int, Int, Int, Int, Int, Buffer, Buffer) -> Result<Unit> =
+        { _, _, _, _, _, _, _, _, _, _, _, _, _, _ -> Result.success(Unit) }
+    val callUpsampleNearest2d: (Device, CommandsGuard, Kernels, String, List<Int>, List<Int>, Int, Int, BufferOffset, Buffer) -> Result<Unit> =
+        { _, _, _, _, _, _, _, _, _, _ -> Result.success(Unit) }
+    val callUpsampleBilinear2d: (Device, CommandsGuard, Kernels, String, List<Int>, List<Int>, Int, Int, Boolean, Double?, Double?, BufferOffset, Buffer) -> Result<Unit> =
+        { _, _, _, _, _, _, _, _, _, _, _, _, _ -> Result.success(Unit) }
+    val callGather: (Device, CommandsGuard, Kernels, String, List<Int>, Int, Int, BufferOffset, BufferOffset, Buffer) -> Result<Unit> =
+        { _, _, _, _, _, _, _, _, _, _ -> Result.success(Unit) }
+    val callScatter: (Device, CommandsGuard, Kernels, String, List<Int>, List<Int>, Int, BufferOffset, BufferOffset, BufferOffset) -> Result<Unit> =
+        { _, _, _, _, _, _, _, _, _, _ -> Result.success(Unit) }
+    val callIndexSelect: (Device, CommandsGuard, Kernels, String, List<Int>, Int, Int, Boolean, List<Int>, List<Int>, BufferOffset, BufferOffset, Buffer) -> Result<Unit> =
+        { _, _, _, _, _, _, _, _, _, _, _, _, _ -> Result.success(Unit) }
+    val callIndexAdd: (Device, CommandsGuard, Kernels, String, List<Int>, List<Int>, List<Int>, Int, BufferOffset, BufferOffset, Buffer) -> Result<Unit> =
+        { _, _, _, _, _, _, _, _, _, _, _ -> Result.success(Unit) }
+    val callMlxGemm: (Device, CommandsGuard, Kernels, GemmDType, List<Int>, List<Int>, Int, Buffer, List<Int>, Int, Buffer, Buffer) -> Result<Unit> =
+        { _, _, _, _, _, _, _, _, _, _, _, _ -> Result.success(Unit) }
+    val callCopy2d: (Device, CommandsGuard, Kernels, String, Buffer, Buffer, Int, Int, Int, Int, Int, Int) -> Result<Unit> =
+        { _, _, _, _, _, _, _, _, _, _, _, _ -> Result.success(Unit) }
+    val callBinaryContiguous: (Device, CommandsGuard, Kernels, String, Int, Int, BufferOffset, BufferOffset, Buffer) -> Result<Unit> =
+        { _, _, _, _, _, _, _, _, _ -> Result.success(Unit) }
+    val callBinaryStrided: (Device, CommandsGuard, Kernels, String, Int, List<Int>, BufferOffset, List<Int>, BufferOffset, List<Int>, Buffer) -> Result<Unit> =
+        { _, _, _, _, _, _, _, _, _, _, _ -> Result.success(Unit) }
+    val callRandomUniform: (Device, CommandsGuard, Kernels, String, Float, Float, Int, Buffer, Buffer) -> Result<Unit> =
+        { _, _, _, _, _, _, _, _, _ -> Result.success(Unit) }
+    val callRandomNormal: (Device, CommandsGuard, Kernels, String, Float, Float, Int, Buffer, Buffer) -> Result<Unit> =
+        { _, _, _, _, _, _, _, _, _ -> Result.success(Unit) }
+}
+
+internal val contiguous: candleMetalKernels.unary.contiguous get() = candleMetalKernels.unary.contiguous
+internal val strided: candleMetalKernels.unary.strided get() = candleMetalKernels.unary.strided
+
+internal val MetalDevice.clone: () -> MetalDevice get() = { this }
+internal val String.clone: () -> String get() = { this }
+internal val <T> Result<T>.mapErr: ((String) -> Throwable) -> Result<T> get() = { this }
+internal val <T> List<T>.len: () -> Int get() = { size }
+internal val <T> List<T>.clone: () -> List<T> get() = { toList() }
+internal val <T> List<T>.iter: () -> List<T> get() = { this }
+internal val List<Int>.enumerate: () -> Iterable<IndexedValue<Int>> get() = { withIndex() }
+internal val List<Int>.product: () -> Int get() = { fold(1) { a, b -> a * b } }
+internal val <T> MutableList<T>.push: (T) -> Unit get() = { add(it) }
+internal val <T> MutableList<T>.swapRemove: (Int) -> T get() = { idx -> removeAt(idx) }
+internal val <T> List<T>.asPtr: () -> List<T> get() = { this }
+internal val <T> List<T>.isNull: () -> Boolean get() = { false }
+internal val <T> List<T>.toVec: () -> List<T> get() = { this }
+internal val Buffer.contents: () -> List<Nothing> get() = { emptyList() }
+internal val fromRawParts: (List<*>, Int) -> List<Nothing> = { _, _ -> emptyList() }
+internal val Buffer.lock: () -> Result<Buffer> get() = { Result.success(this) }
+internal val Buffer.tryLock: () -> Result<Buffer> get() = { Result.success(this) }
+internal val <T> Result<T>.unwrap: () -> T get() = { getOrThrow() }
+internal val ULong.write: () -> Result<ULong> get() = { Result.success(this) }
+internal val ULong.read: () -> Result<ULong> get() = { Result.success(this) }
+internal val copyNonoverlapping: (List<ULong>, ByteArray, Int) -> Unit = { _, _, _ -> }
+internal val sizeOfU64: Int = 8
+internal val NSString: DeviceId.Companion get() = DeviceId.Companion
+internal val DeviceId.Companion.fromStr: (String) -> String get() = { it }
+internal val RwLock: DeviceId.Companion get() = DeviceId.Companion
+internal val Mutex: DeviceId.Companion get() = DeviceId.Companion
+internal val HashMap: DeviceId.Companion get() = DeviceId.Companion
+internal val DeviceId.Companion.new: (ULong) -> ULong get() = { it }
+internal val DeviceId.Companion.new: (Kernels) -> Kernels get() = { it }
+internal val DeviceId.Companion.new: (ResidencySet) -> ResidencySet get() = { it }
+internal val DeviceId.Companion.new: (Commands) -> Commands get() = { it }
+internal val DeviceId.Companion.new: (MutableMap<Int, MutableList<Buffer>>) -> MutableMap<Int, MutableList<Buffer>> get() = { it }
+internal val DeviceId.Companion.newMap: () -> MutableMap<Int, MutableList<Buffer>> get() = { mutableMapOf() }
+internal val drop: (Any?) -> Unit = {}
+
+internal val CpuStorageRef.U8.storage: List<UByte> get() = data.asList()
+internal val CpuStorageRef.U32.storage: List<UInt> get() = data.asList()
+internal val CpuStorageRef.I16.storage: List<Short> get() = data.asList()
+internal val CpuStorageRef.I32.storage: List<Int> get() = data.asList()
+internal val CpuStorageRef.I64.storage: List<Long> get() = data.asList()
+internal val CpuStorageRef.BF16.storage: List<Short> get() = data.asList()
+internal val CpuStorageRef.F16.storage: List<Short> get() = data.asList()
+internal val CpuStorageRef.F32.storage: List<Float> get() = data.asList()
+internal val CpuStorageRef.F64.storage: List<Double> get() = data.asList()
+internal val CpuStorageRef.F8E4M3.storage: List<Byte> get() = data.asList()
+
+internal val CpuStorage.U8.storage: List<UByte> get() = data.asList()
+internal val CpuStorage.U32.storage: List<UInt> get() = data.asList()
+internal val CpuStorage.I16.storage: List<Short> get() = data.asList()
+internal val CpuStorage.I32.storage: List<Int> get() = data.asList()
+internal val CpuStorage.I64.storage: List<Long> get() = data.asList()
+internal val CpuStorage.BF16.storage: List<Short> get() = data.asList()
+internal val CpuStorage.F16.storage: List<Short> get() = data.asList()
+internal val CpuStorage.F32.storage: List<Float> get() = data.asList()
+internal val CpuStorage.F64.storage: List<Double> get() = data.asList()
+internal val CpuStorage.F8E4M3.storage: List<Byte> get() = data.asList()
+
+internal val MetalStorage.self: MetalStorage get() = this
+internal val MetalStorage.clone: () -> MetalStorage get() = { MetalStorage(buffer(), device(), count, dtype()) }
+internal val MetalStorage.Self: MetalStorage.Companion get() = MetalStorage.Companion
+internal val MetalBackendDevice.self: MetalDevice get() = inner
+internal val MetalBackendDevice.Self: MetalBackendDevice.Companion get() = MetalBackendDevice.Companion
+internal val MetalBackendDevice.Companion.Storage: MetalStorage.Companion get() = MetalStorage.Companion
+internal val Err: (Throwable) -> Result<Nothing> = { Result.failure(it) }
+internal val bail: (String) -> Nothing = { throw CandleException.Msg(it) }
+internal val format: (String) -> String = { it }
+internal val Throwable.into: () -> Throwable get() = { this }
+internal val MetalError.Companion.from: (String) -> MetalError get() = { e -> MetalError.Message(e) }
+internal val MetalDevice.zerosImpl: (Shape, DType) -> Result<MetalStorage> get() = { shape, dtype -> MetalBackendDevice(this).zerosImpl(shape, dtype) }
+internal val Layout.Companion.new: (Shape, List<Int>, Int) -> Layout get() = { s, st, off -> Layout(s, st, off) }
+internal val Layout.Companion.contiguous: (List<Int>) -> Layout get() = { dims -> Layout.contiguous(Shape(dims)) }
+internal val Layout.Companion.contiguousWithOffset: (List<Int>, Int) -> Layout get() = { dims, off -> Layout.contiguousWithOffset(Shape(dims), off) }
+internal val Layout.broadcastAs: (List<Int>) -> Result<Layout> get() = { dims -> runCatching { broadcastAs(Shape(dims)) } }
+internal val List<Int>.into: () -> Shape get() = { Shape(this) }
