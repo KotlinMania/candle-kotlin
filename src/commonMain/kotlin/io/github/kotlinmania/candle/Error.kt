@@ -1,5 +1,9 @@
-// port-lint: source candle-core/src/error.rs
+// port-lint: source error.rs
 package io.github.kotlinmania.candle
+
+/**
+ * Candle-specific Error and Result
+ */
 
 public data class MatMulUnexpectedStriding(
     val lhsL: Layout,
@@ -8,10 +12,14 @@ public data class MatMulUnexpectedStriding(
     val msg: String,
 )
 
+/**
+ * Main library error type.
+ */
 public sealed class CandleException(
     message: String,
     cause: Throwable? = null,
 ) : Exception(message, cause) {
+    // === DType Errors ===
     public data class UnexpectedDType(
         val msg: String,
         val expected: DType,
@@ -29,6 +37,7 @@ public sealed class CandleException(
         val op: String,
     ) : CandleException("unsupported dtype $dtype for op $op")
 
+    // === Dimension Index Errors ===
     public data class DimOutOfRange(
         val shape: Shape,
         val dim: Int,
@@ -41,6 +50,7 @@ public sealed class CandleException(
         val op: String,
     ) : CandleException("$op: duplicate dim index $dims for shape $shape")
 
+    // === Shape Errors ===
     public data class UnexpectedNumberOfDims(
         val expected: Int,
         val got: Int,
@@ -86,12 +96,14 @@ public sealed class CandleException(
         val op: String,
     ) : CandleException("empty tensor for $op")
 
+    // === Device Errors ===
     public data class DeviceMismatchBinaryOp(
         val lhs: DeviceLocation,
         val rhs: DeviceLocation,
         val op: String,
     ) : CandleException("device mismatch in $op, lhs: $lhs, rhs: $rhs")
 
+    // === Op Specific Errors ===
     public data class NarrowInvalidArgs(
         val shape: Shape,
         val dim: Int,
@@ -123,6 +135,7 @@ public sealed class CandleException(
         val msg: String,
     ) : CandleException("cannot set variable $msg")
 
+    // Indirection to avoid large variant.
     public data class MatMulUnexpectedStridingError(
         val details: MatMulUnexpectedStriding,
     ) : CandleException(details.toString())
@@ -143,6 +156,7 @@ public sealed class CandleException(
         val op: String,
     ) : CandleException("backward is not supported for $op")
 
+    // === Other Errors ===
     public object NotCompiledWithCudaSupport :
         CandleException("the candle crate has not been built with cuda support")
 
@@ -153,38 +167,58 @@ public sealed class CandleException(
         val path: String,
     ) : CandleException("cannot find tensor $path")
 
+    // === Wrapped Errors ===
     public data class Cuda(
         val details: String,
     ) : CandleException("cuda error: $details")
 
     public data class Metal(
         val details: String,
-    ) : CandleException("metal error: $details")
+    ) : CandleException("Metal error $details")
 
     public data class Ug(
         val details: String,
     ) : CandleException("ug error: $details")
 
+    public data class TryFromIntError(
+        val details: String,
+    ) : CandleException("try from int error: $details")
+
     public data class Npy(
         val details: String,
     ) : CandleException("npy/npz error $details")
 
+    /**
+     * Zip file format error.
+     */
     public data class Zip(
         val details: String,
     ) : CandleException("zip error: $details")
 
+    /**
+     * Integer parse error.
+     */
     public data class ParseInt(
         val details: String,
     ) : CandleException("parse int error: $details")
 
+    /**
+     * Utf8 parse error.
+     */
     public data class FromUtf8(
         val details: String,
     ) : CandleException("utf8 parse error: $details")
 
+    /**
+     * I/O error.
+     */
     public data class Io(
         val details: String,
     ) : CandleException("io error: $details")
 
+    /**
+     * SafeTensor error.
+     */
     public data class SafeTensor(
         val details: String,
     ) : CandleException("safetensor error: $details")
@@ -193,10 +227,16 @@ public sealed class CandleException(
         val details: String,
     ) : CandleException("unsupported safetensor dtype $details")
 
+    /**
+     * Arbitrary errors wrapping.
+     */
     public data class Wrapped(
         val details: String,
     ) : CandleException(details)
 
+    /**
+     * Arbitrary errors wrapping with context.
+     */
     public data class WrappedContext(
         val details: String,
         val context: String,
@@ -207,6 +247,9 @@ public sealed class CandleException(
         val context: String,
     ) : CandleException("$context\n${inner.message}", inner)
 
+    /**
+     * Adding path information to an error.
+     */
     public data class WithPath(
         val inner: CandleException,
         val path: String,
@@ -217,6 +260,9 @@ public sealed class CandleException(
         val backtrace: String,
     ) : CandleException("${inner.message}\n$backtrace", inner)
 
+    /**
+     * User generated error message, typically created via `bail!`.
+     */
     public data class Msg(
         val msg: String,
     ) : CandleException(msg)
@@ -224,16 +270,95 @@ public sealed class CandleException(
     public object UnwrapNone :
         CandleException("unwrap none")
 
-    public fun withPath(path: String): CandleException = WithPath(this, path)
+    public fun fmt(): String = message ?: ""
 
-    public fun context(context: String): CandleException = Context(this, context)
+    public fun bt(): CandleException = this
+
+    public fun withPath(p: String): CandleException = WithPath(this, p)
+
+    public fun context(c: Any): CandleException = Context(this, c.toString())
 
     public companion object {
-        public fun wrap(err: Any): CandleException = Wrapped(err.toString())
+        public fun wrap(err: Any): CandleException = Wrapped(err.toString()).bt()
 
-        public fun msg(err: Any): CandleException = Msg(err.toString())
+        public fun msg(err: Any): CandleException = Msg(err.toString()).bt()
 
-        public fun debug(err: Any): CandleException = Msg(err.toString())
+        public fun debug(err: Any): CandleException = Msg(err.toString()).bt()
+    }
+}
+
+public fun <T, U> zip(r1: Result<T>, r2: Result<U>): Result<Pair<T, U>> =
+    when {
+        r1.isSuccess && r2.isSuccess -> Result.success(Pair(r1.getOrThrow(), r2.getOrThrow()))
+        r1.isFailure -> Result.failure(r1.exceptionOrNull()!!)
+        else -> Result.failure(r2.exceptionOrNull()!!)
+    }
+
+public interface Sealed
+
+/**
+ * Attach more context to an error.
+ *
+ * Inspired by [`anyhow::Context`].
+ */
+public interface ErrorContext<T, E> : Sealed {
+    /**
+     * Wrap the error value with additional context.
+     */
+    public fun context(context: Any): Result<T>
+
+    /**
+     * Wrap the error value with additional context that is evaluated lazily
+     * only once an error does occur.
+     */
+    public fun withContext(f: () -> Any): Result<T>
+
+    public class ForResult<T>(
+        private val result: Result<T>,
+    ) : ErrorContext<T, Throwable> {
+        override fun context(context: Any): Result<T> =
+            result.fold(
+                onSuccess = { Result.success(it) },
+                onFailure = { error ->
+                    Result.failure(
+                        CandleException.WrappedContext(
+                            details = error.toString(),
+                            context = context.toString(),
+                        ).bt(),
+                    )
+                },
+            )
+
+        override fun withContext(f: () -> Any): Result<T> =
+            result.fold(
+                onSuccess = { Result.success(it) },
+                onFailure = { error ->
+                    Result.failure(
+                        CandleException.WrappedContext(
+                            details = error.toString(),
+                            context = f().toString(),
+                        ).bt(),
+                    )
+                },
+            )
+    }
+
+    public class ForOption<T>(
+        private val value: T?,
+    ) : ErrorContext<T, Nothing> {
+        override fun context(context: Any): Result<T> =
+            if (value != null) {
+                Result.success(value)
+            } else {
+                Result.failure(CandleException.msg(context).bt())
+            }
+
+        override fun withContext(f: () -> Any): Result<T> =
+            if (value != null) {
+                Result.success(value)
+            } else {
+                Result.failure(CandleException.UnwrapNone.context(f()).bt())
+            }
     }
 }
 
