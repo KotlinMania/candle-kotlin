@@ -1,4 +1,4 @@
-// port-lint: source candle-core/src/tensor.rs
+// port-lint: source tensor.rs
 package io.github.kotlinmania.candle
 
 import kotlin.math.PI
@@ -649,7 +649,7 @@ public class Tensor internal constructor(
             val data = FloatArray(count)
             var i = 0
             while (i < count) {
-                // Box-Muller transform
+                // Polar method for standard normal distribution
                 val u1 = Random.nextDouble().coerceAtLeast(1e-15)
                 val u2 = Random.nextDouble()
                 val z0 = sqrt(-2.0 * kotlin.math.ln(u1)) * kotlin.math.cos(2.0 * kotlin.math.PI * u2)
