@@ -4,243 +4,154 @@ package io.github.kotlinmania.candle
 /**
  * Helper functions to write CPU kernels.
  */
+internal object C {
+    val vs: (CpuStorage) -> List<Double> = { s ->
+        when (s) {
+            is CpuStorage.U8 -> s.data.map { it.toDouble() }
+            is CpuStorage.U32 -> s.data.map { it.toDouble() }
+            is CpuStorage.I16 -> s.data.map { it.toDouble() }
+            is CpuStorage.I32 -> s.data.map { it.toDouble() }
+            is CpuStorage.I64 -> s.data.map { it.toDouble() }
+            is CpuStorage.BF16 -> FloatArray(s.data.size) { Float16Utils.bf16BitsToFloat(s.data[it]) }.map { it.toDouble() }
+            is CpuStorage.F16 -> FloatArray(s.data.size) { Float16Utils.f16BitsToFloat(s.data[it]) }.map { it.toDouble() }
+            is CpuStorage.F32 -> s.data.map { it.toDouble() }
+            is CpuStorage.F64 -> s.data.toList()
+            is CpuStorage.F8E4M3 -> s.data.map { it.toDouble() }
+            else -> emptyList()
+        }
+    }
+    val U8: (List<Double>) -> CpuStorage = { r -> CpuStorage.U8(UByteArray(r.size) { r[it].toInt().toUByte() }) }
+    val U32: (List<Double>) -> CpuStorage = { r -> CpuStorage.U32(UIntArray(r.size) { r[it].toLong().toUInt() }) }
+    val I16: (List<Double>) -> CpuStorage = { r -> CpuStorage.I16(ShortArray(r.size) { r[it].toInt().toShort() }) }
+    val I32: (List<Double>) -> CpuStorage = { r -> CpuStorage.I32(IntArray(r.size) { r[it].toInt() }) }
+    val I64: (List<Double>) -> CpuStorage = { r -> CpuStorage.I64(LongArray(r.size) { r[it].toLong() }) }
+    val BF16: (List<Double>) -> CpuStorage = { r -> CpuStorage.BF16(ShortArray(r.size) { Float16Utils.floatToBF16Bits(r[it].toFloat()) }) }
+    val F16: (List<Double>) -> CpuStorage = { r -> CpuStorage.F16(ShortArray(r.size) { Float16Utils.floatToF16Bits(r[it].toFloat()) }) }
+    val F32: (List<Double>) -> CpuStorage = { r -> CpuStorage.F32(FloatArray(r.size) { r[it].toFloat() }) }
+    val F64: (List<Double>) -> CpuStorage = { r -> CpuStorage.F64(DoubleArray(r.size) { r[it] }) }
+    val F8E4M3: (List<Double>) -> CpuStorage = { r -> CpuStorage.F8E4M3(ByteArray(r.size) { r[it].toInt().toByte() }) }
+    val applyInPlace: (Map2InPlace, CpuStorage, Layout, CpuStorage, Layout) -> Unit = { m, v1, l1, v2, l2 ->
+        val m1 = vs(v1).toMutableList()
+        m.f(m1, l1, vs(v2), l2)
+        when (v1) {
+            is CpuStorage.U8 -> for (i in m1.indices) v1.data[i] = m1[i].toInt().toUByte()
+            is CpuStorage.U32 -> for (i in m1.indices) v1.data[i] = m1[i].toLong().toUInt()
+            is CpuStorage.I16 -> for (i in m1.indices) v1.data[i] = m1[i].toInt().toShort()
+            is CpuStorage.I32 -> for (i in m1.indices) v1.data[i] = m1[i].toInt()
+            is CpuStorage.I64 -> for (i in m1.indices) v1.data[i] = m1[i].toLong()
+            is CpuStorage.BF16 -> for (i in m1.indices) v1.data[i] = Float16Utils.floatToBF16Bits(m1[i].toFloat())
+            is CpuStorage.F16 -> for (i in m1.indices) v1.data[i] = Float16Utils.floatToF16Bits(m1[i].toFloat())
+            is CpuStorage.F32 -> for (i in m1.indices) v1.data[i] = m1[i].toFloat()
+            is CpuStorage.F64 -> for (i in m1.indices) v1.data[i] = m1[i]
+            is CpuStorage.F8E4M3 -> for (i in m1.indices) v1.data[i] = m1[i].toInt().toByte()
+            else -> Unit
+        }
+    }
+}
+
 public interface Map1 {
-    public interface C
+    public val self: Map1 get() = this
 
     public fun f(vs: List<Double>, layout: Layout): List<Double>
 
-    public fun map(vs: CpuStorage, layout: Layout): CpuStorage =
-        when (vs) {
-            is CpuStorage.U8 -> {
-                val res = f(vs.data.map { it.toDouble() }, layout)
-                CpuStorage.U8(UByteArray(res.size) { res[it].toInt().toUByte() })
-            }
-            is CpuStorage.U32 -> {
-                val res = f(vs.data.map { it.toDouble() }, layout)
-                CpuStorage.U32(UIntArray(res.size) { res[it].toLong().toUInt() })
-            }
-            is CpuStorage.I16 -> {
-                val res = f(vs.data.map { it.toDouble() }, layout)
-                CpuStorage.I16(ShortArray(res.size) { res[it].toInt().toShort() })
-            }
-            is CpuStorage.I32 -> {
-                val res = f(vs.data.map { it.toDouble() }, layout)
-                CpuStorage.I32(IntArray(res.size) { res[it].toInt() })
-            }
-            is CpuStorage.I64 -> {
-                val res = f(vs.data.map { it.toDouble() }, layout)
-                CpuStorage.I64(LongArray(res.size) { res[it].toLong() })
-            }
-            is CpuStorage.BF16 -> {
-                val res = f(FloatArray(vs.data.size) { Float16Utils.bf16BitsToFloat(vs.data[it]) }.map { it.toDouble() }, layout)
-                CpuStorage.BF16(ShortArray(res.size) { Float16Utils.floatToBF16Bits(res[it].toFloat()) })
-            }
-            is CpuStorage.F16 -> {
-                val res = f(FloatArray(vs.data.size) { Float16Utils.f16BitsToFloat(vs.data[it]) }.map { it.toDouble() }, layout)
-                CpuStorage.F16(ShortArray(res.size) { Float16Utils.floatToF16Bits(res[it].toFloat()) })
-            }
-            is CpuStorage.F32 -> {
-                val res = f(vs.data.map { it.toDouble() }, layout)
-                CpuStorage.F32(FloatArray(res.size) { res[it].toFloat() })
-            }
-            is CpuStorage.F64 -> {
-                val res = f(vs.data.toList(), layout)
-                CpuStorage.F64(DoubleArray(res.size) { res[it] })
-            }
-            is CpuStorage.F8E4M3 -> {
-                val res = f(vs.data.map { it.toDouble() }, layout)
-                CpuStorage.F8E4M3(ByteArray(res.size) { res[it].toInt().toByte() })
-            }
-            // Dummy types don't support Map1 operations
+    public fun map(vs: CpuStorage, layout: Layout): CpuStorage {
+        return when (vs) {
+            is CpuStorage.U8 -> C.U8(self.f(C.vs(vs), layout))
+            is CpuStorage.U32 -> C.U32(self.f(C.vs(vs), layout))
+            is CpuStorage.I16 -> C.I16(self.f(C.vs(vs), layout))
+            is CpuStorage.I32 -> C.I32(self.f(C.vs(vs), layout))
+            is CpuStorage.I64 -> C.I64(self.f(C.vs(vs), layout))
+            is CpuStorage.BF16 -> C.BF16(self.f(C.vs(vs), layout))
+            is CpuStorage.F16 -> C.F16(self.f(C.vs(vs), layout))
+            is CpuStorage.F32 -> C.F32(self.f(C.vs(vs), layout))
+            is CpuStorage.F64 -> C.F64(self.f(C.vs(vs), layout))
+            is CpuStorage.F8E4M3 -> C.F8E4M3(self.f(C.vs(vs), layout))
             is CpuStorage.F6E2M3 -> throw CandleException.UnsupportedDTypeForOp(vs.dtype(), "map1")
             is CpuStorage.F6E3M2 -> throw CandleException.UnsupportedDTypeForOp(vs.dtype(), "map1")
             is CpuStorage.F4 -> throw CandleException.UnsupportedDTypeForOp(vs.dtype(), "map1")
             is CpuStorage.F8E8M0 -> throw CandleException.UnsupportedDTypeForOp(vs.dtype(), "map1")
         }
+    }
 }
 
 public interface Map1Any {
+    public val self: Map1Any get() = this
+
     public fun f(
         vs: List<Double>,
         layout: Layout,
         wrap: (List<Double>) -> CpuStorage,
     ): CpuStorage
 
-    public fun map(vs: CpuStorage, layout: Layout): CpuStorage =
-        when (vs) {
-            is CpuStorage.U8 -> f(
-                vs.data.map { it.toDouble() },
-                layout,
-            ) { res -> CpuStorage.U8(UByteArray(res.size) { res[it].toInt().toUByte() }) }
-            is CpuStorage.U32 -> f(
-                vs.data.map { it.toDouble() },
-                layout,
-            ) { res -> CpuStorage.U32(UIntArray(res.size) { res[it].toLong().toUInt() }) }
-            is CpuStorage.I16 -> f(
-                vs.data.map { it.toDouble() },
-                layout,
-            ) { res -> CpuStorage.I16(ShortArray(res.size) { res[it].toInt().toShort() }) }
-            is CpuStorage.I32 -> f(
-                vs.data.map { it.toDouble() },
-                layout,
-            ) { res -> CpuStorage.I32(IntArray(res.size) { res[it].toInt() }) }
-            is CpuStorage.I64 -> f(
-                vs.data.map { it.toDouble() },
-                layout,
-            ) { res -> CpuStorage.I64(LongArray(res.size) { res[it].toLong() }) }
-            is CpuStorage.BF16 -> f(
-                FloatArray(vs.data.size) { Float16Utils.bf16BitsToFloat(vs.data[it]) }.map { it.toDouble() },
-                layout,
-            ) { res -> CpuStorage.BF16(ShortArray(res.size) { Float16Utils.floatToBF16Bits(res[it].toFloat()) }) }
-            is CpuStorage.F16 -> f(
-                FloatArray(vs.data.size) { Float16Utils.f16BitsToFloat(vs.data[it]) }.map { it.toDouble() },
-                layout,
-            ) { res -> CpuStorage.F16(ShortArray(res.size) { Float16Utils.floatToF16Bits(res[it].toFloat()) }) }
-            is CpuStorage.F32 -> f(
-                vs.data.map { it.toDouble() },
-                layout,
-            ) { res -> CpuStorage.F32(FloatArray(res.size) { res[it].toFloat() }) }
-            is CpuStorage.F64 -> f(
-                vs.data.toList(),
-                layout,
-            ) { res -> CpuStorage.F64(DoubleArray(res.size) { res[it] }) }
-            is CpuStorage.F8E4M3 -> f(
-                vs.data.map { it.toDouble() },
-                layout,
-            ) { res -> CpuStorage.F8E4M3(ByteArray(res.size) { res[it].toInt().toByte() }) }
-            // Dummy types don't support Map1Any operations
+    public fun map(vs: CpuStorage, layout: Layout): CpuStorage {
+        return when (vs) {
+            is CpuStorage.U8 -> self.f(C.vs(vs), layout, C.U8)
+            is CpuStorage.U32 -> self.f(C.vs(vs), layout, C.U32)
+            is CpuStorage.I16 -> self.f(C.vs(vs), layout, C.I16)
+            is CpuStorage.I32 -> self.f(C.vs(vs), layout, C.I32)
+            is CpuStorage.I64 -> self.f(C.vs(vs), layout, C.I64)
+            is CpuStorage.BF16 -> self.f(C.vs(vs), layout, C.BF16)
+            is CpuStorage.F16 -> self.f(C.vs(vs), layout, C.F16)
+            is CpuStorage.F32 -> self.f(C.vs(vs), layout, C.F32)
+            is CpuStorage.F64 -> self.f(C.vs(vs), layout, C.F64)
+            is CpuStorage.F8E4M3 -> self.f(C.vs(vs), layout, C.F8E4M3)
             is CpuStorage.F6E2M3 -> throw CandleException.UnsupportedDTypeForOp(vs.dtype(), "map1any")
             is CpuStorage.F6E3M2 -> throw CandleException.UnsupportedDTypeForOp(vs.dtype(), "map1any")
             is CpuStorage.F4 -> throw CandleException.UnsupportedDTypeForOp(vs.dtype(), "map1any")
             is CpuStorage.F8E8M0 -> throw CandleException.UnsupportedDTypeForOp(vs.dtype(), "map1any")
         }
+    }
 }
 
 public interface Map2 {
     public val op: String
+    public val self: Map2 get() = this
 
     public fun f(v1: List<Double>, l1: Layout, v2: List<Double>, l2: Layout): List<Double>
 
-    public fun map(v1: CpuStorage, l1: Layout, v2: CpuStorage, l2: Layout): CpuStorage =
-        when {
-            v1 is CpuStorage.U8 && v2 is CpuStorage.U8 -> {
-                val res = f(v1.data.map { it.toDouble() }, l1, v2.data.map { it.toDouble() }, l2)
-                CpuStorage.U8(UByteArray(res.size) { res[it].toInt().toUByte() })
-            }
-            v1 is CpuStorage.U32 && v2 is CpuStorage.U32 -> {
-                val res = f(v1.data.map { it.toDouble() }, l1, v2.data.map { it.toDouble() }, l2)
-                CpuStorage.U32(UIntArray(res.size) { res[it].toLong().toUInt() })
-            }
-            v1 is CpuStorage.I16 && v2 is CpuStorage.I16 -> {
-                val res = f(v1.data.map { it.toDouble() }, l1, v2.data.map { it.toDouble() }, l2)
-                CpuStorage.I16(ShortArray(res.size) { res[it].toInt().toShort() })
-            }
-            v1 is CpuStorage.I32 && v2 is CpuStorage.I32 -> {
-                val res = f(v1.data.map { it.toDouble() }, l1, v2.data.map { it.toDouble() }, l2)
-                CpuStorage.I32(IntArray(res.size) { res[it].toInt() })
-            }
-            v1 is CpuStorage.I64 && v2 is CpuStorage.I64 -> {
-                val res = f(v1.data.map { it.toDouble() }, l1, v2.data.map { it.toDouble() }, l2)
-                CpuStorage.I64(LongArray(res.size) { res[it].toLong() })
-            }
-            v1 is CpuStorage.BF16 && v2 is CpuStorage.BF16 -> {
-                val d1 = FloatArray(v1.data.size) { Float16Utils.bf16BitsToFloat(v1.data[it]) }.map { it.toDouble() }
-                val d2 = FloatArray(v2.data.size) { Float16Utils.bf16BitsToFloat(v2.data[it]) }.map { it.toDouble() }
-                val res = f(d1, l1, d2, l2)
-                CpuStorage.BF16(ShortArray(res.size) { Float16Utils.floatToBF16Bits(res[it].toFloat()) })
-            }
-            v1 is CpuStorage.F16 && v2 is CpuStorage.F16 -> {
-                val d1 = FloatArray(v1.data.size) { Float16Utils.f16BitsToFloat(v1.data[it]) }.map { it.toDouble() }
-                val d2 = FloatArray(v2.data.size) { Float16Utils.f16BitsToFloat(v2.data[it]) }.map { it.toDouble() }
-                val res = f(d1, l1, d2, l2)
-                CpuStorage.F16(ShortArray(res.size) { Float16Utils.floatToF16Bits(res[it].toFloat()) })
-            }
-            v1 is CpuStorage.F32 && v2 is CpuStorage.F32 -> {
-                val res = f(v1.data.map { it.toDouble() }, l1, v2.data.map { it.toDouble() }, l2)
-                CpuStorage.F32(FloatArray(res.size) { res[it].toFloat() })
-            }
-            v1 is CpuStorage.F64 && v2 is CpuStorage.F64 -> {
-                val res = f(v1.data.toList(), l1, v2.data.toList(), l2)
-                CpuStorage.F64(DoubleArray(res.size) { res[it] })
-            }
-            v1 is CpuStorage.F8E4M3 && v2 is CpuStorage.F8E4M3 -> {
-                val d1 = v1.data.map { it.toDouble() }
-                val d2 = v2.data.map { it.toDouble() }
-                val res = f(d1, l1, d2, l2)
-                CpuStorage.F8E4M3(ByteArray(res.size) { res[it].toInt().toByte() })
-            }
+    public fun map(v1: CpuStorage, l1: Layout, v2: CpuStorage, l2: Layout): CpuStorage {
+        return when {
+            v1 is CpuStorage.U8 && v2 is CpuStorage.U8 -> C.U8(self.f(C.vs(v1), l1, C.vs(v2), l2))
+            v1 is CpuStorage.U32 && v2 is CpuStorage.U32 -> C.U32(self.f(C.vs(v1), l1, C.vs(v2), l2))
+            v1 is CpuStorage.I16 && v2 is CpuStorage.I16 -> C.I16(self.f(C.vs(v1), l1, C.vs(v2), l2))
+            v1 is CpuStorage.I32 && v2 is CpuStorage.I32 -> C.I32(self.f(C.vs(v1), l1, C.vs(v2), l2))
+            v1 is CpuStorage.I64 && v2 is CpuStorage.I64 -> C.I64(self.f(C.vs(v1), l1, C.vs(v2), l2))
+            v1 is CpuStorage.BF16 && v2 is CpuStorage.BF16 -> C.BF16(self.f(C.vs(v1), l1, C.vs(v2), l2))
+            v1 is CpuStorage.F16 && v2 is CpuStorage.F16 -> C.F16(self.f(C.vs(v1), l1, C.vs(v2), l2))
+            v1 is CpuStorage.F32 && v2 is CpuStorage.F32 -> C.F32(self.f(C.vs(v1), l1, C.vs(v2), l2))
+            v1 is CpuStorage.F64 && v2 is CpuStorage.F64 -> C.F64(self.f(C.vs(v1), l1, C.vs(v2), l2))
+            v1 is CpuStorage.F8E4M3 && v2 is CpuStorage.F8E4M3 -> C.F8E4M3(self.f(C.vs(v1), l1, C.vs(v2), l2))
             else -> throw CandleException.DTypeMismatchBinaryOp(
                 lhs = v1.dtype(),
                 rhs = v2.dtype(),
-                op = op,
+                op = self.op,
             )
         }
+    }
 }
 
 public interface Map2InPlace {
     public val op: String
+    public val self: Map2InPlace get() = this
 
     public fun f(v1: MutableList<Double>, l1: Layout, v2: List<Double>, l2: Layout)
 
     public fun map(v1: CpuStorage, l1: Layout, v2: CpuStorage, l2: Layout) {
         when {
-            v1 is CpuStorage.U8 && v2 is CpuStorage.U8 -> {
-                val m1 = v1.data.map { it.toDouble() }.toMutableList()
-                f(m1, l1, v2.data.map { it.toDouble() }, l2)
-                for (i in m1.indices) v1.data[i] = m1[i].toInt().toUByte()
-            }
-            v1 is CpuStorage.U32 && v2 is CpuStorage.U32 -> {
-                val m1 = v1.data.map { it.toDouble() }.toMutableList()
-                f(m1, l1, v2.data.map { it.toDouble() }, l2)
-                for (i in m1.indices) v1.data[i] = m1[i].toLong().toUInt()
-            }
-            v1 is CpuStorage.I16 && v2 is CpuStorage.I16 -> {
-                val m1 = v1.data.map { it.toDouble() }.toMutableList()
-                f(m1, l1, v2.data.map { it.toDouble() }, l2)
-                for (i in m1.indices) v1.data[i] = m1[i].toInt().toShort()
-            }
-            v1 is CpuStorage.I32 && v2 is CpuStorage.I32 -> {
-                val m1 = v1.data.map { it.toDouble() }.toMutableList()
-                f(m1, l1, v2.data.map { it.toDouble() }, l2)
-                for (i in m1.indices) v1.data[i] = m1[i].toInt()
-            }
-            v1 is CpuStorage.I64 && v2 is CpuStorage.I64 -> {
-                val m1 = v1.data.map { it.toDouble() }.toMutableList()
-                f(m1, l1, v2.data.map { it.toDouble() }, l2)
-                for (i in m1.indices) v1.data[i] = m1[i].toLong()
-            }
-            v1 is CpuStorage.BF16 && v2 is CpuStorage.BF16 -> {
-                val m1 = FloatArray(v1.data.size) { Float16Utils.bf16BitsToFloat(v1.data[it]) }.map { it.toDouble() }.toMutableList()
-                val d2 = FloatArray(v2.data.size) { Float16Utils.bf16BitsToFloat(v2.data[it]) }.map { it.toDouble() }
-                f(m1, l1, d2, l2)
-                for (i in m1.indices) v1.data[i] = Float16Utils.floatToBF16Bits(m1[i].toFloat())
-            }
-            v1 is CpuStorage.F16 && v2 is CpuStorage.F16 -> {
-                val m1 = FloatArray(v1.data.size) { Float16Utils.f16BitsToFloat(v1.data[it]) }.map { it.toDouble() }.toMutableList()
-                val d2 = FloatArray(v2.data.size) { Float16Utils.f16BitsToFloat(v2.data[it]) }.map { it.toDouble() }
-                f(m1, l1, d2, l2)
-                for (i in m1.indices) v1.data[i] = Float16Utils.floatToF16Bits(m1[i].toFloat())
-            }
-            v1 is CpuStorage.F32 && v2 is CpuStorage.F32 -> {
-                val m1 = v1.data.map { it.toDouble() }.toMutableList()
-                f(m1, l1, v2.data.map { it.toDouble() }, l2)
-                for (i in m1.indices) v1.data[i] = m1[i].toFloat()
-            }
-            v1 is CpuStorage.F64 && v2 is CpuStorage.F64 -> {
-                val m1 = v1.data.toMutableList()
-                f(m1, l1, v2.data.toList(), l2)
-                for (i in m1.indices) v1.data[i] = m1[i]
-            }
-            v1 is CpuStorage.F8E4M3 && v2 is CpuStorage.F8E4M3 -> {
-                val m1 = v1.data.map { it.toDouble() }.toMutableList()
-                val d2 = v2.data.map { it.toDouble() }
-                f(m1, l1, d2, l2)
-                for (i in m1.indices) v1.data[i] = m1[i].toInt().toByte()
-            }
+            v1 is CpuStorage.U8 && v2 is CpuStorage.U8 -> C.applyInPlace(self, v1, l1, v2, l2)
+            v1 is CpuStorage.U32 && v2 is CpuStorage.U32 -> C.applyInPlace(self, v1, l1, v2, l2)
+            v1 is CpuStorage.I16 && v2 is CpuStorage.I16 -> C.applyInPlace(self, v1, l1, v2, l2)
+            v1 is CpuStorage.I32 && v2 is CpuStorage.I32 -> C.applyInPlace(self, v1, l1, v2, l2)
+            v1 is CpuStorage.I64 && v2 is CpuStorage.I64 -> C.applyInPlace(self, v1, l1, v2, l2)
+            v1 is CpuStorage.BF16 && v2 is CpuStorage.BF16 -> C.applyInPlace(self, v1, l1, v2, l2)
+            v1 is CpuStorage.F16 && v2 is CpuStorage.F16 -> C.applyInPlace(self, v1, l1, v2, l2)
+            v1 is CpuStorage.F32 && v2 is CpuStorage.F32 -> C.applyInPlace(self, v1, l1, v2, l2)
+            v1 is CpuStorage.F64 && v2 is CpuStorage.F64 -> C.applyInPlace(self, v1, l1, v2, l2)
+            v1 is CpuStorage.F8E4M3 && v2 is CpuStorage.F8E4M3 -> C.applyInPlace(self, v1, l1, v2, l2)
             else -> throw CandleException.DTypeMismatchBinaryOp(
                 lhs = v1.dtype(),
                 rhs = v2.dtype(),
-                op = op,
+                op = self.op,
             )
         }
     }
@@ -248,46 +159,29 @@ public interface Map2InPlace {
 
 public interface Map2U8 {
     public val op: String
+    public val self: Map2U8 get() = this
 
     public fun f(v1: List<Double>, l1: Layout, v2: List<Double>, l2: Layout): UByteArray
 
-    public fun map(v1: CpuStorage, l1: Layout, v2: CpuStorage, l2: Layout): CpuStorage =
-        when {
-            v1 is CpuStorage.U8 && v2 is CpuStorage.U8 ->
-                CpuStorage.U8(f(v1.data.map { it.toDouble() }, l1, v2.data.map { it.toDouble() }, l2))
-            v1 is CpuStorage.U32 && v2 is CpuStorage.U32 ->
-                CpuStorage.U8(f(v1.data.map { it.toDouble() }, l1, v2.data.map { it.toDouble() }, l2))
-            v1 is CpuStorage.I16 && v2 is CpuStorage.I16 ->
-                CpuStorage.U8(f(v1.data.map { it.toDouble() }, l1, v2.data.map { it.toDouble() }, l2))
-            v1 is CpuStorage.I32 && v2 is CpuStorage.I32 ->
-                CpuStorage.U8(f(v1.data.map { it.toDouble() }, l1, v2.data.map { it.toDouble() }, l2))
-            v1 is CpuStorage.I64 && v2 is CpuStorage.I64 ->
-                CpuStorage.U8(f(v1.data.map { it.toDouble() }, l1, v2.data.map { it.toDouble() }, l2))
-            v1 is CpuStorage.BF16 && v2 is CpuStorage.BF16 -> {
-                val d1 = FloatArray(v1.data.size) { Float16Utils.bf16BitsToFloat(v1.data[it]) }.map { it.toDouble() }
-                val d2 = FloatArray(v2.data.size) { Float16Utils.bf16BitsToFloat(v2.data[it]) }.map { it.toDouble() }
-                CpuStorage.U8(f(d1, l1, d2, l2))
-            }
-            v1 is CpuStorage.F16 && v2 is CpuStorage.F16 -> {
-                val d1 = FloatArray(v1.data.size) { Float16Utils.f16BitsToFloat(v1.data[it]) }.map { it.toDouble() }
-                val d2 = FloatArray(v2.data.size) { Float16Utils.f16BitsToFloat(v2.data[it]) }.map { it.toDouble() }
-                CpuStorage.U8(f(d1, l1, d2, l2))
-            }
-            v1 is CpuStorage.F32 && v2 is CpuStorage.F32 ->
-                CpuStorage.U8(f(v1.data.map { it.toDouble() }, l1, v2.data.map { it.toDouble() }, l2))
-            v1 is CpuStorage.F64 && v2 is CpuStorage.F64 ->
-                CpuStorage.U8(f(v1.data.toList(), l1, v2.data.toList(), l2))
-            v1 is CpuStorage.F8E4M3 && v2 is CpuStorage.F8E4M3 -> {
-                val d1 = v1.data.map { it.toDouble() }
-                val d2 = v2.data.map { it.toDouble() }
-                CpuStorage.U8(f(d1, l1, d2, l2))
-            }
+    public fun map(v1: CpuStorage, l1: Layout, v2: CpuStorage, l2: Layout): CpuStorage {
+        return when {
+            v1 is CpuStorage.U8 && v2 is CpuStorage.U8 -> CpuStorage.U8(self.f(C.vs(v1), l1, C.vs(v2), l2))
+            v1 is CpuStorage.U32 && v2 is CpuStorage.U32 -> CpuStorage.U8(self.f(C.vs(v1), l1, C.vs(v2), l2))
+            v1 is CpuStorage.I16 && v2 is CpuStorage.I16 -> CpuStorage.U8(self.f(C.vs(v1), l1, C.vs(v2), l2))
+            v1 is CpuStorage.I32 && v2 is CpuStorage.I32 -> CpuStorage.U8(self.f(C.vs(v1), l1, C.vs(v2), l2))
+            v1 is CpuStorage.I64 && v2 is CpuStorage.I64 -> CpuStorage.U8(self.f(C.vs(v1), l1, C.vs(v2), l2))
+            v1 is CpuStorage.BF16 && v2 is CpuStorage.BF16 -> CpuStorage.U8(self.f(C.vs(v1), l1, C.vs(v2), l2))
+            v1 is CpuStorage.F16 && v2 is CpuStorage.F16 -> CpuStorage.U8(self.f(C.vs(v1), l1, C.vs(v2), l2))
+            v1 is CpuStorage.F32 && v2 is CpuStorage.F32 -> CpuStorage.U8(self.f(C.vs(v1), l1, C.vs(v2), l2))
+            v1 is CpuStorage.F64 && v2 is CpuStorage.F64 -> CpuStorage.U8(self.f(C.vs(v1), l1, C.vs(v2), l2))
+            v1 is CpuStorage.F8E4M3 && v2 is CpuStorage.F8E4M3 -> CpuStorage.U8(self.f(C.vs(v1), l1, C.vs(v2), l2))
             else -> throw CandleException.DTypeMismatchBinaryOp(
                 lhs = v1.dtype(),
                 rhs = v2.dtype(),
-                op = op,
+                op = self.op,
             )
         }
+    }
 }
 
 public fun <T, U> binaryMap(

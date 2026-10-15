@@ -54,10 +54,49 @@ private const val MMVQ_MAX_BATCH: Int = 8
 
 internal class WorkspaceSlot(
     var slice: CudaSlice,
-    var cap: Int
+    var cap: Int,
 )
 
 private val WORKSPACE: OnceCell<MutableMap<DeviceId, WorkspaceSlot>> = OnceCell.new()
+
+private object Ffi {
+    val launchMmvqGgufQ40Bf16Plain: PlainLauncher = PlainLauncher("launch_mmvq_gguf_q4_0_bf16_plain") { _, _, _, _, _, _, _, _, _ -> }
+    val launchMmvqGgufQ41Bf16Plain: PlainLauncher = PlainLauncher("launch_mmvq_gguf_q4_1_bf16_plain") { _, _, _, _, _, _, _, _, _ -> }
+    val launchMmvqGgufQ50Bf16Plain: PlainLauncher = PlainLauncher("launch_mmvq_gguf_q5_0_bf16_plain") { _, _, _, _, _, _, _, _, _ -> }
+    val launchMmvqGgufQ51Bf16Plain: PlainLauncher = PlainLauncher("launch_mmvq_gguf_q5_1_bf16_plain") { _, _, _, _, _, _, _, _, _ -> }
+    val launchMmvqGgufQ80Bf16Plain: PlainLauncher = PlainLauncher("launch_mmvq_gguf_q8_0_bf16_plain") { _, _, _, _, _, _, _, _, _ -> }
+    val launchMmvqGgufQ2KBf16Plain: PlainLauncher = PlainLauncher("launch_mmvq_gguf_q2_k_bf16_plain") { _, _, _, _, _, _, _, _, _ -> }
+    val launchMmvqGgufQ3KBf16Plain: PlainLauncher = PlainLauncher("launch_mmvq_gguf_q3_k_bf16_plain") { _, _, _, _, _, _, _, _, _ -> }
+    val launchMmvqGgufQ4KBf16Plain: PlainLauncher = PlainLauncher("launch_mmvq_gguf_q4_k_bf16_plain") { _, _, _, _, _, _, _, _, _ -> }
+    val launchMmvqGgufQ5KBf16Plain: PlainLauncher = PlainLauncher("launch_mmvq_gguf_q5_k_bf16_plain") { _, _, _, _, _, _, _, _, _ -> }
+    val launchMmvqGgufQ6KBf16Plain: PlainLauncher = PlainLauncher("launch_mmvq_gguf_q6_k_bf16_plain") { _, _, _, _, _, _, _, _, _ -> }
+
+    val launchMmvqGgufQ40F16Plain: PlainLauncher = PlainLauncher("launch_mmvq_gguf_q4_0_f16_plain") { _, _, _, _, _, _, _, _, _ -> }
+    val launchMmvqGgufQ41F16Plain: PlainLauncher = PlainLauncher("launch_mmvq_gguf_q4_1_f16_plain") { _, _, _, _, _, _, _, _, _ -> }
+    val launchMmvqGgufQ50F16Plain: PlainLauncher = PlainLauncher("launch_mmvq_gguf_q5_0_f16_plain") { _, _, _, _, _, _, _, _, _ -> }
+    val launchMmvqGgufQ51F16Plain: PlainLauncher = PlainLauncher("launch_mmvq_gguf_q5_1_f16_plain") { _, _, _, _, _, _, _, _, _ -> }
+    val launchMmvqGgufQ80F16Plain: PlainLauncher = PlainLauncher("launch_mmvq_gguf_q8_0_f16_plain") { _, _, _, _, _, _, _, _, _ -> }
+    val launchMmvqGgufQ2KF16Plain: PlainLauncher = PlainLauncher("launch_mmvq_gguf_q2_k_f16_plain") { _, _, _, _, _, _, _, _, _ -> }
+    val launchMmvqGgufQ3KF16Plain: PlainLauncher = PlainLauncher("launch_mmvq_gguf_q3_k_f16_plain") { _, _, _, _, _, _, _, _, _ -> }
+    val launchMmvqGgufQ4KF16Plain: PlainLauncher = PlainLauncher("launch_mmvq_gguf_q4_k_f16_plain") { _, _, _, _, _, _, _, _, _ -> }
+    val launchMmvqGgufQ5KF16Plain: PlainLauncher = PlainLauncher("launch_mmvq_gguf_q5_k_f16_plain") { _, _, _, _, _, _, _, _, _ -> }
+    val launchMmvqGgufQ6KF16Plain: PlainLauncher = PlainLauncher("launch_mmvq_gguf_q6_k_f16_plain") { _, _, _, _, _, _, _, _, _ -> }
+
+    val launchMmvqGgufQ40F32Plain: PlainLauncher = PlainLauncher("launch_mmvq_gguf_q4_0_f32_plain") { _, _, _, _, _, _, _, _, _ -> }
+    val launchMmvqGgufQ41F32Plain: PlainLauncher = PlainLauncher("launch_mmvq_gguf_q4_1_f32_plain") { _, _, _, _, _, _, _, _, _ -> }
+    val launchMmvqGgufQ50F32Plain: PlainLauncher = PlainLauncher("launch_mmvq_gguf_q5_0_f32_plain") { _, _, _, _, _, _, _, _, _ -> }
+    val launchMmvqGgufQ51F32Plain: PlainLauncher = PlainLauncher("launch_mmvq_gguf_q5_1_f32_plain") { _, _, _, _, _, _, _, _, _ -> }
+    val launchMmvqGgufQ80F32Plain: PlainLauncher = PlainLauncher("launch_mmvq_gguf_q8_0_f32_plain") { _, _, _, _, _, _, _, _, _ -> }
+    val launchMmvqGgufQ2KF32Plain: PlainLauncher = PlainLauncher("launch_mmvq_gguf_q2_k_f32_plain") { _, _, _, _, _, _, _, _, _ -> }
+    val launchMmvqGgufQ3KF32Plain: PlainLauncher = PlainLauncher("launch_mmvq_gguf_q3_k_f32_plain") { _, _, _, _, _, _, _, _, _ -> }
+    val launchMmvqGgufQ4KF32Plain: PlainLauncher = PlainLauncher("launch_mmvq_gguf_q4_k_f32_plain") { _, _, _, _, _, _, _, _, _ -> }
+    val launchMmvqGgufQ5KF32Plain: PlainLauncher = PlainLauncher("launch_mmvq_gguf_q5_k_f32_plain") { _, _, _, _, _, _, _, _, _ -> }
+    val launchMmvqGgufQ6KF32Plain: PlainLauncher = PlainLauncher("launch_mmvq_gguf_q6_k_f32_plain") { _, _, _, _, _, _, _, _, _ -> }
+
+    val launchMmvqGgufQuantizeQ81Bf16: (ULong, ULong, Int, Int, Int, ULong) -> Unit = { _, _, _, _, _, _ -> }
+    val launchMmvqGgufQuantizeQ81F16: (ULong, ULong, Int, Int, Int, ULong) -> Unit = { _, _, _, _, _, _ -> }
+    val launchMmvqGgufQuantizeQ81F32: (ULong, ULong, Int, Int, Int, ULong) -> Unit = { _, _, _, _, _, _ -> }
+}
 
 /**
  * Returns a device pointer to the scratch workspace, growing it if needed.
@@ -67,24 +106,29 @@ private val WORKSPACE: OnceCell<MutableMap<DeviceId, WorkspaceSlot>> = OnceCell.
  */
 private fun workspaceEnsure(
     dev: CudaDevice,
-    bytes: Int
-): Result<Pair<ULong, MutableMap<DeviceId, WorkspaceSlot>>> = runCatching {
+    bytes: Int,
+): Result<
+    Pair<ULong, MutableMap<DeviceId, WorkspaceSlot>>
+> = runCatching {
     val map = WORKSPACE.getOrInit { HashMap() }
     val deviceKey = DeviceId(dev.ordinal)
-    val existing = map[deviceKey]
+    val guard = map
+    val existing = guard[deviceKey]
     val slot = if (existing != null) {
-        if (existing.cap < bytes) {
-            existing.slice = CudaSlice(ByteArray(bytes))
-            existing.cap = bytes
+        val slot = existing
+        if (slot.cap < bytes) {
+            slot.slice = CudaSlice(ByteArray(bytes))
+            slot.cap = bytes
         }
-        existing
+        slot
     } else {
-        val created = WorkspaceSlot(CudaSlice(ByteArray(bytes)), bytes)
-        map[deviceKey] = created
+        val slice = CudaSlice(ByteArray(bytes))
+        val created = WorkspaceSlot(slice = slice, cap = bytes)
+        guard[deviceKey] = created
         created
     }
     val ptr = slot.slice.bytes.hashCode().toULong()
-    Pair(ptr, map)
+    Pair(ptr, guard)
 }
 
 // ---------------------------------------------------------------------------
@@ -103,58 +147,61 @@ internal class PlainLauncher(
         strideColDst: Int,
         bSize: Int,
         stream: ULong
-    ) -> Unit
+    ) -> Unit,
 )
 
 private fun plainLauncherBf16(dtype: GgmlDType): PlainLauncher? {
-    val kernelName = when (dtype) {
-        GgmlDType.Q4_0 -> "launch_mmvq_gguf_q4_0_bf16_plain"
-        GgmlDType.Q4_1 -> "launch_mmvq_gguf_q4_1_bf16_plain"
-        GgmlDType.Q5_0 -> "launch_mmvq_gguf_q5_0_bf16_plain"
-        GgmlDType.Q5_1 -> "launch_mmvq_gguf_q5_1_bf16_plain"
-        GgmlDType.Q8_0 -> "launch_mmvq_gguf_q8_0_bf16_plain"
-        GgmlDType.Q2K -> "launch_mmvq_gguf_q2_k_bf16_plain"
-        GgmlDType.Q3K -> "launch_mmvq_gguf_q3_k_bf16_plain"
-        GgmlDType.Q4K -> "launch_mmvq_gguf_q4_k_bf16_plain"
-        GgmlDType.Q5K -> "launch_mmvq_gguf_q5_k_bf16_plain"
-        GgmlDType.Q6K -> "launch_mmvq_gguf_q6_k_bf16_plain"
+    val ffi = Ffi
+    val f: PlainLauncher = when (dtype) {
+        GgmlDType.Q4_0 -> ffi.launchMmvqGgufQ40Bf16Plain
+        GgmlDType.Q4_1 -> ffi.launchMmvqGgufQ41Bf16Plain
+        GgmlDType.Q5_0 -> ffi.launchMmvqGgufQ50Bf16Plain
+        GgmlDType.Q5_1 -> ffi.launchMmvqGgufQ51Bf16Plain
+        GgmlDType.Q8_0 -> ffi.launchMmvqGgufQ80Bf16Plain
+        GgmlDType.Q2K -> ffi.launchMmvqGgufQ2KBf16Plain
+        GgmlDType.Q3K -> ffi.launchMmvqGgufQ3KBf16Plain
+        GgmlDType.Q4K -> ffi.launchMmvqGgufQ4KBf16Plain
+        GgmlDType.Q5K -> ffi.launchMmvqGgufQ5KBf16Plain
+        GgmlDType.Q6K -> ffi.launchMmvqGgufQ6KBf16Plain
         else -> return null
     }
-    return PlainLauncher(kernelName) { _, _, _, _, _, _, _, _, _ -> }
+    return f
 }
 
 private fun plainLauncherF16(dtype: GgmlDType): PlainLauncher? {
-    val kernelName = when (dtype) {
-        GgmlDType.Q4_0 -> "launch_mmvq_gguf_q4_0_f16_plain"
-        GgmlDType.Q4_1 -> "launch_mmvq_gguf_q4_1_f16_plain"
-        GgmlDType.Q5_0 -> "launch_mmvq_gguf_q5_0_f16_plain"
-        GgmlDType.Q5_1 -> "launch_mmvq_gguf_q5_1_f16_plain"
-        GgmlDType.Q8_0 -> "launch_mmvq_gguf_q8_0_f16_plain"
-        GgmlDType.Q2K -> "launch_mmvq_gguf_q2_k_f16_plain"
-        GgmlDType.Q3K -> "launch_mmvq_gguf_q3_k_f16_plain"
-        GgmlDType.Q4K -> "launch_mmvq_gguf_q4_k_f16_plain"
-        GgmlDType.Q5K -> "launch_mmvq_gguf_q5_k_f16_plain"
-        GgmlDType.Q6K -> "launch_mmvq_gguf_q6_k_f16_plain"
+    val ffi = Ffi
+    val f: PlainLauncher = when (dtype) {
+        GgmlDType.Q4_0 -> ffi.launchMmvqGgufQ40F16Plain
+        GgmlDType.Q4_1 -> ffi.launchMmvqGgufQ41F16Plain
+        GgmlDType.Q5_0 -> ffi.launchMmvqGgufQ50F16Plain
+        GgmlDType.Q5_1 -> ffi.launchMmvqGgufQ51F16Plain
+        GgmlDType.Q8_0 -> ffi.launchMmvqGgufQ80F16Plain
+        GgmlDType.Q2K -> ffi.launchMmvqGgufQ2KF16Plain
+        GgmlDType.Q3K -> ffi.launchMmvqGgufQ3KF16Plain
+        GgmlDType.Q4K -> ffi.launchMmvqGgufQ4KF16Plain
+        GgmlDType.Q5K -> ffi.launchMmvqGgufQ5KF16Plain
+        GgmlDType.Q6K -> ffi.launchMmvqGgufQ6KF16Plain
         else -> return null
     }
-    return PlainLauncher(kernelName) { _, _, _, _, _, _, _, _, _ -> }
+    return f
 }
 
 private fun plainLauncherF32(dtype: GgmlDType): PlainLauncher? {
-    val kernelName = when (dtype) {
-        GgmlDType.Q4_0 -> "launch_mmvq_gguf_q4_0_f32_plain"
-        GgmlDType.Q4_1 -> "launch_mmvq_gguf_q4_1_f32_plain"
-        GgmlDType.Q5_0 -> "launch_mmvq_gguf_q5_0_f32_plain"
-        GgmlDType.Q5_1 -> "launch_mmvq_gguf_q5_1_f32_plain"
-        GgmlDType.Q8_0 -> "launch_mmvq_gguf_q8_0_f32_plain"
-        GgmlDType.Q2K -> "launch_mmvq_gguf_q2_k_f32_plain"
-        GgmlDType.Q3K -> "launch_mmvq_gguf_q3_k_f32_plain"
-        GgmlDType.Q4K -> "launch_mmvq_gguf_q4_k_f32_plain"
-        GgmlDType.Q5K -> "launch_mmvq_gguf_q5_k_f32_plain"
-        GgmlDType.Q6K -> "launch_mmvq_gguf_q6_k_f32_plain"
+    val ffi = Ffi
+    val f: PlainLauncher = when (dtype) {
+        GgmlDType.Q4_0 -> ffi.launchMmvqGgufQ40F32Plain
+        GgmlDType.Q4_1 -> ffi.launchMmvqGgufQ41F32Plain
+        GgmlDType.Q5_0 -> ffi.launchMmvqGgufQ50F32Plain
+        GgmlDType.Q5_1 -> ffi.launchMmvqGgufQ51F32Plain
+        GgmlDType.Q8_0 -> ffi.launchMmvqGgufQ80F32Plain
+        GgmlDType.Q2K -> ffi.launchMmvqGgufQ2KF32Plain
+        GgmlDType.Q3K -> ffi.launchMmvqGgufQ3KF32Plain
+        GgmlDType.Q4K -> ffi.launchMmvqGgufQ4KF32Plain
+        GgmlDType.Q5K -> ffi.launchMmvqGgufQ5KF32Plain
+        GgmlDType.Q6K -> ffi.launchMmvqGgufQ6KF32Plain
         else -> return null
     }
-    return PlainLauncher(kernelName) { _, _, _, _, _, _, _, _, _ -> }
+    return f
 }
 
 // ---------------------------------------------------------------------------
@@ -171,8 +218,9 @@ fun tryFwd(
     qstorage: QCudaStorage,
     selfShape: Shape,
     rhs: CudaStorage,
-    rhsL: Layout
+    rhsL: Layout,
 ): Result<Pair<CudaStorage, Shape>?> = runCatching {
+    val ffi = Ffi
     val wDtype = qstorage.dtype()
     if (!supports(wDtype)) {
         return@runCatching null
@@ -183,7 +231,6 @@ fun tryFwd(
     }
 
     val (nrows, ncols) = selfShape.dims2().getOrThrow()
-
     val rhsDims = rhsL.shape().dims
     val (bSize, k) = when (rhsDims.size) {
         3 -> Pair(rhsDims[0] * rhsDims[1], rhsDims[2])
@@ -197,8 +244,11 @@ fun tryFwd(
         return@runCatching null
     }
 
-    val offsets = rhsL.contiguousOffsets() ?: return@runCatching null
-    val (o1, o2) = offsets
+    val offsets = rhsL.contiguousOffsets()
+    val (o1, o2) = when (offsets) {
+        null -> return@runCatching null
+        else -> offsets
+    }
 
     val dev = qstorage.device()
     val streamPtr = dev.ordinal.toULong()
@@ -208,68 +258,121 @@ fun tryFwd(
     val dstRowBytes = numBlocksPerRow * Q8_1_TYPE_SIZE
     val scratchBytes = bSize * dstRowBytes
 
-    val (scratchPtr, _) = workspaceEnsure(dev, scratchBytes).getOrThrow()
-    val strideColY = kPadded / Q8_1_BLOCK_SIZE
-    val strideColDst = nrows
+    val workspacePair = workspaceEnsure(dev, scratchBytes).getOrThrow()
+    val scratchPtr = workspacePair.first
+    val workspaceGuard = workspacePair.second
+    val strideColY = (kPadded / Q8_1_BLOCK_SIZE).toInt()
+    val strideColDst = nrows.toInt()
     val weightPtr = qstorage.devicePtr().getOrThrow()
 
-    val outDims = rhsDims.dropLast(1) + nrows
-    val outShape = Shape(outDims)
+    val outShape = rhsL.shape().dims.toMutableList()
+    outShape.removeAt(outShape.lastIndex)
+    outShape.add(nrows)
+
+    val stream = dev.ordinal + workspaceGuard.size * 0
 
     when (inputDtype) {
         DType.BF16 -> {
-            val rhsPtr = (o1 + o2).toULong()
+            val rhsSlice = rhs.slice
+            val rhsSliceView = Pair(o1, o2)
+            val out = CudaSlice(ByteArray(nrows * bSize * 2))
+
+            val rhsPtr = (rhsSlice.hashCode() + rhsSliceView.first + stream).toULong()
+            val outPtr = out.bytes.hashCode().toULong()
+
+            run {
+                ffi.launchMmvqGgufQuantizeQ81Bf16(
+                    rhsPtr,
+                    scratchPtr,
+                    k.toInt(),
+                    kPadded.toInt(),
+                    bSize.toInt(),
+                    streamPtr,
+                )
+                val launcher = plainLauncherBf16(wDtype)!!.invoke
+                launcher(
+                    weightPtr,
+                    scratchPtr,
+                    outPtr,
+                    k.toInt(),
+                    nrows.toInt(),
+                    strideColY,
+                    strideColDst,
+                    bSize.toInt(),
+                    streamPtr,
+                )
+            }
+
             val outStorage = CudaStorage(dev, DType.BF16)
-            val outPtr = (nrows * bSize).toULong()
-            val launcher = plainLauncherBf16(wDtype)!!
-            launcher.invoke(
-                weightPtr,
-                scratchPtr + rhsPtr * 0uL,
-                outPtr,
-                k,
-                nrows,
-                strideColY,
-                strideColDst,
-                bSize,
-                streamPtr
-            )
-            Pair(outStorage, outShape)
+            Pair(outStorage, Shape(outShape))
         }
         DType.F16 -> {
-            val rhsPtr = (o1 + o2).toULong()
+            val rhsSlice = rhs.slice
+            val rhsSliceView = Pair(o1, o2)
+            val out = CudaSlice(ByteArray(nrows * bSize * 2))
+
+            val rhsPtr = (rhsSlice.hashCode() + rhsSliceView.first + stream).toULong()
+            val outPtr = out.bytes.hashCode().toULong()
+
+            run {
+                ffi.launchMmvqGgufQuantizeQ81F16(
+                    rhsPtr,
+                    scratchPtr,
+                    k.toInt(),
+                    kPadded.toInt(),
+                    bSize.toInt(),
+                    streamPtr,
+                )
+                val launcher = plainLauncherF16(wDtype)!!.invoke
+                launcher(
+                    weightPtr,
+                    scratchPtr,
+                    outPtr,
+                    k.toInt(),
+                    nrows.toInt(),
+                    strideColY,
+                    strideColDst,
+                    bSize.toInt(),
+                    streamPtr,
+                )
+            }
+
             val outStorage = CudaStorage(dev, DType.F16)
-            val outPtr = (nrows * bSize).toULong()
-            val launcher = plainLauncherF16(wDtype)!!
-            launcher.invoke(
-                weightPtr,
-                scratchPtr + rhsPtr * 0uL,
-                outPtr,
-                k,
-                nrows,
-                strideColY,
-                strideColDst,
-                bSize,
-                streamPtr
-            )
-            Pair(outStorage, outShape)
+            Pair(outStorage, Shape(outShape))
         }
         DType.F32 -> {
-            val rhsPtr = (o1 + o2).toULong()
+            val rhsSlice = rhs.slice
+            val rhsSliceView = Pair(o1, o2)
+            val out = CudaSlice(ByteArray(nrows * bSize * 4))
+
+            val rhsPtr = (rhsSlice.hashCode() + rhsSliceView.first + stream).toULong()
+            val outPtr = out.bytes.hashCode().toULong()
+
+            run {
+                ffi.launchMmvqGgufQuantizeQ81F32(
+                    rhsPtr,
+                    scratchPtr,
+                    k.toInt(),
+                    kPadded.toInt(),
+                    bSize.toInt(),
+                    streamPtr,
+                )
+                val launcher = plainLauncherF32(wDtype)!!.invoke
+                launcher(
+                    weightPtr,
+                    scratchPtr,
+                    outPtr,
+                    k.toInt(),
+                    nrows.toInt(),
+                    strideColY,
+                    strideColDst,
+                    bSize.toInt(),
+                    streamPtr,
+                )
+            }
+
             val outStorage = CudaStorage(dev, DType.F32)
-            val outPtr = (nrows * bSize).toULong()
-            val launcher = plainLauncherF32(wDtype)!!
-            launcher.invoke(
-                weightPtr,
-                scratchPtr + rhsPtr * 0uL,
-                outPtr,
-                k,
-                nrows,
-                strideColY,
-                strideColDst,
-                bSize,
-                streamPtr
-            )
-            Pair(outStorage, outShape)
+            Pair(outStorage, Shape(outShape))
         }
         else -> null
     }

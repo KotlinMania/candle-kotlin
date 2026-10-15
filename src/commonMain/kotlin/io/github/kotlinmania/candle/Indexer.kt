@@ -75,57 +75,62 @@ public sealed class TensorIndexer {
     ) : TensorIndexer()
 
     public companion object {
-        /** Creates a [Select] indexer for single-index selection at position [n]. */
-        public fun select(n: Int): TensorIndexer = Select(n)
+        /** Creates a [Select] indexer for single-index selection at position `n`. */
+        public val select: (Int) -> TensorIndexer = { n -> Select(n) }
 
-        /** Creates a [Narrow] range indexer from [start] (inclusive) to [end] (exclusive). */
-        public fun narrow(start: Int?, end: Int?): TensorIndexer = Narrow(start, end)
+        /** Creates a [Narrow] range indexer from `start` (inclusive) to `end` (exclusive). */
+        public val narrow: (Int?, Int?) -> TensorIndexer = { start, end -> Narrow(start, end) }
 
-        /** Creates an [IndexSelect] indexer using the 1D [indexes] tensor. */
-        public fun indexSelect(indexes: Tensor): TensorIndexer = IndexSelect(indexes)
+        /** Creates an [IndexSelect] indexer using the 1D `indexes` tensor. */
+        public val indexSelect: (Tensor) -> TensorIndexer = { indexes -> IndexSelect(indexes) }
 
         /** Unbounded range indexer (`..`) selecting the entire extent of a dimension. */
         public val full: TensorIndexer = Narrow(null, null)
 
         /** Converts a single integer [index] into a [Select] indexer. */
-        public fun from(index: Int): TensorIndexer = Select(index)
+        public fun from(index: Int): TensorIndexer {
+            return TensorIndexer.Select(index)
+        }
 
         /** Converts a [UIntArray] of indices into a CPU-backed [IndexSelect] indexer. */
-        public fun from(index: UIntArray): TensorIndexer =
-            try {
-                val tensor = Tensor.fromSlice(index.toList(), Shape(index.size), Device.Cpu)
-                IndexSelect(tensor)
-            } catch (e: CandleException) {
-                Err(e)
+        public fun from(index: UIntArray): TensorIndexer {
+            val tensor = Tensor.new(index.map { it.toLong() }, Device.Cpu)
+            return when (tensor.rank()) {
+                1 -> TensorIndexer.IndexSelect(tensor)
+                else -> TensorIndexer.Err(CandleException.Msg("invalid index"))
             }
+        }
 
         /** Converts a [List] of [UInt] indices into a CPU-backed [IndexSelect] indexer. */
         public fun from(index: List<UInt>): TensorIndexer {
             val len = index.size
-            return try {
-                val tensor = Tensor.fromVec(index, Shape(len), Device.Cpu)
-                IndexSelect(tensor)
-            } catch (e: CandleException) {
-                Err(e)
+            val tensor = Tensor.fromVec(index, Shape(len), Device.Cpu)
+            return when (tensor.rank()) {
+                1 -> TensorIndexer.IndexSelect(tensor)
+                else -> TensorIndexer.Err(CandleException.Msg("invalid index"))
             }
         }
 
         /** Wraps a 1D [tensor] of integer indices as an [IndexSelect] indexer. */
-        public fun from(tensor: Tensor): TensorIndexer = IndexSelect(tensor.clone())
+        public fun from(tensor: Tensor): TensorIndexer {
+            return TensorIndexer.IndexSelect(tensor.clone())
+        }
 
         /** Converts an [RB] range specification into a [Narrow] slice indexer. */
         public fun <T : RB> from(range: T): TensorIndexer {
-            val start = when (val s = range.startBound()) {
-                is Bound.Included -> s.value
-                is Bound.Excluded -> s.value + 1
-                is Bound.Unbounded -> null
+            val startBound = range.startBound()
+            val start = when (startBound) {
+                is Bound.Included -> Bound.Included(startBound.value)
+                is Bound.Excluded -> Bound.Excluded(startBound.value)
+                is Bound.Unbounded -> Bound.Unbounded
             }
-            val end = when (val e = range.endBound()) {
-                is Bound.Included -> e.value + 1
-                is Bound.Excluded -> e.value
-                is Bound.Unbounded -> null
+            val endBound = range.endBound()
+            val end = when (endBound) {
+                is Bound.Included -> Bound.Included(endBound.value)
+                is Bound.Excluded -> Bound.Excluded(endBound.value)
+                is Bound.Unbounded -> Bound.Unbounded
             }
-            return Narrow(start, end, range.startBound(), range.endBound())
+            return TensorIndexer.Narrow(null, null, start, end)
         }
     }
 }
@@ -148,35 +153,30 @@ public interface IndexOp<T> {
  * ```kotlin
  * val a = Tensor.zeros(Shape(2, 3), DType.F32, Device.Cpu)
  *
- * val c0 = a.i(0..0)
- * check(c0.shape().dims() == listOf(1, 3))
- *
  * val c1 = a.i(0)
  * check(c1.shape().dims() == listOf(3))
- *
- * val c2 = a.i(Pair(TensorIndexer.full, TensorIndexer.narrow(0, 2)))
- * check(c2.shape().dims() == listOf(2, 2))
- *
- * val c3 = a.i(Pair(TensorIndexer.full, TensorIndexer.narrow(0, 3)))
- * check(c3.shape().dims() == listOf(2, 3))
  * ```
  */
 public fun Tensor.index(indexers: List<TensorIndexer>): Tensor {
     var x = this.clone()
-    val dims = shape().dims()
+    val dims = this.shape().dims()
     var currentDim = 0
-    for ((i, indexer) in indexers.withIndex()) {
+    for (entry in indexers.withIndex()) {
+        val i = entry.index
+        val indexer = entry.value
         x = when (indexer) {
             is TensorIndexer.Select -> x.narrow(currentDim, indexer.n, 1).squeeze(currentDim)
             is TensorIndexer.Narrow -> {
-                val start = when (val lb = indexer.leftBound) {
-                    is Bound.Included -> lb.value
-                    is Bound.Excluded -> lb.value + 1
+                val leftBound = indexer.leftBound
+                val start = when (leftBound) {
+                    is Bound.Included -> leftBound.value
+                    is Bound.Excluded -> leftBound.value + 1
                     is Bound.Unbounded -> indexer.start ?: 0
                 }
-                val stop = when (val rb = indexer.rightBound) {
-                    is Bound.Included -> rb.value + 1
-                    is Bound.Excluded -> rb.value
+                val rightBound = indexer.rightBound
+                val stop = when (rightBound) {
+                    is Bound.Included -> rightBound.value + 1
+                    is Bound.Excluded -> rightBound.value
                     is Bound.Unbounded -> indexer.end ?: dims[i]
                 }
                 val out = x.narrow(currentDim, start, maxOf(0, stop - start))
@@ -185,123 +185,35 @@ public fun Tensor.index(indexers: List<TensorIndexer>): Tensor {
             }
             is TensorIndexer.IndexSelect -> {
                 if (indexer.indexes.rank() != 1) {
-                    throw CandleException.Msg("multi-dimensional tensor indexing is not supported")
+                    bail("multi-dimensional tensor indexing is not supported")
                 }
                 val out = x.indexSelect(indexer.indexes.toDevice(x.device()), currentDim)
                 currentDim += 1
                 out
             }
-            is TensorIndexer.Err -> throw CandleException.Msg("indexing error ${indexer.error}")
+            is TensorIndexer.Err -> bail("indexing error ${indexer.error}")
         }
     }
     return x
 }
 
 /**
- * Index a tensor along multiple dimensions using a vararg list of [TensorIndexer]s.
- *
- * See [Tensor.i] for detailed single-axis and multi-axis slicing examples.
+ * Index a tensor along the first dimension using a single [Int] index.
  */
-public fun Tensor.i(vararg indexers: TensorIndexer): Tensor = index(indexers.toList())
+public fun Tensor.i(index: Int): Tensor {
+    return this.index(listOf(TensorIndexer.from(index)))
+}
 
 /**
  * Index a tensor along the first dimension using a single [TensorIndexer].
- *
- * ```kotlin
- * val a = Tensor.new(listOf(listOf(0.0, 1.0), listOf(2.0, 3.0), listOf(4.0, 5.0)), Device.Cpu)
- *
- * val b = a.i(0)
- * check(b.shape().dims() == listOf(2))
- * check(b.toVec1<Double>() == listOf(0.0, 1.0))
- *
- * val c = a.i(TensorIndexer.narrow(0, 2))
- * check(c.shape().dims() == listOf(2, 2))
- * check(c.toVec2<Double>() == listOf(listOf(0.0, 1.0), listOf(2.0, 3.0)))
- *
- * val d = a.i(TensorIndexer.narrow(1, null))
- * check(d.shape().dims() == listOf(2, 2))
- * check(d.toVec2<Double>() == listOf(listOf(2.0, 3.0), listOf(4.0, 5.0)))
- * ```
  */
-public fun Tensor.i(indexer: TensorIndexer): Tensor = index(listOf(indexer))
+public fun Tensor.i(a: TensorIndexer): Tensor {
+    return this.index(listOf(a))
+}
 
 /**
  * Index a tensor along two dimensions using a pair of [TensorIndexer]s.
- *
- * ```kotlin
- * val a = Tensor.new(
- *     listOf(
- *         listOf(0f, 1f, 2f),
- *         listOf(3f, 4f, 5f),
- *         listOf(6f, 7f, 8f),
- *     ),
- *     Device.Cpu,
- * )
- *
- * val b = a.i(Pair(TensorIndexer.Select(1), TensorIndexer.Select(0)))
- * check(b.toVec0<Float>() == 3f)
- *
- * val c = a.i(Pair(TensorIndexer.narrow(0, 2), TensorIndexer.Select(1)))
- * check(c.shape().dims() == listOf(2))
- * check(c.toVec1<Float>() == listOf(1f, 4f))
- *
- * val d = a.i(Pair(TensorIndexer.narrow(2, null), TensorIndexer.full))
- * check(d.shape().dims() == listOf(1, 3))
- * check(d.toVec2<Float>() == listOf(listOf(6f, 7f, 8f)))
- * ```
  */
-public fun Tensor.i(indexers: Pair<TensorIndexer, TensorIndexer>): Tensor =
-    index(listOf(indexers.first, indexers.second))
-
-/**
- * Index a tensor along three dimensions using a triple of [TensorIndexer]s.
- *
- *```kotlin
- * val a = Tensor.new(
- *     listOf(
- *         listOf(0f, 1f),
- *         listOf(2f, 3f),
- *         listOf(4f, 5f),
- *     ),
- *     Device.Cpu,
- * )
- *
- * val b = a.i(0)
- * check(b.shape().dims() == listOf(2))
- * check(b.toVec1<Float>() == listOf(0f, 1f))
- *
- * val c = a.i(TensorIndexer.narrow(0, 2))
- * check(c.shape().dims() == listOf(2, 2))
- * check(c.toVec2<Float>() == listOf(listOf(0f, 1f), listOf(2f, 3f)))
- *
- * val d = a.i(TensorIndexer.narrow(1, null))
- * check(d.shape().dims() == listOf(2, 2))
- * check(d.toVec2<Float>() == listOf(listOf(2f, 3f), listOf(4f, 5f)))
- * ```
- */
-public fun Tensor.i(indexers: Triple<TensorIndexer, TensorIndexer, TensorIndexer>): Tensor =
-    index(listOf(indexers.first, indexers.second, indexers.third))
-
-/**
- * Slice a tensor along the first dimension using an [IntRange].
- *
- * See [Tensor.i] for details.
- */
-internal fun Tensor.i(range: IntRange): Tensor =
-    i(TensorIndexer.Narrow(range.first, range.last + 1))
-
-/**
- * Slice a tensor along the first dimension from [start] (inclusive) to [end] (exclusive).
- *
- * See [Tensor.i] for details.
- */
-public fun Tensor.i(start: Int, end: Int): Tensor =
-    i(TensorIndexer.Narrow(start, end))
-
-/**
- * Select a single index along the first dimension of a tensor.
- *
- * See [Tensor.i] for details.
- */
-public fun Tensor.i(index: Int): Tensor =
-    i(TensorIndexer.Select(index))
+public fun Tensor.i(ab: Pair<TensorIndexer, TensorIndexer>): Tensor {
+    return this.index(listOf(ab.first, ab.second))
+}

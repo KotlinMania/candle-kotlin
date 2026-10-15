@@ -12,33 +12,68 @@ import io.github.kotlinmania.threadlocal.ThreadLocal
 
 // The cudnn handles are stored per thread here rather than on the CudaDevice as they are neither
 // send nor sync.
-private val CUDNN: ThreadLocal<MutableMap<DeviceId, Any>> = ThreadLocal()
+private val CUDNN: ThreadLocal<MutableMap<DeviceId, Cudnn>> = ThreadLocal()
 
-private val cudnnNew: (Any) -> Result<Any> = { stream -> Result.success(stream) }
-private val createConv2d: (Any, IntArray, IntArray, IntArray, Int) -> Result<IntArray> = { _, pad, stride, dilation, mode ->
-    Result.success(intArrayOf(pad[0], pad[1], stride[0], stride[1], dilation[0], dilation[1], mode))
-}
-private val create4dTensor: (Any, Int, IntArray) -> Result<IntArray> = { _, _, shape ->
-    Result.success(shape)
-}
-private val create4dTensorEx: (Any, IntArray, IntArray) -> Result<IntArray> = { _, shape, stride ->
-    Result.success(shape + stride)
-}
-private val create4dFilter: (Any, Int, IntArray) -> Result<IntArray> = { _, _, shape ->
-    Result.success(shape)
-}
-private val pickAlgorithm: (Array<IntArray>) -> Result<Int> = { _ -> Result.success(0) }
-private val getWorkspaceSize: (Array<IntArray>, Int) -> Result<Int> = { _, _ -> Result.success(0) }
-private val allocZerosU8: (Any, Int) -> Result<ByteArray> = { _, size -> Result.success(ByteArray(size)) }
-private val launchForward: (Array<IntArray>, Int, ByteArray, List<*>, List<*>, MutableList<*>) -> Result<Unit> = { _, _, _, _, _, _ ->
-    Result.success(Unit)
+internal class CudnnError(override val message: String) : Throwable(message)
+internal class DriverError(override val message: String) : Throwable(message)
+
+internal object CudnnConvolutionModeT {
+    const val CUDNN_CROSS_CORRELATION: Int = 0
 }
 
-fun from(err: String): CandleError {
-    return CandleError.wrap(Exception(err))
+internal object CudnnTensorFormatT {
+    const val CUDNN_TENSOR_NCHW: Int = 0
 }
 
-fun from(err: Throwable): CandleError {
+internal object A {
+    const val CUDNN_CONVOLUTION_FWD_ALGO_IMPLICIT_GEMM: Int = 0
+    const val CUDNN_CONVOLUTION_FWD_ALGO_IMPLICIT_PRECOMP_GEMM: Int = 1
+    const val CUDNN_CONVOLUTION_FWD_ALGO_GEMM: Int = 2
+    const val CUDNN_CONVOLUTION_FWD_ALGO_DIRECT: Int = 3
+    const val CUDNN_CONVOLUTION_FWD_ALGO_FFT: Int = 4
+    const val CUDNN_CONVOLUTION_FWD_ALGO_FFT_TILING: Int = 5
+    const val CUDNN_CONVOLUTION_FWD_ALGO_WINOGRAD: Int = 6
+    const val CUDNN_CONVOLUTION_FWD_ALGO_WINOGRAD_NONFUSED: Int = 7
+    const val CUDNN_CONVOLUTION_FWD_ALGO_COUNT: Int = 8
+}
+
+internal class Cudnn(val stream: Any) {
+    val createConv2d: (IntArray, IntArray, IntArray, Int) -> Result<IntArray> = { pad, stride, dilation, mode ->
+        Result.success(intArrayOf(pad[0], pad[1], stride[0], stride[1], dilation[0], dilation[1], mode))
+    }
+    val create4dTensor: (Int, IntArray) -> Result<IntArray> = { _, shape ->
+        Result.success(shape)
+    }
+    val create4dTensorEx: (IntArray, IntArray) -> Result<IntArray> = { shape, stride ->
+        Result.success(shape + stride)
+    }
+    val create4dFilter: (Int, IntArray) -> Result<IntArray> = { _, shape ->
+        Result.success(shape)
+    }
+
+    companion object {
+        val new: (Any) -> Result<Cudnn> = { stream -> Result.success(Cudnn(stream)) }
+    }
+}
+
+internal class ConvForward(
+    val conv: IntArray,
+    val x: IntArray,
+    val w: IntArray,
+    val y: IntArray,
+) {
+    val pickAlgorithm: () -> Result<Int> = { Result.success(0) }
+    val getWorkspaceSize: (Int) -> Result<Int> = { _ -> Result.success(0) }
+    val launch: (Int, ByteArray?, Pair<Int, Int>, List<*>, List<*>, MutableList<*>) -> Result<Unit> = { _, _, _, _, _, _ ->
+        Result.success(Unit)
+    }
+}
+
+fun from(err: CudnnError): CandleError {
+    return CandleError.wrap(err)
+}
+
+fun from(err: DriverError): CandleError {
     return CandleError.wrap(err)
 }
 
@@ -49,21 +84,25 @@ internal fun <T, Y> launchConv2d(
     dst: MutableList<T>,
     params: ParamsConv2D,
     dev: CudaDevice,
-): Result<Unit> {
+): Result<Unit> = runCatching {
     val deviceId = dev.id()
-    val map = CUDNN.getOr { HashMap() }
-    val cudnn = map[deviceId]?.let { Result.success(it) } ?: run {
-        val c = cudnnNew(dev)
-        c.getOrNull()?.let { map[deviceId] = it }
-        c
-    }
-    val handle = cudnn.getOrThrow()
-    val conv = createConv2d(
-        handle,
-        intArrayOf(params.padding, params.padding),
-        intArrayOf(params.stride, params.stride),
-        intArrayOf(params.dilation, params.dilation),
-        0,
+    val cudnn = CUDNN.getOr { HashMap() }.let { cudnn ->
+        val existing = cudnn[deviceId]
+        if (existing != null) {
+            Result.success(existing)
+        } else {
+            val c = Cudnn.new(dev)
+            if (c.isSuccess) {
+                cudnn[deviceId] = c.getOrThrow()
+            }
+            c
+        }
+    }.getOrThrow()
+    val conv = cudnn.createConv2d(
+        /* pad */ intArrayOf(params.padding, params.padding),
+        /* stride */ intArrayOf(params.stride, params.stride),
+        /* dilation */ intArrayOf(params.dilation, params.dilation),
+        CudnnConvolutionModeT.CUDNN_CROSS_CORRELATION,
     ).getOrThrow()
     val xShape = intArrayOf(
         params.bSize,
@@ -73,22 +112,19 @@ internal fun <T, Y> launchConv2d(
     )
     // Note that `src` already starts at the proper offset.
     val x = if (srcL.isContiguous()) {
-        create4dTensor(
-            handle,
-            0,
+        cudnn.create4dTensor(
+            CudnnTensorFormatT.CUDNN_TENSOR_NCHW,
             xShape,
         ).getOrThrow()
     } else {
         val s = srcL.stride()
-        create4dTensorEx(
-            handle,
+        cudnn.create4dTensorEx(
             xShape,
             intArrayOf(s[0], s[1], s[2], s[3]),
         ).getOrThrow()
     }
-    val w = create4dFilter(
-        handle,
-        0,
+    val w = cudnn.create4dFilter(
+        CudnnTensorFormatT.CUDNN_TENSOR_NCHW,
         intArrayOf(
             params.cOut,
             params.cIn,
@@ -96,37 +132,44 @@ internal fun <T, Y> launchConv2d(
             params.kW,
         ),
     ).getOrThrow()
-    val wOut = params.outW()
-    val hOut = params.outH()
-    val y = create4dTensor(
-        handle,
-        0,
+    val (wOut, hOut) = Pair(params.outW(), params.outH())
+    val y = cudnn.create4dTensor(
+        CudnnTensorFormatT.CUDNN_TENSOR_NCHW,
         intArrayOf(params.bSize, params.cOut, hOut, wOut),
     ).getOrThrow()
-    val conv2d = arrayOf(conv, x, w, y)
+    val conv2d = ConvForward(
+        conv = conv,
+        x = x,
+        w = w,
+        y = y,
+    )
     val alg = when (params.cudnnFwdAlgo) {
-        null -> pickAlgorithm(conv2d).getOrThrow()
-        CudnnFwdAlgo.ImplicitGemm -> 0
-        CudnnFwdAlgo.ImplicitPrecompGemm -> 1
-        CudnnFwdAlgo.Gemm -> 2
-        CudnnFwdAlgo.Direct -> 3
-        CudnnFwdAlgo.Fft -> 4
-        CudnnFwdAlgo.FftTiling -> 5
-        CudnnFwdAlgo.Winograd -> 6
-        CudnnFwdAlgo.WinogradNonFused -> 7
-        CudnnFwdAlgo.Count -> 8
+        null -> conv2d.pickAlgorithm().getOrThrow()
+        CudnnFwdAlgo.ImplicitGemm -> A.CUDNN_CONVOLUTION_FWD_ALGO_IMPLICIT_GEMM
+        CudnnFwdAlgo.ImplicitPrecompGemm -> {
+            A.CUDNN_CONVOLUTION_FWD_ALGO_IMPLICIT_PRECOMP_GEMM
+        }
+        CudnnFwdAlgo.Gemm -> A.CUDNN_CONVOLUTION_FWD_ALGO_GEMM
+        CudnnFwdAlgo.Direct -> A.CUDNN_CONVOLUTION_FWD_ALGO_DIRECT
+        CudnnFwdAlgo.Fft -> A.CUDNN_CONVOLUTION_FWD_ALGO_FFT
+        CudnnFwdAlgo.FftTiling -> A.CUDNN_CONVOLUTION_FWD_ALGO_FFT_TILING
+        CudnnFwdAlgo.Winograd -> A.CUDNN_CONVOLUTION_FWD_ALGO_WINOGRAD
+        CudnnFwdAlgo.WinogradNonFused -> A.CUDNN_CONVOLUTION_FWD_ALGO_WINOGRAD_NONFUSED
+        CudnnFwdAlgo.Count -> A.CUDNN_CONVOLUTION_FWD_ALGO_COUNT
     }
-    val workspaceSize = getWorkspaceSize(conv2d, alg).getOrThrow()
-    val workspace = allocZerosU8(dev, workspaceSize).getOrThrow()
-    launchForward(
-        conv2d,
-        alg,
-        workspace,
-        src,
-        filter,
-        dst,
-    ).getOrThrow()
-    return Result.success(Unit)
+    val workspaceSize = conv2d.getWorkspaceSize(alg).getOrThrow()
+    val workspace = ByteArray(workspaceSize)
+    run {
+        conv2d.launch(
+            alg,
+            workspace,
+            Pair(1, 0),
+            src,
+            filter,
+            dst,
+        ).getOrThrow()
+    }
+    Unit
 }
 
 internal fun <T, Y> launchConv1d(
@@ -136,22 +179,31 @@ internal fun <T, Y> launchConv1d(
     dst: MutableList<T>,
     params: ParamsConv1D,
     dev: CudaDevice,
-): Result<Unit> {
+): Result<Unit> = runCatching {
     val deviceId = dev.id()
-    val map = CUDNN.getOr { HashMap() }
-    val cudnn = map[deviceId]?.let { Result.success(it) } ?: run {
-        val c = cudnnNew(dev)
-        c.getOrNull()?.let { map[deviceId] = it }
-        c
-    }
-    val handle = cudnn.getOrThrow()
-    val conv = createConv2d(
-        handle,
-        intArrayOf(params.padding, 0),
-        intArrayOf(params.stride, 1),
-        intArrayOf(params.dilation, 1),
-        0,
+    val cudnn = CUDNN.getOr { HashMap() }.let { cudnn ->
+        val existing = cudnn[deviceId]
+        if (existing != null) {
+            Result.success(existing)
+        } else {
+            val c = Cudnn.new(dev)
+            if (c.isSuccess) {
+                cudnn[deviceId] = c.getOrThrow()
+            }
+            c
+        }
+    }.getOrThrow()
+    val conv = cudnn.createConv2d(
+        /* pad */ intArrayOf(params.padding, 0),
+        /* stride */ intArrayOf(params.stride, 1),
+        /* dilation */ intArrayOf(params.dilation, 1),
+        CudnnConvolutionModeT.CUDNN_CROSS_CORRELATION,
     ).getOrThrow()
+    // https://docs.nvidia.com/deeplearning/cudnn/backend/latest/api/cudnn-ops-library.html#cudnnsettensornddescriptor
+    // > Tensors are restricted to having at least 4 dimensions, and at most CUDNN_DIM_MAX
+    // > dimensions (defined in cudnn.h). When working with lower dimensional data, it is
+    // > recommended that the user create a 4D tensor, and set the size along unused dimensions
+    // > to 1.
     val xShape = intArrayOf(
         params.bSize,
         params.cIn,
@@ -160,22 +212,16 @@ internal fun <T, Y> launchConv1d(
     )
     // Note that `src` already starts at the proper offset.
     val x = if (srcL.isContiguous()) {
-        create4dTensor(
-            handle,
-            0,
+        cudnn.create4dTensor(
+            CudnnTensorFormatT.CUDNN_TENSOR_NCHW,
             xShape,
         ).getOrThrow()
     } else {
         val s = srcL.stride()
-        create4dTensorEx(
-            handle,
-            xShape,
-            intArrayOf(s[0], s[1], s[2], 1),
-        ).getOrThrow()
+        cudnn.create4dTensorEx(xShape, intArrayOf(s[0], s[1], s[2], 1)).getOrThrow()
     }
-    val w = create4dFilter(
-        handle,
-        0,
+    val w = cudnn.create4dFilter(
+        CudnnTensorFormatT.CUDNN_TENSOR_NCHW,
         intArrayOf(
             params.cOut,
             params.cIn,
@@ -184,33 +230,41 @@ internal fun <T, Y> launchConv1d(
         ),
     ).getOrThrow()
     val lOut = params.lOut()
-    val y = create4dTensor(
-        handle,
-        0,
+    val y = cudnn.create4dTensor(
+        CudnnTensorFormatT.CUDNN_TENSOR_NCHW,
         intArrayOf(params.bSize, params.cOut, lOut, 1),
     ).getOrThrow()
-    val conv1d = arrayOf(conv, x, w, y)
+    val conv1d = ConvForward(
+        conv = conv,
+        x = x,
+        w = w,
+        y = y,
+    )
     val alg = when (params.cudnnFwdAlgo) {
-        null -> pickAlgorithm(conv1d).getOrThrow()
-        CudnnFwdAlgo.ImplicitGemm -> 0
-        CudnnFwdAlgo.ImplicitPrecompGemm -> 1
-        CudnnFwdAlgo.Gemm -> 2
-        CudnnFwdAlgo.Direct -> 3
-        CudnnFwdAlgo.Fft -> 4
-        CudnnFwdAlgo.FftTiling -> 5
-        CudnnFwdAlgo.Winograd -> 6
-        CudnnFwdAlgo.WinogradNonFused -> 7
-        CudnnFwdAlgo.Count -> 8
+        null -> conv1d.pickAlgorithm().getOrThrow()
+        CudnnFwdAlgo.ImplicitGemm -> A.CUDNN_CONVOLUTION_FWD_ALGO_IMPLICIT_GEMM
+        CudnnFwdAlgo.ImplicitPrecompGemm -> {
+            A.CUDNN_CONVOLUTION_FWD_ALGO_IMPLICIT_PRECOMP_GEMM
+        }
+        CudnnFwdAlgo.Gemm -> A.CUDNN_CONVOLUTION_FWD_ALGO_GEMM
+        CudnnFwdAlgo.Direct -> A.CUDNN_CONVOLUTION_FWD_ALGO_DIRECT
+        CudnnFwdAlgo.Fft -> A.CUDNN_CONVOLUTION_FWD_ALGO_FFT
+        CudnnFwdAlgo.FftTiling -> A.CUDNN_CONVOLUTION_FWD_ALGO_FFT_TILING
+        CudnnFwdAlgo.Winograd -> A.CUDNN_CONVOLUTION_FWD_ALGO_WINOGRAD
+        CudnnFwdAlgo.WinogradNonFused -> A.CUDNN_CONVOLUTION_FWD_ALGO_WINOGRAD_NONFUSED
+        CudnnFwdAlgo.Count -> A.CUDNN_CONVOLUTION_FWD_ALGO_COUNT
     }
-    val workspaceSize = getWorkspaceSize(conv1d, alg).getOrThrow()
-    val workspace = allocZerosU8(dev, workspaceSize).getOrThrow()
-    launchForward(
-        conv1d,
-        alg,
-        workspace,
-        src,
-        filter,
-        dst,
-    ).getOrThrow()
-    return Result.success(Unit)
+    val workspaceSize = conv1d.getWorkspaceSize(alg).getOrThrow()
+    val workspace = ByteArray(workspaceSize)
+    run {
+        conv1d.launch(
+            alg,
+            workspace,
+            Pair(1, 0),
+            src,
+            filter,
+            dst,
+        ).getOrThrow()
+    }
+    Unit
 }
