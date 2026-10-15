@@ -5,6 +5,10 @@ import kotlin.math.abs
 import kotlin.math.ceil
 
 /**
+ * Pretty printing of tensors
+ *
+ * This implementation should be in line with the PyTorch version.
+ *
  * Options for Tensor pretty printing
  */
 public data class PrinterOptions(
@@ -450,6 +454,19 @@ public fun Tensor.fmtDt(sb: StringBuilder) {
     }
     sb.append("; ${dtype().asStr()}$deviceStr]")
 }
+
+public fun Tensor.fmt(sb: StringBuilder) {
+    when (dtype()) {
+        DType.U8, DType.U32, DType.I16, DType.I32, DType.I64,
+        DType.BF16, DType.F16, DType.F32, DType.F64, DType.F8E4M3,
+        -> fmtDt(sb)
+        DType.F6E2M3, DType.F6E3M2, DType.F4, DType.F8E8M0 -> {
+            sb.append("Tensor[${shape()}; dtype=${dtype().asStr()}, unsupported dummy type]")
+        }
+    }
+}
+
+public fun Tensor.fmt(): String = displayText()
 
 public fun Tensor.displayText(): String {
     val po = printOptions()
