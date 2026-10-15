@@ -1,6 +1,9 @@
-// port-lint: source candle-core/src/convert.rs
+// port-lint: source convert.rs
 package io.github.kotlinmania.candle
 
+/**
+ * Implement conversion traits for tensors
+ */
 public interface ByteWriter {
     public fun write(bytes: ByteArray)
 }
@@ -124,6 +127,9 @@ public fun Tensor.writeBytes(): ByteArray {
         DType.F8E4M3 -> {
             val arr = (cpu as CpuStorage.F8E4M3).data
             arr.copyOf()
+        }
+        DType.F6E2M3, DType.F6E3M2, DType.F4, DType.F8E8M0 -> {
+            throw CandleException.UnsupportedDTypeForOp(dtype(), "write_bytes")
         }
     }
 }

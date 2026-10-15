@@ -1,10 +1,20 @@
-// port-lint: source candle-core/src/tensor_cat.rs
+// port-lint: source tensor_cat.rs
 package io.github.kotlinmania.candle
 
 /**
  * Concatenates two or more tensors along a particular dimension.
  *
- * All tensors must of the same rank, and the output will have the same rank.
+ * All tensors must of the same rank, and the output will have
+ * the same rank
+ *
+ * ```kotlin
+ * val a = Tensor.zeros(Shape(2, 3), DType.F32, Device.Cpu)
+ * val b = Tensor.zeros(Shape(2, 3), DType.F32, Device.Cpu)
+ *
+ * val c = Tensor.cat(listOf(a, b), 0)
+ *
+ * val c1 = Tensor.cat(listOf(a, b), 1)
+ * ```
  */
 public fun Tensor.Companion.cat(args: List<Tensor>, dim: Int): Tensor {
     if (args.isEmpty()) {

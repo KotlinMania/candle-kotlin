@@ -1,4 +1,4 @@
-// port-lint: source candle-core/src/test_utils.rs
+// port-lint: source test_utils.rs
 package io.github.kotlinmania.candle
 
 import kotlin.math.pow
@@ -8,6 +8,7 @@ public fun assertTensorEq(t1: Tensor, t2: Tensor) {
     if (t1.shape() != t2.shape()) {
         bail("assertion failed: shape mismatch ${t1.shape()} != ${t2.shape()}")
     }
+    // Default U8 may not be large enough to hold the sum (t.sumAll defaults to the dtype of t)
     val eqTensor = t1.eq(t2).toDtype(DType.U32)
     val allEqual = eqTensor.sumAll()
     val count = allEqual.toScalarF32().toLong()
