@@ -3322,3 +3322,83 @@ internal val <T> MutableList<T>.push: (T) -> Unit get() = { add(it) }
 internal val <T> List<T>.getUnchecked: (Int) -> T get() = { this[it] }
 internal val <T> List<T>.iter: () -> Sequence<T> get() = { asSequence() }
 internal val <T> Sequence<T>.collect: () -> List<T> get() = { toList() }
+
+internal object bf16 {
+    const val ZERO: Short = 0
+    val ONE: Short get() = Float16Utils.floatToBF16Bits(1.0f)
+}
+
+internal object f16 {
+    const val ZERO: Short = 0
+    val ONE: Short get() = Float16Utils.floatToF16Bits(1.0f)
+}
+
+internal object f8e4m3 {
+    const val ZERO: Byte = 0
+    const val ONE: Byte = 1
+}
+
+internal fun panic(msg: String): Nothing = throw IllegalStateException(msg)
+
+internal fun Any.toScalar(): Scalar = when (this) {
+    is UByte -> Scalar.U8(this)
+    is UInt -> Scalar.U32(this)
+    is Short -> Scalar.I16(this)
+    is Int -> Scalar.I32(this)
+    is Long -> Scalar.I64(this)
+    is Float -> Scalar.F32(this)
+    is Double -> Scalar.F64(this)
+    is Byte -> Scalar.F8E4M3(this)
+    is Scalar -> this
+    else -> Scalar.F64(0.0)
+}
+
+internal fun Scalar.U8.toDouble(): Double = v.toDouble()
+internal fun Scalar.U32.toDouble(): Double = v.toDouble()
+internal fun Scalar.I16.toDouble(): Double = v.toDouble()
+internal fun Scalar.I32.toDouble(): Double = v.toDouble()
+internal fun Scalar.I64.toDouble(): Double = v.toDouble()
+internal fun Scalar.BF16.toF64(): Double = Float16Utils.bf16BitsToFloat(v).toDouble()
+internal fun Scalar.F16.toF64(): Double = Float16Utils.f16BitsToFloat(v).toDouble()
+internal fun Scalar.F32.toDouble(): Double = v.toDouble()
+internal fun Scalar.F8E4M3.toF64(): Double = v.toDouble()
+
+internal fun <T : Any> Tensor.Companion.new(v: T, dev: Device): io.github.kotlinmania.anyhow.Result<Tensor> {
+    val t = when (v) {
+        is Tensor -> v
+        is Double -> Tensor.new(v, dev)
+        is Float -> Tensor.new(v, dev)
+        is Int -> Tensor.new(v, dev)
+        is Long -> Tensor.new(v, dev)
+        else -> Tensor.new((v as Number).toDouble(), dev)
+    }
+    return io.github.kotlinmania.anyhow.Ok(t)
+}
+
+public data class ContiguousOffsets(
+    val start: Int,
+    val end: Int,
+) {
+    public val first: Int get() = start
+    public val second: Int get() = end
+}
+
+internal fun <T> MutableList<T>.swap(i: Int, j: Int) {
+    val tmp = this[i]
+    this[i] = this[j]
+    this[j] = tmp
+}
+
+internal fun Shape.into(): Shape = this
+internal fun Shape.clone(): Shape = this
+internal fun <T> List<T>.clone(): List<T> = this.toList()
+internal fun <T> List<T>.len(): Int = this.size
+internal fun <T> List<T>.toVec(): MutableList<T> = this.toMutableList()
+internal fun <T> Sequence<T>.rev(): List<T> = this.toList().reversed()
+internal fun <T> Sequence<T>.enumerate(): Sequence<IndexedValue<T>> = this.withIndex()
+internal fun <T, R> Sequence<T>.zip(other: List<R>): Sequence<Pair<T, R>> = this.zip(other.asSequence())
+internal fun IntRange.rev(): IntProgression = this.reversed()
+internal fun Int.toIndex(shape: Shape, op: String): Int =
+    if (this < 0 || this >= shape.dims.size) throw CandleException.DimOutOfRange(shape, this, op) else this
+
+

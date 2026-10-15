@@ -1,17 +1,9 @@
 // port-lint: source layout.rs
 package io.github.kotlinmania.candle
 
-/**
- * Tensor Layouts including contiguous or sparse strides
- */
-public data class ContiguousOffsets(
-    val start: Int,
-    val end: Int,
-) {
-    public val first: Int get() = start
-    public val second: Int get() = end
-}
+import kotlin.math.max
 
+/** Tensor Layouts including contiguous or sparse strides */
 public data class Layout(
     val shape: Shape,
     // The strides are given in number of elements and not in bytes.
@@ -21,13 +13,35 @@ public data class Layout(
     private val self: Layout get() = this
     public val dims: List<Int> get() = shape.dims
 
+    public companion object Self {
+        public fun new(shape: Shape, stride: List<Int>, startOffset: Int): Layout {
+            return Layout(
+                shape,
+                stride,
+                startOffset,
+            )
+        }
+
+        public fun contiguousWithOffset(shape: Shape, startOffset: Int = 0): Layout {
+            val shape = shape.into()
+            val stride = shape.strideContiguous()
+            return Layout(
+                shape,
+                stride,
+                startOffset,
+            )
+        }
+
+        public fun contiguous(shape: Shape): Layout {
+            return Self.contiguousWithOffset(shape, 0)
+        }
+    }
+
     public fun dims(): List<Int> {
         return self.shape.dims()
     }
 
-    /**
-     * The dimension size for a specified dimension index.
-     */
+    /** The dimension size for a specified dimension index. */
     public fun dim(dim: Int): Int {
         val dim = dim.toIndex(self.shape, "dim")
         return self.dims()[dim]
@@ -61,7 +75,7 @@ public data class Layout(
 
         // 1. Inner `dims[dim..]` must have contiguous strides.
         var expected = 1
-        for (i in (dim until dims.size).reversed()) {
+        for (i in (dim until dims.len()).rev()) {
             if (strides[i] != expected) {
                 return null
             }
@@ -77,7 +91,7 @@ public data class Layout(
         // 2. Outer `dims[0..dim]` must be internally contiguous.
         val outerStride = strides[dim - 1]
         var expectedOuter = outerStride
-        for (k in (0 until dim - 1).reversed()) {
+        for (k in (0 until dim - 1).rev()) {
             expectedOuter *= dims[k + 1]
             if (strides[k] != expectedOuter) {
                 return null
@@ -109,9 +123,7 @@ public data class Layout(
         return self.shape.isContiguous(self.stride)
     }
 
-    /**
-     * Returns true if the data is stored in a Fortran contiguous (aka column major) way.
-     */
+    /** Returns true if the data is stored in a Fortran contiguous (aka column major) way. */
     public fun isFortranContiguous(): Boolean {
         return self.shape.isFortranContiguous(self.stride)
     }
@@ -121,9 +133,7 @@ public data class Layout(
         return dims.isEmpty() || dims.iter().all { d -> d == 1 }
     }
 
-    /**
-     * Returns true if the data is actually a scalar during broadcast
-     */
+    /** Returns true if the data is actually a scalar during broadcast */
     public fun isScalarBroadcast(): Boolean {
         return self.stride().iter().all { s -> s == 0 }
     }
@@ -134,7 +144,7 @@ public data class Layout(
 
     public fun narrow(dim: Int, start: Int, len: Int): Layout {
         val dims = self.shape().dims()
-        if (dim >= dims.size) {
+        if (dim >= dims.len()) {
             throw CandleException.DimOutOfRange(
                 shape = self.shape().clone(),
                 dim = dim.toInt(),
@@ -152,11 +162,11 @@ public data class Layout(
             )
                 .bt()
         }
-        val dimsVec = dims.toMutableList()
-        dimsVec[dim] = len
+        val dimsMut = dims.toVec()
+        dimsMut[dim] = len
         return Layout(
-            shape = Shape.from(dimsVec),
-            stride = self.stride.toList(),
+            shape = Shape.from(dimsMut),
+            stride = self.stride.clone(),
             startOffset = self.startOffset + self.stride[dim] * start,
         )
     }
@@ -165,14 +175,14 @@ public data class Layout(
         val rank = self.shape.rank()
         if (rank <= dim1 || rank <= dim2) {
             throw CandleException.UnexpectedNumberOfDims(
-                expected = maxOf(dim1, dim2),
+                expected = max(dim1, dim2),
                 got = rank,
                 shape = self.shape().clone(),
             )
                 .bt()
         }
-        val stride = self.stride().toMutableList()
-        val dims = self.shape().dims().toMutableList()
+        val stride = self.stride().toVec()
+        val dims = self.shape().dims().toVec()
         dims.swap(dim1, dim2)
         stride.swap(dim1, dim2)
         return Layout(
@@ -184,19 +194,19 @@ public data class Layout(
 
     public fun permute(idxs: List<Int>): Layout {
         val isPermutation =
-            idxs.size == self.shape.rank() && (0 until idxs.size).all { i -> idxs.contains(i) }
+            idxs.len() == self.shape.rank() && (0 until idxs.len()).all { i -> idxs.contains(i) }
         if (!isPermutation) {
             bail(
-                "dimension mismatch in permute, tensor ${self.dims()}, dims: $idxs",
+                "dimension mismatch in permute, tensor" +
+                    " ${self.dims()}," +
+                    " dims: $idxs",
             )
         }
         val stride = self.stride()
         val dims = self.shape().dims()
-        val permStride = stride.toMutableList()
-        val permDims = dims.toMutableList()
-        for (entry in idxs.withIndex()) {
-            val i = entry.index
-            val idx = entry.value
+        val permStride = stride.toVec()
+        val permDims = dims.toVec()
+        for ((i, idx) in idxs.iter().enumerate()) {
             permStride[i] = stride[idx]
             permDims[i] = dims[idx]
         }
@@ -218,14 +228,13 @@ public data class Layout(
         }
         val addedDims = shape.rank() - self.shape().rank()
         val stride = MutableList(addedDims) { 0 }
-        for (entry in shape.dims().subList(addedDims, shape.dims().size)
+        for ((dstDim, srcPair) in shape.dims().subList(addedDims, shape.dims().len())
             .iter()
             .zip(self.dims().iter().zip(self.stride()))
         ) {
-            val dstDim = entry.first
-            val srcDim = entry.second.first
+            val (srcDim, srcStride) = srcPair
             val s = if (dstDim == srcDim) {
-                entry.second.second
+                srcStride
             } else if (srcDim != 1) {
                 throw CandleException.BroadcastIncompatibleShapes(
                     srcShape = self.shape().clone(),
@@ -234,12 +243,12 @@ public data class Layout(
             } else {
                 0
             }
-            stride.add(s)
+            stride.push(s)
         }
         return Layout(
-            shape = shape,
-            stride = stride,
-            startOffset = self.startOffset,
+            shape,
+            stride,
+            self.startOffset,
         )
     }
 
@@ -250,20 +259,19 @@ public data class Layout(
     public fun stridedBlocks(): StridedBlocks {
         var blockLen = 1
         var contiguousDims = 0 // Counted from the right.
-        for (entry in self.stride().iter().zip(self.dims().iter()).reversed()) {
-            val stride = entry.first
+        for ((stride, dim) in self.stride().iter().zip(self.dims().iter()).rev()) {
             // Size-1 dimensions are trivially contiguous regardless of their stride.
-            if (entry.second == 1) {
+            if (dim == 1) {
                 contiguousDims += 1
                 continue
             }
             if (stride != blockLen) {
                 break
             }
-            blockLen *= entry.second
+            blockLen *= dim
             contiguousDims += 1
         }
-        val indexDims = self.dims().size - contiguousDims
+        val indexDims = self.dims().len() - contiguousDims
         return when (indexDims) {
             0 -> StridedBlocks.SingleBlock(
                 startOffset = self.startOffset,
@@ -282,54 +290,10 @@ public data class Layout(
                     self.startOffset,
                 )
                 StridedBlocks.MultipleBlocks(
-                    blockStartIndex = blockStartIndex,
-                    blockLen = blockLen,
+                    blockStartIndex,
+                    blockLen,
                 )
             }
         }
     }
-
-    public companion object {
-        public fun new(shape: Shape, stride: List<Int>, startOffset: Int): Layout {
-            return Layout(
-                shape = shape,
-                stride = stride,
-                startOffset = startOffset,
-            )
-        }
-
-        public fun contiguousWithOffset(shape: Shape, startOffset: Int = 0): Layout {
-            val shape = shape.into()
-            val stride = shape.strideContiguous()
-            return Layout(
-                shape = shape,
-                stride = stride,
-                startOffset = startOffset,
-            )
-        }
-
-        public fun contiguous(shape: Shape): Layout {
-            return Layout.contiguousWithOffset(shape, 0)
-        }
-    }
 }
-
-private val <T> List<T>.iter: () -> List<T> get() = { this }
-
-private val <T> MutableList<T>.swap: (Int, Int) -> Unit
-    get() = { i, j ->
-        val tmp = this[i]
-        this[i] = this[j]
-        this[j] = tmp
-    }
-
-private val Shape.into: () -> Shape get() = { this }
-
-private val Shape.clone: () -> Shape get() = { this }
-
-private val CandleException.bt: () -> CandleException get() = { this }
-
-private val Int.toIndex: (Shape, String) -> Int
-    get() = { shape, op ->
-        if (this < 0 || this >= shape.dims.size) throw CandleException.DimOutOfRange(shape, this, op) else this
-    }

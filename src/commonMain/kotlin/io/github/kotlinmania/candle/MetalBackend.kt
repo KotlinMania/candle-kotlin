@@ -101,7 +101,7 @@ class MetalStorage(
     interface Device
 
     fun tryClone(layout: Layout): Result<MetalStorage> {
-        return Ok(self.clone())
+        layout; return Ok(self.clone())
     }
 
     fun dtype(): DType {
@@ -1361,7 +1361,7 @@ class MetalStorage(
     }
 
     fun upsampleNearest1d(layout: Layout, sz: Int): Result<MetalStorage> {
-        bail("Metal upsample_nearest1d not implemented")
+        layout; sz; bail("Metal upsample_nearest1d not implemented")
     }
 
     fun upsampleNearest2d(inpL: Layout, outW: Int, outH: Int): Result<MetalStorage> {

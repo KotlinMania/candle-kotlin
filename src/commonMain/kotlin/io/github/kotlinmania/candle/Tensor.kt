@@ -914,9 +914,9 @@ public class Tensor internal constructor(
      * Element-wise comparison with a tensor or scalar value.
      */
     public fun cmp(rhs: TensorOrScalar, op: CmpOp): Tensor {
-        val r = when (val ts = rhs.toTensorScalar()) {
-            is TensorScalar.TensorVal -> ts.value
-            is TensorScalar.ScalarVal -> ts.value.toDtype(dtype()).toDevice(device()).broadcastAs(shape())
+        val r = when (val ts = rhs.toTensorScalar().getOrThrow()) {
+            is TensorScalar.Tensor -> ts.tensor
+            is TensorScalar.Scalar -> ts.tensor.toDtype(dtype()).toDevice(device()).broadcastAs(shape())
         }
         return cmp(r, op)
     }
