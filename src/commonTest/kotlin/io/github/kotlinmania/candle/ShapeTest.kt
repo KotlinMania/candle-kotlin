@@ -1,4 +1,4 @@
-// port-lint: tests candle-core/src/shape.rs
+// port-lint: tests shape.rs
 package io.github.kotlinmania.candle
 
 import kotlin.test.Test
@@ -7,6 +7,34 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class ShapeTest {
+    @Test
+    fun stride() {
+        val shape = Shape.SCALAR
+        assertEquals(emptyList(), shape.strideContiguous())
+        val s1 = Shape.from(42)
+        assertEquals(listOf(1), s1.strideContiguous())
+        val s2 = Shape.from(42, 1337)
+        assertEquals(listOf(1337, 1), s2.strideContiguous())
+        val s3 = Shape.from(299, 792, 458)
+        assertEquals(listOf(458 * 792, 458, 1), s3.strideContiguous())
+    }
+
+    @Test
+    fun testFromTuple() {
+        val s1 = Shape.from(2)
+        assertEquals(listOf(2), s1.dims())
+        val s2 = Shape.from(2, 3)
+        assertEquals(listOf(2, 3), s2.dims())
+        val s3 = Shape.from(2, 3, 4)
+        assertEquals(listOf(2, 3, 4), s3.dims())
+        val s4 = Shape.from(2, 3, 4, 5)
+        assertEquals(listOf(2, 3, 4, 5), s4.dims())
+        val s5 = Shape.from(2, 3, 4, 5, 6)
+        assertEquals(listOf(2, 3, 4, 5, 6), s5.dims())
+        val s6 = Shape.from(2, 3, 4, 5, 6, 7)
+        assertEquals(listOf(2, 3, 4, 5, 6, 7), s6.dims())
+    }
+
     @Test
     fun testStride() {
         val shape = Shape(listOf(2, 3, 5, 7, 11))

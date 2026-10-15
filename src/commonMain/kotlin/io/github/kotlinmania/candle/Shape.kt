@@ -1,5 +1,9 @@
-// port-lint: source candle-core/src/shape.rs
+// port-lint: source shape.rs
 package io.github.kotlinmania.candle
+
+/**
+ * The shape of a tensor is a tuple with the size of each of its dimensions.
+ */
 
 public data class MatmulBroadcastShapes(
     val lhs: Shape,
@@ -37,15 +41,36 @@ public data class Shape(
 ) {
     public constructor(vararg dims: Int) : this(dims.toList())
 
+    /**
+     * The rank is the number of dimensions, 0 for a scalar value, 1 for a vector, etc.
+     */
     public val rank: Int get() = dims.size
+
+    public fun rank(): Int = dims.size
 
     public fun intoDims(): List<Int> = dims
 
+    /**
+     * The dimensions as a slice of integers.
+     */
+    public fun dims(): List<Int> = dims
+
+    /**
+     * The dimension size for a specified dimension index.
+     */
     public fun dim(dimIndex: Int): Int {
         val idx = toIndex(dimIndex, this, "dim")
         return dims[idx]
     }
 
+    public fun dim(dim: Dim): Int {
+        val idx = dim.toIndex(this, "dim")
+        return dims[idx]
+    }
+
+    /**
+     * The total number of elements, this is the product of all dimension sizes.
+     */
     public fun elemCount(): Int {
         if (dims.isEmpty()) return 1
         var prod = 1
@@ -55,6 +80,10 @@ public data class Shape(
         return prod
     }
 
+    /**
+     * The strides given in number of elements for a contiguous n-dimensional
+     * arrays using this shape.
+     */
     public fun strideContiguous(): List<Int> {
         if (dims.isEmpty()) return emptyList()
         val result = ArrayList<Int>(dims.size)
@@ -67,6 +96,9 @@ public data class Shape(
         return result
     }
 
+    /**
+     * Returns true if the strides are C contiguous (aka row major).
+     */
     public fun isContiguous(stride: List<Int>): Boolean {
         if (dims.size != stride.size) return false
         var acc = 1
@@ -81,6 +113,9 @@ public data class Shape(
         return true
     }
 
+    /**
+     * Returns true if the strides are Fortran contiguous (aka column major).
+     */
     public fun isFortranContiguous(stride: List<Int>): Boolean {
         if (dims.size != stride.size) return false
         var acc = 1
@@ -95,8 +130,16 @@ public data class Shape(
         return true
     }
 
+    /**
+     * Modifies the shape by adding a list of additional dimensions at the end of the existing
+     * dimensions.
+     */
     public fun extend(additionalDims: List<Int>): Shape = Shape(dims + additionalDims)
 
+    /**
+     * Check whether the two shapes are compatible for broadcast, and if it is the case return the
+     * broadcasted shape. This is to be used for binary pointwise ops.
+     */
     public fun broadcastShapeBinaryOp(rhs: Shape, op: String): Shape {
         val lhsDims = dims
         val rhsDims = rhs.dims
@@ -193,8 +236,17 @@ public data class Shape(
     public companion object {
         public val SCALAR: Shape = Shape(emptyList())
 
-        public fun fromDims(dims: List<Int>): Shape = Shape(dims)
+        public fun from(dims: List<Int>): Shape = Shape(dims)
+        public fun from(vararg dims: Int): Shape = Shape(dims.toList())
+        public fun from(shape: Shape): Shape = Shape(shape.dims)
+        public fun from(d1: Int): Shape = Shape(listOf(d1))
+        public fun from(d1: Int, d2: Int): Shape = Shape(listOf(d1, d2))
+        public fun from(d1: Int, d2: Int, d3: Int): Shape = Shape(listOf(d1, d2, d3))
+        public fun from(d1: Int, d2: Int, d3: Int, d4: Int): Shape = Shape(listOf(d1, d2, d3, d4))
+        public fun from(d1: Int, d2: Int, d3: Int, d4: Int, d5: Int): Shape = Shape(listOf(d1, d2, d3, d4, d5))
+        public fun from(d1: Int, d2: Int, d3: Int, d4: Int, d5: Int, d6: Int): Shape = Shape(listOf(d1, d2, d3, d4, d5, d6))
 
+        public fun fromDims(dims: List<Int>): Shape = Shape(dims)
         public fun fromDims(vararg dims: Int): Shape = Shape(dims.toList())
 
         public fun toIndex(dim: Int, shape: Shape, op: String): Int {
@@ -217,46 +269,100 @@ public data class Shape(
     }
 }
 
-public sealed interface ShapeDim {
+public interface Dim {
     public fun toIndex(shape: Shape, op: String): Int
-
     public fun toIndexPlusOne(shape: Shape, op: String): Int
 }
 
-public object ShapeDimMinus1 : ShapeDim {
-    override fun toIndex(shape: Shape, op: String): Int =
-        if (shape.rank >= 1) shape.rank - 1 else throw CandleException.DimOutOfRange(shape, -1, op)
-
-    override fun toIndexPlusOne(shape: Shape, op: String): Int = shape.rank
-}
-
-public object ShapeDimMinus2 : ShapeDim {
-    override fun toIndex(shape: Shape, op: String): Int =
-        if (shape.rank >= 2) shape.rank - 2 else throw CandleException.DimOutOfRange(shape, -2, op)
-
-    override fun toIndexPlusOne(shape: Shape, op: String): Int =
-        if (shape.rank >= 1) shape.rank - 1 else throw CandleException.DimOutOfRange(shape, -2, op)
-}
-
-public data class ShapeDimMinus(
-    val u: Int,
-) : ShapeDim {
-    override fun toIndex(shape: Shape, op: String): Int =
-        if (u > 0 && shape.rank >= u) shape.rank - u else throw CandleException.DimOutOfRange(shape, -u, op)
-
-    override fun toIndexPlusOne(shape: Shape, op: String): Int =
-        if (u > 0 && shape.rank + 1 >= u) shape.rank + 1 - u else throw CandleException.DimOutOfRange(shape, -u, op)
-}
-
-public data class ShapeDimIndex(
-    val dim: Int,
-) : ShapeDim {
+public class DimInt(public val dim: Int) : Dim {
     override fun toIndex(shape: Shape, op: String): Int = Shape.toIndex(dim, shape, op)
-
     override fun toIndexPlusOne(shape: Shape, op: String): Int = Shape.toIndexPlusOne(dim, shape, op)
 }
 
-public typealias Dim = ShapeDim
+public sealed class D : Dim {
+    public object Minus1 : D() {
+        override fun toIndex(shape: Shape, op: String): Int =
+            if (shape.rank >= 1) shape.rank - 1 else throw outOfRange(shape, op)
+
+        override fun toIndexPlusOne(shape: Shape, op: String): Int = shape.rank
+    }
+
+    public object Minus2 : D() {
+        override fun toIndex(shape: Shape, op: String): Int =
+            if (shape.rank >= 2) shape.rank - 2 else throw outOfRange(shape, op)
+
+        override fun toIndexPlusOne(shape: Shape, op: String): Int =
+            if (shape.rank >= 1) shape.rank - 1 else throw outOfRange(shape, op)
+    }
+
+    public data class Minus(val u: Int) : D() {
+        override fun toIndex(shape: Shape, op: String): Int =
+            if (u > 0 && shape.rank >= u) shape.rank - u else throw outOfRange(shape, op)
+
+        override fun toIndexPlusOne(shape: Shape, op: String): Int =
+            if (u > 0 && shape.rank + 1 >= u) shape.rank + 1 - u else throw outOfRange(shape, op)
+    }
+
+    public fun outOfRange(shape: Shape, op: String): CandleException {
+        val dim = when (this) {
+            is Minus1 -> -1
+            is Minus2 -> -2
+            is Minus -> -u
+        }
+        return CandleException.DimOutOfRange(shape, dim, op)
+    }
+}
+
+public interface Dims {
+    public fun toIndexesInternal(shape: Shape, op: String): List<Int>
+
+    public fun toIndexes(shape: Shape, op: String): List<Int> {
+        val dims = toIndexesInternal(shape, op)
+        for (i in dims.indices) {
+            val dim = dims[i]
+            if (dims.subList(0, i).contains(dim)) {
+                throw CandleException.DuplicateDimIndex(shape, dims, op)
+            }
+            if (dim >= shape.rank) {
+                throw CandleException.DimOutOfRange(shape, dim, op)
+            }
+        }
+        return dims
+    }
+}
+
+public class DimsList(public val dims: List<Int>) : Dims {
+    override fun toIndexesInternal(shape: Shape, op: String): List<Int> = dims
+}
+
+public class DimsDim(public val dim: Dim) : Dims {
+    override fun toIndexesInternal(shape: Shape, op: String): List<Int> =
+        listOf(dim.toIndex(shape, op))
+}
+
+public class DimsTuple2(public val d1: Dim, public val d2: Dim) : Dims {
+    override fun toIndexesInternal(shape: Shape, op: String): List<Int> =
+        listOf(d1.toIndex(shape, op), d2.toIndex(shape, op))
+}
+
+public class DimsTuple3(public val d1: Dim, public val d2: Dim, public val d3: Dim) : Dims {
+    override fun toIndexesInternal(shape: Shape, op: String): List<Int> =
+        listOf(d1.toIndex(shape, op), d2.toIndex(shape, op), d3.toIndex(shape, op))
+}
+
+public interface ShapeWithOneHole {
+    public fun intoShape(elCount: Int): Shape
+}
+
+public fun holeSize(elCount: Int, prodD: Int, s: Any): Int {
+    if (prodD == 0) {
+        bail("cannot reshape tensor of $elCount elements to $s")
+    }
+    if (elCount % prodD != 0) {
+        bail("cannot reshape tensor with $elCount elements to $s")
+    }
+    return elCount / prodD
+}
 
 public fun List<Int>.intoShapeWithHole(elCount: Int): Shape {
     var holeIdx = -1
@@ -282,8 +388,8 @@ public fun List<Int>.intoShapeWithHole(elCount: Int): Shape {
     if (knownProduct == 0 || elCount % knownProduct != 0) {
         bail("cannot reshape tensor with $elCount elements to $this")
     }
-    val holeSize = elCount / knownProduct
+    val hSize = elCount / knownProduct
     val result = toMutableList()
-    result[holeIdx] = holeSize
+    result[holeIdx] = hSize
     return Shape(result)
 }
