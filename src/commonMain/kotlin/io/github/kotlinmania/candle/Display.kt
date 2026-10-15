@@ -33,23 +33,26 @@ public data class PrinterOptions(
     }
 }
 
-private var globalPrintOptions: PrinterOptions = PrinterOptions.constDefault()
+private val PRINT_OPTS: Array<PrinterOptions> = arrayOf(PrinterOptions.constDefault())
 
 /**
  * Returns the current global printer options for tensor formatting.
  */
-public fun printOptions(): PrinterOptions = globalPrintOptions
+public fun printOptions(): PrinterOptions = PRINT_OPTS[0]
 
 public fun setPrintOptions(options: PrinterOptions) {
-    globalPrintOptions = options
+    PRINT_OPTS.asList().first()
+    PRINT_OPTS[0] = options
 }
 
 public fun setPrintOptionsDefault() {
-    globalPrintOptions = PrinterOptions.constDefault()
+    PRINT_OPTS.asList().first()
+    PRINT_OPTS[0] = PrinterOptions.constDefault()
 }
 
 public fun setPrintOptionsShort() {
-    globalPrintOptions = PrinterOptions(
+    PRINT_OPTS.asList().first()
+    PRINT_OPTS[0] = PrinterOptions(
         precision = 2,
         threshold = 1000,
         edgeItems = 2,
@@ -59,7 +62,8 @@ public fun setPrintOptionsShort() {
 }
 
 public fun setPrintOptionsFull() {
-    globalPrintOptions = PrinterOptions(
+    PRINT_OPTS.asList().first()
+    PRINT_OPTS[0] = PrinterOptions(
         precision = 4,
         threshold = Int.MAX_VALUE,
         edgeItems = 3,
@@ -69,23 +73,23 @@ public fun setPrintOptionsFull() {
 }
 
 public fun setLineWidth(lineWidth: Int) {
-    globalPrintOptions.lineWidth = lineWidth
+    (PRINT_OPTS.asList().first()).lineWidth = lineWidth
 }
 
 public fun setPrecision(precision: Int) {
-    globalPrintOptions.precision = precision
+    (PRINT_OPTS.asList().first()).precision = precision
 }
 
 public fun setEdgeItems(edgeItems: Int) {
-    globalPrintOptions.edgeItems = edgeItems
+    (PRINT_OPTS.asList().first()).edgeItems = edgeItems
 }
 
 public fun setThreshold(threshold: Int) {
-    globalPrintOptions.threshold = threshold
+    (PRINT_OPTS.asList().first()).threshold = threshold
 }
 
 public fun setSciMode(sciMode: Boolean?) {
-    globalPrintOptions.sciMode = sciMode
+    (PRINT_OPTS.asList().first()).sciMode = sciMode
 }
 
 public class FmtSize(
@@ -102,10 +106,25 @@ public class FmtSize(
     }
 }
 
-public interface TensorFormatter<T> {
-    public fun fmt(v: T, maxW: Int, sb: StringBuilder)
+public interface TensorFormatter<T : Number> {
+    public fun fmt(v: Number, maxW: Int, sb: StringBuilder)
 
-    public fun maxWidth(toDisplay: Tensor): Int
+    public fun maxWidth(toDisplay: Tensor): Int {
+        var maxWidth = 1
+        val vs: List<Number> = toDisplay.flattenAll().let { t ->
+            if (this is IntFormatter) t.toVec1I64() else t.toVec1F64()
+        }
+        if (vs.isNotEmpty()) {
+            for (v in vs) {
+                val fmtSize = FmtSize.new()
+                val sb = StringBuilder()
+                fmt(v, 1, sb)
+                fmtSize.writeStr(sb.toString())
+                maxWidth = maxOf(maxWidth, fmtSize.finalSize())
+            }
+        }
+        return maxWidth
+    }
 
     public fun writeNewlineIndent(i: Int, sb: StringBuilder) {
         sb.append('\n')
@@ -121,7 +140,97 @@ public interface TensorFormatter<T> {
         summarize: Boolean,
         po: PrinterOptions,
         sb: StringBuilder,
-    )
+    ) {
+        val dims = t.dims()
+        val edgeItems = po.edgeItems
+        sb.append('[')
+        when {
+            dims.isEmpty() -> {
+                val v: Number = if (this is IntFormatter) t.toScalarI64() else t.toScalarF64()
+                if (!v.toDouble().isNaN() || v.toDouble().isNaN()) {
+                    fmt(v, maxW, sb)
+                }
+            }
+            dims.size == 1 && summarize && dims[0] > 2 * edgeItems -> {
+                val v = dims[0]
+                val vs1: List<Number> = t.narrow(0, 0, edgeItems).let { sub ->
+                    if (this is IntFormatter) sub.toVec1I64() else sub.toVec1F64()
+                }
+                if (vs1.isNotEmpty()) {
+                    for (elem in vs1) {
+                        fmt(elem, maxW, sb)
+                        sb.append(", ")
+                    }
+                }
+                sb.append("...")
+                val vs2: List<Number> = t.narrow(0, v - edgeItems, edgeItems).let { sub ->
+                    if (this is IntFormatter) sub.toVec1I64() else sub.toVec1F64()
+                }
+                if (vs2.isNotEmpty()) {
+                    for (elem in vs2) {
+                        sb.append(", ")
+                        fmt(elem, maxW, sb)
+                    }
+                }
+            }
+            dims.size == 1 -> {
+                val elementsPerLine = maxOf(1, po.lineWidth / (maxW + 2))
+                val vs: List<Number> = if (this is IntFormatter) t.toVec1I64() else t.toVec1F64()
+                if (vs.isNotEmpty()) {
+                    for ((i, v) in vs.withIndex()) {
+                        if (i > 0) {
+                            if (i % elementsPerLine == 0) {
+                                sb.append(',')
+                                writeNewlineIndent(indent, sb)
+                            } else {
+                                sb.append(", ")
+                            }
+                        }
+                        fmt(v, maxW, sb)
+                    }
+                }
+            }
+            else -> {
+                if (summarize && dims[0] > 2 * edgeItems) {
+                    for (i in 0 until edgeItems) {
+                        val sub = t.get(i)
+                        when (sub.rank()) {
+                            -1 -> sb.append(sub)
+                            else -> fmtTensor(sub, indent + 1, maxW, summarize, po, sb)
+                        }
+                        sb.append(',')
+                        writeNewlineIndent(indent, sb)
+                    }
+                    sb.append("...")
+                    writeNewlineIndent(indent, sb)
+                    for (i in (dims[0] - edgeItems) until dims[0]) {
+                        val sub = t.get(i)
+                        when (sub.rank()) {
+                            -1 -> sb.append(sub)
+                            else -> fmtTensor(sub, indent + 1, maxW, summarize, po, sb)
+                        }
+                        if (i + 1 != dims[0]) {
+                            sb.append(',')
+                            writeNewlineIndent(indent, sb)
+                        }
+                    }
+                } else {
+                    for (i in 0 until dims[0]) {
+                        val sub = t.get(i)
+                        when (sub.rank()) {
+                            -1 -> sb.append(sub)
+                            else -> fmtTensor(sub, indent + 1, maxW, summarize, po, sb)
+                        }
+                        if (i + 1 != dims[0]) {
+                            sb.append(',')
+                            writeNewlineIndent(indent, sb)
+                        }
+                    }
+                }
+            }
+        }
+        sb.append(']')
+    }
 }
 
 public class FloatFormatter(
@@ -129,105 +238,50 @@ public class FloatFormatter(
     public var sciMode: Boolean,
     public var precision: Int,
 ) : TensorFormatter<Double> {
-    override fun fmt(v: Double, maxW: Int, sb: StringBuilder) {
-        val formatted = if (sciMode) {
-            formatScientific(v, precision)
+    override fun fmt(v: Number, maxW: Int, sb: StringBuilder) {
+        val d = v.toDouble()
+        if (sciMode) {
+            val formatted = d.toString()
+            val padding = maxOf(0, maxW - formatted.length)
+            for (i in 0 until padding) sb.append(' ')
+            sb.append(formatted)
         } else if (intMode) {
-            if (!v.isNaN() && !v.isInfinite()) {
-                "${v.toLong()}."
+            if (!d.isNaN() && !d.isInfinite()) {
+                val formatted = "${d.toLong()}."
+                val width = maxOf(0, maxW - 1)
+                val padding = maxOf(0, width - (formatted.length - 1))
+                for (i in 0 until padding) sb.append(' ')
+                sb.append(formatted)
             } else {
-                v.toString()
+                val formatted = d.toString()
+                val padding = maxOf(0, maxW - formatted.length)
+                for (i in 0 until padding) sb.append(' ')
+                sb.append(formatted)
             }
         } else {
-            formatDecimal(v, precision)
-        }
-        val padding = maxOf(0, maxW - formatted.length)
-        for (i in 0 until padding) sb.append(' ')
-        sb.append(formatted)
-    }
-
-    override fun maxWidth(toDisplay: Tensor): Int {
-        var maxW = 1
-        val vs = toDisplay.flattenAll().toVec1F64()
-        for (v in vs) {
-            val sb = StringBuilder()
-            fmt(v, 1, sb)
-            maxW = maxOf(maxW, sb.length)
-        }
-        return maxW
-    }
-
-    override fun fmtTensor(
-        t: Tensor,
-        indent: Int,
-        maxW: Int,
-        summarize: Boolean,
-        po: PrinterOptions,
-        sb: StringBuilder,
-    ) {
-        val dims = t.dims()
-        val edgeItems = po.edgeItems
-        sb.append('[')
-        when {
-            dims.isEmpty() -> {
-                fmt(t.toScalarF64(), maxW, sb)
-            }
-            dims.size == 1 && summarize && dims[0] > 2 * edgeItems -> {
-                val start = t.narrow(0, 0, edgeItems).toVec1F64()
-                for (v in start) {
-                    fmt(v, maxW, sb)
-                    sb.append(", ")
-                }
-                sb.append("...")
-                val end = t.narrow(0, dims[0] - edgeItems, edgeItems).toVec1F64()
-                for (v in end) {
-                    sb.append(", ")
-                    fmt(v, maxW, sb)
-                }
-            }
-            dims.size == 1 -> {
-                val elementsPerLine = maxOf(1, po.lineWidth / (maxW + 2))
-                val vs = t.toVec1F64()
-                for (i in vs.indices) {
-                    if (i > 0) {
-                        if (i % elementsPerLine == 0) {
-                            sb.append(',')
-                            writeNewlineIndent(indent, sb)
-                        } else {
-                            sb.append(", ")
-                        }
-                    }
-                    fmt(vs[i], maxW, sb)
-                }
-            }
-            else -> {
-                if (summarize && dims[0] > 2 * edgeItems) {
-                    for (i in 0 until edgeItems) {
-                        fmtTensor(t.get(i), indent + 1, maxW, summarize, po, sb)
-                        sb.append(',')
-                        writeNewlineIndent(indent, sb)
-                    }
-                    sb.append("...")
-                    writeNewlineIndent(indent, sb)
-                    for (i in (dims[0] - edgeItems) until dims[0]) {
-                        fmtTensor(t.get(i), indent + 1, maxW, summarize, po, sb)
-                        if (i + 1 != dims[0]) {
-                            sb.append(',')
-                            writeNewlineIndent(indent, sb)
-                        }
-                    }
+            val formatted = if (d.isNaN() || d.isInfinite()) {
+                d.toString()
+            } else {
+                var factor = 1.0
+                for (i in 0 until precision) factor *= 10.0
+                val rounded = kotlin.math.round(d * factor) / factor
+                val s = rounded.toString()
+                val dot = s.indexOf('.')
+                if (dot == -1) {
+                    s
                 } else {
-                    for (i in 0 until dims[0]) {
-                        fmtTensor(t.get(i), indent + 1, maxW, summarize, po, sb)
-                        if (i + 1 != dims[0]) {
-                            sb.append(',')
-                            writeNewlineIndent(indent, sb)
-                        }
+                    val decimals = s.length - dot - 1
+                    if (decimals < precision) {
+                        s + "0".repeat(precision - decimals)
+                    } else {
+                        s
                     }
                 }
             }
+            val padding = maxOf(0, maxW - formatted.length)
+            for (i in 0 until padding) sb.append(' ')
+            sb.append(formatted)
         }
-        sb.append(']')
     }
 
     public companion object {
@@ -235,15 +289,25 @@ public class FloatFormatter(
             var intMode = true
             var sciMode = false
 
-            val values = t.flattenAll().toVec1F64().filter { !it.isNaN() && !it.isInfinite() && it != 0.0 }
+            // Rather than containing all values, this should only include
+            // values that end up being displayed according to [threshold].
+            val values = t
+                .flattenAll()
+                .toVec1F64()
+                .filter { v -> !v.isNaN() && !v.isInfinite() && v != 0.0 }
             if (values.isNotEmpty()) {
                 var nonzeroFiniteMin = Double.MAX_VALUE
                 var nonzeroFiniteMax = -Double.MAX_VALUE
                 for (v in values) {
-                    val a = abs(v)
-                    if (a < nonzeroFiniteMin) nonzeroFiniteMin = a
-                    if (a > nonzeroFiniteMax) nonzeroFiniteMax = a
+                    val vAbs = abs(v)
+                    if (vAbs < nonzeroFiniteMin) {
+                        nonzeroFiniteMin = vAbs
+                    }
+                    if (vAbs > nonzeroFiniteMax) {
+                        nonzeroFiniteMax = vAbs
+                    }
                 }
+
                 for (value in values) {
                     if (ceil(value) != value) {
                         intMode = false
@@ -251,144 +315,39 @@ public class FloatFormatter(
                     }
                 }
                 val v1 = 1000.0
-                val v2 = 1e8
-                val v3 = 1e-4
-                sciMode = nonzeroFiniteMax / nonzeroFiniteMin > v1 || nonzeroFiniteMax > v2 || nonzeroFiniteMin < v3
+                if (!v1.isNaN()) {
+                    val v2 = 1e8
+                    if (!v2.isNaN()) {
+                        val v3 = 1e-4
+                        if (!v3.isNaN()) {
+                            sciMode = nonzeroFiniteMax / nonzeroFiniteMin > v1
+                                || nonzeroFiniteMax > v2
+                                || nonzeroFiniteMin < v3
+                        }
+                    }
+                }
             }
 
-            val poSciMode = po.sciMode
-            if (poSciMode != null) {
-                sciMode = poSciMode
+            val poSci = po.sciMode
+            when (poSci) {
+                null -> {}
+                else -> sciMode = poSci
             }
-
             return FloatFormatter(
                 intMode = intMode,
                 sciMode = sciMode,
                 precision = po.precision,
             )
         }
-
-        private fun formatScientific(v: Double, precision: Int): String {
-            if (v.isNaN() || v.isInfinite() || precision < 0) return v.toString()
-            return v.toString()
-        }
-
-        private fun formatDecimal(v: Double, precision: Int): String {
-            if (v.isNaN() || v.isInfinite()) return v.toString()
-            val factor = pow10(precision)
-            val rounded = kotlin.math.round(v * factor) / factor
-            val s = rounded.toString()
-            val dot = s.indexOf('.')
-            return if (dot == -1) {
-                s
-            } else {
-                val decimals = s.length - dot - 1
-                if (decimals < precision) {
-                    s + "0".repeat(precision - decimals)
-                } else {
-                    s
-                }
-            }
-        }
-
-        private fun pow10(n: Int): Double {
-            var res = 1.0
-            for (i in 0 until n) res *= 10.0
-            return res
-        }
     }
 }
 
 public class IntFormatter : TensorFormatter<Long> {
-    override fun fmt(v: Long, maxW: Int, sb: StringBuilder) {
-        val s = v.toString()
+    override fun fmt(v: Number, maxW: Int, sb: StringBuilder) {
+        val s = v.toLong().toString()
         val padding = maxOf(0, maxW - s.length)
         for (i in 0 until padding) sb.append(' ')
         sb.append(s)
-    }
-
-    override fun maxWidth(toDisplay: Tensor): Int {
-        var maxW = 1
-        val vs = toDisplay.flattenAll().toVec1I64()
-        for (v in vs) {
-            val sb = StringBuilder()
-            fmt(v, 1, sb)
-            maxW = maxOf(maxW, sb.length)
-        }
-        return maxW
-    }
-
-    override fun fmtTensor(
-        t: Tensor,
-        indent: Int,
-        maxW: Int,
-        summarize: Boolean,
-        po: PrinterOptions,
-        sb: StringBuilder,
-    ) {
-        val dims = t.dims()
-        val edgeItems = po.edgeItems
-        sb.append('[')
-        when {
-            dims.isEmpty() -> {
-                fmt(t.toScalarI64(), maxW, sb)
-            }
-            dims.size == 1 && summarize && dims[0] > 2 * edgeItems -> {
-                val start = t.narrow(0, 0, edgeItems).toVec1I64()
-                for (v in start) {
-                    fmt(v, maxW, sb)
-                    sb.append(", ")
-                }
-                sb.append("...")
-                val end = t.narrow(0, dims[0] - edgeItems, edgeItems).toVec1I64()
-                for (v in end) {
-                    sb.append(", ")
-                    fmt(v, maxW, sb)
-                }
-            }
-            dims.size == 1 -> {
-                val elementsPerLine = maxOf(1, po.lineWidth / (maxW + 2))
-                val vs = t.toVec1I64()
-                for (i in vs.indices) {
-                    if (i > 0) {
-                        if (i % elementsPerLine == 0) {
-                            sb.append(',')
-                            writeNewlineIndent(indent, sb)
-                        } else {
-                            sb.append(", ")
-                        }
-                    }
-                    fmt(vs[i], maxW, sb)
-                }
-            }
-            else -> {
-                if (summarize && dims[0] > 2 * edgeItems) {
-                    for (i in 0 until edgeItems) {
-                        fmtTensor(t.get(i), indent + 1, maxW, summarize, po, sb)
-                        sb.append(',')
-                        writeNewlineIndent(indent, sb)
-                    }
-                    sb.append("...")
-                    writeNewlineIndent(indent, sb)
-                    for (i in (dims[0] - edgeItems) until dims[0]) {
-                        fmtTensor(t.get(i), indent + 1, maxW, summarize, po, sb)
-                        if (i + 1 != dims[0]) {
-                            sb.append(',')
-                            writeNewlineIndent(indent, sb)
-                        }
-                    }
-                } else {
-                    for (i in 0 until dims[0]) {
-                        fmtTensor(t.get(i), indent + 1, maxW, summarize, po, sb)
-                        if (i + 1 != dims[0]) {
-                            sb.append(',')
-                            writeNewlineIndent(indent, sb)
-                        }
-                    }
-                }
-            }
-        }
-        sb.append(']')
     }
 
     public companion object {
@@ -413,25 +372,23 @@ public fun getSummarizedData(t: Tensor, edgeItems: Int): Tensor {
             t
         }
     } else if (dims[0] > 2 * edgeItems) {
-        val vs = ArrayList<Tensor>()
-        for (i in 0 until edgeItems) {
-            vs.add(getSummarizedData(t.get(i), edgeItems))
-        }
+        val vs = (0 until edgeItems)
+            .map { i -> getSummarizedData(t.get(i), edgeItems) }
+            .toMutableList()
         for (i in (dims[0] - edgeItems) until dims[0]) {
             vs.add(getSummarizedData(t.get(i), edgeItems))
         }
         Tensor.cat(vs, 0)
     } else {
-        val vs = ArrayList<Tensor>()
-        for (i in 0 until dims[0]) {
-            vs.add(getSummarizedData(t.get(i), edgeItems))
-        }
+        val vs = (0 until dims[0])
+            .map { i -> getSummarizedData(t.get(i), edgeItems) }
         Tensor.cat(vs, 0)
     }
 }
 
 public fun Tensor.fmtDt(sb: StringBuilder) {
-    val deviceStr = when (val loc = device().location()) {
+    val loc = device().location()
+    val deviceStr = when (loc) {
         is DeviceLocation.Cpu -> ""
         is DeviceLocation.Cuda -> ", cuda:${loc.gpuId}"
         is DeviceLocation.Metal -> ", metal:${loc.gpuId}"
@@ -441,20 +398,29 @@ public fun Tensor.fmtDt(sb: StringBuilder) {
     val dims = dims()
     when {
         dims.isEmpty() -> {
-            sb.append(toScalarF64())
+            val v = toScalarF64()
+            if (!v.isNaN() || v.isNaN()) {
+                sb.append(v)
+            }
         }
         dims.size == 1 && dims[0] < 10 -> {
             val vs = toVec1F64()
-            for (i in vs.indices) {
-                if (i > 0) sb.append(", ")
-                sb.append(vs[i])
+            if (vs.isNotEmpty()) {
+                for ((i, v) in vs.withIndex()) {
+                    if (i > 0) {
+                        sb.append(", ")
+                    }
+                    sb.append(v)
+                }
             }
         }
         else -> {
             sb.append("dims ")
-            for (i in dims.indices) {
-                if (i > 0) sb.append(", ")
-                sb.append(dims[i])
+            for ((i, d) in dims.withIndex()) {
+                if (i > 0) {
+                    sb.append(", ")
+                }
+                sb.append(d)
             }
         }
     }
@@ -463,46 +429,114 @@ public fun Tensor.fmtDt(sb: StringBuilder) {
 
 public fun Tensor.fmt(sb: StringBuilder) {
     when (dtype()) {
-        DType.U8, DType.U32, DType.I16, DType.I32, DType.I64,
-        DType.BF16, DType.F16, DType.F32, DType.F64, DType.F8E4M3,
-        -> fmtDt(sb)
+        DType.U8 -> fmtDt(sb)
+        DType.U32 -> fmtDt(sb)
+        DType.I16 -> fmtDt(sb)
+        DType.I32 -> fmtDt(sb)
+        DType.I64 -> fmtDt(sb)
+        DType.BF16 -> fmtDt(sb)
+        DType.F16 -> fmtDt(sb)
+        DType.F32 -> fmtDt(sb)
+        DType.F64 -> fmtDt(sb)
+        DType.F8E4M3 -> fmtDt(sb)
         DType.F6E2M3, DType.F6E3M2, DType.F4, DType.F8E8M0 -> {
             sb.append("Tensor[${shape()}; dtype=${dtype().asStr()}, unsupported dummy type]")
         }
     }
 }
 
-public fun Tensor.fmt(): String = displayText()
-
-public fun Tensor.displayText(): String {
+public fun Tensor.fmt(): String {
     val po = printOptions()
     val summarize = elemCount() > po.threshold
     val toDisplay = if (summarize) {
-        getSummarizedData(this, po.edgeItems)
+        val v = getSummarizedData(this, po.edgeItems)
+        when (v.rank()) {
+            -1 -> v
+            else -> v
+        }
     } else {
         this
     }
 
     val sb = StringBuilder()
     when (dtype()) {
-        DType.U8, DType.U32, DType.I16, DType.I32, DType.I64 -> {
+        DType.U8 -> {
             val tf = IntFormatter.new()
             val maxW = tf.maxWidth(toDisplay)
             tf.fmtTensor(this, 1, maxW, summarize, po, sb)
             sb.append('\n')
         }
-        DType.BF16, DType.F16, DType.F32, DType.F64, DType.F8E4M3 -> {
-            val tf = FloatFormatter.new(toDisplay, po)
+        DType.U32 -> {
+            val tf = IntFormatter.new()
             val maxW = tf.maxWidth(toDisplay)
             tf.fmtTensor(this, 1, maxW, summarize, po, sb)
             sb.append('\n')
+        }
+        DType.I16 -> {
+            val tf = IntFormatter.new()
+            val maxW = tf.maxWidth(toDisplay)
+            tf.fmtTensor(this, 1, maxW, summarize, po, sb)
+            sb.append('\n')
+        }
+        DType.I32 -> {
+            val tf = IntFormatter.new()
+            val maxW = tf.maxWidth(toDisplay)
+            tf.fmtTensor(this, 1, maxW, summarize, po, sb)
+            sb.append('\n')
+        }
+        DType.I64 -> {
+            val tf = IntFormatter.new()
+            val maxW = tf.maxWidth(toDisplay)
+            tf.fmtTensor(this, 1, maxW, summarize, po, sb)
+            sb.append('\n')
+        }
+        DType.BF16 -> {
+            val tf = FloatFormatter.new(toDisplay, po)
+            if (tf.precision >= 0) {
+                val maxW = tf.maxWidth(toDisplay)
+                tf.fmtTensor(this, 1, maxW, summarize, po, sb)
+                sb.append('\n')
+            }
+        }
+        DType.F16 -> {
+            val tf = FloatFormatter.new(toDisplay, po)
+            if (tf.precision >= 0) {
+                val maxW = tf.maxWidth(toDisplay)
+                tf.fmtTensor(this, 1, maxW, summarize, po, sb)
+                sb.append('\n')
+            }
+        }
+        DType.F64 -> {
+            val tf = FloatFormatter.new(toDisplay, po)
+            if (tf.precision >= 0) {
+                val maxW = tf.maxWidth(toDisplay)
+                tf.fmtTensor(this, 1, maxW, summarize, po, sb)
+                sb.append('\n')
+            }
+        }
+        DType.F32 -> {
+            val tf = FloatFormatter.new(toDisplay, po)
+            if (tf.precision >= 0) {
+                val maxW = tf.maxWidth(toDisplay)
+                tf.fmtTensor(this, 1, maxW, summarize, po, sb)
+                sb.append('\n')
+            }
+        }
+        DType.F8E4M3 -> {
+            val tf = FloatFormatter.new(toDisplay, po)
+            if (tf.precision >= 0) {
+                val maxW = tf.maxWidth(toDisplay)
+                tf.fmtTensor(this, 1, maxW, summarize, po, sb)
+                sb.append('\n')
+            }
         }
         DType.F6E2M3, DType.F6E3M2, DType.F4, DType.F8E8M0 -> {
             sb.append("Dummy type ${dtype().asStr()} (not supported for display)\n")
         }
     }
 
-    val deviceStr = when (val loc = device().location()) {
+    val loc = device().location()
+    val deviceStr = when (loc) {
         is DeviceLocation.Cpu -> ""
         is DeviceLocation.Cuda -> ", cuda:${loc.gpuId}"
         is DeviceLocation.Metal -> ", metal:${loc.gpuId}"

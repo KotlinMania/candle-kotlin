@@ -40,7 +40,18 @@ internal fun fromStorage(
 ): Tensor = Tensor.fromStorage(storage, shape, op, isVariable)
 
 /**
- * Multi-dimensional array supporting mathematical operations, backpropagation, and execution on devices.
+ * Tensors are N-dimensional matrixes of elements using a single data type.
+ *
+ * The core class for manipulating tensors.
+ *
+ * ```kotlin
+ * val a = Tensor.arange(0f, 6f, Device.Cpu).reshape(2, 3)
+ * val b = Tensor.arange(0f, 12f, Device.Cpu).reshape(3, 4)
+ *
+ * val c = a.matmul(b)
+ * ```
+ *
+ * Tensors share underlying storage views so cloning and reshaping them is cheap.
  */
 public class Tensor internal constructor(
     private val id: TensorId,
@@ -67,20 +78,41 @@ public class Tensor internal constructor(
      */
     public fun dims(): List<Int> = layout.dims
 
+    /**
+     * Extracts the 0D scalar dimensions of this tensor, verifying that the rank is 0.
+     */
     public fun dims0() {
         shape().dims0()
     }
 
+    /**
+     * Extracts the single dimension size of a 1D tensor.
+     */
     public fun dims1(): Int = shape().dims1()
 
+    /**
+     * Extracts the two dimension sizes of a 2D tensor.
+     */
     public fun dims2(): Dims2 = shape().dims2()
 
+    /**
+     * Extracts the three dimension sizes of a 3D tensor.
+     */
     public fun dims3(): Dims3 = shape().dims3()
 
+    /**
+     * Extracts the four dimension sizes of a 4D tensor.
+     */
     public fun dims4(): Dims4 = shape().dims4()
 
+    /**
+     * Extracts the five dimension sizes of a 5D tensor.
+     */
     public fun dims5(): Dims5 = shape().dims5()
 
+    /**
+     * Returns the start and end offsets if the tensor layout is contiguous.
+     */
     public fun contiguousOffsets(): ContiguousOffsets? = layout.contiguousOffsets()
 
     /**
@@ -94,22 +126,31 @@ public class Tensor internal constructor(
     public fun dim(d: ShapeDim): Int = layout.dim(d.toIndex(shape(), "dim"))
 
     /**
-     * Returns a new tensor that is a narrowed version of the input, the dimension dim
-     * ranges from start to start + len.
+     * Returns a new tensor that is a narrowed version of the input, the dimension `dim`
+     * ranges from `start` to `start + len`.
+     *
+     * ```kotlin
+     * val a = Tensor.new(floatArrayOf(0f, 1f, 2f, 3f, 4f, 5f, 6f, 7f, 8f), Shape(3, 3), Device.Cpu)
+     * val b = a.narrow(0, 1, 2)
+     * val c = a.narrow(1, 1, 1)
+     * ```
      */
     public fun narrow(dim: ShapeDim, start: Int, len: Int): Tensor =
         narrow(dim.toIndex(shape(), "narrow"), start, len)
 
     /**
-     * Run the forward method of module on self.
+     * Run the `forward` method of `m` on `self`.
      */
     public fun apply(m: Module): Tensor = m.forward(this)
 
     /**
-     * Run the forward method of module on self with train mode.
+     * Run the `forward` method of `m` on `self` with train mode.
      */
     public fun applyT(m: ModuleT, train: Boolean): Tensor = m.forwardT(this, train)
 
+    /**
+     * Checks that the specified dimension index is within the valid bounds of this tensor.
+     */
     public fun checkDim(dim: Int, op: String) {
         if (dim < 0 || dim >= dims().size) {
             throw CandleException.DimOutOfRange(shape(), dim, op)
@@ -142,6 +183,9 @@ public class Tensor internal constructor(
      */
     public fun layout(): Layout = layout
 
+    /**
+     * The stride of the input tensor along each dimension.
+     */
     public fun stride(): List<Int> = layout.stride
 
     /**
@@ -160,8 +204,14 @@ public class Tensor internal constructor(
      */
     public fun isVariable(): Boolean = isVariable
 
+    /**
+     * Returns a read reference to the underlying storage of this tensor.
+     */
     public fun storage(): Storage = storage
 
+    /**
+     * Returns a mutable reference to the underlying storage of this tensor.
+     */
     public fun storageMut(): Storage = storage
 
     /**
@@ -169,8 +219,14 @@ public class Tensor internal constructor(
      */
     public fun storageAndLayout(): Pair<Storage, Layout> = Pair(storage, layout)
 
+    /**
+     * The mutable storage used by this tensor, together with the layout to use to access it safely.
+     */
     public fun storageMutAndLayout(): Pair<Storage, Layout> = Pair(storage, layout)
 
+    /**
+     * Returns the backpropagation operation associated with this tensor in the computation graph.
+     */
     public fun op(): Op? = op.toOp()
 
     /**
@@ -201,28 +257,52 @@ public class Tensor internal constructor(
     }
 
     /**
-     * Creates a new tensor filled with zeros with same shape, dtype, and device as the other tensor.
+     * Creates a new tensor filled with zeros with same shape, dtype, and device as the other
+     * tensor.
+     *
+     * ```kotlin
+     * val a = Tensor.zeros(Shape(2, 3), DType.F32, Device.Cpu)
+     * val b = a.zerosLike()
+     * // b is on CPU f32.
+     * ```
      */
     public fun zerosLike(): Tensor = zeros(shape(), dtype(), device())
 
     /**
      * Creates a new tensor filled with ones with same shape, dtype, and device as the other tensor.
+     *
+     * ```kotlin
+     * val a = Tensor.zeros(Shape(2, 3), DType.F32, Device.Cpu)
+     * val b = a.onesLike()
+     * // b == a + 1
+     * ```
      */
     public fun onesLike(): Tensor = ones(shape(), dtype(), device())
 
     /**
-     * Creates a new tensor filled with uninitialized memory of the same shape, dtype, and device.
+     * Creates a new tensor filled with uninitialized memory of the same shape, dtype, and device as the other
+     * tensor.
+     *
+     * # Safety
+     * This returns uninitialized memory.
+     *
+     * ```kotlin
+     * val a = Tensor.zeros(Shape(2, 3), DType.F32, Device.Cpu)
+     * val b = a.emptyLike()
+     * ```
      */
     public fun emptyLike(): Tensor = empty(shape(), dtype(), device())
 
     /**
-     * Returns a new tensor initialized with values sampled uniformly between lo and up.
+     * Creates a new tensor initialized with values sampled uniformly between `lo` and `up`
+     * with the same shape, dtype, and device as this tensor.
      */
     public fun randLike(lo: Double, up: Double): Tensor =
         randF64Impl(lo, up, shape(), dtype(), device(), false)
 
     /**
-     * Returns a new tensor initialized with values sampled from a normal distribution with mean and stdev.
+     * Creates a new tensor initialized with values sampled from a normal distribution with the
+     * specified `mean` and standard deviation `stdev` with the same shape, dtype, and device.
      */
     public fun randnLike(mean: Double, stdev: Double): Tensor =
         randnF64Impl(mean, stdev, shape(), dtype(), device(), false)
@@ -230,6 +310,8 @@ public class Tensor internal constructor(
     /**
      * Returns a new tensor detached from the current graph, gradient are not propagated through
      * this new node. The storage of this tensor is shared with the initial tensor.
+     *
+     * If the tensor is already detached from the computation graph, the same tensor is returned.
      */
     public fun detach(): Tensor = Tensor(TensorId.next(), storage, layout, BackpropOp.None, false)
 
@@ -245,44 +327,104 @@ public class Tensor internal constructor(
     }
 
     // --- Unary Ops ---
+    /**
+     * Computes the exponential of each element of the input tensor.
+     */
     public fun exp(): Tensor = unaryOp(UnaryOp.Exp)
 
+    /**
+     * Computes the natural logarithm of each element of the input tensor.
+     */
     public fun log(): Tensor = unaryOp(UnaryOp.Log)
 
+    /**
+     * Computes the sine of each element of the input tensor.
+     */
     public fun sin(): Tensor = unaryOp(UnaryOp.Sin)
 
+    /**
+     * Computes the cosine of each element of the input tensor.
+     */
     public fun cos(): Tensor = unaryOp(UnaryOp.Cos)
 
+    /**
+     * Computes the absolute value of each element of the input tensor.
+     */
     public fun abs(): Tensor = unaryOp(UnaryOp.Abs)
 
+    /**
+     * Negates each element of the input tensor.
+     */
     public fun neg(): Tensor = unaryOp(UnaryOp.Neg)
 
+    /**
+     * Unary minus operator negating each element of the input tensor.
+     */
     public operator fun unaryMinus(): Tensor = neg()
 
+    /**
+     * Computes the reciprocal `1 / x` of each element of the input tensor.
+     */
     public fun recip(): Tensor = unaryOp(UnaryOp.Recip)
 
+    /**
+     * Computes the square `x * x` of each element of the input tensor.
+     */
     public fun sqr(): Tensor = unaryOp(UnaryOp.Sqr)
 
+    /**
+     * Computes the square root of each element of the input tensor.
+     */
     public fun sqrt(): Tensor = unaryOp(UnaryOp.Sqrt)
 
+    /**
+     * Applies the Gaussian Error Linear Unit (GELU) tanh approximation function on each element.
+     */
     public fun gelu(): Tensor = unaryOp(UnaryOp.Gelu)
 
+    /**
+     * Applies the exact Gaussian Error Linear Unit (GELU) function using the error function `erf`.
+     */
     public fun geluErf(): Tensor = unaryOp(UnaryOp.GeluErf)
 
+    /**
+     * Computes the Gauss error function `erf` of each element of the input tensor.
+     */
     public fun erf(): Tensor = unaryOp(UnaryOp.Erf)
 
+    /**
+     * Applies the Rectified Linear Unit (ReLU) activation `max(0, x)` on each element.
+     */
     public fun relu(): Tensor = unaryOp(UnaryOp.Relu)
 
+    /**
+     * Applies the Sigmoid Linear Unit (SiLU / Swish) activation `x / (1 + exp(-x))` on each element.
+     */
     public fun silu(): Tensor = unaryOp(UnaryOp.Silu)
 
+    /**
+     * Computes the hyperbolic tangent `tanh` of each element of the input tensor.
+     */
     public fun tanh(): Tensor = unaryOp(UnaryOp.Tanh)
 
+    /**
+     * Returns the largest integer less than or equal to each element of the input tensor.
+     */
     public fun floor(): Tensor = unaryOp(UnaryOp.Floor)
 
+    /**
+     * Returns the smallest integer greater than or equal to each element of the input tensor.
+     */
     public fun ceil(): Tensor = unaryOp(UnaryOp.Ceil)
 
+    /**
+     * Rounds each element of the input tensor to the nearest integer.
+     */
     public fun round(): Tensor = unaryOp(UnaryOp.Round)
 
+    /**
+     * Returns the sign of each element of the input tensor (`1`, `-1`, or `0`).
+     */
     public fun sign(): Tensor = unaryOp(UnaryOp.Sign)
 
     private fun unaryOp(uOp: UnaryOp): Tensor {
@@ -294,6 +436,9 @@ public class Tensor internal constructor(
 
     /**
      * Round element of the input tensor to the nearest integer.
+     *
+     * If the number of decimals is negative, it specifies the number of positions to the left of
+     * the decimal point.
      */
     public fun roundTo(decimals: Int): Tensor {
         val mult = 10.0.pow(decimals.toDouble())
@@ -323,7 +468,15 @@ public class Tensor internal constructor(
     }
 
     /**
-     * This operation multiplies the input tensor by mul then adds add and return the result.
+     * This operation multiplies the input tensor by `mul` then adds `add` and return the result.
+     * The input values `mul` and `add` are casted to the appropriate type so some rounding might
+     * be performed.
+     *
+     * ```kotlin
+     * val a = Tensor.new(floatArrayOf(0f, 1f, 2f, 3f), Shape(2, 2), Device.Cpu)
+     * val res = a.affine(4.0, -2.0)
+     * // [[-2.0, 2.0], [6.0, 10.0]]
+     * ```
      */
     public fun affine(mul: Double, add: Double): Tensor {
         if (elemCount() == 0) return this
@@ -333,7 +486,7 @@ public class Tensor internal constructor(
     }
 
     /**
-     * Raise the tensor to some float exponent e.
+     * Raise the tensor to some float exponent `e`.
      */
     public fun powf(e: Double): Tensor {
         if (elemCount() == 0) return this
@@ -353,7 +506,8 @@ public class Tensor internal constructor(
     }
 
     /**
-     * Split a tensor into the specified number of chunks, this may return less chunks than specified.
+     * Split a tensor into the specified number of chunks, this may return less chunks than
+     * specified.
      */
     public fun chunk(chunks: Int, dim: Int): List<Tensor> {
         val dimIdx = Shape.toIndex(dim, shape(), "chunk")
@@ -376,7 +530,8 @@ public class Tensor internal constructor(
     }
 
     /**
-     * Split a tensor into the specified number of chunks along dimension dim.
+     * Split a tensor into the specified number of chunks, this may return less chunks than
+     * specified.
      */
     public fun chunk(chunks: Int, dim: ShapeDim): List<Tensor> =
         chunk(chunks, dim.toIndex(shape(), "chunk"))
@@ -419,7 +574,15 @@ public class Tensor internal constructor(
 
     /**
      * Roll the tensor input along the given dimension.
-     * Elements shifted beyond the last position are re-introduced at the first position.
+     * Elements that are shifted beyond the last position are re-introduced at the first position.
+     *
+     * ```kotlin
+     * val tensor = Tensor.new(floatArrayOf(0f, 1f, 2f, 3f, 4f, 5f), Shape(3, 2), Device.Cpu)
+     * val rolledDown = tensor.roll(1, 0)
+     * // [[4.0, 5.0], [0.0, 1.0], [2.0, 3.0]]
+     * val rolledUp = tensor.roll(-1, 0)
+     * // [[2.0, 3.0], [4.0, 5.0], [0.0, 1.0]]
+     * ```
      */
     public fun roll(shift: Int, dim: Int): Tensor {
         val dimIdx = Shape.toIndex(dim, shape(), "roll")
@@ -434,35 +597,75 @@ public class Tensor internal constructor(
 
     /**
      * Roll the tensor input along the given dimension.
+     * Elements that are shifted beyond the last position are re-introduced at the first position.
      */
     public fun roll(shift: Int, dim: ShapeDim): Tensor =
         roll(shift, dim.toIndex(shape(), "roll"))
 
     // --- Binary Ops ---
+    /**
+     * Element-wise addition of two tensors.
+     */
     public fun add(rhs: Tensor): Tensor = binaryOp(rhs, BinaryOp.Add)
 
+    /**
+     * Adds a scalar value to each element of the tensor.
+     */
     public fun add(rhs: Double): Tensor = affine(1.0, rhs)
 
+    /**
+     * Operator overload for element-wise tensor addition.
+     */
     public operator fun plus(rhs: Tensor): Tensor = add(rhs)
 
+    /**
+     * Element-wise subtraction of two tensors.
+     */
     public fun sub(rhs: Tensor): Tensor = binaryOp(rhs, BinaryOp.Sub)
 
+    /**
+     * Subtracts a scalar value from each element of the tensor.
+     */
     public fun sub(rhs: Double): Tensor = affine(1.0, -rhs)
 
+    /**
+     * Operator overload for element-wise tensor subtraction.
+     */
     public operator fun minus(rhs: Tensor): Tensor = sub(rhs)
 
+    /**
+     * Element-wise multiplication of two tensors.
+     */
     public fun mul(rhs: Tensor): Tensor = binaryOp(rhs, BinaryOp.Mul)
 
+    /**
+     * Multiplies each element of the tensor by a scalar value.
+     */
     public fun mul(rhs: Double): Tensor = affine(rhs, 0.0)
 
+    /**
+     * Operator overload for element-wise tensor multiplication.
+     */
     public operator fun times(rhs: Tensor): Tensor = mul(rhs)
 
+    /**
+     * Element-wise division of two tensors.
+     */
     public operator fun div(rhs: Tensor): Tensor = binaryOp(rhs, BinaryOp.Div)
 
+    /**
+     * Divides each element of the tensor by a scalar value.
+     */
     public operator fun div(rhs: Double): Tensor = affine(1.0 / rhs, 0.0)
 
+    /**
+     * Computes the element-wise maximum of two tensors.
+     */
     public fun maximum(rhs: Tensor): Tensor = binaryOp(rhs, BinaryOp.Maximum)
 
+    /**
+     * Computes the element-wise minimum of two tensors.
+     */
     public fun minimum(rhs: Tensor): Tensor = binaryOp(rhs, BinaryOp.Minimum)
 
     private fun binaryOp(rhs: Tensor, bOp: BinaryOp): Tensor {
@@ -474,70 +677,131 @@ public class Tensor internal constructor(
         return fromStorage(newStorage, targetShape, newOp, false)
     }
 
+    /**
+     * Element-wise addition with broadcasting support.
+     */
     public fun broadcastAdd(rhs: Tensor): Tensor = add(rhs)
 
+    /**
+     * Element-wise subtraction with broadcasting support.
+     */
     public fun broadcastSub(rhs: Tensor): Tensor = sub(rhs)
 
+    /**
+     * Element-wise multiplication with broadcasting support.
+     */
     public fun broadcastMul(rhs: Tensor): Tensor = mul(rhs)
 
+    /**
+     * Element-wise division with broadcasting support.
+     */
     public fun broadcastDiv(rhs: Tensor): Tensor = div(rhs)
 
+    /**
+     * Element-wise maximum with broadcasting support.
+     */
     public fun broadcastMaximum(rhs: Tensor): Tensor = maximum(rhs)
 
+    /**
+     * Element-wise minimum with broadcasting support.
+     */
     public fun broadcastMinimum(rhs: Tensor): Tensor = minimum(rhs)
 
     // --- Reductions ---
     /**
-     * Returns the sum of all elements in the input tensor over the specified dimensions.
+     * Returns the sum of all elements in the input tensor. The sum is performed over all the
+     * input dimensions and compared to `sumKeepdim` these dimensions are squeezed rather than
+     * kept.
      */
     public fun sum(dims: List<Int>): Tensor = sumImpl(dims, false)
 
+    /**
+     * Returns the sum of all elements in the input tensor over the specified dimensions.
+     */
     public fun sum(vararg dims: Int): Tensor = sum(dims.toList())
+
+    /**
+     * Returns the sum of all elements in the input tensor. The sum is performed over all the
+     * input dimensions.
+     *
+     * The resulting tensor has a shape that is similar to the shape of the input tensor, except
+     * that the number of elements for each dimension index in `dim` is 1.
+     *
+     * ```kotlin
+     * val a = Tensor.new(floatArrayOf(0f, 1f, 2f, 3f), Shape(2, 2), Device.Cpu)
+     * val s0 = a.sumKeepdim(0)
+     * // [[2.0, 4.0]]
+     * val s1 = a.sumKeepdim(1)
+     * // [[1.0], [5.0]]
+     * ```
+     */
+    public fun sumKeepdim(dim: Int): Tensor = sumImpl(listOf(dim), true)
 
     /**
      * Returns the sum of all elements in the input tensor preserving reduced dimensions as 1.
      */
-    public fun sumKeepdim(dim: Int): Tensor = sumImpl(listOf(dim), true)
-
     public fun sumKeepdim(dims: List<Int>): Tensor = sumImpl(dims, true)
 
     /**
-     * Computes the sum of all the elements in this tensor.
+     * Computes the sum of all the elements in this tensor and returns a tensor holding this
+     * scalar with zero dimensions.
+     *
+     * ```kotlin
+     * val tensor = Tensor.new(floatArrayOf(0f, 1f, 2f, 3f, 4f, 5f), Shape(3, 2), Device.Cpu)
+     * val sum = tensor.sumAll()
+     * // 15.0
+     * ```
      */
     public fun sumAll(): Tensor = sum((0 until rank()).toList())
 
     /**
-     * Similar to minKeepdim but the target dimension is squeezed.
+     * Similar to `minKeepdim` but the target dimension is squeezed.
      */
     public fun min(dim: Int): Tensor = reduceImpl(dim, false, ReduceOp.Min)
 
     /**
-     * Gathers the minimum value across the selected dimension keeping reduced dimension as 1.
+     * Gathers the minimum value across the selected dimension. The resulting shape has the same
+     * number of dimensions as the original tensor and the select dimension has a single element.
      */
     public fun minKeepdim(dim: Int): Tensor = reduceImpl(dim, true, ReduceOp.Min)
 
     /**
-     * Computes the min of all the elements in this tensor.
+     * Computes the min of all the elements in this tensor and returns a tensor holding this
+     * scalar with zero dimensions.
+     *
+     * ```kotlin
+     * val tensor = Tensor.new(floatArrayOf(0f, 1f, 2f, 3f, 4f, 5f), Shape(3, 2), Device.Cpu)
+     * val min = tensor.minAll()
+     * // 0.0
+     * ```
      */
     public fun minAll(): Tensor = if (rank() == 0) this else flattenAll().min(0)
 
     /**
-     * Similar to maxKeepdim but the target dimension is squeezed.
+     * Similar to `maxKeepdim` but the target dimension is squeezed.
      */
     public fun max(dim: Int): Tensor = reduceImpl(dim, false, ReduceOp.Max)
 
     /**
-     * Gathers the maximum value across the selected dimension keeping reduced dimension as 1.
+     * Gathers the maximum value across the selected dimension. The resulting shape has the same
+     * number of dimensions as the original tensor and the select dimension has a single element.
      */
     public fun maxKeepdim(dim: Int): Tensor = reduceImpl(dim, true, ReduceOp.Max)
 
     /**
-     * Computes the max of all the elements in this tensor.
+     * Computes the max of all the elements in this tensor and returns a tensor holding this
+     * scalar with zero dimensions.
+     *
+     * ```kotlin
+     * val tensor = Tensor.new(floatArrayOf(0f, 1f, 2f, 3f, 4f, 5f), Shape(3, 2), Device.Cpu)
+     * val max = tensor.maxAll()
+     * // 5.0
+     * ```
      */
     public fun maxAll(): Tensor = if (rank() == 0) this else flattenAll().max(0)
 
     /**
-     * Similar to argminKeepdim but the target dimension is squeezed.
+     * Similar to `argminKeepdim` but the target dimension is squeezed.
      */
     public fun argmin(dim: Int): Tensor = reduceImpl(dim, false, ReduceOp.ArgMin)
 
@@ -547,7 +811,7 @@ public class Tensor internal constructor(
     public fun argminKeepdim(dim: Int): Tensor = reduceImpl(dim, true, ReduceOp.ArgMin)
 
     /**
-     * Similar to argmaxKeepdim but the target dimension is squeezed.
+     * Similar to `argmaxKeepdim` but the target dimension is squeezed.
      */
     public fun argmax(dim: Int): Tensor = reduceImpl(dim, false, ReduceOp.ArgMax)
 
@@ -557,7 +821,9 @@ public class Tensor internal constructor(
     public fun argmaxKeepdim(dim: Int): Tensor = reduceImpl(dim, true, ReduceOp.ArgMax)
 
     /**
-     * Returns the mean of all elements in the input tensor over the specified dimension.
+     * Returns the mean of all elements in the input tensor. The mean is performed over all the
+     * input dimensions and compared to `meanKeepdim` these dimensions are squeezed rather than
+     * kept.
      */
     public fun mean(dim: Int): Tensor = mean(listOf(dim))
 
@@ -572,7 +838,19 @@ public class Tensor internal constructor(
     }
 
     /**
-     * Returns the mean of all elements across the specified dimensions keeping reduced dimensions as 1.
+     * Returns the mean of all elements in the input tensor. The mean is performed over all the
+     * input dimensions.
+     *
+     * The resulting tensor has a shape that is similar to the shape of the input tensor, except
+     * that the number of elements for each dimension index in `dim` is 1.
+     *
+     * ```kotlin
+     * val a = Tensor.new(floatArrayOf(0f, 1f, 2f, 3f), Shape(2, 2), Device.Cpu)
+     * val m0 = a.meanKeepdim(0)
+     * // [[1.0, 2.0]]
+     * val m1 = a.meanKeepdim(1)
+     * // [[0.5], [2.5]]
+     * ```
      */
     public fun meanKeepdim(dim: Int): Tensor = meanKeepdim(listOf(dim))
 
@@ -613,11 +891,17 @@ public class Tensor internal constructor(
         return varKeepdim(dimIdx).squeeze(dimIdx)
     }
 
+    /**
+     * Returns the unbiased variance over the selected dimension.
+     */
     public fun var_(dim: ShapeDim): Tensor = `var`(dim.toIndex(shape(), "var"))
 
     // --- Comparisons ---
     /**
-     * Element-wise comparison between two tensors with the specified comparison op.
+     * Element-wise comparison between two tensors, e.g. equality, greater than, ... The actual
+     * comparison operation is specified by the `op` argument.
+     *
+     * The returned tensor has the same shape as the original tensors and uses `u8` elements.
      */
     public fun cmp(rhs: Tensor, op: CmpOp): Tensor {
         val targetShape = sameShapeBinaryOp(rhs, "cmp")
@@ -627,7 +911,7 @@ public class Tensor internal constructor(
     }
 
     /**
-     * Element-wise comparison with TensorOrScalar.
+     * Element-wise comparison with a tensor or scalar value.
      */
     public fun cmp(rhs: TensorOrScalar, op: CmpOp): Tensor {
         val r = when (val ts = rhs.toTensorScalar()) {
@@ -648,44 +932,66 @@ public class Tensor internal constructor(
     public fun ne(rhs: Tensor): Tensor = cmp(rhs, CmpOp.Ne)
 
     /**
-     * Element-wise comparison with lower-equal.
+     * Element-wise comparison with lower-equal, the returned tensor uses value 1 where `self <=
+     * rhs` and 0 otherwise.
      */
     public fun le(rhs: Tensor): Tensor = cmp(rhs, CmpOp.Le)
 
     /**
-     * Element-wise comparison with greater-equal.
+     * Element-wise comparison with greater-equal, the returned tensor uses value 1 where `self >=
+     * rhs` and 0 otherwise.
      */
     public fun ge(rhs: Tensor): Tensor = cmp(rhs, CmpOp.Ge)
 
     /**
-     * Element-wise comparison with lower-than.
+     * Element-wise comparison with lower-than, the returned tensor uses value 1 where `self <
+     * rhs` and 0 otherwise.
      */
     public fun lt(rhs: Tensor): Tensor = cmp(rhs, CmpOp.Lt)
 
     /**
-     * Element-wise comparison with greater-than.
+     * Element-wise comparison with greater-than, the returned tensor uses value 1 where `self >
+     * rhs` and 0 otherwise.
      */
     public fun gt(rhs: Tensor): Tensor = cmp(rhs, CmpOp.Gt)
 
+    /**
+     * Element-wise equality with broadcasting support.
+     */
     public fun broadcastEq(rhs: Tensor): Tensor = eq(rhs)
 
+    /**
+     * Element-wise non-equality with broadcasting support.
+     */
     public fun broadcastNe(rhs: Tensor): Tensor = ne(rhs)
 
+    /**
+     * Element-wise lower-than comparison with broadcasting support.
+     */
     public fun broadcastLt(rhs: Tensor): Tensor = lt(rhs)
 
+    /**
+     * Element-wise lower-equal comparison with broadcasting support.
+     */
     public fun broadcastLe(rhs: Tensor): Tensor = le(rhs)
 
+    /**
+     * Element-wise greater-than comparison with broadcasting support.
+     */
     public fun broadcastGt(rhs: Tensor): Tensor = gt(rhs)
 
+    /**
+     * Element-wise greater-equal comparison with broadcasting support.
+     */
     public fun broadcastGe(rhs: Tensor): Tensor = ge(rhs)
 
     /**
-     * Clamp the tensor values to be between min and max.
+     * Clamp the tensor values to be between `min` and `max`.
      */
     public fun clamp(min: Tensor, max: Tensor): Tensor = maximum(min).minimum(max)
 
     /**
-     * Clamp the tensor values to be between min and max scalar values.
+     * Clamp the tensor values to be between `min` and `max` scalar values.
      */
     public fun clamp(min: Double, max: Double): Tensor {
         val minT = fromStorage(Storage.Cpu(CpuStorage.F64(doubleArrayOf(min))), Shape(listOf(1)), BackpropOp.None, false).broadcastAs(shape())
@@ -695,7 +1001,10 @@ public class Tensor internal constructor(
 
     // --- Interpolation & Pooling ---
     /**
-     * Interpolate the input tensor to the targetSize size, taking the value of the nearest element.
+     * Interpolate the input tensor to the `targetSize` size, taking the value of the nearest element.
+     *
+     * The input tensor should have three dimensions, `(batch, channels, l)`, the returned
+     * tensor also has three dimensions, `(batch, channels, targetSize)`.
      */
     public fun interpolate1d(targetSize: Int): Tensor {
         val d = dims3()
@@ -705,12 +1014,16 @@ public class Tensor internal constructor(
     }
 
     /**
-     * Alias for interpolate1d.
+     * Alias for `interpolate1d`.
      */
     public fun upsampleNearest1d(targetSize: Int): Tensor = interpolate1d(targetSize)
 
     /**
-     * Interpolate the input tensor to the (targetH, targetW) size using nearest neighbor.
+     * Interpolate the input tensor to the `(targetH, targetW)` size, taking the value of the
+     * nearest element.
+     *
+     * The input tensor should have four dimensions, `(batch, channels, h, w)`, the returned
+     * tensor also has four dimensions, `(batch, channels, targetH, targetW)`.
      */
     public fun interpolate2d(targetH: Int, targetW: Int): Tensor {
         val d = dims4()
@@ -720,13 +1033,31 @@ public class Tensor internal constructor(
     }
 
     /**
-     * Alias for interpolate2d.
+     * Alias for `interpolate2d`.
      */
     public fun upsampleNearest2d(targetH: Int, targetW: Int): Tensor =
         interpolate2d(targetH, targetW)
 
     /**
      * Bilinear interpolation to resize the input tensor to the specified size.
+     *
+     * The input tensor should have four dimensions: `(batch, channels, h, w)`.
+     * The returned tensor also has four dimensions: `(batch, channels, targetH, targetW)`.
+     *
+     * # Arguments
+     *
+     * * `targetH` - Target height
+     * * `targetW` - Target width
+     * * `alignCorners` - If true, corner pixels are aligned. If false (default),
+     *   pixels are treated as areas (matches PyTorch default behavior).
+     *
+     * # Example
+     *
+     * ```kotlin
+     * val t = Tensor.arange(0f, 16f, Device.Cpu).reshape(1, 1, 4, 4)
+     * val upsampled = t.upsampleBilinear2d(8, 8, false)
+     * // dims: [1, 1, 8, 8]
+     * ```
      */
     public fun upsampleBilinear2d(
         targetH: Int,
@@ -741,6 +1072,24 @@ public class Tensor internal constructor(
 
     /**
      * Bilinear interpolation using scale factors.
+     *
+     * Similar to `upsampleBilinear2d` but uses scale factors instead of absolute sizes.
+     * This matches PyTorch's `interpolate(scaleFactor=...)` behavior.
+     *
+     * # Arguments
+     *
+     * * `scaleH` - Height scaling factor
+     * * `scaleW` - Width scaling factor
+     * * `alignCorners` - If true, corner pixels are aligned
+     *
+     * # Example
+     *
+     * ```kotlin
+     * val t = Tensor.arange(0f, 16f, Device.Cpu).reshape(1, 1, 4, 4)
+     * // Scale by 2x in both dimensions
+     * val upsampled = t.upsampleBilinear2dWithScale(2.0, 2.0, false)
+     * // dims: [1, 1, 8, 8]
+     * ```
      */
     public fun upsampleBilinear2dWithScale(
         scaleH: Double,
@@ -758,13 +1107,22 @@ public class Tensor internal constructor(
 
     /**
      * 2D average pooling over an input tensor with multiple channels.
+     *
+     * The input tensor should have four dimensions, `(batch, channels, h, w)`, the returned
+     * tensor also has four dimensions, `(batch, channels, h', w')`. The pooling is performed on
+     * the two last dimensions using a kernel of size `sz`. The returned element is the average
+     * value over the kernel window.
      */
     public fun avgPool2d(sz: Int): Tensor = avgPool2dWithStride(Pair(sz, sz), Pair(sz, sz))
 
+    /**
+     * 2D average pooling over an input tensor with multiple channels using a pair of kernel dimensions.
+     */
     public fun avgPool2d(sz: Pair<Int, Int>): Tensor = avgPool2dWithStride(sz, sz)
 
     /**
-     * 2D average pooling with custom kernel size and stride.
+     * Same as `avgPool2d` but with a `stride` that can be set to a value different from the
+     * kernel size.
      */
     public fun avgPool2dWithStride(kernelSize: Pair<Int, Int>, stride: Pair<Int, Int>): Tensor {
         val d = dims4()
@@ -780,13 +1138,22 @@ public class Tensor internal constructor(
 
     /**
      * 2D max pooling over an input tensor with multiple channels.
+     *
+     * The input tensor should have four dimensions, `(batch, channels, h, w)`, the returned
+     * tensor also has four dimensions, `(batch, channels, h', w')`. The pooling is performed on
+     * the two last dimensions using a kernel of size `sz`, the returned element is the maximum
+     * value over the kernel window.
      */
     public fun maxPool2d(sz: Int): Tensor = maxPool2dWithStride(Pair(sz, sz), Pair(sz, sz))
 
+    /**
+     * 2D max pooling over an input tensor with multiple channels using a pair of kernel dimensions.
+     */
     public fun maxPool2d(sz: Pair<Int, Int>): Tensor = maxPool2dWithStride(sz, sz)
 
     /**
-     * 2D max pooling with custom kernel size and stride.
+     * Same as `maxPool2d` but with a `stride` that can be set to a value different from the
+     * kernel size.
      */
     public fun maxPool2dWithStride(kernelSize: Pair<Int, Int>, stride: Pair<Int, Int>): Tensor {
         val d = dims4()
@@ -802,6 +1169,18 @@ public class Tensor internal constructor(
 
     /**
      * Computes the dot product of two 1D tensors.
+     *
+     * - If inputs are 1D vectors (`[n]`), returns their scalar dot product.
+     * - Throws if shapes are not compatible
+     * - Not supported for integer dtypes
+     *
+     * # Example (vectors)
+     * ```kotlin
+     * val t1 = Tensor.new(doubleArrayOf(1.0, 2.0, 3.0), Shape(3), Device.Cpu)
+     * val t2 = Tensor.new(doubleArrayOf(4.0, 5.0, 6.0), Shape(3), Device.Cpu)
+     * val res = t1.dot(t2)
+     * // 32.0
+     * ```
      */
     public fun dot(rhs: Tensor): Tensor {
         if (dims().size != 1 || rhs.dims().size != 1) {
@@ -811,7 +1190,16 @@ public class Tensor internal constructor(
     }
 
     /**
-     * Computes the Frobenius norm of the tensor.
+     * Computes the **Frobenius norm** (L2 norm of all elements) of the tensor.
+     * - Output is `sqrt(sum(x^2))`.
+     * - Always returns a scalar (`[]` shape).
+     *
+     * # Example
+     * ```kotlin
+     * val t = Tensor.new(doubleArrayOf(3.0, 4.0, 0.0, 0.0), Shape(2, 2), Device.Cpu)
+     * val norm = t.norm()
+     * // 5.0
+     * ```
      */
     public fun norm(): Tensor {
         if (dtype().isInt()) {
@@ -821,7 +1209,18 @@ public class Tensor internal constructor(
     }
 
     /**
-     * Performs strict matrix-vector multiplication.
+     * Performs strict matrix-vector multiplication (`[m, n] * [n] = [m]`).
+     *
+     * - If `self` is a matrix (`[m, n]`) and `rhs` is a vector (`[n]`), returns a vector (`[m]`).
+     * - **No broadcasting**: Throws if `self` is not 2D or if `rhs` is not 1D with matching size.
+     *
+     * # Example
+     * ```kotlin
+     * val mat = Tensor.new(doubleArrayOf(1.0, 2.0, 3.0, 4.0, 5.0, 6.0), Shape(2, 3), Device.Cpu)
+     * val vec = Tensor.new(doubleArrayOf(1.0, 1.0, 1.0), Shape(3), Device.Cpu)
+     * val res = mat.mv(vec)
+     * // [6.0, 15.0]
+     * ```
      */
     public fun mv(rhs: Tensor): Tensor {
         val lhsDims = dims()
@@ -835,6 +1234,13 @@ public class Tensor internal constructor(
     // --- Matrix Ops ---
     /**
      * Returns the matrix-multiplication of the input tensor with the other provided tensor.
+     *
+     * # Arguments
+     *
+     * * `self` - A tensor with dimensions `b1, b2, ..., bi, m, k`.
+     * * `rhs` - A tensor with dimensions `b1, b2, ..., bi, k, n`.
+     *
+     * The resulting tensor has dimensions `b1, b2, ..., bi, m, n`.
      */
     public fun matmul(rhs: Tensor): Tensor {
         val (lhsBcastShape, rhsBcastShape) = shape().broadcastShapeMatmul(rhs.shape())
@@ -857,11 +1263,17 @@ public class Tensor internal constructor(
 
     /**
      * Matrix-multiplication with broadcasting support.
+     *
+     * Compared to `matmul` the two matrixes are allowed to have different dimensions as long as
+     * they are compatible for broadcast. E.g. if `self` has shape `(j, 1, n, k)` and `rhs` has
+     * shape `(l, k, m)`, the output will have shape `(j, l, n, m)`.
      */
     public fun broadcastMatmul(rhs: Tensor): Tensor = matmul(rhs)
 
     /**
-     * Returns a tensor with elements from onTrue if self is not zero, and onFalse where self is zero.
+     * Returns a tensor with the same shape as the input tensor, the values are taken from
+     * `onTrue` if the input tensor value is not zero, and `onFalse` at the positions where the
+     * input tensor is equal to zero.
      */
     public fun whereCond(onTrue: Tensor, onFalse: Tensor): Tensor {
         val targetShape =
@@ -877,7 +1289,23 @@ public class Tensor internal constructor(
     }
 
     /**
-     * Returns a tensor with values from self at the indices corresponding to ids.
+     * Returns a tensor with the values from the `self` tensor at the index corresponding to the
+     * values hold in the `ids` tensor.
+     *
+     * # Arguments
+     *
+     * * `self` - A tensor with dimensions `v, h`.
+     * * `ids` - A tensor with dimensions `s` and with integer values between 0 and v (exclusive).
+     *
+     * The resulting tensor has dimensions `s, h`. `s` is called the sequence length, `v` the
+     * vocabulary size, and `h` the hidden size.
+     *
+     * ```kotlin
+     * val values = Tensor.new(floatArrayOf(0f, 1f, 2f, 3f, 4f, 5f), Shape(3, 2), Device.Cpu)
+     * val ids = Tensor.new(uintArrayOf(2u, 1u, 2u), Shape(3), Device.Cpu)
+     * val emb = values.embedding(ids)
+     * // [[4.0, 5.0], [2.0, 3.0], [4.0, 5.0]]
+     * ```
      */
     public fun embedding(ids: Tensor): Tensor {
         if (rank() != 2 || ids.rank() != 1) {
@@ -910,7 +1338,7 @@ public class Tensor internal constructor(
     }
 
     /**
-     * Scatter source values into a clone of self based on indexes along dimension dim.
+     * Scatters values from `source` into a copy of `self` at the specified `indexes` along `dim`.
      */
     public fun scatter(indexes: Tensor, source: Tensor, dim: Int): Tensor {
         val dimIdx = Shape.toIndex(dim, shape(), "scatter")
@@ -923,11 +1351,14 @@ public class Tensor internal constructor(
         return fromStorage(newStorage, sh, newOp, false)
     }
 
+    /**
+     * Scatters values from `source` into a copy of `self` at the specified `indexes` along `dim`.
+     */
     public fun scatter(indexes: Tensor, source: Tensor, dim: ShapeDim): Tensor =
         scatter(indexes, source, dim.toIndex(shape(), "scatter"))
 
     /**
-     * Scatter source values directly into self based on indexes along dimension dim.
+     * Scatters values from `source` in-place into `self` at the specified `indexes` along `dim`.
      */
     public fun scatterSet(indexes: Tensor, source: Tensor, dim: Int) {
         if (sameStorage(source)) {
@@ -938,11 +1369,14 @@ public class Tensor internal constructor(
         storage.scatterSet(layout, indexes.storage, indexes.layout, source.storage, source.layout, dimIdx)
     }
 
+    /**
+     * Scatters values from `source` in-place into `self` at the specified `indexes` along `dim`.
+     */
     public fun scatterSet(indexes: Tensor, source: Tensor, dim: ShapeDim) =
         scatterSet(indexes, source, dim.toIndex(shape(), "scatter-set"))
 
     /**
-     * Accumulate source values into self based on indexes along dimension dim.
+     * Scatters and adds values from `source` into a copy of `self` at `indexes` along `dim`.
      */
     public fun scatterAdd(indexes: Tensor, source: Tensor, dim: Int): Tensor {
         val dimIdx = Shape.toIndex(dim, shape(), "scatter-add")
@@ -955,11 +1389,14 @@ public class Tensor internal constructor(
         return fromStorage(newStorage, sh, newOp, false)
     }
 
+    /**
+     * Scatters and adds values from `source` into a copy of `self` at `indexes` along `dim`.
+     */
     public fun scatterAdd(indexes: Tensor, source: Tensor, dim: ShapeDim): Tensor =
         scatterAdd(indexes, source, dim.toIndex(shape(), "scatter-add"))
 
     /**
-     * Accumulate source values directly into self based on indexes along dimension dim.
+     * Scatters and adds values from `source` in-place into `self` at `indexes` along `dim`.
      */
     public fun scatterAddSet(indexes: Tensor, source: Tensor, dim: Int) {
         if (sameStorage(source)) {
@@ -970,11 +1407,14 @@ public class Tensor internal constructor(
         storage.scatterAdd(layout, indexes.storage, indexes.layout, source.storage, source.layout, dimIdx)
     }
 
+    /**
+     * Scatters and adds values from `source` in-place into `self` at `indexes` along `dim`.
+     */
     public fun scatterAddSet(indexes: Tensor, source: Tensor, dim: ShapeDim) =
         scatterAddSet(indexes, source, dim.toIndex(shape(), "scatter-add-set"))
 
     /**
-     * Embeds the values of the src tensor into the self tensor on the first dimension.
+     * Embeds the values of the `src` tensor into the `self` tensor on the first dimension.
      */
     public fun sliceScatter0(src: Tensor, start: Int): Tensor {
         if (dtype() != src.dtype()) {
@@ -1004,7 +1444,7 @@ public class Tensor internal constructor(
     }
 
     /**
-     * Embeds the values of the src tensor into the self tensor on the specified dimension.
+     * Embeds the values of the `src` tensor into the `self` tensor on the specified dimension.
      */
     public fun sliceScatter(src: Tensor, dim: Int, start: Int): Tensor {
         val dimIdx = Shape.toIndex(dim, shape(), "slice-scatter")
@@ -1017,11 +1457,22 @@ public class Tensor internal constructor(
         }
     }
 
+    /**
+     * Embeds the values of the `src` tensor into the `self` tensor on the specified dimension.
+     */
     public fun sliceScatter(src: Tensor, dim: ShapeDim, start: Int): Tensor =
         sliceScatter(src, dim.toIndex(shape(), "slice-scatter"), start)
 
     /**
-     * Accumulate elements from source at indices indexes and add them to self.
+     * Accumulate element from `source` at indexes `indexes` and add them to `self`.
+     *
+     * ```kotlin
+     * val a = Tensor.zeros(Shape(2, 3), DType.F32, Device.Cpu)
+     * val s = Tensor.new(floatArrayOf(1f, 2f, 3f), Shape(1, 3), Device.Cpu)
+     * val ids = Tensor.new(intArrayOf(1), Shape(1), Device.Cpu)
+     * val res = a.indexAdd(ids, s, 0)
+     * // [[0.0, 0.0, 0.0], [1.0, 2.0, 3.0]]
+     * ```
      */
     public fun indexAdd(indexes: Tensor, source: Tensor, dim: Int): Tensor {
         val dimIdx = Shape.toIndex(dim, shape(), "index-add")
@@ -1048,12 +1499,32 @@ public class Tensor internal constructor(
         return fromStorage(newStorage, shape(), op, false)
     }
 
+    /**
+     * Accumulate element from `source` at indexes `indexes` and add them to `self`.
+     */
     public fun indexAdd(indexes: Tensor, source: Tensor, dim: ShapeDim): Tensor =
         indexAdd(indexes, source, dim.toIndex(shape(), "index-add"))
 
     // --- Indexing ---
     /**
      * Gather values across the target dimension.
+     *
+     * # Arguments
+     *
+     * * `self` - The input tensor.
+     * * `indexes` - The indices of elements to gather, this should have same number of dimensions as `self`
+     *   and `indexes.dims()[d] <= self.dims()[d]` for all dimensions `d != dim`
+     * * `dim` - the target dimension.
+     *
+     * The resulting tensor has the same shape as `indexes` and use values from `self` indexed on
+     * dimension `dim` by the values in `indexes`.
+     *
+     * ```kotlin
+     * val a = Tensor.new(floatArrayOf(1f, 2f, 3f, 4f), Shape(2, 2), Device.Cpu)
+     * val b = Tensor.new(uintArrayOf(0u, 0u, 1u, 0u), Shape(2, 2), Device.Cpu)
+     * val c = a.gather(b, 1)
+     * // [[1.0, 1.0], [4.0, 3.0]]
+     * ```
      */
     public fun gather(indexes: Tensor, dim: Int): Tensor {
         val normalizedDim = Shape.toIndex(dim, shape(), "gather")
@@ -1076,6 +1547,9 @@ public class Tensor internal constructor(
         return fromStorage(newStorage, indexes.shape(), op, false)
     }
 
+    /**
+     * Gather values across the target dimension.
+     */
     public fun gather(indexes: Tensor, dim: ShapeDim): Tensor {
         val normalizedDim = dim.toIndex(shape(), "gather")
         return gather(indexes, normalizedDim)
@@ -1083,6 +1557,19 @@ public class Tensor internal constructor(
 
     /**
      * Select values for the input tensor at the target indexes across the specified dimension.
+     *
+     * The `indexes` argument is an int tensor with a single dimension.
+     * The output has the same number of dimension as the `self` input. The target dimension of
+     * the output has length the length of `indexes` and the values are taken from `self` using
+     * the index from `indexes`. Other dimensions have the same number of elements as the input
+     * tensor.
+     *
+     * ```kotlin
+     * val a = Tensor.new(floatArrayOf(1f, 2f, 3f, 4f), Shape(2, 2), Device.Cpu)
+     * val b = Tensor.new(uintArrayOf(0u, 1u, 0u), Shape(3), Device.Cpu)
+     * val c = a.indexSelect(b, 0)
+     * // [[1.0, 2.0], [3.0, 4.0], [1.0, 2.0]]
+     * ```
      */
     public fun indexSelect(indexes: Tensor, dim: Int): Tensor {
         val normalizedDim = Shape.toIndex(dim, shape(), "index_select")
@@ -1092,24 +1579,40 @@ public class Tensor internal constructor(
         return fromStorage(newStorage, Shape(outDims), BackpropOp.None, false)
     }
 
+    /**
+     * Select values for the input tensor at the target indexes across the specified dimension.
+     */
     public fun indexSelect(indexes: Tensor, dim: ShapeDim): Tensor =
         indexSelect(indexes, dim.toIndex(shape(), "index-select"))
 
     /**
-     * Returns an iterator over position of the elements in the storage.
+     * Returns an iterator over position of the elements in the storage when ranging over the
+     * index tuples in lexicographic order.
      */
     public fun stridedIndex(): StridedIndex = layout.stridedIndex()
 
     /**
-     * Returns the position of the start and length of contiguous blocks.
+     * Similar to `stridedIndex` but returns the position of the start of each contiguous block
+     * as well as the length of the contiguous blocks. For a contiguous tensor, the index iterator
+     * will only return the start offset and the size would be the number of elements in the
+     * tensor.
      */
     public fun stridedBlocks(): StridedBlocks = layout.stridedBlocks()
 
     // --- Data Accessors ---
+    /**
+     * Returns a reference to this tensor.
+     */
     public fun asRef(): Tensor = this
 
+    /**
+     * Dereferences this tensor wrapper to its underlying tensor representation.
+     */
     public fun deref(): Tensor = this
 
+    /**
+     * Returns the data contained in a 1D tensor as a list of scalar values.
+     */
     public fun <S> toVec1(): List<S> {
         val count = elemCount()
         if (rank() != 1) throw CandleException.UnexpectedNumberOfDims(1, rank(), shape())
@@ -1123,6 +1626,9 @@ public class Tensor internal constructor(
         return list
     }
 
+    /**
+     * Returns the data contained in a 2D tensor as a list of lists of scalar values.
+     */
     public fun <S> toVec2(): List<List<S>> {
         val (dim1, dim2) = dims2()
         val cont = contiguous()
@@ -1140,6 +1646,9 @@ public class Tensor internal constructor(
         return result
     }
 
+    /**
+     * Returns the data contained in a 3D tensor as nested lists of scalar values.
+     */
     public fun <S> toVec3(): List<List<List<S>>> {
         val (dim1, dim2, dim3) = dims3()
         val cont = contiguous()
@@ -1161,13 +1670,23 @@ public class Tensor internal constructor(
         return result
     }
 
+    /**
+     * Retrieves the single scalar value held in the tensor. If the tensor contains multiple
+     * dimensions, an error is returned instead.
+     */
     public fun <S> toScalar(): S {
         if (elemCount() != 1) throw CandleException.UnexpectedNumberOfDims(0, rank(), shape())
         return toVec1<S>()[0]
     }
 
+    /**
+     * An alias for `toScalar`.
+     */
     public fun <S> toVec0(): S = toScalar<S>()
 
+    /**
+     * Returns the data contained in a 1D tensor as a float array.
+     */
     public fun toVec1F32(): FloatArray {
         val cont = contiguous()
         val cpu = (cont.storage as Storage.Cpu).storage
@@ -1177,6 +1696,9 @@ public class Tensor internal constructor(
         return res
     }
 
+    /**
+     * Returns the data contained in a 1D tensor as a double array.
+     */
     public fun toVec1F64(): DoubleArray {
         val cont = contiguous()
         val cpu = (cont.storage as Storage.Cpu).storage
@@ -1186,16 +1708,25 @@ public class Tensor internal constructor(
         return res
     }
 
+    /**
+     * Retrieves the single 32-bit float scalar value held in the tensor.
+     */
     public fun toScalarF32(): Float {
         if (elemCount() != 1) throw CandleException.UnexpectedNumberOfDims(0, rank(), shape())
         return toVec1F32()[0]
     }
 
+    /**
+     * Retrieves the single 64-bit float scalar value held in the tensor.
+     */
     public fun toScalarF64(): Double {
         if (elemCount() != 1) throw CandleException.UnexpectedNumberOfDims(0, rank(), shape())
         return toVec1F64()[0]
     }
 
+    /**
+     * Returns the data contained in a 1D tensor as a 64-bit integer array.
+     */
     public fun toVec1I64(): LongArray {
         val cont = contiguous()
         val cpu = (cont.storage as Storage.Cpu).storage
@@ -1205,6 +1736,9 @@ public class Tensor internal constructor(
         return res
     }
 
+    /**
+     * Retrieves the single 64-bit integer scalar value held in the tensor.
+     */
     public fun toScalarI64(): Long {
         if (elemCount() != 1) throw CandleException.UnexpectedNumberOfDims(0, rank(), shape())
         return toVec1I64()[0]
@@ -1212,7 +1746,17 @@ public class Tensor internal constructor(
 
     // --- Shape manipulations ---
     /**
-     * Reshape returns a tensor with the target shape provided element count matches.
+     * Reshapes this tensor to the target shape.
+     *
+     * If the tensor is contiguous, this requires no data copy. Otherwise the tensor is first
+     * made contiguous before reshaping. One dimension may be specified as `()` / `-1` via
+     * `intoShapeWithHole` to infer its size from the total element count.
+     *
+     * ```kotlin
+     * val a = Tensor.zeros(Shape(2, 3), DType.F32, Device.Cpu)
+     * val c = a.reshape(Shape(1, 6))
+     * assertEquals(listOf(1, 6), c.shape().dims)
+     * ```
      */
     public fun reshape(shape: Shape): Tensor {
         if (shape.elemCount() != elemCount()) {
@@ -1226,6 +1770,9 @@ public class Tensor internal constructor(
         }
     }
 
+    /**
+     * Reshapes this tensor to the specified dimensions, inferring at most one `-1` dimension.
+     */
     public fun reshape(vararg dims: Int): Tensor =
         reshape(dims.toList().intoShapeWithHole(elemCount()))
 
@@ -1251,33 +1798,74 @@ public class Tensor internal constructor(
 
     /**
      * Flattens the input tensor by reshaping it into a one dimension tensor.
+     *
+     * ```kotlin
+     * val a = Tensor.new(floatArrayOf(0f, 1f, 2f, 3f, 4f, 5f), Shape(3, 2), Device.Cpu)
+     * val b = a.flattenAll()
+     * // [0.0, 1.0, 2.0, 3.0, 4.0, 5.0]
+     * ```
      */
     public fun flattenAll(): Tensor = flatten_(null, null)
 
     /**
-     * Flattens the input tensor on dimension indexes from startDim (inclusive) to the last dimension.
+     * Flattens the input tensor on dimension indexes from `startDim` (inclusive) to the last
+     * dimension.
+     *
+     * ```kotlin
+     * val a = Tensor.zeros(Shape(2, 3, 4), DType.F32, Device.Cpu)
+     * val c = a.flattenFrom(1)
+     * assertEquals(listOf(2, 12), c.shape().dims)
+     * ```
      */
     public fun flattenFrom(dim: Int): Tensor = flatten_(dim, null)
 
+    /**
+     * Flattens the input tensor on dimension indexes from `dim` (inclusive) to the last dimension.
+     */
     public fun flattenFrom(dim: ShapeDim): Tensor = flattenFrom(dim.toIndex(shape(), "flatten_from"))
 
     /**
-     * Flattens the input tensor on dimension indexes from 0 to endDim (inclusive).
+     * Flattens the input tensor on dimension indexes from `0` to `endDim` (inclusive).
+     *
+     * ```kotlin
+     * val a = Tensor.zeros(Shape(2, 3, 4), DType.F32, Device.Cpu)
+     * val c = a.flattenTo(1)
+     * assertEquals(listOf(6, 4), c.shape().dims)
+     * ```
      */
     public fun flattenTo(dim: Int): Tensor = flatten_(null, dim)
 
+    /**
+     * Flattens the input tensor on dimension indexes from `0` to `dim` (inclusive).
+     */
     public fun flattenTo(dim: ShapeDim): Tensor = flattenTo(dim.toIndex(shape(), "flatten_to"))
 
     /**
-     * Flattens the input tensor on dimension indexes from startDim to endDim (both inclusive).
+     * Flattens the input tensor on dimension indexes from `startDim` to `endDim` (both
+     * inclusive).
+     *
+     * ```kotlin
+     * val a = Tensor.zeros(Shape(2, 3, 4, 5), DType.F32, Device.Cpu)
+     * val c = a.flatten(1, 2)
+     * assertEquals(listOf(2, 12, 5), c.shape().dims)
+     * ```
      */
     public fun flatten(startDim: Int, endDim: Int): Tensor = flatten_(startDim, endDim)
 
+    /**
+     * Flattens the input tensor on dimension indexes from `startDim` to `endDim` (both inclusive).
+     */
     public fun flatten(startDim: ShapeDim, endDim: ShapeDim): Tensor =
         flatten(startDim.toIndex(shape(), "flatten"), endDim.toIndex(shape(), "flatten"))
 
     /**
      * Creates a new tensor with the specified dimension removed if its size was one.
+     *
+     * ```kotlin
+     * val a = Tensor.zeros(Shape(2, 1, 3), DType.F32, Device.Cpu)
+     * val c = a.squeeze(1)
+     * assertEquals(listOf(2, 3), c.shape().dims)
+     * ```
      */
     public fun squeeze(dim: Int): Tensor {
         val normalizedDim = Shape.toIndex(dim, shape(), "squeeze")
@@ -1289,10 +1877,19 @@ public class Tensor internal constructor(
         return Tensor(TensorId.next(), storage, Layout(Shape(newDims), newStride, layout.startOffset), BackpropOp.None, false)
     }
 
+    /**
+     * Creates a new tensor with the specified dimension removed if its size was one.
+     */
     public fun squeeze(dim: ShapeDim): Tensor = squeeze(dim.toIndex(shape(), "squeeze"))
 
     /**
      * Creates a new tensor with a dimension of size one inserted at the specified position.
+     *
+     * ```kotlin
+     * val a = Tensor.zeros(Shape(2, 3), DType.F32, Device.Cpu)
+     * val c = a.unsqueeze(0)
+     * assertEquals(listOf(1, 2, 3), c.shape().dims)
+     * ```
      */
     public fun unsqueeze(dim: Int): Tensor {
         val normalizedDim = Shape.toIndexPlusOne(dim, shape(), "unsqueeze")
@@ -1304,21 +1901,41 @@ public class Tensor internal constructor(
         return Tensor(TensorId.next(), storage, Layout(Shape(newDims), newStride, layout.startOffset), BackpropOp.None, false)
     }
 
+    /**
+     * Creates a new tensor with a dimension of size one inserted at the specified position.
+     */
     public fun unsqueeze(dim: ShapeDim): Tensor = unsqueeze(dim.toIndexPlusOne(shape(), "unsqueeze"))
 
     /**
-     * Returns a tensor that is a transposed version of the input, the given dimensions are swapped.
+     * Returns a tensor that is a transposed version of the input, the given dimensions are
+     * swapped.
+     *
+     * ```kotlin
+     * val tensor = Tensor.new(floatArrayOf(0f, 1f, 2f, 3f, 4f, 5f), Shape(3, 2), Device.Cpu)
+     * val transposedTensor = tensor.transpose(0, 1)
+     * // [[0.0, 2.0, 4.0], [1.0, 3.0, 5.0]]
+     * ```
      */
     public fun transpose(dim1: Int, dim2: Int): Tensor {
         val newLayout = layout.transpose(dim1, dim2)
         return Tensor(TensorId.next(), storage, newLayout, BackpropOp.None, false)
     }
 
+    /**
+     * Returns a tensor that is a transposed version of the input, the given dimensions are swapped.
+     */
     public fun transpose(dim1: ShapeDim, dim2: ShapeDim): Tensor =
         transpose(dim1.toIndex(shape(), "transpose"), dim2.toIndex(shape(), "transpose"))
 
     /**
-     * Returns a tensor that is a transposed version of the input, swapping the two last dimensions.
+     * Returns a tensor that is a transposed version of the input, the two last dimensions of the
+     * input are swapped.
+     *
+     * ```kotlin
+     * val tensor = Tensor.new(floatArrayOf(0f, 1f, 2f, 3f, 4f, 5f), Shape(3, 2), Device.Cpu)
+     * val transposedTensor = tensor.t()
+     * // [[0.0, 2.0, 4.0], [1.0, 3.0, 5.0]]
+     * ```
      */
     public fun t(): Tensor {
         if (rank() < 2) {
@@ -1328,17 +1945,34 @@ public class Tensor internal constructor(
     }
 
     /**
-     * Returns a tensor with the same data where dimensions have been permuted.
+     * Returns a tensor with the same data as the input where the dimensions have been permuted.
+     * dims must be a permutation of 0, 1, ..., n-1 where n is the number of dimensions of the
+     * input.
+     *
+     * ```kotlin
+     * val tensor = Tensor.arange(0f, 24f, Device.Cpu).reshape(Shape(2, 3, 4))
+     * val permuted = tensor.permute(listOf(2, 0, 1))
+     * assertEquals(listOf(4, 2, 3), permuted.dims())
+     * ```
      */
     public fun permute(idxs: List<Int>): Tensor {
         val newLayout = layout.permute(idxs)
         return Tensor(TensorId.next(), storage, newLayout, BackpropOp.None, false)
     }
 
+    /**
+     * Returns a tensor with the same data where dimensions have been permuted.
+     */
     public fun permute(vararg idxs: Int): Tensor = permute(idxs.toList())
 
     /**
-     * Broadcast the input tensor to the target shape.
+     * Broadcast the input tensor to the target shape. This returns an error if the input shape is
+     * not compatible with the target shape.
+     *
+     * If the input shape is `i1, i2, ... ik`, the target shape has to have `k` dimensions or
+     * more and shape `j1, ..., jl, t1, t2, ..., tk`. The dimensions `j1` to `jl` can have
+     * any value, the dimension `ta` must be equal to `ia` if `ia` is different from 1. If
+     * `ia` is equal to 1, any value can be used.
      */
     public fun broadcastAs(targetShape: Shape): Tensor {
         val newLayout = layout.broadcastAs(targetShape)
@@ -1351,7 +1985,16 @@ public class Tensor internal constructor(
     public fun expand(shape: Shape): Tensor = broadcastAs(shape)
 
     /**
-     * Returns a new tensor duplicating data from the original tensor, with new dimensions on left.
+     * Broadcasts the input tensor to the target shape on the left dimensions.
+     *
+     * For example if the input tensor has dimensions `(c, d)` and `leftShape` is `(a, b)`, the
+     * returned tensor has dimensions `(a, b, c, d)`.
+     *
+     * ```kotlin
+     * val a = Tensor.ones(Shape(2, 3), DType.F32, Device.Cpu)
+     * val b = a.broadcastLeft(Shape(4, 1))
+     * assertEquals(listOf(4, 1, 2, 3), b.dims())
+     * ```
      */
     public fun broadcastLeft(leftShape: Shape): Tensor {
         val newDims = leftShape.dims + dims()
@@ -1359,7 +2002,16 @@ public class Tensor internal constructor(
     }
 
     /**
-     * Returns a narrowed version of the input along dimension dim from start to start + len.
+     * Returns a new tensor that is a narrowed version of the input, the dimension `dim`
+     * ranges from `start` to `start + len`.
+     *
+     * ```kotlin
+     * val a = Tensor.new(floatArrayOf(0f, 1f, 2f, 3f, 4f, 5f, 6f, 7f, 8f), Shape(3, 3), Device.Cpu)
+     * val b = a.narrow(0, 1, 2)
+     * // [[3.0, 4.0, 5.0], [6.0, 7.0, 8.0]]
+     * val c = a.narrow(1, 1, 1)
+     * // [[1.0], [4.0], [7.0]]
+     * ```
      */
     public fun narrow(dim: Int, start: Int, len: Int): Tensor {
         val normalizedDim = Shape.toIndex(dim, shape(), "narrow")
@@ -1368,7 +2020,8 @@ public class Tensor internal constructor(
     }
 
     /**
-     * Returns a tensor that is in row major order.
+     * Returns a tensor that is in row major order. This is the same as the original tensor if it
+     * was already contiguous, otherwise a copy is triggered.
      */
     public fun contiguous(): Tensor {
         if (isContiguous() && layout.startOffset == 0) return this
@@ -1377,12 +2030,14 @@ public class Tensor internal constructor(
     }
 
     /**
-     * Returns a tensor that is in row major order, always copying underlying storage.
+     * Returns a tensor that is in row major order. This always makes a copy of the underlying
+     * tensor.
      */
     public fun forceContiguous(): Tensor = copy()
 
     /**
-     * Copies the actual storage of the tensor.
+     * Copies the actual storage of the tensor; compared to `clone()` this triggers a deep copy of
+     * the underlying storage buffer.
      */
     public fun copy(): Tensor {
         val newStorage = storage.tryClone(layout)
@@ -1391,7 +2046,8 @@ public class Tensor internal constructor(
     }
 
     /**
-     * Create a variable based on the values currently stored in this tensor.
+     * Create a variable based on the values currently stored in this tensor. The storage is always
+     * copied.
      */
     public fun makeVar(): Tensor {
         val newStorage = storage.tryClone(layout)
@@ -1399,7 +2055,13 @@ public class Tensor internal constructor(
     }
 
     /**
-     * Casts the input tensor to the target dtype.
+     * Casts the input tensor to the target `dtype`.
+     *
+     * ```kotlin
+     * val tensor = Tensor.new(floatArrayOf(0f, 1f, 2f, 3f, 4f, 5f), Shape(3, 2), Device.Cpu)
+     * val cast = tensor.toDtype(DType.F64)
+     * assertEquals(DType.F64, cast.dtype())
+     * ```
      */
     public fun toDtype(targetDType: DType): Tensor {
         if (dtype() == targetDType) return this
@@ -1408,18 +2070,52 @@ public class Tensor internal constructor(
     }
 
     /**
-     * Transfers tensor to target device.
+     * Returns a tensor that is on the target device. This creates a copy on the target device if
+     * the original tensor is not already on the target device.
      */
     public fun toDevice(targetDevice: Device): Tensor {
         if (device().sameDevice(targetDevice)) return this
-        if (targetDevice.isCpu()) {
-            return fromStorage(Storage.Cpu(storage.toCpuStorage()), shape(), BackpropOp.None, false)
+        val currentStorage = storage
+        val newStorage: Storage = when (currentStorage) {
+            is Storage.Cpu -> when (targetDevice) {
+                is Device.Cpu -> Storage.Cpu(currentStorage.storage)
+                is Device.Cuda -> Storage.Cuda(targetDevice.device.storageFromCpuStorage(currentStorage.storage))
+                is Device.Metal -> Storage.Metal(targetDevice.device.storageFromCpuStorage(currentStorage.storage))
+            }
+            is Storage.Cuda -> when (targetDevice) {
+                is Device.Cpu -> Storage.Cpu(currentStorage.storage.toCpuStorage())
+                is Device.Cuda -> Storage.Cuda(currentStorage.storage.transferToDevice(targetDevice.device))
+                is Device.Metal -> {
+                    val cpuStorage = currentStorage.storage.toCpuStorage()
+                    Storage.Metal(targetDevice.device.storageFromCpuStorage(cpuStorage))
+                }
+            }
+            is Storage.Metal -> when (targetDevice) {
+                is Device.Cpu -> Storage.Cpu(currentStorage.storage.toCpuStorage())
+                is Device.Cuda -> {
+                    val cpuStorage = currentStorage.storage.toCpuStorage()
+                    Storage.Cuda(targetDevice.device.storageFromCpuStorage(cpuStorage))
+                }
+                is Device.Metal -> {
+                    val cpuStorage = currentStorage.storage.toCpuStorage()
+                    Storage.Metal(targetDevice.device.storageFromCpuStorage(cpuStorage))
+                }
+            }
         }
-        throw CandleException.NotCompiledWithCudaSupport
+        val op = BackpropOp.new1(this) { Op.ToDevice(it) }
+        return Tensor(TensorId.next(), newStorage, layout.clone(), op, false)
     }
 
     /**
-     * Returns the sub-tensor fixing the index at i on the first dimension.
+     * Returns the sub-tensor fixing the index at `i` on the first dimension.
+     *
+     * ```kotlin
+     * val tensor = Tensor.new(floatArrayOf(0f, 1f, 2f, 3f, 4f, 5f), Shape(3, 2), Device.Cpu)
+     * val t0 = tensor.get(0)
+     * // [0.0, 1.0]
+     * val t1 = tensor.get(1)
+     * // [2.0, 3.0]
+     * ```
      */
     public fun get(i: Int): Tensor {
         val dims = dims()
@@ -1431,7 +2127,15 @@ public class Tensor internal constructor(
     }
 
     /**
-     * Returns the sub-tensor fixing the index at index on the dimension dim.
+     * Returns the sub-tensor fixing the index at `index` on the dimension `dim`.
+     *
+     * ```kotlin
+     * val tensor = Tensor.new(floatArrayOf(0f, 1f, 2f, 3f, 4f, 5f), Shape(3, 2), Device.Cpu)
+     * val c1 = tensor.getOnDim(1, 1)
+     * // [1.0, 3.0, 5.0]
+     * val r0 = tensor.getOnDim(0, 0)
+     * // [0.0, 1.0]
+     * ```
      */
     public fun getOnDim(dim: Int, index: Int): Tensor {
         val dimIdx = Shape.toIndex(dim, shape(), "get_on_dim")
@@ -1440,11 +2144,15 @@ public class Tensor internal constructor(
         return narrow(dimIdx, index, 1).reshape(Shape(targetDims))
     }
 
+    /**
+     * Returns the sub-tensor fixing the index at `index` on the dimension `dim`.
+     */
     public fun getOnDim(dim: ShapeDim, index: Int): Tensor =
         getOnDim(dim.toIndex(shape(), "get_on_dim"), index)
 
     /**
-     * Pad the input tensor using 0s along dimension dim.
+     * Pad the input tensor using 0s along dimension `dim`. This adds `left` elements before the
+     * input tensor values and `right` elements after.
      */
     public fun padWithZeros(dim: Int, left: Int, right: Int): Tensor {
         if (left == 0 && right == 0) return this
@@ -1470,11 +2178,15 @@ public class Tensor internal constructor(
         }
     }
 
+    /**
+     * Pad the input tensor using 0s along dimension `dim`.
+     */
     public fun padWithZeros(dim: ShapeDim, left: Int, right: Int): Tensor =
         padWithZeros(dim.toIndex(shape(), "pad_with_zeros"), left, right)
 
     /**
-     * Pad the input tensor using same values along dimension dim.
+     * Pad the input tensor using same values along dimension `dim`. This adds `left` elements
+     * before the input tensor values and `right` elements after.
      */
     public fun padWithSame(dim: Int, left: Int, right: Int): Tensor {
         if (left == 0 && right == 0) return this
@@ -1504,6 +2216,9 @@ public class Tensor internal constructor(
         }
     }
 
+    /**
+     * Pad the input tensor using same values along dimension `dim`.
+     */
     public fun padWithSame(dim: ShapeDim, left: Int, right: Int): Tensor =
         padWithSame(dim.toIndex(shape(), "pad_with_same"), left, right)
 
@@ -1526,7 +2241,13 @@ public class Tensor internal constructor(
     }
 
     /**
-     * Returns the cumulative sum of elements along the specified dimension.
+     * Returns the cumulative sum of elements of the input tensor along the dimension `dim`.
+     *
+     * ```kotlin
+     * val a = Tensor.new(floatArrayOf(1f, 2f, 3f, 4f, 5f, 6f), Shape(2, 3), Device.Cpu)
+     * val b = a.cumsum(1)
+     * // [[1.0, 3.0, 6.0], [4.0, 9.0, 15.0]]
+     * ```
      */
     public fun cumsum(dim: Int): Tensor {
         val dimIdx = Shape.toIndex(dim, shape(), "cumsum")
@@ -1544,10 +2265,20 @@ public class Tensor internal constructor(
         }
     }
 
+    /**
+     * Returns the cumulative sum of elements along the specified dimension.
+     */
     public fun cumsum(dim: ShapeDim): Tensor = cumsum(dim.toIndex(shape(), "cumsum"))
 
     /**
-     * Returns a copy of self where values within ranges have been replaced with src.
+     * Returns a copy of `self` where the values within `ranges` have been replaced with the
+     * content of `src`.
+     *
+     * ```kotlin
+     * val a = Tensor.arange(0f, 12f, Device.Cpu).reshape(Shape(4, 3))
+     * val b = Tensor.new(floatArrayOf(-1f, -2f, -3f, -4f), Shape(2, 2), Device.Cpu)
+     * val c = a.sliceAssign(listOf(1..2, 0..1), b)
+     * ```
      */
     public fun sliceAssign(ranges: List<IntRange>, src: Tensor): Tensor {
         val srcDims = src.dims()
@@ -1580,7 +2311,10 @@ public class Tensor internal constructor(
     }
 
     /**
-     * Returns log(sum(exp(tensor), dim)).
+     * Returns the log-sum-exp of elements of the input tensor along the specified dimensions.
+     *
+     * Computes `log(sum(exp(tensor), dim))` in a numerically stable way by subtracting the
+     * maximum along each reduced dimension before exponentiating.
      */
     public fun logSumExp(sumDims: List<Int>): Tensor {
         val normalizedDims = sumDims.map { Shape.toIndex(it, shape(), "log-sum-exp") }
@@ -1595,17 +2329,18 @@ public class Tensor internal constructor(
     }
 
     /**
-     * Pointwise pow operation: rhs * log(self).exp().
+     * Pointwise pow operation.
      */
     public fun pow(rhs: Tensor): Tensor = (rhs * log()).exp()
 
     /**
-     * Broadcasting version of pow.
+     * Broadcasting version of `pow`.
      */
     public fun broadcastPow(rhs: Tensor): Tensor = (rhs.broadcastMul(log())).exp()
 
     /**
      * Returns a new tensor with the order of elements reversed along the specified dimensions.
+     * This function makes a copy of the tensor's data.
      */
     public fun flip(dims: List<Int>): Tensor {
         var result = this
@@ -1619,7 +2354,7 @@ public class Tensor internal constructor(
     }
 
     /**
-     * Returns all slices of size size from self in dimension dim stepped by step.
+     * Returns all slices of size `size` from `self` in dimension `dim` stepped by `step`.
      */
     public fun unfold(dim: Int, size: Int, step: Int): Tensor {
         val dimIdx = Shape.toIndex(dim, shape(), "unfold")
@@ -1639,6 +2374,9 @@ public class Tensor internal constructor(
         return Tensor(TensorId.next(), storage, newLayout, BackpropOp.new1(this) { Op.Reshape(it) }, false)
     }
 
+    /**
+     * Returns all slices of size `size` from `self` in dimension `dim` stepped by `step`.
+     */
     public fun unfold(dim: ShapeDim, size: Int, step: Int): Tensor =
         unfold(dim.toIndex(shape(), "unfold"), size, step)
 
@@ -1646,7 +2384,11 @@ public class Tensor internal constructor(
 
     public companion object {
         /**
-         * Creates a fresh tensor structure based on storage, shape, op, and variable flag.
+         * Creates a fresh tensor structure based on a storage and a shape.
+         *
+         * # Note
+         * - This uses contiguous strides
+         * - Ensure the shape is compatible with the shape of the storage.
          */
         public fun fromStorage(
             storage: Storage,
@@ -1670,6 +2412,12 @@ public class Tensor internal constructor(
 
         /**
          * Creates a new tensor filled with ones.
+         *
+         * ```kotlin
+         * val a = Tensor.ones(Shape(2, 3), DType.F32, Device.Cpu)
+         * val b = Tensor.fromSlice(floatArrayOf(1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f), Shape(2, 3), Device.Cpu)
+         * // a == b
+         * ```
          */
         public fun ones(shape: Shape, dtype: DType, device: Device): Tensor =
             onesImpl(shape, dtype, device, false)
@@ -1694,6 +2442,12 @@ public class Tensor internal constructor(
 
         /**
          * Creates a new tensor filled with zeros.
+         *
+         * ```kotlin
+         * val a = Tensor.zeros(Shape(2, 3), DType.F32, Device.Cpu)
+         * val b = Tensor.fromSlice(floatArrayOf(0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f), Shape(2, 3), Device.Cpu)
+         * // a == b
+         * ```
          */
         public fun zeros(shape: Shape, dtype: DType, device: Device): Tensor =
             zerosImpl(shape, dtype, device, false)
@@ -1703,6 +2457,10 @@ public class Tensor internal constructor(
 
         /**
          * Creates a new tensor filled with uninitialized memory.
+         *
+         * ```kotlin
+         * val a = Tensor.empty(Shape(2, 3), DType.F32, Device.Cpu)
+         * ```
          */
         public fun empty(shape: Shape, dtype: DType, device: Device): Tensor =
             emptyImpl(shape, dtype, device, false)
@@ -1718,7 +2476,7 @@ public class Tensor internal constructor(
         }
 
         /**
-         * Creates a new tensor initialized with values sampled uniformly between lo and up.
+         * Creates a new tensor initialized with values sampled uniformly between `min` and `max`.
          */
         public fun rand(min: Float, max: Float, shape: Shape, device: Device): Tensor =
             randImpl(min, max, shape, device, false)
@@ -1734,7 +2492,8 @@ public class Tensor internal constructor(
         }
 
         /**
-         * Creates a new tensor initialized with values sampled from normal distribution.
+         * Creates a new tensor initialized with values sampled from a normal distribution with the
+         * specified `mean` and standard deviation `std`.
          */
         public fun randn(mean: Float, std: Float, shape: Shape, device: Device): Tensor =
             randnImpl(mean, std, shape, device, false)
@@ -1758,6 +2517,9 @@ public class Tensor internal constructor(
         public fun new(data: FloatArray, shape: Shape, device: Device): Tensor =
             newImpl(data, shape, device, false)
 
+        /**
+         * Creates a new tensor on the specified device using 64-bit float values and shape.
+         */
         public fun new(data: DoubleArray, shape: Shape, device: Device): Tensor {
             if (data.size != shape.elemCount()) {
                 throw CandleException.ShapeMismatch(data.size, shape)
@@ -1765,6 +2527,9 @@ public class Tensor internal constructor(
             return fromStorage(Storage.Cpu(CpuStorage.F64(data.copyOf())), shape, BackpropOp.None, false)
         }
 
+        /**
+         * Creates a new tensor on the specified device using 32-bit integer values and shape.
+         */
         public fun new(data: IntArray, shape: Shape, device: Device): Tensor {
             if (data.size != shape.elemCount()) {
                 throw CandleException.ShapeMismatch(data.size, shape)
@@ -1772,6 +2537,9 @@ public class Tensor internal constructor(
             return fromStorage(Storage.Cpu(CpuStorage.I32(data.copyOf())), shape, BackpropOp.None, false)
         }
 
+        /**
+         * Creates a new tensor on the specified device using 64-bit integer values and shape.
+         */
         public fun new(data: LongArray, shape: Shape, device: Device): Tensor {
             if (data.size != shape.elemCount()) {
                 throw CandleException.ShapeMismatch(data.size, shape)
@@ -1779,6 +2547,9 @@ public class Tensor internal constructor(
             return fromStorage(Storage.Cpu(CpuStorage.I64(data.copyOf())), shape, BackpropOp.None, false)
         }
 
+        /**
+         * Creates a new tensor on the specified device using unsigned 32-bit integer values and shape.
+         */
         public fun new(data: UIntArray, shape: Shape, device: Device): Tensor {
             if (data.size != shape.elemCount()) {
                 throw CandleException.ShapeMismatch(data.size, shape)
@@ -1786,6 +2557,9 @@ public class Tensor internal constructor(
             return fromStorage(Storage.Cpu(CpuStorage.U32(data.copyOf())), shape, BackpropOp.None, false)
         }
 
+        /**
+         * Creates a new tensor on the specified device using unsigned 8-bit integer values and shape.
+         */
         public fun new(data: UByteArray, shape: Shape, device: Device): Tensor {
             if (data.size != shape.elemCount()) {
                 throw CandleException.ShapeMismatch(data.size, shape)
@@ -1794,7 +2568,12 @@ public class Tensor internal constructor(
         }
 
         /**
-         * Returns a new tensor with all elements having the same specified value.
+         * Returns a new tensor with all the elements having the same specified value.
+         *
+         * ```kotlin
+         * val a = Tensor.full(3.5, Shape(2, 4), Device.Cpu)
+         * // [[3.5, 3.5, 3.5, 3.5], [3.5, 3.5, 3.5, 3.5]]
+         * ```
          */
         public fun full(value: Double, shape: Shape, device: Device): Tensor {
             val t = zeros(shape, DType.F64, device)
@@ -1804,6 +2583,11 @@ public class Tensor internal constructor(
 
         /**
          * Creates a new 1D tensor from an iterator.
+         *
+         * ```kotlin
+         * val a = Tensor.fromIter(listOf(1.0f, 2.0f, 3.0f, 4.0f), Device.Cpu)
+         * // [1.0, 2.0, 3.0, 4.0]
+         * ```
          */
         public fun fromIter(iter: Iterable<Float>, device: Device): Tensor {
             val list = iter.toList()
@@ -1811,11 +2595,21 @@ public class Tensor internal constructor(
         }
 
         /**
-         * Creates a new 1D tensor with values from interval [start, end) with difference 1.
+         * Creates a new 1D tensor with values from the interval `[start, end)` taken with a common
+         * difference `1` from `start`.
+         *
+         * ```kotlin
+         * val a = Tensor.arange(2.0f, 5.0f, Device.Cpu)
+         * // [2.0, 3.0, 4.0]
+         * ```
          */
         public fun arange(start: Float, end: Float, device: Device): Tensor =
             arangeStep(start, end, 1.0f, device)
 
+        /**
+         * Creates a new 1D integer tensor with values from the interval `[start, end)` taken with
+         * step `1`.
+         */
         public fun arange(start: Int, end: Int, device: Device): Tensor {
             val count = maxOf(0, end - start)
             val data = IntArray(count)
@@ -1826,7 +2620,13 @@ public class Tensor internal constructor(
         }
 
         /**
-         * Creates a new 1D tensor with values from interval [start, end) with difference step.
+         * Creates a new 1D tensor with values from the interval `[start, end)` taken with a common
+         * difference `step` from `start`.
+         *
+         * ```kotlin
+         * val a = Tensor.arangeStep(2.0f, 4.0f, 0.5f, Device.Cpu)
+         * // [2.0, 2.5, 3.0, 3.5]
+         * ```
          */
         public fun arangeStep(start: Float, end: Float, step: Float, device: Device): Tensor {
             if (step == 0.0f) bail("step cannot be zero")
@@ -1850,17 +2650,50 @@ public class Tensor internal constructor(
             newImpl(data, shape, device, isVariable)
 
         /**
-         * Creates a new tensor initialized with values from input slice.
+         * Creates a new tensor initialized with values from the input slice. The number of elements
+         * in this slice must be the same as the number of elements defined by the shape.
+         *
+         * ```kotlin
+         * val values = floatArrayOf(2f, 3f, 4f, 5f, 6f, 7f)
+         * val a = Tensor.fromSlice(values, Shape(2, 3), Device.Cpu)
+         * // [[2.0, 3.0, 4.0], [5.0, 6.0, 7.0]]
+         * ```
          */
         public fun fromSlice(data: FloatArray, shape: Shape, device: Device = Device.Cpu): Tensor = new(data, shape, device)
+
+        /**
+         * Creates a new 64-bit float tensor initialized with values from the input slice.
+         */
         public fun fromSlice(data: DoubleArray, shape: Shape, device: Device = Device.Cpu): Tensor = new(data, shape, device)
+
+        /**
+         * Creates a new 32-bit integer tensor initialized with values from the input slice.
+         */
         public fun fromSlice(data: IntArray, shape: Shape, device: Device = Device.Cpu): Tensor = new(data, shape, device)
+
+        /**
+         * Creates a new 64-bit integer tensor initialized with values from the input slice.
+         */
         public fun fromSlice(data: LongArray, shape: Shape, device: Device = Device.Cpu): Tensor = new(data, shape, device)
+
+        /**
+         * Creates a new unsigned 32-bit integer tensor initialized with values from the input slice.
+         */
         public fun fromSlice(data: UIntArray, shape: Shape, device: Device = Device.Cpu): Tensor = new(data, shape, device)
+
+        /**
+         * Creates a new unsigned 8-bit integer tensor initialized with values from the input slice.
+         */
         public fun fromSlice(data: UByteArray, shape: Shape, device: Device = Device.Cpu): Tensor = new(data, shape, device)
 
         /**
-         * Creates a new tensor initialized with values from input list.
+         * Creates a new tensor initialized with values from the input list. The number of elements
+         * in this list must be the same as the number of elements defined by the shape.
+         *
+         * ```kotlin
+         * val a = Tensor.fromVec(listOf(1f, 2f, 3f, 4f, 5f, 6f), Shape(2, 3), Device.Cpu)
+         * // [[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]]
+         * ```
          */
         public fun fromVec(data: List<Float>, shape: Shape, device: Device): Tensor =
             new(data.toFloatArray(), shape, device)
@@ -1871,7 +2704,22 @@ public class Tensor internal constructor(
         public fun repeat(tensor: Tensor, shape: Shape): Tensor = tensor.repeat(shape)
 
         /**
-         * Creates grids of coordinates specified by 1D inputs.
+         * Creates grids of coordinates specified by the 1D inputs.
+         *
+         * # Arguments
+         *
+         * * `args` - A list of 1D tensors.
+         * * `xyIndexing` - Whether to use xy indexing or ij indexing. If xy is selected, the
+         *   first dimension corresponds to the cardinality of the second input and the second
+         *   dimension corresponds to the cardinality of the first input. If ij is selected, the
+         *   dimensions are in the same order as the cardinality of the inputs.
+         *
+         * ```kotlin
+         * val x = Tensor.new(floatArrayOf(1f, 2f, 3f), Shape(3), Device.Cpu)
+         * val y = Tensor.new(floatArrayOf(4f, 5f, 6f), Shape(3), Device.Cpu)
+         * val gridsXy = Tensor.meshgrid(listOf(x, y), true)
+         * val gridsIj = Tensor.meshgrid(listOf(x, y), false)
+         * ```
          */
         public fun meshgrid(args: List<Tensor>, xyIndexing: Boolean): List<Tensor> {
             if (args.size <= 1) {
@@ -1897,6 +2745,15 @@ public class Tensor internal constructor(
 
         /**
          * Stacks two or more tensors along a particular dimension.
+         *
+         * All tensors must have the same rank, and the output has one additional rank.
+         *
+         * ```kotlin
+         * val a = Tensor.zeros(Shape(2, 3), DType.F32, Device.Cpu)
+         * val b = Tensor.zeros(Shape(2, 3), DType.F32, Device.Cpu)
+         * val c = Tensor.stack(listOf(a, b), 0)
+         * assertEquals(listOf(2, 2, 3), c.shape().dims)
+         * ```
          */
         public fun stack(tensors: List<Tensor>, dim: Int): Tensor {
             if (tensors.isEmpty()) {
@@ -1906,11 +2763,14 @@ public class Tensor internal constructor(
             return cat(unsqueezed, dim)
         }
 
+        /**
+         * Stacks two or more tensors along a particular dimension.
+         */
         public fun stack(tensors: List<Tensor>, dim: ShapeDim): Tensor =
             stack(tensors, dim.toIndexPlusOne(tensors[0].shape(), "stack"))
 
         /**
-         * Returns a lower triangular matrix of ones of size n by n.
+         * Returns a lower triangular matrix of ones of size `n` by `n`.
          */
         public fun tril2(n: Int, dtype: DType, device: Device): Tensor {
             val t = arange(0, n, device)
@@ -1920,7 +2780,7 @@ public class Tensor internal constructor(
         }
 
         /**
-         * Returns an upper triangular matrix of ones of size n by n.
+         * Returns an upper triangular matrix of ones of size `n` by `n`.
          */
         public fun triu2(n: Int, dtype: DType, device: Device): Tensor {
             val t = arange(0, n, device)
@@ -1930,7 +2790,7 @@ public class Tensor internal constructor(
         }
 
         /**
-         * Returns a matrix with a diagonal of ones of size n by n.
+         * Returns a matrix with a diagonal of ones of size `n` by `n`.
          */
         public fun eye(n: Int, dtype: DType, device: Device): Tensor {
             val t = arange(0, n, device)
@@ -1953,3 +2813,4 @@ public class Tensor internal constructor(
         }
     }
 }
+
