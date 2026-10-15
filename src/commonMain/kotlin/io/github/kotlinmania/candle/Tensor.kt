@@ -56,6 +56,12 @@ public class Tensor internal constructor(
 
     public fun dim(d: Int): Int = layout.dim(d)
 
+    public fun checkDim(dim: Int, op: String) {
+        if (dim < 0 || dim >= dims().size) {
+            throw CandleException.DimOutOfRange(shape(), dim, op)
+        }
+    }
+
     public fun rank(): Int = layout.shape.rank
 
     public fun elemCount(): Int = layout.shape.elemCount()
@@ -73,6 +79,8 @@ public class Tensor internal constructor(
     public fun isVariable(): Boolean = isVariable
 
     public fun storage(): Storage = storage
+
+    internal fun sameStorage(rhs: Tensor): Boolean = this.storage === rhs.storage
 
     // --- Unary Ops ---
     public fun exp(): Tensor = unaryOp(UnaryOp.Exp)
@@ -569,77 +577,12 @@ public class Tensor internal constructor(
             return new(data, shape, device)
         }
 
-        public fun cat(tensors: List<Tensor>, dim: Int): Tensor {
-            if (tensors.isEmpty()) {
-                throw CandleException.OpRequiresAtLeastOneTensor("cat")
-            }
-            val first = tensors[0]
-            if (tensors.size == 1) return first
-            val normalizedDim = Shape.toIndex(dim, first.shape(), "cat")
-
-            val targetDType = first.dtype()
-            val targetDevice = first.device()
-
-            var totalDimSize = 0
-            for ((idx, t) in tensors.withIndex()) {
-                if (t.dtype() != targetDType) {
-                    throw CandleException.DTypeMismatchBinaryOp(targetDType, t.dtype(), "cat")
-                }
-                if (t.rank() != first.rank()) {
-                    throw CandleException.ShapeMismatchCat(normalizedDim, first.shape(), idx + 1, t.shape())
-                }
-                for (d in 0 until first.rank()) {
-                    if (d != normalizedDim && t.dim(d) != first.dim(d)) {
-                        throw CandleException.ShapeMismatchCat(normalizedDim, first.shape(), idx + 1, t.shape())
-                    }
-                }
-                totalDimSize += t.dim(normalizedDim)
-            }
-
-            val outDims = first.dims().toMutableList()
-            outDims[normalizedDim] = totalDimSize
-            val outShape = Shape(outDims)
-            val result = zeros(outShape, targetDType, targetDevice)
-
-            var offset = 0
-            for (t in tensors) {
-                val len = t.dim(normalizedDim)
-                val destNarrow = result.narrow(normalizedDim, offset, len)
-                val cont = t.contiguous()
-                val srcCpu = (cont.storage as Storage.Cpu).storage
-                val dstCpu = (destNarrow.storage as Storage.Cpu).storage
-                val destStrided = destNarrow.layout.stridedIndex()
-                var srcIdx = 0
-                while (destStrided.hasNext()) {
-                    val dIdx = destStrided.next()
-                    setStorageVal(dstCpu, dIdx, srcCpu, srcIdx++)
-                }
-                offset += len
-            }
-            return result
-        }
-
         public fun stack(tensors: List<Tensor>, dim: Int): Tensor {
             if (tensors.isEmpty()) {
                 throw CandleException.OpRequiresAtLeastOneTensor("stack")
             }
             val unsqueezed = tensors.map { it.unsqueeze(dim) }
             return cat(unsqueezed, dim)
-        }
-
-        private fun setStorageVal(dst: CpuStorage, dstIdx: Int, src: CpuStorage, srcIdx: Int) {
-            when (dst) {
-                is CpuStorage.F32 -> dst.data[dstIdx] = src.getAsFloat(srcIdx)
-                is CpuStorage.F64 -> dst.data[dstIdx] = src.getAsDouble(srcIdx)
-                is CpuStorage.I32 -> dst.data[dstIdx] = src.getAsDouble(srcIdx).toInt()
-                is CpuStorage.I64 -> dst.data[dstIdx] = src.getAsDouble(srcIdx).toLong()
-                is CpuStorage.U32 -> dst.data[dstIdx] = src.getAsDouble(srcIdx).toLong().toUInt()
-                is CpuStorage.U8 -> dst.data[dstIdx] = src.getAsDouble(srcIdx).toInt().toUByte()
-                is CpuStorage.I16 -> dst.data[dstIdx] = src.getAsDouble(srcIdx).toInt().toShort()
-                is CpuStorage.F16 -> dst.data[dstIdx] = Float16Utils.floatToF16Bits(src.getAsFloat(srcIdx))
-                is CpuStorage.BF16 -> dst.data[dstIdx] = Float16Utils.floatToBF16Bits(src.getAsFloat(srcIdx))
-                is CpuStorage.F8E4M3 -> dst.data[dstIdx] = src.getAsDouble(srcIdx).toInt().toByte()
-            }
         }
 
         private fun getReducedShape(shape: Shape, reduceDims: List<Int>, keepdim: Boolean): Shape {

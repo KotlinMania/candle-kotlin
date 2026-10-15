@@ -131,6 +131,11 @@ public sealed class Op {
         val onTrue: Tensor,
         val onFalse: Tensor,
     ) : Op()
+
+    public data class Cat(
+        val args: List<Tensor>,
+        val dim: Int,
+    ) : Op()
 }
 
 public sealed class BackpropOp {
@@ -154,7 +159,14 @@ public sealed class BackpropOp {
         val buildOp: (Tensor, Tensor, Tensor) -> Op,
     ) : BackpropOp()
 
+    public data class OpN(
+        val args: List<Tensor>,
+        val buildOp: (List<Tensor>) -> Op,
+    ) : BackpropOp()
+
     public companion object {
+        public fun none(): BackpropOp = None
+
         public fun new1(arg: Tensor, buildOp: (Tensor) -> Op): BackpropOp = Op1(arg, buildOp)
 
         public fun new2(lhs: Tensor, rhs: Tensor, buildOp: (Tensor, Tensor) -> Op): BackpropOp =
@@ -166,6 +178,9 @@ public sealed class BackpropOp {
             t3: Tensor,
             buildOp: (Tensor, Tensor, Tensor) -> Op,
         ): BackpropOp = Op3(t1, t2, t3, buildOp)
+
+        public fun new(args: List<Tensor>, buildOp: (List<Tensor>) -> Op): BackpropOp =
+            OpN(args, buildOp)
     }
 }
 

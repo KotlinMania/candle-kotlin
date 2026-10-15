@@ -916,4 +916,318 @@ public sealed class CpuStorage {
             UnaryOp.Round -> round(v)
             UnaryOp.Sign -> sign(v)
         }
+
+    public fun copy2d(
+        dst: CpuStorage,
+        d1: Int,
+        d2: Int,
+        srcStride1: Int,
+        dstStride1: Int,
+        srcOffset: Int,
+        dstOffset: Int,
+    ) {
+        when (this) {
+            is U8 -> copy2dByteArray(data, (dst as U8).data, d1, d2, srcStride1, dstStride1, srcOffset, dstOffset)
+            is U32 -> copy2dUIntArray(data, (dst as U32).data, d1, d2, srcStride1, dstStride1, srcOffset, dstOffset)
+            is I16 -> copy2dShortArray(data, (dst as I16).data, d1, d2, srcStride1, dstStride1, srcOffset, dstOffset)
+            is I32 -> copy2dIntArray(data, (dst as I32).data, d1, d2, srcStride1, dstStride1, srcOffset, dstOffset)
+            is I64 -> copy2dLongArray(data, (dst as I64).data, d1, d2, srcStride1, dstStride1, srcOffset, dstOffset)
+            is BF16 -> copy2dShortArray(data, (dst as BF16).data, d1, d2, srcStride1, dstStride1, srcOffset, dstOffset)
+            is F16 -> copy2dShortArray(data, (dst as F16).data, d1, d2, srcStride1, dstStride1, srcOffset, dstOffset)
+            is F32 -> copy2dFloatArray(data, (dst as F32).data, d1, d2, srcStride1, dstStride1, srcOffset, dstOffset)
+            is F64 -> copy2dDoubleArray(data, (dst as F64).data, d1, d2, srcStride1, dstStride1, srcOffset, dstOffset)
+            is F8E4M3 -> copy2dRawByteArray(data, (dst as F8E4M3).data, d1, d2, srcStride1, dstStride1, srcOffset, dstOffset)
+        }
+    }
+
+    public fun copyStridedSrc(
+        dst: CpuStorage,
+        dstOffset: Int,
+        srcLayout: Layout,
+    ) {
+        when (this) {
+            is U8 -> copyStridedSrcByteArray(data, (dst as U8).data, dstOffset, srcLayout)
+            is U32 -> copyStridedSrcUIntArray(data, (dst as U32).data, dstOffset, srcLayout)
+            is I16 -> copyStridedSrcShortArray(data, (dst as I16).data, dstOffset, srcLayout)
+            is I32 -> copyStridedSrcIntArray(data, (dst as I32).data, dstOffset, srcLayout)
+            is I64 -> copyStridedSrcLongArray(data, (dst as I64).data, dstOffset, srcLayout)
+            is BF16 -> copyStridedSrcShortArray(data, (dst as BF16).data, dstOffset, srcLayout)
+            is F16 -> copyStridedSrcShortArray(data, (dst as F16).data, dstOffset, srcLayout)
+            is F32 -> copyStridedSrcFloatArray(data, (dst as F32).data, dstOffset, srcLayout)
+            is F64 -> copyStridedSrcDoubleArray(data, (dst as F64).data, dstOffset, srcLayout)
+            is F8E4M3 -> copyStridedSrcRawByteArray(data, (dst as F8E4M3).data, dstOffset, srcLayout)
+        }
+    }
+
+    private fun copy2dByteArray(src: UByteArray, dst: UByteArray, d1: Int, d2: Int, srcStride1: Int, dstStride1: Int, srcOffset: Int, dstOffset: Int) {
+        if (srcStride1 == d2 && dstStride1 == d2) {
+            src.copyInto(dst, dstOffset, srcOffset, srcOffset + d1 * d2)
+            return
+        }
+        var srcIdx = srcOffset
+        var dstIdx = dstOffset
+        for (i in 0 until d1) {
+            src.copyInto(dst, dstIdx, srcIdx, srcIdx + d2)
+            srcIdx += srcStride1
+            dstIdx += dstStride1
+        }
+    }
+
+    private fun copy2dUIntArray(src: UIntArray, dst: UIntArray, d1: Int, d2: Int, srcStride1: Int, dstStride1: Int, srcOffset: Int, dstOffset: Int) {
+        if (srcStride1 == d2 && dstStride1 == d2) {
+            src.copyInto(dst, dstOffset, srcOffset, srcOffset + d1 * d2)
+            return
+        }
+        var srcIdx = srcOffset
+        var dstIdx = dstOffset
+        for (i in 0 until d1) {
+            src.copyInto(dst, dstIdx, srcIdx, srcIdx + d2)
+            srcIdx += srcStride1
+            dstIdx += dstStride1
+        }
+    }
+
+    private fun copy2dShortArray(src: ShortArray, dst: ShortArray, d1: Int, d2: Int, srcStride1: Int, dstStride1: Int, srcOffset: Int, dstOffset: Int) {
+        if (srcStride1 == d2 && dstStride1 == d2) {
+            src.copyInto(dst, dstOffset, srcOffset, srcOffset + d1 * d2)
+            return
+        }
+        var srcIdx = srcOffset
+        var dstIdx = dstOffset
+        for (i in 0 until d1) {
+            src.copyInto(dst, dstIdx, srcIdx, srcIdx + d2)
+            srcIdx += srcStride1
+            dstIdx += dstStride1
+        }
+    }
+
+    private fun copy2dIntArray(src: IntArray, dst: IntArray, d1: Int, d2: Int, srcStride1: Int, dstStride1: Int, srcOffset: Int, dstOffset: Int) {
+        if (srcStride1 == d2 && dstStride1 == d2) {
+            src.copyInto(dst, dstOffset, srcOffset, srcOffset + d1 * d2)
+            return
+        }
+        var srcIdx = srcOffset
+        var dstIdx = dstOffset
+        for (i in 0 until d1) {
+            src.copyInto(dst, dstIdx, srcIdx, srcIdx + d2)
+            srcIdx += srcStride1
+            dstIdx += dstStride1
+        }
+    }
+
+    private fun copy2dLongArray(src: LongArray, dst: LongArray, d1: Int, d2: Int, srcStride1: Int, dstStride1: Int, srcOffset: Int, dstOffset: Int) {
+        if (srcStride1 == d2 && dstStride1 == d2) {
+            src.copyInto(dst, dstOffset, srcOffset, srcOffset + d1 * d2)
+            return
+        }
+        var srcIdx = srcOffset
+        var dstIdx = dstOffset
+        for (i in 0 until d1) {
+            src.copyInto(dst, dstIdx, srcIdx, srcIdx + d2)
+            srcIdx += srcStride1
+            dstIdx += dstStride1
+        }
+    }
+
+    private fun copy2dFloatArray(src: FloatArray, dst: FloatArray, d1: Int, d2: Int, srcStride1: Int, dstStride1: Int, srcOffset: Int, dstOffset: Int) {
+        if (srcStride1 == d2 && dstStride1 == d2) {
+            src.copyInto(dst, dstOffset, srcOffset, srcOffset + d1 * d2)
+            return
+        }
+        var srcIdx = srcOffset
+        var dstIdx = dstOffset
+        for (i in 0 until d1) {
+            src.copyInto(dst, dstIdx, srcIdx, srcIdx + d2)
+            srcIdx += srcStride1
+            dstIdx += dstStride1
+        }
+    }
+
+    private fun copy2dDoubleArray(src: DoubleArray, dst: DoubleArray, d1: Int, d2: Int, srcStride1: Int, dstStride1: Int, srcOffset: Int, dstOffset: Int) {
+        if (srcStride1 == d2 && dstStride1 == d2) {
+            src.copyInto(dst, dstOffset, srcOffset, srcOffset + d1 * d2)
+            return
+        }
+        var srcIdx = srcOffset
+        var dstIdx = dstOffset
+        for (i in 0 until d1) {
+            src.copyInto(dst, dstIdx, srcIdx, srcIdx + d2)
+            srcIdx += srcStride1
+            dstIdx += dstStride1
+        }
+    }
+
+    private fun copy2dRawByteArray(src: ByteArray, dst: ByteArray, d1: Int, d2: Int, srcStride1: Int, dstStride1: Int, srcOffset: Int, dstOffset: Int) {
+        if (srcStride1 == d2 && dstStride1 == d2) {
+            src.copyInto(dst, dstOffset, srcOffset, srcOffset + d1 * d2)
+            return
+        }
+        var srcIdx = srcOffset
+        var dstIdx = dstOffset
+        for (i in 0 until d1) {
+            src.copyInto(dst, dstIdx, srcIdx, srcIdx + d2)
+            srcIdx += srcStride1
+            dstIdx += dstStride1
+        }
+    }
+
+    private fun copyStridedSrcByteArray(src: UByteArray, dst: UByteArray, dstOffset: Int, srcLayout: Layout) {
+        when (val blocks = srcLayout.stridedBlocks()) {
+            is StridedBlocks.SingleBlock -> src.copyInto(dst, dstOffset, blocks.startOffset, blocks.startOffset + blocks.len)
+            is StridedBlocks.UniformBlocks -> copy2dByteArray(src, dst, blocks.count, blocks.blockLen, blocks.srcStride, blocks.blockLen, blocks.startOffset, dstOffset)
+            is StridedBlocks.MultipleBlocks -> {
+                val blockStartIndex = blocks.blockStartIndex
+                val blockLen = blocks.blockLen
+                if (blockLen == 1) {
+                    for (i in blockStartIndex.indices) dst[dstOffset + i] = src[blockStartIndex[i]]
+                } else {
+                    var curDstIndex = dstOffset
+                    for (srcIndex in blockStartIndex) {
+                        src.copyInto(dst, curDstIndex, srcIndex, srcIndex + blockLen)
+                        curDstIndex += blockLen
+                    }
+                }
+            }
+        }
+    }
+
+    private fun copyStridedSrcUIntArray(src: UIntArray, dst: UIntArray, dstOffset: Int, srcLayout: Layout) {
+        when (val blocks = srcLayout.stridedBlocks()) {
+            is StridedBlocks.SingleBlock -> src.copyInto(dst, dstOffset, blocks.startOffset, blocks.startOffset + blocks.len)
+            is StridedBlocks.UniformBlocks -> copy2dUIntArray(src, dst, blocks.count, blocks.blockLen, blocks.srcStride, blocks.blockLen, blocks.startOffset, dstOffset)
+            is StridedBlocks.MultipleBlocks -> {
+                val blockStartIndex = blocks.blockStartIndex
+                val blockLen = blocks.blockLen
+                if (blockLen == 1) {
+                    for (i in blockStartIndex.indices) dst[dstOffset + i] = src[blockStartIndex[i]]
+                } else {
+                    var curDstIndex = dstOffset
+                    for (srcIndex in blockStartIndex) {
+                        src.copyInto(dst, curDstIndex, srcIndex, srcIndex + blockLen)
+                        curDstIndex += blockLen
+                    }
+                }
+            }
+        }
+    }
+
+    private fun copyStridedSrcShortArray(src: ShortArray, dst: ShortArray, dstOffset: Int, srcLayout: Layout) {
+        when (val blocks = srcLayout.stridedBlocks()) {
+            is StridedBlocks.SingleBlock -> src.copyInto(dst, dstOffset, blocks.startOffset, blocks.startOffset + blocks.len)
+            is StridedBlocks.UniformBlocks -> copy2dShortArray(src, dst, blocks.count, blocks.blockLen, blocks.srcStride, blocks.blockLen, blocks.startOffset, dstOffset)
+            is StridedBlocks.MultipleBlocks -> {
+                val blockStartIndex = blocks.blockStartIndex
+                val blockLen = blocks.blockLen
+                if (blockLen == 1) {
+                    for (i in blockStartIndex.indices) dst[dstOffset + i] = src[blockStartIndex[i]]
+                } else {
+                    var curDstIndex = dstOffset
+                    for (srcIndex in blockStartIndex) {
+                        src.copyInto(dst, curDstIndex, srcIndex, srcIndex + blockLen)
+                        curDstIndex += blockLen
+                    }
+                }
+            }
+        }
+    }
+
+    private fun copyStridedSrcIntArray(src: IntArray, dst: IntArray, dstOffset: Int, srcLayout: Layout) {
+        when (val blocks = srcLayout.stridedBlocks()) {
+            is StridedBlocks.SingleBlock -> src.copyInto(dst, dstOffset, blocks.startOffset, blocks.startOffset + blocks.len)
+            is StridedBlocks.UniformBlocks -> copy2dIntArray(src, dst, blocks.count, blocks.blockLen, blocks.srcStride, blocks.blockLen, blocks.startOffset, dstOffset)
+            is StridedBlocks.MultipleBlocks -> {
+                val blockStartIndex = blocks.blockStartIndex
+                val blockLen = blocks.blockLen
+                if (blockLen == 1) {
+                    for (i in blockStartIndex.indices) dst[dstOffset + i] = src[blockStartIndex[i]]
+                } else {
+                    var curDstIndex = dstOffset
+                    for (srcIndex in blockStartIndex) {
+                        src.copyInto(dst, curDstIndex, srcIndex, srcIndex + blockLen)
+                        curDstIndex += blockLen
+                    }
+                }
+            }
+        }
+    }
+
+    private fun copyStridedSrcLongArray(src: LongArray, dst: LongArray, dstOffset: Int, srcLayout: Layout) {
+        when (val blocks = srcLayout.stridedBlocks()) {
+            is StridedBlocks.SingleBlock -> src.copyInto(dst, dstOffset, blocks.startOffset, blocks.startOffset + blocks.len)
+            is StridedBlocks.UniformBlocks -> copy2dLongArray(src, dst, blocks.count, blocks.blockLen, blocks.srcStride, blocks.blockLen, blocks.startOffset, dstOffset)
+            is StridedBlocks.MultipleBlocks -> {
+                val blockStartIndex = blocks.blockStartIndex
+                val blockLen = blocks.blockLen
+                if (blockLen == 1) {
+                    for (i in blockStartIndex.indices) dst[dstOffset + i] = src[blockStartIndex[i]]
+                } else {
+                    var curDstIndex = dstOffset
+                    for (srcIndex in blockStartIndex) {
+                        src.copyInto(dst, curDstIndex, srcIndex, srcIndex + blockLen)
+                        curDstIndex += blockLen
+                    }
+                }
+            }
+        }
+    }
+
+    private fun copyStridedSrcFloatArray(src: FloatArray, dst: FloatArray, dstOffset: Int, srcLayout: Layout) {
+        when (val blocks = srcLayout.stridedBlocks()) {
+            is StridedBlocks.SingleBlock -> src.copyInto(dst, dstOffset, blocks.startOffset, blocks.startOffset + blocks.len)
+            is StridedBlocks.UniformBlocks -> copy2dFloatArray(src, dst, blocks.count, blocks.blockLen, blocks.srcStride, blocks.blockLen, blocks.startOffset, dstOffset)
+            is StridedBlocks.MultipleBlocks -> {
+                val blockStartIndex = blocks.blockStartIndex
+                val blockLen = blocks.blockLen
+                if (blockLen == 1) {
+                    for (i in blockStartIndex.indices) dst[dstOffset + i] = src[blockStartIndex[i]]
+                } else {
+                    var curDstIndex = dstOffset
+                    for (srcIndex in blockStartIndex) {
+                        src.copyInto(dst, curDstIndex, srcIndex, srcIndex + blockLen)
+                        curDstIndex += blockLen
+                    }
+                }
+            }
+        }
+    }
+
+    private fun copyStridedSrcDoubleArray(src: DoubleArray, dst: DoubleArray, dstOffset: Int, srcLayout: Layout) {
+        when (val blocks = srcLayout.stridedBlocks()) {
+            is StridedBlocks.SingleBlock -> src.copyInto(dst, dstOffset, blocks.startOffset, blocks.startOffset + blocks.len)
+            is StridedBlocks.UniformBlocks -> copy2dDoubleArray(src, dst, blocks.count, blocks.blockLen, blocks.srcStride, blocks.blockLen, blocks.startOffset, dstOffset)
+            is StridedBlocks.MultipleBlocks -> {
+                val blockStartIndex = blocks.blockStartIndex
+                val blockLen = blocks.blockLen
+                if (blockLen == 1) {
+                    for (i in blockStartIndex.indices) dst[dstOffset + i] = src[blockStartIndex[i]]
+                } else {
+                    var curDstIndex = dstOffset
+                    for (srcIndex in blockStartIndex) {
+                        src.copyInto(dst, curDstIndex, srcIndex, srcIndex + blockLen)
+                        curDstIndex += blockLen
+                    }
+                }
+            }
+        }
+    }
+
+    private fun copyStridedSrcRawByteArray(src: ByteArray, dst: ByteArray, dstOffset: Int, srcLayout: Layout) {
+        when (val blocks = srcLayout.stridedBlocks()) {
+            is StridedBlocks.SingleBlock -> src.copyInto(dst, dstOffset, blocks.startOffset, blocks.startOffset + blocks.len)
+            is StridedBlocks.UniformBlocks -> copy2dRawByteArray(src, dst, blocks.count, blocks.blockLen, blocks.srcStride, blocks.blockLen, blocks.startOffset, dstOffset)
+            is StridedBlocks.MultipleBlocks -> {
+                val blockStartIndex = blocks.blockStartIndex
+                val blockLen = blocks.blockLen
+                if (blockLen == 1) {
+                    for (i in blockStartIndex.indices) dst[dstOffset + i] = src[blockStartIndex[i]]
+                } else {
+                    var curDstIndex = dstOffset
+                    for (srcIndex in blockStartIndex) {
+                        src.copyInto(dst, curDstIndex, srcIndex, srcIndex + blockLen)
+                        curDstIndex += blockLen
+                    }
+                }
+            }
+        }
+    }
 }

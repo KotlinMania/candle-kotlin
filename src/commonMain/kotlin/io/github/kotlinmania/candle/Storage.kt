@@ -190,4 +190,36 @@ public sealed class Storage {
             is Cuda -> throw CandleException.NotCompiledWithCudaSupport
             is Metal -> throw CandleException.NotCompiledWithMetalSupport
         }
+
+    public fun copyStridedSrc(
+        dst: Storage,
+        dstOffset: Int,
+        srcLayout: Layout,
+    ) {
+        sameDevice(dst, "copy")
+        sameDtype(dst, "copy")
+        when (this) {
+            is Cpu -> (this as Cpu).storage.copyStridedSrc((dst as Cpu).storage, dstOffset, srcLayout)
+            is Cuda -> throw CandleException.NotCompiledWithCudaSupport
+            is Metal -> throw CandleException.NotCompiledWithMetalSupport
+        }
+    }
+
+    public fun copy2d(
+        dst: Storage,
+        d1: Int,
+        d2: Int,
+        srcS: Int,
+        dstS: Int,
+        srcO: Int,
+        dstO: Int,
+    ) {
+        sameDevice(dst, "copy2d")
+        sameDtype(dst, "copy2d")
+        when (this) {
+            is Cpu -> (this as Cpu).storage.copy2d((dst as Cpu).storage, d1, d2, srcS, dstS, srcO, dstO)
+            is Cuda -> throw CandleException.NotCompiledWithCudaSupport
+            is Metal -> throw CandleException.NotCompiledWithMetalSupport
+        }
+    }
 }

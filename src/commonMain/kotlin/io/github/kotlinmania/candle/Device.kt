@@ -56,6 +56,31 @@ public sealed class Device {
             is Metal -> other is Metal && device.gpuId == other.device.gpuId
         }
 
+    public fun zeros(shape: Shape, dtype: DType): Storage {
+        val count = shape.elemCount()
+        return when (this) {
+            is Cpu -> {
+                val cpuStorage = when (dtype) {
+                    DType.U8 -> CpuStorage.U8(UByteArray(count))
+                    DType.U32 -> CpuStorage.U32(UIntArray(count))
+                    DType.I16 -> CpuStorage.I16(ShortArray(count))
+                    DType.I32 -> CpuStorage.I32(IntArray(count))
+                    DType.I64 -> CpuStorage.I64(LongArray(count))
+                    DType.BF16 -> CpuStorage.BF16(ShortArray(count))
+                    DType.F16 -> CpuStorage.F16(ShortArray(count))
+                    DType.F32 -> CpuStorage.F32(FloatArray(count))
+                    DType.F64 -> CpuStorage.F64(DoubleArray(count))
+                    DType.F8E4M3 -> CpuStorage.F8E4M3(ByteArray(count))
+                }
+                Storage.Cpu(cpuStorage)
+            }
+            is Cuda -> throw CandleException.NotCompiledWithCudaSupport
+            is Metal -> throw CandleException.NotCompiledWithMetalSupport
+        }
+    }
+
+    public fun allocUninit(shape: Shape, dtype: DType): Storage = zeros(shape, dtype)
+
     public companion object {
         public fun newCuda(gpuId: Int): Device = Cuda(CudaDevice(gpuId))
 
