@@ -44,6 +44,9 @@ package io.github.kotlinmania.candle
  * - [candle-pyo3](https://docs.rs/candle-pyo3/). Access to Candle from Python.
  * - [candle-transformers](https://docs.rs/candle-transformers/). Candle implementation of many published transformer models.
  */
+private val <T> T.Ok: (T) -> T get() = { it }
+private val <T> T.Ok2: (T, Any?) -> T get() = { v, _ -> v }
+
 /**
  * Conversion trait for 2D kernel sizes, strides, padding, and dilation parameters.
  *
@@ -89,10 +92,9 @@ public fun interface Module : ModuleT {
      */
     public fun forward(xs: Tensor): Tensor
 
-    override fun forwardT(xs: Tensor, train: Boolean): Tensor =
-        this.forward(
-            xs,
-        )
+    override fun forwardT(
+        xs: Tensor, train: Boolean
+    ): Tensor = this.forward(xs)
 }
 
 /**
@@ -113,14 +115,15 @@ public class FnModule(public val self: (Tensor) -> Tensor) : Module {
  */
 public class OptionModule<M : Module>(public val self: M?) : Module {
     public val module: M? get() = self
+    private val m: M get() = self!!
 
     /**
      * Forwards [xs] through [module] if non-null, or returns [xs] unchanged when [module] is null.
      */
     override fun forward(xs: Tensor): Tensor {
         return when (self) {
-            null -> xs.clone()
-            else -> self.forward(xs)
+            null -> Ok(xs.clone())
+            else -> m.forward(xs)
         }
     }
 }
