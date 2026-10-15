@@ -63,58 +63,21 @@ public class NdIter internal constructor(
 
     public val len: Int get() = remaining
 
-    override fun hasNext(): Boolean = remaining > 0
-
-    override fun next(): IntArray {
-        if (self.remaining == 0) {
-            throw NoSuchElementException()
-        }
-        val item = self.offsets.copyOf()
-        self.remaining -= 1
-
-        for (k in (0 until self.outerLen).reversed()) {
-            self.coords[k] += 1
-            for (n in 0 until this.n) {
-                self.offsets[n] += self.outerStrides[n][k]
-            }
-            if (self.coords[k] < self.outerDims[k]) {
-                break
-            }
-            self.coords[k] = 0
-            for (n in 0 until this.n) {
-                self.offsets[n] -= self.outerDims[k] * self.outerStrides[n][k]
-            }
-        }
-
-        return item
-    }
-
-    public fun sizeHint(): Pair<Int, Int?> {
-        return Pair(self.remaining, self.remaining)
-    }
-
     public companion object {
-        private val debugAssert: (Boolean, String, Any?, Any?) -> Unit = { cond, _, _, _ ->
-            require(cond)
-        }
-        private val debugAssertEq: (Any?, Any?) -> Unit = { a, b ->
-            require(a == b)
-        }
-
         public fun new(layouts: List<Layout>): NdIter {
-            val N = layouts.size
+            val N = layouts.len()
             val dims = layouts[0].dims()
             debugAssert(
-                dims.size <= MAX_DIMS,
+                dims.len() <= MAX_DIMS,
                 "rank {} exceeds MAX_DIMS={}",
-                dims.size,
-                MAX_DIMS
+                dims.len(),
+                MAX_DIMS,
             )
             for (l in layouts) {
                 debugAssertEq(l.dims(), dims)
             }
 
-            val rank = dims.size
+            val rank = dims.len()
             val outDims = IntArray(MAX_DIMS)
             val outStrides = Array(N) { IntArray(MAX_DIMS) }
             var outLen: Int
@@ -129,13 +92,11 @@ public class NdIter internal constructor(
                 }
                 outLen = 1
 
-                for (entry in dims.withIndex().take(rank).drop(1)) {
-                    val i = entry.index
-                    val d = entry.value
+                for ((i, d) in dims.iter().enumerate().take(rank).skip(1)) {
                     val top = outLen - 1
                     val lastD = outDims[top]
 
-                    val mergePair = if (lastD == 1) {
+                    val (canMerge, useInner) = if (lastD == 1) {
                         Pair(true, true)
                     } else if (d == 1) {
                         Pair(true, false)
@@ -144,8 +105,6 @@ public class NdIter internal constructor(
                             (0 until N).all { n -> outStrides[n][top] == layouts[n].stride()[i] * d }
                         Pair(canMerge, true)
                     }
-                    val canMerge = mergePair.first
-                    val useInner = mergePair.second
                     if (canMerge) {
                         outDims[top] = lastD * d
                         if (useInner) {
@@ -189,7 +148,7 @@ public class NdIter internal constructor(
             }
 
             // Number of outer blocks (product of all dims except the innermost).
-            val remaining = outDims.take(outerLen).fold(1) { acc, v -> acc * v }
+            val remaining = outDims.take(outerLen).asSequence().product()
 
             return NdIter(
                 innerSize,
@@ -199,8 +158,38 @@ public class NdIter internal constructor(
                 outerLen,
                 offsets,
                 IntArray(MAX_DIMS),
-                remaining
+                remaining,
             )
         }
+    }
+
+    override fun hasNext(): Boolean = remaining > 0
+
+    override fun next(): IntArray {
+        if (self.remaining == 0) {
+            throw NoSuchElementException()
+        }
+        val item = self.offsets.copyOf()
+        self.remaining -= 1
+
+        for (k in (0 until self.outerLen).rev()) {
+            self.coords[k] += 1
+            for (n in 0 until this.n) {
+                self.offsets[n] += self.outerStrides[n][k]
+            }
+            if (self.coords[k] < self.outerDims[k]) {
+                break
+            }
+            self.coords[k] = 0
+            for (n in 0 until this.n) {
+                self.offsets[n] -= self.outerDims[k] * self.outerStrides[n][k]
+            }
+        }
+
+        return Some(item)
+    }
+
+    public fun sizeHint(): Pair<Int, Int?> {
+        return Pair(self.remaining, Some(self.remaining))
     }
 }

@@ -3400,5 +3400,35 @@ internal fun <T, R> Sequence<T>.zip(other: List<R>): Sequence<Pair<T, R>> = this
 internal fun IntRange.rev(): IntProgression = this.reversed()
 internal fun Int.toIndex(shape: Shape, op: String): Int =
     if (this < 0 || this >= shape.dims.size) throw CandleException.DimOutOfRange(shape, this, op) else this
-
-
+internal fun <T> Sequence<T>.skip(n: Int): Sequence<T> = this.drop(n)
+internal fun IntArray.iter(): Sequence<Int> = this.asSequence()
+internal fun Sequence<Int>.product(): Int = this.fold(1) { acc, v -> acc * v }
+internal fun debugAssert(cond: Boolean, msg: String = "", a: Int = 0, b: Int = 0) {
+    require(cond) { "$msg: $a, $b" }
+}
+internal fun <T> debugAssertEq(a: T, b: T) {
+    require(a == b)
+}
+internal fun <T> Some(v: T): T = v
+internal val None: IntArray? = null
+internal fun <T> Iterator<T>.collect(): List<T> = this.asSequence().toList()
+internal fun <T> vec(vararg elements: T): List<T> = elements.toList()
+internal fun NdIter.nextOrNull(): IntArray? = if (this.hasNext()) this.next() else null
+internal fun NdIter.len(): Int = this.remaining
+internal fun Layout.Companion.contiguous(): Layout = contiguous(Shape())
+internal fun Layout.Companion.contiguous(vararg dims: Int): Layout = contiguous(Shape(*dims))
+internal fun Layout.Companion.contiguousWithOffset(dim: Int, startOffset: Int): Layout =
+    contiguousWithOffset(Shape(dim), startOffset)
+internal fun NdIter.Companion.new(vararg layouts: Layout): NdIter = new(layouts.toList())
+internal fun IntArray.toVec(): List<Int> = this.toList()
+internal fun assertEq(actual: Any?, expected: Any?) {
+    if (actual is IntArray && expected is IntArray) {
+        require(actual.contentEquals(expected))
+    } else if (actual is List<*> && expected is List<*> && actual.size == expected.size &&
+        actual.indices.all { i -> actual[i] is IntArray && expected[i] is IntArray }
+    ) {
+        require(actual.indices.all { i -> (actual[i] as IntArray).contentEquals(expected[i] as IntArray) })
+    } else {
+        require(actual == expected)
+    }
+}
