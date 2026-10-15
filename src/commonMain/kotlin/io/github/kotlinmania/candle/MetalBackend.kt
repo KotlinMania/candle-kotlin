@@ -24,6 +24,8 @@ import io.github.kotlinmania.candle.UnaryOpT
 import io.github.kotlinmania.candle.WithDType
 import io.github.kotlinmania.candle.bt
 import io.github.kotlinmania.candle.metal.device.*
+import io.github.kotlinmania.candle.metal.device.candleMetalKernels.unary.contiguous
+import io.github.kotlinmania.candle.metal.device.candleMetalKernels.unary.strided
 import io.github.kotlinmania.thiserror.StdError
 
 fun bufferO(buffer: Buffer, l: Layout, dtype: DType): BufferOffset {
@@ -118,11 +120,11 @@ class MetalStorage(
             DType.I16 -> Ok(CpuStorage.I16(self.toCpu<Short>().getOrThrow().toShortArray()))
             DType.I32 -> Ok(CpuStorage.I32(self.toCpu<Int>().getOrThrow().toIntArray()))
             DType.I64 -> Ok(CpuStorage.I64(self.toCpu<Long>().getOrThrow().toLongArray()))
-            DType.F16 -> Ok(CpuStorage.F16(self.toCpu<Float16>().getOrThrow()))
-            DType.BF16 -> Ok(CpuStorage.BF16(self.toCpu<BFloat16>().getOrThrow()))
+            DType.F16 -> Ok(CpuStorage.F16(self.toCpu<Short>().getOrThrow().toShortArray()))
+            DType.BF16 -> Ok(CpuStorage.BF16(self.toCpu<Short>().getOrThrow().toShortArray()))
             DType.F32 -> Ok(CpuStorage.F32(self.toCpu<Float>().getOrThrow().toFloatArray()))
             DType.F64 -> Ok(CpuStorage.F64(self.toCpu<Double>().getOrThrow().toDoubleArray()))
-            DType.F8E4M3 -> Ok(CpuStorage.F8E4M3Storage(self.toCpu<F8E4M3>().getOrThrow()))
+            DType.F8E4M3 -> Ok(CpuStorage.F8E4M3(self.toCpu<Byte>().getOrThrow().toByteArray()))
             DType.F6E2M3, DType.F6E3M2, DType.F4, DType.F8E8M0 -> {
                 Err(CandleError.UnsupportedDTypeForOp(self.dtype, "to_cpu_storage").bt())
             }
@@ -975,7 +977,7 @@ class MetalStorage(
         val colL = Layout.contiguous(listOf(b, m, k))
         val res = if (kernelL.isContiguous()) {
             val kL = Layout.contiguousWithOffset(listOf(1, n, k), kernelL.startOffset())
-                .transpose(1, 2).getOrThrow()
+                .transpose(1, 2)
                 .broadcastAs(listOf(b, k, n)).getOrThrow()
             col.matmul(kernel, listOf(b, m, n, k), colL, kL).getOrThrow()
         } else {
@@ -983,11 +985,11 @@ class MetalStorage(
             val kernelC = self.device().zerosImpl(kernelL.shape(), kernel.dtype()).getOrThrow()
             kernel.copyStridedSrc(kernelC, 0, kernelL).getOrThrow()
             val kL = Layout.contiguousWithOffset(listOf(1, n, k), kernelL.startOffset())
-                .transpose(1, 2).getOrThrow()
+                .transpose(1, 2)
                 .broadcastAs(listOf(b, k, n)).getOrThrow()
             col.matmul(kernel, listOf(b, m, n, k), colL, kL).getOrThrow()
         }
-        val resL = Layout.contiguous(listOf(b, lOutParam, n)).transpose(1, 2).getOrThrow()
+        val resL = Layout.contiguous(listOf(b, lOutParam, n)).transpose(1, 2)
         val resT = self.device().zerosImpl(resL.shape(), res.dtype()).getOrThrow()
         res.copyStridedSrc(resT, 0, resL).getOrThrow()
         return Ok(resT)
@@ -1041,7 +1043,7 @@ class MetalStorage(
                 self.matmul(
                     k,
                     listOf(bSize, lIn, cOut * kSize, cIn),
-                    layout.transpose(1, 2).getOrThrow(),
+                    layout.transpose(1, 2),
                     kernelLMm,
                 ).getOrThrow()
             }
@@ -1178,7 +1180,7 @@ class MetalStorage(
         val colL = Layout.contiguous(listOf(b, m, k))
         val res = if (kernelL.isContiguous()) {
             val kL = Layout.contiguousWithOffset(listOf(1, n, k), kernelL.startOffset())
-                .transpose(1, 2).getOrThrow()
+                .transpose(1, 2)
                 .broadcastAs(listOf(b, k, n)).getOrThrow()
             col.matmul(kernel, listOf(b, m, n, k), colL, kL).getOrThrow()
         } else {
@@ -1186,13 +1188,13 @@ class MetalStorage(
             val kernelC = self.device().zerosImpl(kernelL.shape(), kernel.dtype()).getOrThrow()
             kernel.copyStridedSrc(kernelC, 0, kernelL).getOrThrow()
             val kL = Layout.contiguousWithOffset(listOf(1, n, k), kernelL.startOffset())
-                .transpose(1, 2).getOrThrow()
+                .transpose(1, 2)
                 .broadcastAs(listOf(b, k, n)).getOrThrow()
             col.matmul(kernel, listOf(b, m, n, k), colL, kL).getOrThrow()
         }
         val resL = Layout.contiguous(listOf(b, hOutParam, wOutParam, n))
-            .transpose(1, 2).getOrThrow()
-            .transpose(1, 3).getOrThrow()
+            .transpose(1, 2)
+            .transpose(1, 3)
         val resT = self.device().zerosImpl(resL.shape(), res.dtype()).getOrThrow()
         res.copyStridedSrc(resT, 0, resL).getOrThrow()
         return Ok(resT)
@@ -2104,7 +2106,7 @@ class MetalBackendDevice(val inner: MetalDevice) {
         ))
     }
 
-    fun <T : WithDType> storageFromSlice(s: List<T>, dtype: DType, cpuStorageRef: (List<T>) -> CpuStorageRef): Result<MetalStorage> {
+    fun <T> storageFromSlice(s: List<T>, dtype: DType, cpuStorageRef: (List<T>) -> CpuStorageRef): Result<MetalStorage> {
         val label = "storage_from_slice"
         val (count, buffer) = when (val ref = cpuStorageRef(s)) {
             is CpuStorageRef.U8 -> Pair(
@@ -2253,17 +2255,17 @@ class MetalBackendDevice(val inner: MetalDevice) {
                     .withLabel(label)
                     .build(),
             )
-            is CpuStorage.F8E4M3Storage -> Pair(
-                storage.data.len(),
+            is CpuStorage.F8E4M3 -> Pair(
+                storage.storage.len(),
                 self.newBufferBuilder()
-                    .withData(storage.data)
+                    .withData(storage.storage)
                     .withLabel(label)
                     .build(),
             )
             is CpuStorage.F6E2M3,
             is CpuStorage.F6E3M2,
             is CpuStorage.F4,
-            is CpuStorage.F8E8M0Storage -> {
+            is CpuStorage.F8E8M0 -> {
                 return Err(CandleError.UnsupportedDTypeForOp(storage.dtype(), "to_dtype").bt())
             }
         }
@@ -2276,7 +2278,7 @@ class MetalBackendDevice(val inner: MetalDevice) {
     }
 
     fun storageFromCpuStorageOwned(storage: CpuStorage): Result<MetalStorage> {
-        return self.storageFromCpuStorage(storage)
+        return this.storageFromCpuStorage(storage)
     }
 
     fun randUniform(

@@ -571,8 +571,8 @@ private fun findAvailableBuffer(size: Int, buffers: Map<Int, List<Buffer>>): Buf
     return bestBuffer.cloned()
 }
 
-private fun <T> Ok(v: T): Result<T> = Result.success(v)
-private fun <T> Some(v: T): T = v
+internal fun <T> Ok(v: T): Result<T> = Result.success(v)
+internal fun <T> Some(v: T): T = v
 private val Int.nextPowerOfTwo: () -> Int
     get() = {
         if (this <= 1) 1 else (this - 1).takeHighestOneBit() shl 1
@@ -954,9 +954,6 @@ object candleMetalKernels {
         { _, _, _, _, _, _, _, _, _ -> Result.success(Unit) }
 }
 
-internal val contiguous: candleMetalKernels.unary.contiguous get() = candleMetalKernels.unary.contiguous
-internal val strided: candleMetalKernels.unary.strided get() = candleMetalKernels.unary.strided
-
 internal val MetalDevice.clone: () -> MetalDevice get() = { this }
 internal val String.clone: () -> String get() = { this }
 internal fun <T> List<T>.len(): Int = size
@@ -1030,3 +1027,11 @@ internal val Layout.Companion.contiguous: (List<Int>) -> Layout get() = { dims -
 internal val Layout.Companion.contiguousWithOffset: (List<Int>, Int) -> Layout get() = { dims, off -> Layout.contiguousWithOffset(Shape(dims), off) }
 internal val Layout.broadcastAs: (List<Int>) -> Result<Layout> get() = { dims -> runCatching { broadcastAs(Shape(dims)) } }
 internal val List<Int>.into: () -> Shape get() = { Shape(this) }
+internal fun Shape.dims3(): Result<Triple<Int, Int, Int>> = runCatching {
+    require(dims.size == 3) { "Expected 3 dims, got ${dims.size}" }
+    Triple(dims[0], dims[1], dims[2])
+}
+internal fun Shape.dims4(): Result<List<Int>> = runCatching {
+    require(dims.size == 4) { "Expected 4 dims, got ${dims.size}" }
+    dims
+}

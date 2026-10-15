@@ -19,7 +19,7 @@ public fun main(): CandleResult<Unit> {
     // This first synchronize ensures that a new command buffer gets created after setting up the
     // capture scope.
     device.synchronize()
-    val x = Tensor.randn(0.0f, 1.0f, Shape.fromDims(128, 128), device)
+    val x = Tensor.randn(0.0f, 1.0f, Shape.fromDims(listOf(128, 128)), device)
     val x1 = x.add(x)
     println(x1)
     // This second synchronize ensures that the command buffer gets committed before the end of the
