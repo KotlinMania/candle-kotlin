@@ -1,4 +1,3 @@
-// port-lint: source cuda_backend/mod.rs
 package io.github.kotlinmania.candle.cuda
 
 import io.github.kotlinmania.candle.BFloat16
@@ -23,6 +22,7 @@ import io.github.kotlinmania.candle.WithDType
 import io.github.kotlinmania.candle.bt
 import io.github.kotlinmania.candle.cuda.device.CudaBlas
 import io.github.kotlinmania.candle.cuda.device.CudaDevice
+// port-lint: source cuda_backend/mod.rs
 import io.github.kotlinmania.candle.cuda.device.CudaSlice
 import io.github.kotlinmania.candle.cuda.device.KernelModule
 import io.github.kotlinmania.candle.cuda.device.LaunchArgs

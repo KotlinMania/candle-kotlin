@@ -1,4 +1,3 @@
-// port-lint: source metal_backend/mod.rs
 package io.github.kotlinmania.candle.metal
 
 import io.github.kotlinmania.candle.BFloat16
@@ -23,6 +22,7 @@ import io.github.kotlinmania.candle.Shape
 import io.github.kotlinmania.candle.StridedBlocks
 import io.github.kotlinmania.candle.UnaryOpT
 import io.github.kotlinmania.candle.WithDType
+// port-lint: source metal_backend/mod.rs
 import io.github.kotlinmania.candle.bt
 import io.github.kotlinmania.candle.metal.device.Buffer
 import io.github.kotlinmania.candle.metal.device.Commands

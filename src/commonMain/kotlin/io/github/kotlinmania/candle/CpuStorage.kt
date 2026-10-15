@@ -1,4 +1,3 @@
-// port-lint: source cpu_backend/mod.rs
 package io.github.kotlinmania.candle
 
 import io.github.kotlinmania.rand.distr.Uniform
@@ -17,6 +16,7 @@ import kotlin.math.sin
 import kotlin.math.sqrt
 import kotlin.math.tanh
 
+// port-lint: source cpu_backend/mod.rs
 /**
  * Implementation of Backend Fns for CPU
  */

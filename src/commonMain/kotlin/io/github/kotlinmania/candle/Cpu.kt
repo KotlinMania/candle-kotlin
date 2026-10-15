@@ -1,9 +1,12 @@
-// port-lint: source cpu/mod.rs
 package io.github.kotlinmania.candle
 
 /**
- * Traits and methods for CPU-backed Tensors
+ * Traits and methods for CPU-backed Tensors.
+ *
+ * Provides SIMD-accelerated vector addition, fused multiply-add, dot-product reduction,
+ * activation functions, and type conversions for CPU tensor storage across f32 and f16 elements.
  */
+// port-lint: source cpu/mod.rs
 
 public interface Cpu<UnitType, ArrayType> {
     public val step: Int

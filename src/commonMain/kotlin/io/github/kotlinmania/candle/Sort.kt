@@ -1,274 +1,287 @@
 // port-lint: source sort.rs
 package io.github.kotlinmania.candle
 
+import io.github.kotlinmania.candle.cuda.CudaStorage
+import io.github.kotlinmania.candle.cuda.CudaStorageSlice
+import io.github.kotlinmania.candle.cuda.device.CudaDevice
+import io.github.kotlinmania.candle.cuda.device.CudaSlice
+import io.github.kotlinmania.candle.cuda.device.LaunchConfig
+import io.github.kotlinmania.candle.metal.MetalStorage
+import io.github.kotlinmania.candle.metal.bufferO
+import io.github.kotlinmania.candle.metal.callArgSort
+
+private object Ordering {
+    const val Greater: Int = 1
+}
+
+private class ChunkView<T>(
+    val list: MutableList<T>,
+    val offset: Int,
+    val len: Int,
+) {
+    val setAt: (Int, T) -> Unit = { i, v ->
+        list[offset + i] = v
+    }
+
+    val iterMut: () -> List<Int> = { (0 until len).toList() }
+
+    val sortBy: ((T, T) -> Int) -> Unit = { cmp ->
+        val sub = MutableList(len) { list[offset + it] }
+        sub.sortWith(Comparator(cmp))
+        for (k in 0 until len) {
+            list[offset + k] = sub[k]
+        }
+    }
+}
+
+private val <T> MutableList<T>.parChunksExactMut: (Int) -> List<ChunkView<T>>
+    get() = { chunkSize ->
+        val n = size / chunkSize
+        List(n) { c -> ChunkView(this, c * chunkSize, chunkSize) }
+    }
+
+private val <T> List<T>.parChunksExact: (Int) -> List<List<T>>
+    get() = { chunkSize ->
+        val n = size / chunkSize
+        List(n) { c -> subList(c * chunkSize, (c + 1) * chunkSize) }
+    }
+
+private val List<Int>.enumerate: () -> List<Int>
+    get() = { this }
+
+private val <T : Comparable<T>> T.partialCmp: (T) -> Int?
+    get() = { other -> this.compareTo(other) }
+
+private val Int?.unwrapOr: (Int) -> Int
+    get() = { fallback -> this ?: fallback }
+
+private object Vec {
+    val withCapacity: (Int) -> MutableList<UInt> = { elCount -> ArrayList(elCount) }
+}
+
+private val MutableList<UInt>.setLen: (Int) -> Unit
+    get() = { n ->
+        while (size < n) add(0u)
+    }
+
 public data class ArgSort(
     val asc: Boolean,
     val lastDim: Int,
 ) : CustomOp1 {
-    // Safety: indexes are set later in the parallelized section.
-    public fun asort(vs: FloatArray, layout: Layout): UIntArray {
-        val elCount = layout.shape().elemCount()
-        val sortIndexes = UIntArray(elCount)
-        val numChunks = elCount / lastDim
-        for (chunkIdx in 0 until numChunks) {
-            val offset = chunkIdx * lastDim
-            val indices = Array(lastDim) { it }
-            if (asc) {
-                indices.sortWith { i, j ->
-                    vs[offset + i].compareTo(vs[offset + j])
+    public fun <T : Comparable<T>> asort(vs: List<T>, layout: Layout, self: ArgSort = this): MutableList<UInt> {
+        // Safety: indexes are set later in the parallelized section.
+        val sortIndexes = run {
+            val elCount = layout.shape().elemCount()
+            val v = Vec.withCapacity(elCount)
+            v.setLen(elCount)
+            v
+        }
+        if (self.asc) {
+            sortIndexes
+                .parChunksExactMut(self.lastDim)
+                .zip(vs.parChunksExact(self.lastDim))
+                .forEach { pair ->
+                    val indexes = pair.first
+                    val vsChunk = pair.second
+                    indexes
+                        .iterMut()
+                        .enumerate()
+                        .forEach { i -> indexes.setAt(i, i.toUInt()) }
+                    indexes.sortBy { i, j ->
+                        vsChunk[i.toInt()]
+                            .partialCmp(vsChunk[j.toInt()])
+                            .unwrapOr(Ordering.Greater)
+                    }
                 }
-            } else {
-                indices.sortWith { i, j ->
-                    vs[offset + j].compareTo(vs[offset + i])
+        } else {
+            sortIndexes
+                .parChunksExactMut(self.lastDim)
+                .zip(vs.parChunksExact(self.lastDim))
+                .forEach { pair ->
+                    val indexes = pair.first
+                    val vsChunk = pair.second
+                    indexes
+                        .iterMut()
+                        .enumerate()
+                        .forEach { i -> indexes.setAt(i, i.toUInt()) }
+                    indexes.sortBy { j, i ->
+                        vsChunk[i.toInt()]
+                            .partialCmp(vsChunk[j.toInt()])
+                            .unwrapOr(Ordering.Greater)
+                    }
                 }
-            }
-            for (i in 0 until lastDim) {
-                sortIndexes[offset + i] = indices[i].toUInt()
-            }
         }
         return sortIndexes
     }
 
-    public fun asort(vs: DoubleArray, layout: Layout): UIntArray {
-        val elCount = layout.shape().elemCount()
-        val sortIndexes = UIntArray(elCount)
-        val numChunks = elCount / lastDim
-        for (chunkIdx in 0 until numChunks) {
-            val offset = chunkIdx * lastDim
-            val indices = Array(lastDim) { it }
-            if (asc) {
-                indices.sortWith { i, j ->
-                    vs[offset + i].compareTo(vs[offset + j])
-                }
-            } else {
-                indices.sortWith { i, j ->
-                    vs[offset + j].compareTo(vs[offset + i])
-                }
-            }
-            for (i in 0 until lastDim) {
-                sortIndexes[offset + i] = indices[i].toUInt()
-            }
+    public fun <T, W : (CudaSlice<T>) -> CudaStorageSlice> f(
+        src: CudaSlice<T>,
+        dev: CudaDevice,
+        layout: Layout,
+        _wrap: W,
+        self: ArgSort = this,
+    ): CandleResult<CudaStorageSlice> {
+        val offsets = layout.contiguousOffsets()
+        val slice = when (offsets) {
+            null -> bail("input has to be contiguous")
+            else -> src.slice(offsets.first until offsets.second)
         }
-        return sortIndexes
+        val elemCount = layout.shape().elemCount()
+        val dst = dev.alloc<UInt>(elemCount).unwrap()
+        val func = if (self.asc) {
+            dev.getOrLoadFunc(kernelName("asort_asc"), kernels.SORT).unwrap()
+        } else {
+            dev.getOrLoadFunc(kernelName("asort_desc"), kernels.SORT).unwrap()
+        }
+        val ncols = self.lastDim
+        val nrows = elemCount / ncols
+        val ncolsPad = nextPowerOf2(ncols)
+        // Limit block dim to 1024 threads, which is the maximum on modern CUDA gpus.
+        val blockDim = minOf(ncolsPad, 1024)
+        val cfg = LaunchConfig(
+            gridDim = Triple(nrows.toUInt(), 1u, 1u),
+            blockDim = Triple(blockDim.toUInt(), 1u, 1u),
+            sharedMemBytes = (ncolsPad * 4).toUInt(),
+        )
+        val stream = dev.cudaStream()
+        val builder = stream.launchBuilder(func)
+        val ncolsI32 = ncols
+        val ncolsPadI32 = ncolsPad
+        builder.arg(slice).arg(dst).arg(ncolsI32).arg(ncolsPadI32)
+        builder.launch(cfg).unwrap()
+        return CandleResult.Ok(CudaStorageSlice.U32(dst))
     }
 
-    public fun asort(vs: IntArray, layout: Layout): UIntArray {
-        val elCount = layout.shape().elemCount()
-        val sortIndexes = UIntArray(elCount)
-        val numChunks = elCount / lastDim
-        for (chunkIdx in 0 until numChunks) {
-            val offset = chunkIdx * lastDim
-            val indices = Array(lastDim) { it }
-            if (asc) {
-                indices.sortWith { i, j ->
-                    vs[offset + i].compareTo(vs[offset + j])
-                }
-            } else {
-                indices.sortWith { i, j ->
-                    vs[offset + j].compareTo(vs[offset + i])
-                }
-            }
-            for (i in 0 until lastDim) {
-                sortIndexes[offset + i] = indices[i].toUInt()
-            }
-        }
-        return sortIndexes
+    override fun name(): String {
+        return "argsort"
     }
-
-    public fun asort(vs: LongArray, layout: Layout): UIntArray {
-        val elCount = layout.shape().elemCount()
-        val sortIndexes = UIntArray(elCount)
-        val numChunks = elCount / lastDim
-        for (chunkIdx in 0 until numChunks) {
-            val offset = chunkIdx * lastDim
-            val indices = Array(lastDim) { it }
-            if (asc) {
-                indices.sortWith { i, j ->
-                    vs[offset + i].compareTo(vs[offset + j])
-                }
-            } else {
-                indices.sortWith { i, j ->
-                    vs[offset + j].compareTo(vs[offset + i])
-                }
-            }
-            for (i in 0 until lastDim) {
-                sortIndexes[offset + i] = indices[i].toUInt()
-            }
-        }
-        return sortIndexes
-    }
-
-    public fun asort(vs: ShortArray, layout: Layout): UIntArray {
-        val elCount = layout.shape().elemCount()
-        val sortIndexes = UIntArray(elCount)
-        val numChunks = elCount / lastDim
-        for (chunkIdx in 0 until numChunks) {
-            val offset = chunkIdx * lastDim
-            val indices = Array(lastDim) { it }
-            if (asc) {
-                indices.sortWith { i, j ->
-                    vs[offset + i].compareTo(vs[offset + j])
-                }
-            } else {
-                indices.sortWith { i, j ->
-                    vs[offset + j].compareTo(vs[offset + i])
-                }
-            }
-            for (i in 0 until lastDim) {
-                sortIndexes[offset + i] = indices[i].toUInt()
-            }
-        }
-        return sortIndexes
-    }
-
-    public fun asort(vs: UByteArray, layout: Layout): UIntArray {
-        val elCount = layout.shape().elemCount()
-        val sortIndexes = UIntArray(elCount)
-        val numChunks = elCount / lastDim
-        for (chunkIdx in 0 until numChunks) {
-            val offset = chunkIdx * lastDim
-            val indices = Array(lastDim) { it }
-            if (asc) {
-                indices.sortWith { i, j ->
-                    vs[offset + i].compareTo(vs[offset + j])
-                }
-            } else {
-                indices.sortWith { i, j ->
-                    vs[offset + j].compareTo(vs[offset + i])
-                }
-            }
-            for (i in 0 until lastDim) {
-                sortIndexes[offset + i] = indices[i].toUInt()
-            }
-        }
-        return sortIndexes
-    }
-
-    public fun asort(vs: UIntArray, layout: Layout): UIntArray {
-        val elCount = layout.shape().elemCount()
-        val sortIndexes = UIntArray(elCount)
-        val numChunks = elCount / lastDim
-        for (chunkIdx in 0 until numChunks) {
-            val offset = chunkIdx * lastDim
-            val indices = Array(lastDim) { it }
-            if (asc) {
-                indices.sortWith { i, j ->
-                    vs[offset + i].compareTo(vs[offset + j])
-                }
-            } else {
-                indices.sortWith { i, j ->
-                    vs[offset + j].compareTo(vs[offset + i])
-                }
-            }
-            for (i in 0 until lastDim) {
-                sortIndexes[offset + i] = indices[i].toUInt()
-            }
-        }
-        return sortIndexes
-    }
-
-    public fun asort(vs: ByteArray, layout: Layout): UIntArray {
-        val elCount = layout.shape().elemCount()
-        val sortIndexes = UIntArray(elCount)
-        val numChunks = elCount / lastDim
-        for (chunkIdx in 0 until numChunks) {
-            val offset = chunkIdx * lastDim
-            val indices = Array(lastDim) { it }
-            if (asc) {
-                indices.sortWith { i, j ->
-                    F8E4M3(vs[offset + i]).toFloat().compareTo(F8E4M3(vs[offset + j]).toFloat())
-                }
-            } else {
-                indices.sortWith { i, j ->
-                    F8E4M3(vs[offset + j]).toFloat().compareTo(F8E4M3(vs[offset + i]).toFloat())
-                }
-            }
-            for (i in 0 until lastDim) {
-                sortIndexes[offset + i] = indices[i].toUInt()
-            }
-        }
-        return sortIndexes
-    }
-
-    override fun name(): String = "argsort"
 
     override fun cpuFwd(storage: CpuStorage, layout: Layout): Pair<CpuStorage, Shape> {
+        val self = this
         val sortIndexes = when (storage) {
-            is CpuStorage.U8 -> asort(storage.data, layout)
-            is CpuStorage.U32 -> asort(storage.data, layout)
-            is CpuStorage.I16 -> asort(storage.data, layout)
-            is CpuStorage.I32 -> asort(storage.data, layout)
-            is CpuStorage.I64 -> asort(storage.data, layout)
-            is CpuStorage.BF16 -> {
-                val elCount = layout.shape().elemCount()
-                val out = UIntArray(elCount)
-                val numChunks = elCount / lastDim
-                for (chunkIdx in 0 until numChunks) {
-                    val offset = chunkIdx * lastDim
-                    val indices = Array(lastDim) { it }
-                    if (asc) {
-                        indices.sortWith { i, j ->
-                            BFloat16(storage.data[offset + i]).toFloat()
-                                .compareTo(BFloat16(storage.data[offset + j]).toFloat())
-                        }
-                    } else {
-                        indices.sortWith { i, j ->
-                            BFloat16(storage.data[offset + j]).toFloat()
-                                .compareTo(BFloat16(storage.data[offset + i]).toFloat())
-                        }
-                    }
-                    for (i in 0 until lastDim) {
-                        out[offset + i] = indices[i].toUInt()
-                    }
-                }
-                out
+            is CpuStorage.U8 -> self.asort(storage.data.toList(), layout)
+            is CpuStorage.U32 -> self.asort(storage.data.toList(), layout)
+            is CpuStorage.I16 -> self.asort(storage.data.toList(), layout)
+            is CpuStorage.I32 -> self.asort(storage.data.toList(), layout)
+            is CpuStorage.I64 -> self.asort(storage.data.toList(), layout)
+            is CpuStorage.BF16 -> self.asort(storage.data.map { BFloat16(it).toFloat() }, layout)
+            is CpuStorage.F16 -> self.asort(storage.data.map { Float16(it).toFloat() }, layout)
+            is CpuStorage.F32 -> self.asort(storage.data.toList(), layout)
+            is CpuStorage.F64 -> self.asort(storage.data.toList(), layout)
+            is CpuStorage.F8E4M3 -> self.asort(storage.data.map { F8E4M3(it).toFloat() }, layout)
+            // Dummy types do not support sorting
+            is CpuStorage.F6E2M3 -> {
+                throw CandleError.UnsupportedDTypeForOp(DType.F6E2M3, "argsort").bt()
             }
-            is CpuStorage.F16 -> {
-                val elCount = layout.shape().elemCount()
-                val out = UIntArray(elCount)
-                val numChunks = elCount / lastDim
-                for (chunkIdx in 0 until numChunks) {
-                    val offset = chunkIdx * lastDim
-                    val indices = Array(lastDim) { it }
-                    if (asc) {
-                        indices.sortWith { i, j ->
-                            Float16(storage.data[offset + i]).toFloat()
-                                .compareTo(Float16(storage.data[offset + j]).toFloat())
-                        }
-                    } else {
-                        indices.sortWith { i, j ->
-                            Float16(storage.data[offset + j]).toFloat()
-                                .compareTo(Float16(storage.data[offset + i]).toFloat())
-                        }
-                    }
-                    for (i in 0 until lastDim) {
-                        out[offset + i] = indices[i].toUInt()
-                    }
-                }
-                out
+            is CpuStorage.F6E3M2 -> {
+                throw CandleError.UnsupportedDTypeForOp(DType.F6E3M2, "argsort").bt()
             }
-            is CpuStorage.F32 -> asort(storage.data, layout)
-            is CpuStorage.F64 -> asort(storage.data, layout)
-            is CpuStorage.F8E4M3 -> asort(storage.data, layout)
-            is CpuStorage.F6E2M3 -> throw CandleException.UnsupportedDTypeForOp(DType.F6E2M3, "argsort")
-            is CpuStorage.F6E3M2 -> throw CandleException.UnsupportedDTypeForOp(DType.F6E3M2, "argsort")
-            is CpuStorage.F4 -> throw CandleException.UnsupportedDTypeForOp(DType.F4, "argsort")
-            is CpuStorage.F8E8M0 -> throw CandleException.UnsupportedDTypeForOp(DType.F8E8M0, "argsort")
+            is CpuStorage.F4 -> {
+                throw CandleError.UnsupportedDTypeForOp(DType.F4, "argsort").bt()
+            }
+            is CpuStorage.F8E8M0 -> {
+                throw CandleError.UnsupportedDTypeForOp(DType.F8E8M0, "argsort").bt()
+            }
         }
-        return Pair(CpuStorage.U32(sortIndexes), layout.shape())
+        val sortIndexesStorage = CpuStorage.U32(sortIndexes.toUIntArray())
+        return Pair(sortIndexesStorage, layout.shape().clone())
     }
 
-    override fun cudaFwd(storage: CudaStorage, layout: Layout): Pair<CudaStorage, Shape> =
-        throw CandleException.NotCompiledWithCudaSupport
+    override fun cudaFwd(storage: CudaStorage, layout: Layout): Pair<CudaStorage, Shape> {
+        val self = this
+        val dev = storage.device
+        val slice = self.map(storage.slice, dev, layout)
+        val dst = CudaStorage(
+            slice = slice,
+            device = dev,
+        )
+        return Pair(dst, layout.shape().clone())
+    }
 
-    override fun metalFwd(storage: MetalStorage, layout: Layout): Pair<MetalStorage, Shape> =
-        throw CandleException.NotCompiledWithMetalSupport
+    override fun metalFwd(storage: MetalStorage, layout: Layout): Pair<MetalStorage, Shape> {
+        val self = this
+        val name = if (self.asc) {
+            when (storage.dtype()) {
+                DType.BF16 -> "asort_asc_bf16"
+                DType.F16 -> "asort_asc_f16"
+                DType.F32 -> "asort_asc_f32"
+                DType.F64 -> "asort_asc_f64"
+                DType.U8 -> "asort_asc_u8"
+                DType.U32 -> "asort_asc_u32"
+                DType.I16 -> "asort_asc_i16"
+                DType.I32 -> "asort_asc_i32"
+                DType.I64 -> "asort_asc_i64"
+                DType.F8E4M3 -> throw CandleError.Msg("Metal device does not yet support F8E4M3.").bt()
+                DType.F6E2M3, DType.F6E3M2, DType.F4, DType.F8E8M0 -> {
+                    throw CandleError.UnsupportedDTypeForOp(storage.dtype(), "argsort").bt()
+                }
+            }
+        } else {
+            when (storage.dtype()) {
+                DType.BF16 -> "asort_desc_bf16"
+                DType.F16 -> "asort_desc_f16"
+                DType.F32 -> "asort_desc_f32"
+                DType.F64 -> "asort_desc_f64"
+                DType.U8 -> "asort_desc_u8"
+                DType.U32 -> "asort_desc_u32"
+                DType.I16 -> "asort_desc_i16"
+                DType.I32 -> "asort_desc_i32"
+                DType.I64 -> "asort_desc_i64"
+                DType.F8E4M3 -> throw CandleError.Msg("Metal device does not yet support F8E4M3.").bt()
+                DType.F6E2M3, DType.F6E3M2, DType.F4, DType.F8E8M0 -> {
+                    throw CandleError.UnsupportedDTypeForOp(storage.dtype(), "argsort").bt()
+                }
+            }
+        }
+        val device = storage.device()
+        val kernels = device.kernels()
+        val commandEncoder = device.commandEncoder().unwrap()
+        val el = layout.shape().elemCount()
+        val ncols = self.lastDim
+        val nrows = el / ncols
+        val src = bufferO(storage.buffer(), layout, storage.dtype())
+        val dst = device.newBuffer(el, DType.U32, "asort").unwrap()
+        var ncolsPad = 1
+        while (ncolsPad < ncols) {
+            ncolsPad *= 2
+        }
+        callArgSort(
+            device.metalDevice(),
+            commandEncoder,
+            kernels,
+            name,
+            nrows,
+            ncols,
+            ncolsPad,
+            src,
+            dst,
+        ).unwrap()
+        val dstStorage = MetalStorage.new(dst, device.clone(), el, DType.U32)
+        return Pair(dstStorage, layout.shape().clone())
+    }
 
-    // Limit block dim to 1024 threads, which is the maximum on modern CUDA gpus.
-    // Dummy types don't support sorting
-    public fun <T> f(src: T, dev: CudaDevice, layout: Layout): CudaStorage =
-        throw CandleException.NotCompiledWithCudaSupport
+    private val map: ArgSort.(CudaStorageSlice, CudaDevice, Layout) -> CudaStorageSlice = { slice, dev, layout ->
+        when (slice) {
+            is CudaStorageSlice.U8 -> f(slice.slice, dev, layout, { s -> CudaStorageSlice.U8(s) }).unwrap()
+            is CudaStorageSlice.U32 -> f(slice.slice, dev, layout, { s -> CudaStorageSlice.U32(s) }).unwrap()
+            is CudaStorageSlice.I16 -> f(slice.slice, dev, layout, { s -> CudaStorageSlice.I16(s) }).unwrap()
+            is CudaStorageSlice.I32 -> f(slice.slice, dev, layout, { s -> CudaStorageSlice.I32(s) }).unwrap()
+            is CudaStorageSlice.I64 -> f(slice.slice, dev, layout, { s -> CudaStorageSlice.I64(s) }).unwrap()
+            is CudaStorageSlice.BF16 -> f(slice.slice, dev, layout, { s -> CudaStorageSlice.BF16(s) }).unwrap()
+            is CudaStorageSlice.F16 -> f(slice.slice, dev, layout, { s -> CudaStorageSlice.F16(s) }).unwrap()
+            is CudaStorageSlice.F32 -> f(slice.slice, dev, layout, { s -> CudaStorageSlice.F32(s) }).unwrap()
+            is CudaStorageSlice.F64 -> f(slice.slice, dev, layout, { s -> CudaStorageSlice.F64(s) }).unwrap()
+            is CudaStorageSlice.F8E4M3 -> f(slice.slice, dev, layout, { s -> CudaStorageSlice.F8E4M3(s) }).unwrap()
+            else -> throw CandleError.UnsupportedDTypeForOp(DType.F4, "argsort").bt()
+        }
+    }
 }
+
+private object kernels {
+    const val SORT: String = "sort"
+}
+
+private val kernelName: (String) -> String = { base -> "${base}_f32" }
 
 public fun nextPowerOf2(x: Int): Int {
     var n = 1
@@ -284,16 +297,18 @@ public fun nextPowerOf2(x: Int): Int {
  * If `asc` is `true`, sorting is in ascending order. Otherwise sorting is performed in
  * descending order. The sort is unstable so there is no guarantees on the final order when it
  * comes to ties.
- *
- * No backward pass is needed for argument sort.
  */
-public fun Tensor.argSortLastDim(asc: Boolean): Tensor {
-    if (!isContiguous()) {
-        throw CandleException.RequiresContiguous("arg_sort_last_dim")
+public fun Tensor.argSortLastDim(asc: Boolean, self: Tensor = this): Tensor {
+    if (!self.isContiguous()) {
+        throw CandleError.RequiresContiguous("arg_sort_last_dim")
     }
-    val lastDim = dims().lastOrNull() ?: throw CandleException.Msg("empty last-dim in arg-sort")
+    val last = self.dims().lastOrNull()
+    val lastDim = when (last) {
+        null -> throw CandleError.Msg("empty last-dim in arg-sort")
+        else -> last
+    }
     // No need for a backward pass for arg sort.
-    return applyOp1NoBwd(ArgSort(asc, lastDim))
+    return self.applyOp1NoBwd(ArgSort(asc, lastDim))
 }
 
 /**
@@ -303,14 +318,12 @@ public fun Tensor.argSortLastDim(asc: Boolean): Tensor {
  * If `asc` is `true`, sorting is in ascending order. Otherwise sorting is performed in
  * descending order. The sort is unstable so there is no guarantees on the final order when it
  * comes to ties.
- *
- * Returns a pair of `(sortedTensor, sortedIndices)`.
  */
-public fun Tensor.sortLastDim(asc: Boolean): Pair<Tensor, Tensor> {
-    if (!isContiguous()) {
-        throw CandleException.RequiresContiguous("sort_last_dim")
+public fun Tensor.sortLastDim(asc: Boolean, self: Tensor = this): Pair<Tensor, Tensor> {
+    if (!self.isContiguous()) {
+        throw CandleError.RequiresContiguous("sort_last_dim")
     }
-    val asort = argSortLastDim(asc)
-    val sorted = gather(asort, D.Minus1)
+    val asort = self.argSortLastDim(asc)
+    val sorted = self.gather(asort, D.Minus1)
     return Pair(sorted, asort)
 }

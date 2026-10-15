@@ -9,47 +9,79 @@ import io.github.kotlinmania.anyhow.Result
  */
 public interface Error
 
-public fun Tensor.tryFrom(): List<Float> =
-    this.toVec1()
-
-public fun Tensor.tryFrom(dim2: Unit): List<List<Float>> =
-    this.toVec2().also { _ = dim2 }
-
-public fun Tensor.tryFrom(dim2: Unit, dim3: Unit): List<List<List<Float>>> =
-    this.toVec3().also {
-        _ = dim2
-        _ = dim3
+private object Vec {
+    val tryFrom1: (Tensor) -> Result<List<Any?>> = { tensor ->
+        Ok(tensor.toVec1())
     }
-
-public fun tryFrom(tensor: Tensor): List<Float> =
-    tensor.tryFrom()
-
-public fun tryFrom(tensor: Tensor, dim2: Unit): List<List<Float>> =
-    tensor.tryFrom(dim2)
-
-public fun tryFrom(tensor: Tensor, dim2: Unit, dim3: Unit): List<List<List<Float>>> =
-    tensor.tryFrom(dim2, dim3)
-
-public fun Tensor.Companion.tryFrom(v: FloatArray): Tensor =
-    Tensor.fromSlice(v, Shape(v.size), Device.Cpu)
-
-public fun Tensor.Companion.tryFrom(v: List<Float>): Tensor {
-    val len = v.size
-    return Tensor.fromVec(v, Shape(len), Device.Cpu)
+    val tryFrom2: (Tensor) -> Result<List<List<Any?>>> = { tensor ->
+        Ok(tensor.toVec2())
+    }
+    val tryFrom3: (Tensor) -> Result<List<List<List<Any?>>>> = { tensor ->
+        Ok(tensor.toVec3())
+    }
 }
 
-public fun Tensor.writeBytes(f: NpyByteWriter): Result<Unit> {
-    val vs = this.flattenAll()
-    when (this.dtype()) {
+public object TryFromTensorRefVec1 {
+    public fun <T : WithDType> tryFrom(tensor: Tensor): Result<List<T>> {
+        return Ok(tensor.toVec1() as List<T>)
+    }
+}
+
+public object TryFromTensorRefVec2 {
+    public fun <T : WithDType> tryFrom(tensor: Tensor): Result<List<List<T>>> {
+        return Ok(tensor.toVec2() as List<List<T>>)
+    }
+}
+
+public object TryFromTensorRefVec3 {
+    public fun <T : WithDType> tryFrom(tensor: Tensor): Result<List<List<List<T>>>> {
+        return Ok(tensor.toVec3() as List<List<List<T>>>)
+    }
+}
+
+public object TryFromTensorVec1 {
+    public fun <T : WithDType> tryFrom(tensor: Tensor): Result<List<T>> {
+        return Vec.tryFrom1(tensor) as Result<List<T>>
+    }
+}
+
+public object TryFromTensorVec2 {
+    public fun <T : WithDType> tryFrom(tensor: Tensor): Result<List<List<T>>> {
+        return Vec.tryFrom2(tensor) as Result<List<List<T>>>
+    }
+}
+
+public object TryFromTensorVec3 {
+    public fun <T : WithDType> tryFrom(tensor: Tensor): Result<List<List<List<T>>>> {
+        return Vec.tryFrom3(tensor) as Result<List<List<List<T>>>>
+    }
+}
+
+public object TryFromSliceTensor {
+    public fun <T : WithDType> tryFrom(v: FloatArray): Result<Tensor> {
+        return Ok(Tensor.fromSlice(v, Shape(v.size), Device.Cpu))
+    }
+}
+
+public object TryFromVecTensor {
+    public fun <T : WithDType> tryFrom(v: List<Float>): Result<Tensor> {
+        val len = v.size
+        return Ok(Tensor.fromVec(v, Shape(len), Device.Cpu))
+    }
+}
+
+public fun <W : Write> Tensor.writeBytes(f: W, self: Tensor = this): Result<Unit> {
+    val vs = self.flattenAll()
+    when (self.dtype()) {
         DType.BF16 -> {
-            val vec = vs.toVec1Bf16()
-            for (v in vec) {
+            val vsVec = vs.toVec1Bf16()
+            for (v in vsVec) {
                 f.writeU16(v.toBits()).unwrap()
             }
         }
         DType.F16 -> {
-            val vec = vs.toVec1F16()
-            for (v in vec) {
+            val vsVec = vs.toVec1F16()
+            for (v in vsVec) {
                 f.writeU16(v.toBits()).unwrap()
             }
         }
@@ -84,17 +116,17 @@ public fun Tensor.writeBytes(f: NpyByteWriter): Result<Unit> {
             }
         }
         DType.U8 -> {
-            val vec = vs.toVec1U8()
-            f.writeAll(ByteArray(vec.size) { vec[it].toByte() }).unwrap()
+            val vsVec = vs.toVec1U8()
+            f.writeAll(ByteArray(vsVec.size) { vsVec[it].toByte() }).unwrap()
         }
         DType.F8E4M3 -> {
-            val vec = vs.toVec1F8E4M3()
-            for (v in vec) {
+            val vsVec = vs.toVec1F8E4M3()
+            for (v in vsVec) {
                 f.writeU8(v.toBits()).unwrap()
             }
         }
         DType.F6E2M3, DType.F6E3M2, DType.F4, DType.F8E8M0 -> {
-            return Result.failure(CandleError.UnsupportedDTypeForOp(this.dtype(), "write_bytes").bt())
+            return Result.failure(CandleError.UnsupportedDTypeForOp(self.dtype(), "write_bytes").bt())
         }
     }
     return Ok(Unit)

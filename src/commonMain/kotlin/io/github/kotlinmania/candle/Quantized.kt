@@ -1,8 +1,13 @@
-// port-lint: source quantized/mod.rs
 package io.github.kotlinmania.candle
 
 import io.github.kotlinmania.envie.getenv
 import io.github.kotlinmania.threadlocal.ThreadLocal
+
+/**
+ * Quantized tensor storage, GGML data types, block quantization/dequantization,
+ * and quantized matrix multiplication operations across CPU, CUDA, and Metal backends.
+ */
+// port-lint: source quantized/mod.rs
 
 private fun <T> asTSlice(data: ByteArray, typeSize: Int, decodeBlock: (ByteArray, Int) -> T): List<T> {
     check(data.size % typeSize == 0) {
