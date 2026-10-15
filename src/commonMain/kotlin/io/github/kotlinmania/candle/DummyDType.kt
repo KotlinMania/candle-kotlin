@@ -1,9 +1,8 @@
 // port-lint: source dummy_dtype.rs
 package io.github.kotlinmania.candle
 
-import io.github.kotlinmania.anyhow.Err
-import io.github.kotlinmania.anyhow.Ok
-import io.github.kotlinmania.anyhow.Result
+import io.github.kotlinmania.candle.CandleResult.Err
+import io.github.kotlinmania.candle.CandleResult.Ok
 
 /**
  * Dummy data types for experimental/future float formats
@@ -13,10 +12,11 @@ import io.github.kotlinmania.anyhow.Result
  */
 
 public class Formatter(public val out: StringBuilder = StringBuilder()) {
+    public val sb: StringBuilder get() = out
     override fun toString(): String = out.toString()
 }
 
-internal fun write(f: Formatter, text: String): Result<Unit> {
+internal fun write(f: Formatter, text: String): CandleResult<Unit> {
     f.out.append(text)
     return Ok(Unit)
 }
@@ -89,10 +89,10 @@ public class F6E2M3 {
         public fun toCpuStorageOwned(data: List<F6E2M3>): CpuStorage =
             throw IllegalStateException("F6E2M3 is a dummy type and does not support storage (${data.size})")
 
-        public fun cpuStorageData(s: CpuStorage): Result<List<F6E2M3>> =
+        public fun cpuStorageData(s: CpuStorage): CandleResult<List<F6E2M3>> =
             Err(CandleException.UnsupportedDTypeForOp(s.dtype(), "cpu_storage_data"))
 
-        public fun cpuStorageAsSlice(s: CpuStorage): Result<List<F6E2M3>> =
+        public fun cpuStorageAsSlice(s: CpuStorage): CandleResult<List<F6E2M3>> =
             Err(CandleException.UnsupportedDTypeForOp(s.dtype(), "cpu_storage_as_slice"))
 
         public fun zero(): F6E2M3 =
@@ -101,7 +101,7 @@ public class F6E2M3 {
         public fun one(): F6E2M3 =
             throw IllegalStateException("F6E2M3 is a dummy type and does not support operations")
 
-        public fun fromStrRadix(str: String, radix: UInt): Result<F6E2M3> =
+        public fun fromStrRadix(str: String, radix: UInt): CandleResult<F6E2M3> =
             throw IllegalStateException("F6E2M3 is a dummy type and does not support parsing ($str, $radix)")
     }
 }
@@ -174,10 +174,10 @@ public class F6E3M2 {
         public fun toCpuStorageOwned(data: List<F6E3M2>): CpuStorage =
             throw IllegalStateException("F6E3M2 is a dummy type and does not support storage (${data.size})")
 
-        public fun cpuStorageData(s: CpuStorage): Result<List<F6E3M2>> =
+        public fun cpuStorageData(s: CpuStorage): CandleResult<List<F6E3M2>> =
             Err(CandleException.UnsupportedDTypeForOp(s.dtype(), "cpu_storage_data"))
 
-        public fun cpuStorageAsSlice(s: CpuStorage): Result<List<F6E3M2>> =
+        public fun cpuStorageAsSlice(s: CpuStorage): CandleResult<List<F6E3M2>> =
             Err(CandleException.UnsupportedDTypeForOp(s.dtype(), "cpu_storage_as_slice"))
 
         public fun zero(): F6E3M2 =
@@ -186,7 +186,7 @@ public class F6E3M2 {
         public fun one(): F6E3M2 =
             throw IllegalStateException("F6E3M2 is a dummy type and does not support operations")
 
-        public fun fromStrRadix(str: String, radix: UInt): Result<F6E3M2> =
+        public fun fromStrRadix(str: String, radix: UInt): CandleResult<F6E3M2> =
             throw IllegalStateException("F6E3M2 is a dummy type and does not support parsing ($str, $radix)")
     }
 }
@@ -259,10 +259,10 @@ public class F4 {
         public fun toCpuStorageOwned(data: List<F4>): CpuStorage =
             throw IllegalStateException("F4 is a dummy type and does not support storage (${data.size})")
 
-        public fun cpuStorageData(s: CpuStorage): Result<List<F4>> =
+        public fun cpuStorageData(s: CpuStorage): CandleResult<List<F4>> =
             Err(CandleException.UnsupportedDTypeForOp(s.dtype(), "cpu_storage_data"))
 
-        public fun cpuStorageAsSlice(s: CpuStorage): Result<List<F4>> =
+        public fun cpuStorageAsSlice(s: CpuStorage): CandleResult<List<F4>> =
             Err(CandleException.UnsupportedDTypeForOp(s.dtype(), "cpu_storage_as_slice"))
 
         public fun zero(): F4 =
@@ -271,7 +271,7 @@ public class F4 {
         public fun one(): F4 =
             throw IllegalStateException("F4 is a dummy type and does not support operations")
 
-        public fun fromStrRadix(str: String, radix: UInt): Result<F4> =
+        public fun fromStrRadix(str: String, radix: UInt): CandleResult<F4> =
             throw IllegalStateException("F4 is a dummy type and does not support parsing ($str, $radix)")
     }
 }
@@ -344,10 +344,10 @@ public class F8E8M0 {
         public fun toCpuStorageOwned(data: List<F8E8M0>): CpuStorage =
             throw IllegalStateException("F8E8M0 is a dummy type and does not support storage (${data.size})")
 
-        public fun cpuStorageData(s: CpuStorage): Result<List<F8E8M0>> =
+        public fun cpuStorageData(s: CpuStorage): CandleResult<List<F8E8M0>> =
             Err(CandleException.UnsupportedDTypeForOp(s.dtype(), "cpu_storage_data"))
 
-        public fun cpuStorageAsSlice(s: CpuStorage): Result<List<F8E8M0>> =
+        public fun cpuStorageAsSlice(s: CpuStorage): CandleResult<List<F8E8M0>> =
             Err(CandleException.UnsupportedDTypeForOp(s.dtype(), "cpu_storage_as_slice"))
 
         public fun zero(): F8E8M0 =
@@ -356,7 +356,7 @@ public class F8E8M0 {
         public fun one(): F8E8M0 =
             throw IllegalStateException("F8E8M0 is a dummy type and does not support operations")
 
-        public fun fromStrRadix(str: String, radix: UInt): Result<F8E8M0> =
+        public fun fromStrRadix(str: String, radix: UInt): CandleResult<F8E8M0> =
             throw IllegalStateException("F8E8M0 is a dummy type and does not support parsing ($str, $radix)")
     }
 }

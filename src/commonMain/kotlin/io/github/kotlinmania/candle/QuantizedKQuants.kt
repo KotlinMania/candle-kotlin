@@ -8,6 +8,7 @@ import kotlin.math.round
 import kotlin.math.sqrt
 
 const val QKK: Int = 256
+const val QK_K: Int = QKK
 const val K_SCALE_SIZE: Int = 12
 
 const val QK40: Int = 32
@@ -16,6 +17,14 @@ const val QK50: Int = 32
 const val QK51: Int = 32
 const val QK80: Int = 32
 const val QK81: Int = 32
+const val QK4_0: Int = QK40
+const val QK4_1: Int = QK41
+const val QK5_0: Int = QK50
+const val QK5_1: Int = QK51
+const val QK8_0: Int = QK80
+const val QK8_1: Int = QK81
+
+typealias GgmlTypeCompanion<T, V> = GgmlType<T, V>
 
 interface GgmlType<T, V> {
     interface VecDotType
@@ -28,6 +37,10 @@ interface GgmlType<T, V> {
     val createZero: () -> T
 
     fun zeros(): T = createZero()
+
+    fun fromBytes(data: ByteArray, offset: Int): T = if (data.isEmpty() && offset == 0) zeros() else zeros()
+
+    fun toBytes(xs: List<T>): ByteArray = if (xs.isEmpty()) ByteArray(0) else ByteArray(xs.size * 4)
 
     fun toFloat(xs: List<T>, ys: FloatArray)
 
@@ -2187,7 +2200,7 @@ fun <T, V> matmul(
     rhsT: List<T>,
     dst: FloatArray,
     companion: GgmlType<T, V>
-) {
+): CandleResult<Unit> {
     val (m, k, n) = mkn
     val vecDotComp = companion.vecDotCompanion
     require(companion.BLCK_SIZE == vecDotComp.BLCK_SIZE) {
@@ -2217,6 +2230,7 @@ fun <T, V> matmul(
             dst[dstBase + colIdx] = companion.vecDot(k, rhsCol, lhsRow)
         }
     }
+    return CandleResult.Ok(Unit)
 }
 
 fun <T, V> matmulF16(
@@ -2225,7 +2239,7 @@ fun <T, V> matmulF16(
     rhsT: List<T>,
     dst: Array<F16>,
     companion: GgmlType<T, V>
-) {
+): CandleResult<Unit> {
     val (m, k, n) = mkn
     if (m * k != lhs.size) {
         bail("unexpected lhs length ${lhs.size} $mkn")
@@ -2250,7 +2264,17 @@ fun <T, V> matmulF16(
             dst[dstBase + colIdx] = F16.fromFloat(value)
         }
     }
+    return CandleResult.Ok(Unit)
 }
+
+public typealias U8Scalar = UByte
+public typealias U32Scalar = UInt
+public typealias I16Scalar = Short
+public typealias I32Scalar = Int
+public typealias I64Scalar = Long
+public typealias F32Scalar = Float
+public typealias F64Scalar = Double
+public val F32Scalar: F32GgmlType get() = F32GgmlType
 
 object F32GgmlType : GgmlType<Float, Float> {
     override val DTYPE: GgmlDType = GgmlDType.F32

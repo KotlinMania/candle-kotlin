@@ -1,6 +1,7 @@
 // port-lint: source dummy_cuda_backend.rs
 package io.github.kotlinmania.candle
 
+import io.github.kotlinmania.candle.CandleException as Error
 import kotlin.jvm.JvmInline
 
 /**
@@ -11,7 +12,6 @@ import kotlin.jvm.JvmInline
  */
 
 private val Err: (CandleException) -> Nothing = { throw it }
-private val Error = CandleException
 private val fail: () -> Nothing = {
     throw CandleException.Msg("cuda support has not been enabled, add `cuda` feature to enable.")
 }

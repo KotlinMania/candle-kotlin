@@ -43,16 +43,13 @@ public interface RB {
 }
 
 private val UIntArray.toLongList: () -> List<Long> get() = { map { it.toLong() } }
-private val <T> List<T>.len: () -> Int get() = { size }
-private val <T> List<T>.iter: () -> List<T> get() = { this }
-private val <T> List<T>.enumerate: () -> List<IndexedValue<T>> get() = { withIndex().toList() }
 private val <T> IndexedValue<T>.i: Int get() = index
 private val <T> IndexedValue<T>.indexer: T get() = value
 private val Int.saturatingSub: (Int) -> Int get() = { other -> maxOf(0, this - other) }
 private val Tensor.self: Tensor get() = this
 private val Tensor.isOk: Boolean get() = rank() >= 0
 private val Tensor.e: CandleException get() = CandleException.Msg("invalid index")
-private val <T> T.Ok: (T) -> T get() = { it }
+private fun <T> Ok(v: T): T = v
 private val Int.into: () -> TensorIndexer get() = { TensorIndexer.from(this) }
 private val TensorIndexer.into: () -> TensorIndexer get() = { this }
 private val Pair<TensorIndexer, TensorIndexer>.a: TensorIndexer get() = first

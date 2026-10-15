@@ -1,4 +1,6 @@
-package io.github.kotlinmania.candle
+package io.github.kotlinmania.candle.streaming
+
+import io.github.kotlinmania.candle.*
 
 public interface Dim : ShapeDim
 

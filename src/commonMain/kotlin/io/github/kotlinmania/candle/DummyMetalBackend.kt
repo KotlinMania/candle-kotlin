@@ -1,5 +1,6 @@
 package io.github.kotlinmania.candle
 
+import io.github.kotlinmania.candle.CandleException as Error
 import io.github.kotlinmania.thiserror.StdError
 
 /**
@@ -11,7 +12,6 @@ import io.github.kotlinmania.thiserror.StdError
 // port-lint: source dummy_metal_backend.rs
 
 private val Err: (CandleException) -> Nothing = { throw it }
-private val Error = CandleException
 private val fail: () -> Nothing = {
     throw CandleException.Msg("metal support has not been enabled, add `metal` feature to enable.")
 }
@@ -89,6 +89,16 @@ public data class MetalDevice(val gpuId: Int = 0) : BackendDevice {
 
 public class MetalStorage : BackendStorage {
     private val self: MetalStorage get() = this
+
+    public companion object {
+        public fun new(buffer: Any, device: MetalDevice, count: Int, dtype: DType): MetalStorage {
+            buffer.hashCode()
+            device.hashCode()
+            count.hashCode()
+            dtype.hashCode()
+            return MetalStorage()
+        }
+    }
 
     override fun tryClone(
         l: Layout

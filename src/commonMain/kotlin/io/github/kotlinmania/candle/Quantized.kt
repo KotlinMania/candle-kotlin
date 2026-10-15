@@ -14,15 +14,14 @@ private val ByteArray.len: () -> Int get() = { this.size }
 private val ByteArray.asPtr: () -> Int get() = { this.size }
 private val FloatArray.len: () -> Int get() = { this.size }
 private val Int.isMultipleOf: (Int) -> Boolean get() = { d -> d > 0 && this % d == 0 }
-private val <T> List<T>.toVec: () -> MutableList<T> get() = { this.toMutableList() }
-private val <T> MutableList<T>.len: () -> Int get() = { this.size }
-private val <T> MutableList<T>.asSlice: () -> MutableList<T> get() = { this }
-private val <T> MutableList<T>.asPtr: () -> ByteArray get() = { ByteArray(0) }
-private val <T> MutableList<T>.pop: () -> T? get() = { if (this.isEmpty()) null else this.removeAt(this.size - 1) }
-private val <T> MutableList<T>.push: (T) -> Unit get() = { v -> this.add(v) }
-private val QTensor.asRef: () -> QTensor get() = { this }
+private inline fun Tensor.unwrapOrElse(f: (CandleException) -> Tensor): Tensor = this
+private inline fun Int.unwrapOrElse(f: (CandleException) -> Int): Int = this
+private fun <T> MutableList<T>.asPtr(): ByteArray = ByteArray(0)
+private fun QTensor.asRef(): QTensor = this
+private fun GgmlDType.zeros(): Any =
+    if (this == GgmlDType.F16) io.github.kotlinmania.half.F16.ZERO else io.github.kotlinmania.half.BF16.ZERO
 
-private fun <T : GgmlType> asTSlice(data: ByteArray, companion: GgmlTypeCompanion<T, *>? = null): List<GgmlType> {
+private fun asTSlice(data: ByteArray, companion: Any? = null): List<Any> {
     val size = QuantizedHelper.sizeOf(companion)
     check(
         data.len() % size == 0,
@@ -421,7 +420,7 @@ interface QuantizedType {
     fun size(): Int
 }
 
-class QuantizedVec<E : GgmlType>(
+class QuantizedVec<E : Any>(
     val self: MutableList<E>,
     private val T: GgmlTypeCompanion<E, *>,
 ) : QuantizedType {
@@ -470,7 +469,7 @@ class QuantizedVec<E : GgmlType>(
     }
 
     companion object {
-        val new: (MutableList<out GgmlType>, GgmlTypeCompanion<*, *>) -> QuantizedType = { list, comp ->
+        val new: (MutableList<out Any>, Any) -> QuantizedType = { list, comp ->
             QuantizedHelper.createQuantizedVec(list, comp)
         }
     }
@@ -519,7 +518,7 @@ class QTensor(
     fun dequantize(device: Device): CandleResult<Tensor> {
         val storage = self.storage.dequantize(self.shape.elemCount()).unwrapOrElse { return CandleResult.Err(it) }
         val none = BackpropOp.none()
-        return fromStorage(storage, self.shape.clone(), none, false).toDevice(device)
+        return CandleResult.Ok(fromStorage(storage, self.shape.clone(), none, false).toDevice(device))
     }
 
     fun dequantizeF16(device: Device): CandleResult<Tensor> {
@@ -529,11 +528,11 @@ class QTensor(
             is QStorage.Cuda -> {
                 val s = st.storage.dequantizeF16(self.shape.elemCount()).unwrapOrElse { return CandleResult.Err(it) }
                 val none = BackpropOp.none()
-                fromStorage(Storage.Cuda(s), self.shape.clone(), none, false)
-                    .toDevice(device)
+                CandleResult.Ok(fromStorage(Storage.Cuda(s), self.shape.clone(), none, false)
+                    .toDevice(device))
             }
             else -> {
-                val s = self.dequantize(device).unwrapOrElse { return CandleResult.Err(it) }.toDtype(DType.F16).unwrapOrElse { return CandleResult.Err(it) }
+                val s = self.dequantize(device).unwrapOrElse { return CandleResult.Err(it) }.toDtype(DType.F16)
                 CandleResult.Ok(s)
             }
         }
@@ -601,32 +600,32 @@ class QTensor(
     override fun cpuFwd(
         storage: CpuStorage,
         layout: Layout,
-    ): CandleResult<Pair<CpuStorage, Shape>> {
+    ): Pair<CpuStorage, Shape> {
         if (!layout.isContiguous()) {
-            return CandleResult.Err(CandleError.Msg("input tensor is not contiguous $layout").bt())
+            throw CandleError.Msg("input tensor is not contiguous $layout").bt()
         }
         val srcShape = layout.shape()
         // self is transposed so n is first then k.
-        val nk = self.shape.dims2().unwrapOrElse { return CandleResult.Err(it) }
+        val nk = self.shape.dims2().unwrapOrElse { throw it }
         val n = nk.first
         val k = nk.second
         if (srcShape.rank() < 2) {
-            return CandleResult.Err(CandleError.Msg("input tensor has only one dimension $layout").bt())
+            throw CandleError.Msg("input tensor has only one dimension $layout").bt()
         }
         val dstShapeDims = srcShape.dims().toList().toVec()
         val lastK = dstShapeDims.pop()!!
         if (lastK != k) {
-            return CandleResult.Err(CandleError.Msg("input tensor $layout incompatible with ${self.shape}").bt())
+            throw CandleError.Msg("input tensor $layout incompatible with ${self.shape}").bt()
         }
         dstShapeDims.push(n)
         val dstShape = Shape.fromDims(dstShapeDims.toIntArray())
         val selfStorage = when (val st = self.storage) {
             is QStorage.Cpu -> st.storage
-            is QStorage.Metal, is QStorage.Cuda -> return CandleResult.Err(CandleError.Msg("Invalid storage").bt())
+            is QStorage.Metal, is QStorage.Cuda -> throw CandleError.Msg("Invalid storage").bt()
         }
         return when (storage.dtype()) {
             DType.F32 -> {
-                val slice = QuantizedHelper.asSliceF32(storage).unwrapOrElse { return CandleResult.Err(it) }
+                val slice = QuantizedHelper.asSliceF32(storage).unwrapOrElse { throw it }
                 val subSlice =
                     slice.copyOfRange(layout.startOffset(), layout.startOffset() + srcShape.elemCount())
                 val dstStorage = FloatArray(dstShape.elemCount())
@@ -634,11 +633,11 @@ class QTensor(
                     Triple(dstShape.elemCount() / n, k, n),
                     subSlice,
                     dstStorage,
-                ).unwrapOrElse { return CandleResult.Err(it) }
-                CandleResult.Ok(Pair(CpuStorage.F32(dstStorage), dstShape))
+                ).unwrapOrElse { throw it }
+                Pair(CpuStorage.F32(dstStorage), dstShape)
             }
             DType.F16 -> {
-                val slice = QuantizedHelper.asSliceF16(storage).unwrapOrElse { return CandleResult.Err(it) }
+                val slice = QuantizedHelper.asSliceF16(storage).unwrapOrElse { throw it }
                 val subSlice =
                     slice.copyOfRange(layout.startOffset(), layout.startOffset() + srcShape.elemCount())
                 val dstStorage = Array(dstShape.elemCount()) { F16.ZERO }
@@ -646,35 +645,35 @@ class QTensor(
                     Triple(dstShape.elemCount() / n, k, n),
                     subSlice,
                     dstStorage,
-                ).unwrapOrElse { return CandleResult.Err(it) }
-                CandleResult.Ok(Pair(CpuStorage.F16(dstStorage), dstShape))
+                ).unwrapOrElse { throw it }
+                Pair(CpuStorage.F16(ShortArray(dstStorage.size) { dstStorage[it].bits }), dstShape)
             }
-            else -> CandleResult.Err(CandleError.Msg("Expected f32/f16").bt())
+            else -> throw CandleError.Msg("Expected f32/f16").bt()
         }
     }
 
     override fun metalFwd(
         storage: MetalStorage,
         layout: Layout,
-    ): CandleResult<Pair<MetalStorage, Shape>> {
+    ): Pair<MetalStorage, Shape> {
         val selfStorage = when (val st = self.storage) {
             is QStorage.Metal -> st.storage
             else ->
                 throw IllegalStateException("Cannot call metal matmul on non metal QTensor")
         }
-        return selfStorage.fwd(self.shape, storage, layout)
+        return selfStorage.fwd(self.shape, storage, layout).unwrapOrElse { throw it }
     }
 
     override fun cudaFwd(
         storage: CudaStorage,
         layout: Layout,
-    ): CandleResult<Pair<CudaStorage, Shape>> {
+    ): Pair<CudaStorage, Shape> {
         val selfStorage = when (val st = self.storage) {
             is QStorage.Cuda -> st.storage
             else ->
                 throw IllegalStateException("Cannot call cuda matmul on non cuda QTensor")
         }
-        return selfStorage.fwd(self.shape, storage, layout)
+        return selfStorage.fwd(self.shape, storage, layout).unwrapOrElse { throw it }
     }
 
     companion object {
@@ -683,6 +682,9 @@ class QTensor(
             checkShape(s, storage.blockSize()).unwrapOrElse { return CandleResult.Err(it) }
             return CandleResult.Ok(QTensor(storage, s))
         }
+
+        fun new(storage: QStorage, dims: List<Int>): CandleResult<QTensor> =
+            new(storage, Shape.from(dims))
 
         fun quantize(src: Tensor, dtype: GgmlDType): CandleResult<QTensor> {
             val shape = src.shape()
@@ -837,7 +839,7 @@ sealed class QMatMul : Module {
     fun dequantizeF16(): CandleResult<Tensor> {
         return when (self) {
             is QTensorVariant -> (this as QTensorVariant).t.dequantizeF16((this as QTensorVariant).t.device())
-            is TensorVariant -> (this as TensorVariant).t.toDtype(DType.F16)
+            is TensorVariant -> CandleResult.Ok((this as TensorVariant).t.toDtype(DType.F16))
             is TensorF16Variant -> CandleResult.Ok((this as TensorF16Variant).t.clone())
         }
     }
@@ -848,7 +850,7 @@ sealed class QMatMul : Module {
         val wT = when (xs.dims().size) {
             4 -> QuantizedHelper.broadcastLeftT2(w, xs.dims()[0], xs.dims()[1]).unwrapOrElse { return CandleResult.Err(it) }
             3 -> QuantizedHelper.broadcastLeftT1(w, xs.dims()[0]).unwrapOrElse { return CandleResult.Err(it) }
-            else -> w.t().unwrapOrElse { return CandleResult.Err(it) }
+            else -> w.t()
         }
         return QuantizedHelper.matmulViaF16(xs, wT, inDtype)
     }
@@ -862,25 +864,25 @@ sealed class QMatMul : Module {
         }
     }
 
-    override fun forward(xs: Tensor): CandleResult<Tensor> {
+    override fun forward(xs: Tensor): Tensor {
         return when (self) {
             is QTensorVariant -> xs.applyOp1NoBwd((this as QTensorVariant).t.asRef())
             is TensorVariant -> {
                 val w = when (xs.dims().size) {
-                    4 -> QuantizedHelper.broadcastLeftT2((this as TensorVariant).w, xs.dims()[0], xs.dims()[1]).unwrapOrElse { return CandleResult.Err(it) }
-                    3 -> QuantizedHelper.broadcastLeftT1((this as TensorVariant).w, xs.dims()[0]).unwrapOrElse { return CandleResult.Err(it) }
-                    else -> (this as TensorVariant).w.t().unwrapOrElse { return CandleResult.Err(it) }
+                    4 -> QuantizedHelper.broadcastLeftT2((this as TensorVariant).w, xs.dims()[0], xs.dims()[1]).unwrapOrElse { throw it }
+                    3 -> QuantizedHelper.broadcastLeftT1((this as TensorVariant).w, xs.dims()[0]).unwrapOrElse { throw it }
+                    else -> (this as TensorVariant).w.t()
                 }
                 xs.matmul(w)
             }
             is TensorF16Variant -> {
                 val inDtype = xs.dtype()
                 val w = when (xs.dims().size) {
-                    4 -> QuantizedHelper.broadcastLeftT2((this as TensorF16Variant).w, xs.dims()[0], xs.dims()[1]).unwrapOrElse { return CandleResult.Err(it) }
-                    3 -> QuantizedHelper.broadcastLeftT1((this as TensorF16Variant).w, xs.dims()[0]).unwrapOrElse { return CandleResult.Err(it) }
-                    else -> (this as TensorF16Variant).w.t().unwrapOrElse { return CandleResult.Err(it) }
+                    4 -> QuantizedHelper.broadcastLeftT2((this as TensorF16Variant).w, xs.dims()[0], xs.dims()[1]).unwrapOrElse { throw it }
+                    3 -> QuantizedHelper.broadcastLeftT1((this as TensorF16Variant).w, xs.dims()[0]).unwrapOrElse { throw it }
+                    else -> (this as TensorF16Variant).w.t()
                 }
-                QuantizedHelper.matmulViaF16(xs, w, inDtype)
+                QuantizedHelper.matmulViaF16(xs, w, inDtype).unwrapOrElse { throw it }
             }
         }
     }
@@ -909,11 +911,11 @@ sealed class QMatMul : Module {
     }
 }
 
-private object QuantizedHelper {
-    val sizeOf: (GgmlTypeCompanion<*, *>?) -> Int = { comp ->
+internal object QuantizedHelper {
+    val sizeOf: (Any?) -> Int = { comp ->
         when (comp) {
             F32Scalar -> 4
-            F16, BF16 -> 2
+            F16GgmlType, BF16GgmlType, GgmlDType.F16, GgmlDType.BF16, F16, BF16 -> 2
             BlockQ40 -> 18
             BlockQ41 -> 20
             BlockQ50 -> 22
@@ -930,17 +932,17 @@ private object QuantizedHelper {
         }
     }
 
-    val alignOf: (GgmlTypeCompanion<*, *>?) -> Int = { _ -> 1 }
+    val alignOf: (Any?) -> Int = { _ -> 1 }
 
-    val fromRawParts: (Int, Int, ByteArray, GgmlTypeCompanion<*, *>?) -> List<GgmlType> = { _, count, data, comp ->
+    val fromRawParts: (Int, Int, ByteArray, Any?) -> List<Any> = { _, count, data, comp ->
         val size = sizeOf(comp)
-        val out = ArrayList<GgmlType>(count)
+        val out = ArrayList<Any>(count)
         for (i in 0 until count) {
             val offset = i * size
-            val block: GgmlType = when (comp) {
+            val block: Any = when (comp) {
                 F32Scalar -> F32Scalar.fromBytes(data, offset)
-                F16 -> F16.fromBytes(data, offset)
-                BF16 -> BF16.fromBytes(data, offset)
+                F16GgmlType, GgmlDType.F16, F16 -> F16GgmlType.fromBytes(data, offset)
+                BF16GgmlType, GgmlDType.BF16, BF16 -> BF16GgmlType.fromBytes(data, offset)
                 BlockQ40 -> BlockQ40.fromBytes(data, offset)
                 BlockQ41 -> BlockQ41.fromBytes(data, offset)
                 BlockQ50 -> BlockQ50.fromBytes(data, offset)
@@ -962,11 +964,11 @@ private object QuantizedHelper {
 
     val write: (String, String) -> String = { _, s -> s }
 
-    val asPtrBytes: (ByteArray, MutableList<out GgmlType>, GgmlTypeCompanion<*, *>) -> ByteArray = { _, list, comp ->
+    val asPtrBytes: (ByteArray, MutableList<out Any>, Any) -> ByteArray = { _, list, comp ->
         when (comp) {
             F32Scalar -> F32Scalar.toBytes(list.map { it as F32Scalar })
-            F16 -> F16.toBytes(list.map { it as F16 })
-            BF16 -> BF16.toBytes(list.map { it as BF16 })
+            F16GgmlType, GgmlDType.F16, F16 -> F16GgmlType.toBytes(list.map { it as F16 })
+            BF16GgmlType, GgmlDType.BF16, BF16 -> BF16GgmlType.toBytes(list.map { it as BF16 })
             BlockQ40 -> BlockQ40.toBytes(list.map { it as BlockQ40 })
             BlockQ41 -> BlockQ41.toBytes(list.map { it as BlockQ41 })
             BlockQ50 -> BlockQ50.toBytes(list.map { it as BlockQ50 })
@@ -1002,21 +1004,33 @@ private object QuantizedHelper {
 
     val asSliceF16: (CpuStorage) -> CandleResult<Array<F16>> = { s ->
         when (s) {
-            is CpuStorage.F16 -> CandleResult.Ok(s.data)
+            is CpuStorage.F16 -> CandleResult.Ok(Array(s.data.size) { F16(s.data[it]) })
             else -> CandleResult.Err(CandleError.Msg("expected f16 storage").bt())
         }
     }
 
     val broadcastLeftT2: (Tensor, Int, Int) -> CandleResult<Tensor> = { w, b1, b2 ->
-        w.broadcastLeft(Shape.fromDims(intArrayOf(b1, b2))).andThen { it.t() }
+        try {
+            CandleResult.Ok(w.broadcastLeft(Shape.fromDims(intArrayOf(b1, b2))).t())
+        } catch (e: CandleException) {
+            CandleResult.Err(e)
+        }
     }
 
     val broadcastLeftT1: (Tensor, Int) -> CandleResult<Tensor> = { w, bsize ->
-        w.broadcastLeft(Shape.fromDims(intArrayOf(bsize))).andThen { it.t() }
+        try {
+            CandleResult.Ok(w.broadcastLeft(Shape.fromDims(intArrayOf(bsize))).t())
+        } catch (e: CandleException) {
+            CandleResult.Err(e)
+        }
     }
 
     val matmulViaF16: (Tensor, Tensor, DType) -> CandleResult<Tensor> = { xs, w, inDtype ->
-        xs.toDtype(DType.F16).andThen { it.matmul(w) }.andThen { it.toDtype(inDtype) }
+        try {
+            CandleResult.Ok(xs.toDtype(DType.F16).matmul(w).toDtype(inDtype))
+        } catch (e: CandleException) {
+            CandleResult.Err(e)
+        }
     }
 
     val dequantizeAllFlag: () -> Boolean = {
@@ -1033,11 +1047,11 @@ private object QuantizedHelper {
         }
     }
 
-    val createQuantizedVec: (MutableList<out GgmlType>, GgmlTypeCompanion<*, *>) -> QuantizedType = { list, comp ->
+    val createQuantizedVec: (MutableList<out Any>, Any) -> QuantizedType = { list, comp ->
         when (comp) {
             F32Scalar -> QuantizedVec(list.map { it as F32Scalar }.toMutableList(), F32Scalar)
-            F16 -> QuantizedVec(list.map { it as F16 }.toMutableList(), F16)
-            BF16 -> QuantizedVec(list.map { it as BF16 }.toMutableList(), BF16)
+            F16GgmlType, GgmlDType.F16, F16 -> QuantizedVec(list.map { it as F16 }.toMutableList(), F16GgmlType)
+            BF16GgmlType, GgmlDType.BF16, BF16 -> QuantizedVec(list.map { it as BF16 }.toMutableList(), BF16GgmlType)
             BlockQ40 -> QuantizedVec(list.map { it as BlockQ40 }.toMutableList(), BlockQ40)
             BlockQ41 -> QuantizedVec(list.map { it as BlockQ41 }.toMutableList(), BlockQ41)
             BlockQ50 -> QuantizedVec(list.map { it as BlockQ50 }.toMutableList(), BlockQ50)

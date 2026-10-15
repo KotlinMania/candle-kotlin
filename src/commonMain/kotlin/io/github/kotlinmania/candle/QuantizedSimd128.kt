@@ -17,7 +17,7 @@ private val i16x8Splat: (Int) -> ShortArray = { v -> ShortArray(8) { v.toShort()
 private val u8x16Splat: (Int) -> ByteArray = { v -> ByteArray(16) { v.toByte() } }
 private val i8x16Splat: (Int) -> ByteArray = { v -> ByteArray(16) { v.toByte() } }
 private val v128Load: (ByteArray, Int) -> ByteArray = { src, off -> src.copyOfRange(off, off + 16) }
-private val v128LoadU: (UByteArray, Int) -> ByteArray = { src, off -> ByteArray(16) { i -> src[off + i].toByte() } }
+private val v128LoadU: (ByteArray, Int) -> ByteArray = { src, off -> ByteArray(16) { i -> src[off + i] } }
 private val v128Store: (ByteArray, Int, ByteArray) -> Unit = { dst, off, v ->
     for (i in 0 until 16) dst[off + i] = v[i]
 }
@@ -57,9 +57,10 @@ private val i16x8ExtendHighU8x16: (ByteArray) -> ShortArray = { a ->
 private val i16x8LoadExtendI8x8: (ByteArray, Int) -> ShortArray = { src, off ->
     ShortArray(8) { i -> src[off + i].toShort() }
 }
-private val i16x8LoadExtendU8x8: (UByteArray, Int) -> ShortArray = { src, off ->
+private fun i16x8LoadExtendU8x8(src: UByteArray, off: Int): ShortArray =
     ShortArray(8) { i -> (src[off + i].toInt() and 0xFF).toShort() }
-}
+private fun i16x8LoadExtendU8x8(src: ByteArray, off: Int): ShortArray =
+    ShortArray(8) { i -> (src[off + i].toInt() and 0xFF).toShort() }
 private val i16x8LoadExtendU8x8B: (ByteArray, Int) -> ShortArray = { src, off ->
     ShortArray(8) { i -> (src[off + i].toInt() and 0xFF).toShort() }
 }
@@ -110,7 +111,7 @@ private val f32x4Mul: (FloatArray, FloatArray) -> FloatArray = { a, b ->
     FloatArray(4) { i -> a[i] * b[i] }
 }
 private val f32x4ExtractLane: (FloatArray, Int) -> Float = { a, lane -> a[lane] }
-private val readU32Into: (UByteArray, IntArray, Int) -> Unit = { src, dst, count ->
+private val readU32Into: (ByteArray, IntArray, Int) -> Unit = { src, dst, count ->
     for (w in 0 until count) {
         val b0 = src[w * 4].toInt() and 0xFF
         val b1 = src[w * 4 + 1].toInt() and 0xFF

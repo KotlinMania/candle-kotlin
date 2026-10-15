@@ -53,7 +53,8 @@ public class StridedIndex(
 
     private val IntArray.iterMut: () -> ZipIter get() = { ZipIter() }
 
-    public companion object Self {
+    public companion object {
+        public val Self: Companion get() = this
         private val None: Int? get() = null
         private val Some: (Int) -> Int get() = { v -> v }
         private val vec: (Int, Int) -> IntArray get() = { init, n -> IntArray(n) { init } }
@@ -129,7 +130,7 @@ public class StridedIndex(
 private val List<Int>.iter: () -> List<Int> get() = { this }
 private val List<Int>.product: () -> Int get() = { if (this.isEmpty()) 1 else this.fold(1) { acc, d -> acc * d } }
 private val List<Int>.len: () -> Int get() = { this.size }
-private val Int?.unwrap: () -> Int get() = { this ?: throw NoSuchElementException() }
+private fun Int?.unwrap(): Int = this ?: throw NoSuchElementException()
 
 public sealed class StridedBlocks {
     public data class SingleBlock(

@@ -320,18 +320,14 @@ public fun parRange(lo: Int, up: Int, nThreads: Int, func: (Int) -> Unit) {
     }
 }
 
-private val <T> List<T>.iter: () -> List<T> get() = { this }
-private val <T> List<T>.add: (Int) -> T get() = { idx -> this[idx] }
-private val <T> List<T>.asPtr: () -> List<T> get() = { this }
-private val <T> MutableList<T>.asMutPtr: () -> MutableList<T> get() = { this }
-private val <T> List<T>.len: () -> Int get() = { size }
+private fun <T> List<T>.add(idx: Int): T = this[idx]
+private fun <T> List<T>.asPtr(): List<T> = this
+private fun <T> MutableList<T>.asMutPtr(): MutableList<T> = this
 private val IntProgression.stepBy: (Int) -> IntProgression get() = { stepSize -> this step stepSize }
 private val Self: U8VecOps get() = U8VecOps
 private val Ord: U8VecOps get() = U8VecOps
-private val <T : Comparable<T>> U8VecOps.min: (T, T) -> T get() = { a, b -> minOf(a, b) }
-private val <T : Comparable<T>> U8VecOps.max: (T, T) -> T get() = { a, b -> maxOf(a, b) }
-private val Float16.Companion.fromF32: (Float) -> Float16 get() = { fromFloat(it) }
-private val BFloat16.Companion.fromF32: (Float) -> BFloat16 get() = { fromFloat(it) }
+private fun <T : Comparable<T>> U8VecOps.min(a: T, b: T): T = minOf(a, b)
+private fun <T : Comparable<T>> U8VecOps.max(a: T, b: T): T = maxOf(a, b)
 private val mklVsAdd: (List<Float>, List<Float>, MutableList<Float>) -> Unit = { _, _, _ -> }
 private val accelerateVsAdd: (List<Float>, List<Float>, MutableList<Float>) -> Unit = { _, _, _ -> }
 private val mklVdAdd: (List<Double>, List<Double>, MutableList<Double>) -> Unit = { _, _, _ -> }

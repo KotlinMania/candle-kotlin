@@ -62,7 +62,7 @@ private val CandlePool.numThreads: (Int) -> CandlePool get() = { n -> CandlePool
 private val CandlePool.startHandler: ((Int) -> Unit) -> CandlePool get() = { h -> h(0); this }
 private val CandlePool.build: () -> CandlePool get() = { this }
 private val CandlePool.expect: (String) -> CandlePool get() = { _ -> this }
-private val <R> CandlePool.install: (() -> R) -> R get() = { f -> setThreadAffinity(); f() }
+private fun <R> CandlePool.install(f: () -> R): R { setThreadAffinity(); return f() }
 
 private val POOL: OnceCell<CandlePool> = OnceCell.new()
 

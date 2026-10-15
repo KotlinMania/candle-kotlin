@@ -7,8 +7,8 @@ import io.github.kotlinmania.candle.DType
 import io.github.kotlinmania.candle.Layout
 import io.github.kotlinmania.candle.Result
 import io.github.kotlinmania.candle.Shape
-import io.github.kotlinmania.candle.cuda.DeviceId
-import io.github.kotlinmania.candle.quantized.GgmlDType
+import io.github.kotlinmania.candle.DeviceId
+import io.github.kotlinmania.candle.GgmlDType
 import io.github.kotlinmania.candle.quantized.cuda.CudaSlice
 import io.github.kotlinmania.candle.quantized.cuda.MATRIX_ROW_PADDING
 import io.github.kotlinmania.candle.quantized.cuda.QCudaStorage
@@ -25,10 +25,10 @@ private const val BLOCK_Q8_1_MMQ_SIZE: Int = 4 * QK8_1 + 4 * 4 // 128 qs + 16 sc
 private val Int.divCeil: (Int) -> Int get() = { q -> (this + q - 1) / q }
 private val Int.max: (Int) -> Int get() = { m -> maxOf(this, m) }
 private val unreachable: () -> Nothing get() = { throw IllegalStateException("unreachable") }
-private val <T> T.Some: (T) -> T get() = { v -> v }
-private val <T> Any?.Some: (T) -> Boolean get() = { v -> v != null }
+private fun <T> T.Some(v: T): T = v
+private fun <T> Some(v: T): Boolean = v != null
 private val None: Nothing? get() = null
-private val <T> Any?.Ok: (T) -> Result<T> get() = { v -> Result.success(v) }
+private fun <T> Ok(v: T): Result<T> = Result.success(v)
 private val matches: (Any?, Array<out Any?>) -> Boolean get() = { v, opts -> opts.any { it == v } }
 private val GgmlDType.matches: (GgmlDType, GgmlDType, GgmlDType, GgmlDType, GgmlDType, GgmlDType, GgmlDType, GgmlDType, GgmlDType, GgmlDType, GgmlDType) -> Boolean get() = { d, a, b, c, e, f, g, h, i, j, k ->
     d == a || d == b || d == c || d == e || d == f || d == g || d == h || d == i || d == j || d == k
@@ -200,9 +200,9 @@ private class MmqGuard<T>(val v: T) {
     val unwrap: () -> T get() = { v }
 }
 
-private val <K, V> MutableMap<K, V>.lock: () -> MmqGuard<MutableMap<K, V>> get() = { MmqGuard(this) }
-private val <K, V> MutableMap<K, V>.insert: (K, V) -> Unit get() = { k, v -> this[k] = v }
-private val <T> T?.copied: () -> T? get() = { this }
+private fun <K, V> MutableMap<K, V>.lock(): MmqGuard<MutableMap<K, V>> = MmqGuard(this)
+private fun <K, V> MutableMap<K, V>.insert(k: K, v: V): Unit { this[k] = v }
+private fun <T> T?.copied(): T? = this
 private val CudaDevice.id: () -> DeviceId get() = { DeviceId(this.ordinal) }
 private val CudaDevice.alloc: (Int) -> Result<CudaSlice> get() = { n -> Result.success(CudaSlice(ByteArray(n))) }
 private val CudaSlice.stream: () -> ULong get() = { 0uL }
@@ -293,7 +293,7 @@ private val CudaDevice.cudaStream: () -> CuStreamStub get() = { CuStreamStub(thi
 private val CudaDevice.clone: () -> CudaDevice get() = { this }
 private val CudaStorage.asCudaSlice: () -> Result<CudaSlice> get() = { Result.success(CudaSlice(ByteArray(0))) }
 private val CudaStorage.Companion.wrapCudaSlice: (CudaSlice, CudaDevice) -> CudaStorage get() = { _, d -> CudaStorage(d, DType.F32) }
-private val <T> Result<T>.unwrapOr: (T) -> T get() = { def -> this.getOrDefault(def) }
+private fun <T> Result<T>.unwrapOr(def: T): T = this.getOrDefault(def)
 private val ccKey: Int get() = 0
 private val smpboKey: Int get() = 0
 private val newDeviceInfo: (Int, Int, Int, Long, Int) -> DeviceInfo get() = { _, cc, nsm, smpbo, warpSize ->
@@ -369,13 +369,13 @@ private object std {
     }
 }
 
-private val <T> T?.expect: (String) -> T get() = { msg -> this ?: throw IllegalStateException(msg) }
-private val <T> T?.isSome: () -> Boolean get() = { this != null }
-private val <T> T?.asRef: () -> T? get() = { this }
-private val <T> T?.unwrapOr: (T) -> T get() = { def -> this ?: def }
+private fun <T> T?.expect(msg: String): T = this ?: throw IllegalStateException(msg)
+private fun <T> T?.isSome(): Boolean = this != null
+private fun <T> T?.asRef(): T? = this
+private fun <T> T?.unwrapOr(def: T): T = this ?: def
 private val IntArray.toVec: () -> MutableList<Int> get() = { this.toMutableList() }
-private val <T> MutableList<T>.pop: () -> T get() = { this.removeAt(this.size - 1) }
-private val <T> MutableList<T>.push: (T) -> Unit get() = { v -> this.add(v) }
+private fun <T> MutableList<T>.pop(): T = this.removeAt(this.size - 1)
+private fun <T> MutableList<T>.push(v: T): Unit { this.add(v) }
 private val MutableList<Int>.into: () -> Shape get() = { Shape(this.toIntArray()) }
 private val MutableList<Int>.clone: () -> MutableList<Int> get() = { this.toMutableList() }
 

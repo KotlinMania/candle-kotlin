@@ -166,6 +166,9 @@ public sealed class CpuStorage {
         val data: ByteArray,
     ) : CpuStorage()
 
+    public typealias F8E4M3Storage = F8E4M3
+    public typealias F8E8M0Storage = F8E8M0
+
     public fun asSlice(): List<Double> {
         val len = when (this) {
             is U8 -> data.size
@@ -1347,10 +1350,10 @@ public sealed class CpuStorage {
                 val blockStartIndex = blocks.blockStartIndex
                 val blockLen = blocks.blockLen
                 if (blockLen == 1) {
-                    for (i in blockStartIndex.indices) dst[dstOffset + i] = src[blockStartIndex[i]]
+                    for ((i, srcIndex) in blockStartIndex.asSequence().withIndex()) dst[dstOffset + i] = src[srcIndex]
                 } else {
                     var curDstIndex = dstOffset
-                    for (srcIndex in blockStartIndex) {
+                    for (srcIndex in blockStartIndex.asSequence()) {
                         src.copyInto(dst, curDstIndex, srcIndex, srcIndex + blockLen)
                         curDstIndex += blockLen
                     }
@@ -1367,10 +1370,10 @@ public sealed class CpuStorage {
                 val blockStartIndex = blocks.blockStartIndex
                 val blockLen = blocks.blockLen
                 if (blockLen == 1) {
-                    for (i in blockStartIndex.indices) dst[dstOffset + i] = src[blockStartIndex[i]]
+                    for ((i, srcIndex) in blockStartIndex.asSequence().withIndex()) dst[dstOffset + i] = src[srcIndex]
                 } else {
                     var curDstIndex = dstOffset
-                    for (srcIndex in blockStartIndex) {
+                    for (srcIndex in blockStartIndex.asSequence()) {
                         src.copyInto(dst, curDstIndex, srcIndex, srcIndex + blockLen)
                         curDstIndex += blockLen
                     }
@@ -1387,10 +1390,10 @@ public sealed class CpuStorage {
                 val blockStartIndex = blocks.blockStartIndex
                 val blockLen = blocks.blockLen
                 if (blockLen == 1) {
-                    for (i in blockStartIndex.indices) dst[dstOffset + i] = src[blockStartIndex[i]]
+                    for ((i, srcIndex) in blockStartIndex.asSequence().withIndex()) dst[dstOffset + i] = src[srcIndex]
                 } else {
                     var curDstIndex = dstOffset
-                    for (srcIndex in blockStartIndex) {
+                    for (srcIndex in blockStartIndex.asSequence()) {
                         src.copyInto(dst, curDstIndex, srcIndex, srcIndex + blockLen)
                         curDstIndex += blockLen
                     }
@@ -1407,10 +1410,10 @@ public sealed class CpuStorage {
                 val blockStartIndex = blocks.blockStartIndex
                 val blockLen = blocks.blockLen
                 if (blockLen == 1) {
-                    for (i in blockStartIndex.indices) dst[dstOffset + i] = src[blockStartIndex[i]]
+                    for ((i, srcIndex) in blockStartIndex.asSequence().withIndex()) dst[dstOffset + i] = src[srcIndex]
                 } else {
                     var curDstIndex = dstOffset
-                    for (srcIndex in blockStartIndex) {
+                    for (srcIndex in blockStartIndex.asSequence()) {
                         src.copyInto(dst, curDstIndex, srcIndex, srcIndex + blockLen)
                         curDstIndex += blockLen
                     }
@@ -1427,10 +1430,10 @@ public sealed class CpuStorage {
                 val blockStartIndex = blocks.blockStartIndex
                 val blockLen = blocks.blockLen
                 if (blockLen == 1) {
-                    for (i in blockStartIndex.indices) dst[dstOffset + i] = src[blockStartIndex[i]]
+                    for ((i, srcIndex) in blockStartIndex.asSequence().withIndex()) dst[dstOffset + i] = src[srcIndex]
                 } else {
                     var curDstIndex = dstOffset
-                    for (srcIndex in blockStartIndex) {
+                    for (srcIndex in blockStartIndex.asSequence()) {
                         src.copyInto(dst, curDstIndex, srcIndex, srcIndex + blockLen)
                         curDstIndex += blockLen
                     }
@@ -1447,10 +1450,10 @@ public sealed class CpuStorage {
                 val blockStartIndex = blocks.blockStartIndex
                 val blockLen = blocks.blockLen
                 if (blockLen == 1) {
-                    for (i in blockStartIndex.indices) dst[dstOffset + i] = src[blockStartIndex[i]]
+                    for ((i, srcIndex) in blockStartIndex.asSequence().withIndex()) dst[dstOffset + i] = src[srcIndex]
                 } else {
                     var curDstIndex = dstOffset
-                    for (srcIndex in blockStartIndex) {
+                    for (srcIndex in blockStartIndex.asSequence()) {
                         src.copyInto(dst, curDstIndex, srcIndex, srcIndex + blockLen)
                         curDstIndex += blockLen
                     }
@@ -1467,10 +1470,10 @@ public sealed class CpuStorage {
                 val blockStartIndex = blocks.blockStartIndex
                 val blockLen = blocks.blockLen
                 if (blockLen == 1) {
-                    for (i in blockStartIndex.indices) dst[dstOffset + i] = src[blockStartIndex[i]]
+                    for ((i, srcIndex) in blockStartIndex.asSequence().withIndex()) dst[dstOffset + i] = src[srcIndex]
                 } else {
                     var curDstIndex = dstOffset
-                    for (srcIndex in blockStartIndex) {
+                    for (srcIndex in blockStartIndex.asSequence()) {
                         src.copyInto(dst, curDstIndex, srcIndex, srcIndex + blockLen)
                         curDstIndex += blockLen
                     }
@@ -1487,10 +1490,10 @@ public sealed class CpuStorage {
                 val blockStartIndex = blocks.blockStartIndex
                 val blockLen = blocks.blockLen
                 if (blockLen == 1) {
-                    for (i in blockStartIndex.indices) dst[dstOffset + i] = src[blockStartIndex[i]]
+                    for ((i, srcIndex) in blockStartIndex.asSequence().withIndex()) dst[dstOffset + i] = src[srcIndex]
                 } else {
                     var curDstIndex = dstOffset
-                    for (srcIndex in blockStartIndex) {
+                    for (srcIndex in blockStartIndex.asSequence()) {
                         src.copyInto(dst, curDstIndex, srcIndex, srcIndex + blockLen)
                         curDstIndex += blockLen
                     }
@@ -2038,7 +2041,7 @@ public class Cmp(public val opKind: CmpOp) : Map2U8 {
             CmpOp.Gt -> binaryMap(lhsL, rhsL, lhs, rhs) { x, y -> if (x > y) 1u else 0u }
             CmpOp.Ge -> binaryMap(lhsL, rhsL, lhs, rhs) { x, y -> if (x >= y) 1u else 0u }
         }
-        return UByteArray(dst.size) { dst[it] }
+        return UByteArray(dst.size) { dst[it].toUByte() }
     }
 }
 
@@ -2541,13 +2544,13 @@ public interface ElemUpdate {
     public fun f(dst: MutableList<Double>, idx: Int, src: Double)
 }
 
-public object Set : ElemUpdate {
+private object Set : ElemUpdate {
     override fun f(dst: MutableList<Double>, idx: Int, src: Double) {
         dst[idx] = src
     }
 }
 
-public object Add : ElemUpdate {
+private object Add : ElemUpdate {
     override fun f(dst: MutableList<Double>, idx: Int, src: Double) {
         dst[idx] = dst[idx] + src
     }
@@ -3274,54 +3277,60 @@ public object CpuDevice {
     public fun synchronize(): Unit = Unit
 }
 
-internal val Error: CandleException.Companion get() = CandleException.Companion
-internal val CandleException.Companion.UnsupportedDTypeForOp: (DType, String) -> CandleException
-    get() = { d, op -> CandleException.UnsupportedDTypeForOp(d, op) }
-internal val CandleException.Companion.DTypeMismatchBinaryOp: (DType, DType, String) -> CandleException
-    get() = { lhs, rhs, op -> CandleException.DTypeMismatchBinaryOp(lhs = lhs, rhs = rhs, op = op) }
 internal val CandleException.bt: () -> CandleException get() = { this }
 
 internal val Map1.self: () -> Map1 get() = { this }
 internal val (() -> Map1).f: (CpuStorage, Layout) -> List<Double> get() = { vs, layout -> this().f(vs.asSlice(), layout) }
-internal val <T> Map1.Ok: (T) -> T get() = { it }
-internal val <R> Map1.Err: (CandleException) -> R get() = { throw it }
+internal fun <T> Map1.Ok(v: T): T = v
+internal fun Map1.Err(e: CandleException): Nothing = throw e
 
 internal val Map1Any.self: () -> Map1Any get() = { this }
 internal val (() -> Map1Any).f: (CpuStorage, Layout, (List<Double>) -> CpuStorage) -> CpuStorage
     get() = { vs, layout, wrap -> this().f(vs.asSlice(), layout, wrap) }
-internal val <T> Map1Any.Ok: (T) -> T get() = { it }
-internal val <R> Map1Any.Err: (CandleException) -> R get() = { throw it }
+internal fun <T> Map1Any.Ok(v: T): T = v
+internal fun Map1Any.Err(e: CandleException): Nothing = throw e
 
 internal val Map2.self: () -> Map2 get() = { this }
 internal val (() -> Map2).f: (CpuStorage, Layout, CpuStorage, Layout) -> List<Double>
     get() = { v1, l1, v2, l2 -> this().f(v1.asSlice(), l1, v2.asSlice(), l2) }
 internal val Map2.Self: Map2 get() = this
 internal val Map2.OP: String get() = op
-internal val <T> Map2.Ok: (T) -> T get() = { it }
-internal val <R> Map2.Err: (CandleException) -> R get() = { throw it }
+internal fun <T> Map2.Ok(v: T): T = v
+internal fun Map2.Err(e: CandleException): Nothing = throw e
 
 internal val Map2InPlace.self: () -> Map2InPlace get() = { this }
 internal val (() -> Map2InPlace).f: (CpuStorage, Layout, CpuStorage, Layout) -> Unit
     get() = { v1, l1, v2, l2 -> v1.applyInPlace(this(), l1, v2, l2) }
 internal val Map2InPlace.Self: Map2InPlace get() = this
 internal val Map2InPlace.OP: String get() = op
-internal val <T> Map2InPlace.Ok: (T) -> T get() = { it }
-internal val <R> Map2InPlace.Err: (CandleException) -> R get() = { throw it }
+internal fun <T> Map2InPlace.Ok(v: T): T = v
+internal fun Map2InPlace.Err(e: CandleException): Nothing = throw e
 
 internal val Map2U8.self: () -> Map2U8 get() = { this }
 internal val (() -> Map2U8).f: (CpuStorage, Layout, CpuStorage, Layout) -> UByteArray
     get() = { v1, l1, v2, l2 -> this().f(v1.asSlice(), l1, v2.asSlice(), l2) }
 internal val Map2U8.Self: Map2U8 get() = this
 internal val Map2U8.OP: String get() = op
-internal val <T> Map2U8.Ok: (T) -> T get() = { it }
-internal val <R> Map2U8.Err: (CandleException) -> R get() = { throw it }
+internal fun <T> Map2U8.Ok(v: T): T = v
+internal fun Map2U8.Err(e: CandleException): Nothing = throw e
 
-internal val Vec: CandleException.Companion get() = CandleException.Companion
-internal val <T> CandleException.Companion.withCapacity: (Int) -> VecList<T> get() = { cap -> VecList(cap) }
-internal val <T> MutableList<T>.push: (T) -> Unit get() = { add(it) }
-internal val <T> List<T>.getUnchecked: (Int) -> T get() = { this[it] }
-internal val <T> List<T>.iter: () -> Sequence<T> get() = { asSequence() }
-internal val <T> Sequence<T>.collect: () -> List<T> get() = { toList() }
+internal object Vec {
+    fun <T> new(): VecList<T> = VecList(0)
+    fun <T> withCapacity(cap: Int): VecList<T> = VecList(cap)
+    val tryFrom1: (Tensor) -> CandleResult<List<Any?>> = { tensor ->
+        CandleResult.Ok(tensor.toVec1())
+    }
+    val tryFrom2: (Tensor) -> CandleResult<List<List<Any?>>> = { tensor ->
+        CandleResult.Ok(tensor.toVec2())
+    }
+    val tryFrom3: (Tensor) -> CandleResult<List<List<List<Any?>>>> = { tensor ->
+        CandleResult.Ok(tensor.toVec3())
+    }
+}
+internal fun <T> MutableList<T>.pop(): T? = if (isEmpty()) null else removeAt(size - 1)
+internal fun <T> List<T>.getUnchecked(i: Int): T = this[i]
+private fun io.github.kotlinmania.rand.rngs.ThreadRng.randomDouble(): Double =
+    (nextU64() ushr 11).toDouble() * (1.0 / (1uL shl 53).toDouble())
 
 internal object bf16 {
     const val ZERO: Short = 0
@@ -3363,16 +3372,16 @@ internal fun Scalar.F16.toF64(): Double = Float16Utils.f16BitsToFloat(v).toDoubl
 internal fun Scalar.F32.toDouble(): Double = v.toDouble()
 internal fun Scalar.F8E4M3.toF64(): Double = v.toDouble()
 
-internal fun <T : Any> Tensor.Companion.new(v: T, dev: Device): io.github.kotlinmania.anyhow.Result<Tensor> {
-    val t = when (v) {
+internal fun <T : Any> Tensor.Companion.new(v: T, dev: Device): CandleResult<Tensor> {
+    val t: Tensor = when (v) {
         is Tensor -> v
-        is Double -> Tensor.new(v, dev)
-        is Float -> Tensor.new(v, dev)
-        is Int -> Tensor.new(v, dev)
-        is Long -> Tensor.new(v, dev)
-        else -> Tensor.new((v as Number).toDouble(), dev)
+        is Double -> Tensor.new(doubleArrayOf(v), Shape(), dev)
+        is Float -> Tensor.new(floatArrayOf(v), Shape(), dev)
+        is Int -> Tensor.new(intArrayOf(v), Shape(), dev)
+        is Long -> Tensor.new(longArrayOf(v), Shape(), dev)
+        else -> Tensor.new(doubleArrayOf((v as Number).toDouble()), Shape(), dev)
     }
-    return io.github.kotlinmania.anyhow.Ok(t)
+    return CandleResult.Ok(t)
 }
 
 public data class ContiguousOffsets(
@@ -3410,7 +3419,7 @@ internal fun <T> debugAssertEq(a: T, b: T) {
     require(a == b)
 }
 internal fun <T> Some(v: T): T = v
-internal val None: IntArray? = null
+private val None: IntArray? = null
 internal fun <T> Iterator<T>.collect(): List<T> = this.asSequence().toList()
 internal fun <T> vec(vararg elements: T): List<T> = elements.toList()
 internal fun NdIter.nextOrNull(): IntArray? = if (this.hasNext()) this.next() else null
@@ -3439,8 +3448,8 @@ public data class MatmulBroadcastShapes(
 ) {
     public val first: Shape get() = lhs
     public val second: Shape get() = rhs
-    public val unwrapOrElse: ((CandleError) -> MatmulBroadcastShapes) -> MatmulBroadcastShapes get() = { this }
-    public val getOrThrow: () -> MatmulBroadcastShapes get() = { this }
+    public inline fun unwrapOrElse(f: (CandleError) -> MatmulBroadcastShapes): MatmulBroadcastShapes = this
+    public fun getOrThrow(): MatmulBroadcastShapes = this
 }
 
 public data class Dims2(
@@ -3449,8 +3458,9 @@ public data class Dims2(
 ) {
     public val first: Int get() = d0
     public val second: Int get() = d1
-    public val unwrapOrElse: ((CandleError) -> Dims2) -> Dims2 get() = { this }
-    public val getOrThrow: () -> Dims2 get() = { this }
+    public inline fun unwrapOrElse(f: (CandleError) -> Dims2): Dims2 = this
+    public inline fun getOrElse(f: (CandleError) -> Dims2): Dims2 = this
+    public fun getOrThrow(): Dims2 = this
 }
 
 public data class Dims3(
@@ -3461,8 +3471,9 @@ public data class Dims3(
     public val first: Int get() = d0
     public val second: Int get() = d1
     public val third: Int get() = d2
-    public val unwrapOrElse: ((CandleError) -> Dims3) -> Dims3 get() = { this }
-    public val getOrThrow: () -> Dims3 get() = { this }
+    public inline fun unwrapOrElse(f: (CandleError) -> Dims3): Dims3 = this
+    public inline fun getOrElse(f: (CandleError) -> Dims3): Dims3 = this
+    public fun getOrThrow(): Dims3 = this
 }
 
 public data class Dims4(
@@ -3471,8 +3482,9 @@ public data class Dims4(
     val d2: Int,
     val d3: Int,
 ) {
-    public val unwrapOrElse: ((CandleError) -> Dims4) -> Dims4 get() = { this }
-    public val getOrThrow: () -> Dims4 get() = { this }
+    public inline fun unwrapOrElse(f: (CandleError) -> Dims4): Dims4 = this
+    public inline fun getOrElse(f: (CandleError) -> Dims4): Dims4 = this
+    public fun getOrThrow(): Dims4 = this
 }
 
 public data class Dims5(
@@ -3482,56 +3494,38 @@ public data class Dims5(
     val d3: Int,
     val d4: Int,
 ) {
-    public val unwrapOrElse: ((CandleError) -> Dims5) -> Dims5 get() = { this }
-    public val getOrThrow: () -> Dims5 get() = { this }
+    public inline fun unwrapOrElse(f: (CandleError) -> Dims5): Dims5 = this
+    public inline fun getOrElse(f: (CandleError) -> Dims5): Dims5 = this
+    public fun getOrThrow(): Dims5 = this
 }
 
-public val Shape.dims0: () -> Unit
-    get() = {
-        if (dims.isNotEmpty()) {
-            throw CandleException.UnexpectedNumberOfDims(0, dims.size, this)
-        }
-    }
-
-public val Shape.dims1: () -> Int
-    get() = {
-        if (dims.size != 1) {
-            throw CandleException.UnexpectedNumberOfDims(1, dims.size, this)
-        }
-        dims[0]
-    }
-
-public val Shape.dims2: () -> Dims2
-    get() = {
-        if (dims.size != 2) {
-            throw CandleException.UnexpectedNumberOfDims(2, dims.size, this)
-        }
-        Dims2(dims[0], dims[1])
-    }
-
-public val Shape.dims3: () -> Dims3
-    get() = {
-        if (dims.size != 3) {
-            throw CandleException.UnexpectedNumberOfDims(3, dims.size, this)
-        }
-        Dims3(dims[0], dims[1], dims[2])
-    }
-
-public val Shape.dims4: () -> Dims4
-    get() = {
-        if (dims.size != 4) {
-            throw CandleException.UnexpectedNumberOfDims(4, dims.size, this)
-        }
-        Dims4(dims[0], dims[1], dims[2], dims[3])
-    }
-
-public val Shape.dims5: () -> Dims5
-    get() = {
-        if (dims.size != 5) {
-            throw CandleException.UnexpectedNumberOfDims(5, dims.size, this)
-        }
-        Dims5(dims[0], dims[1], dims[2], dims[3], dims[4])
-    }
+public fun Shape.dims0() {
+    if (dims.isNotEmpty()) throw CandleException.UnexpectedNumberOfDims(0, dims.size, this)
+}
+public fun Shape.dims1(): Int {
+    if (dims.size != 1) throw CandleException.UnexpectedNumberOfDims(1, dims.size, this)
+    return dims[0]
+}
+public fun Shape.dims2(): Dims2 {
+    if (dims.size != 2) throw CandleException.UnexpectedNumberOfDims(2, dims.size, this)
+    return Dims2(dims[0], dims[1])
+}
+public fun Shape.dims3(): Dims3 {
+    if (dims.size != 3) throw CandleException.UnexpectedNumberOfDims(3, dims.size, this)
+    return Dims3(dims[0], dims[1], dims[2])
+}
+public fun Shape.dims4(): Dims4 {
+    if (dims.size != 4) throw CandleException.UnexpectedNumberOfDims(4, dims.size, this)
+    return Dims4(dims[0], dims[1], dims[2], dims[3])
+}
+public fun Shape.dims5(): Dims5 {
+    if (dims.size != 5) throw CandleException.UnexpectedNumberOfDims(5, dims.size, this)
+    return Dims5(dims[0], dims[1], dims[2], dims[3], dims[4])
+}
+public fun dims2(dims: List<Int>): Dims2 = Shape(dims).dims2()
+public fun dims3(dims: List<Int>): Dims3 = Shape(dims).dims3()
+public fun dims4(dims: List<Int>): Dims4 = Shape(dims).dims4()
+public fun dims5(dims: List<Int>): Dims5 = Shape(dims).dims5()
 
 public val Shape.Companion.toIndex: (Int, Shape, String) -> Int
     get() = { dim, shape, op ->
@@ -3608,12 +3602,92 @@ internal fun <T> Sequence<T>.collect(): MutableList<T> = this.toMutableList()
 internal fun <T> List<T>.extend(other: List<T>): List<T> = this + other
 internal fun Int.isMultipleOf(other: Int): Boolean = this % other == 0
 internal fun write(f: String, fmt: String, v: Any?): String = if (fmt.isEmpty()) f else f + v.toString()
+internal fun write(f: Formatter, fmt: String, v: Any?): CandleResult<Unit> =
+    if (fmt.isEmpty() && v == null) CandleResult.Ok(Unit) else CandleResult.Ok(Unit)
 internal fun <T> List<List<T>>.concat(): List<T> = this.flatten()
 internal fun Shape.Companion.Self(dims: List<Int>, u: Unit): Shape = if (u == Unit) Shape(dims) else Shape(dims)
-internal fun <T> Ok(v: T, a: Any?): T = if (a == null) v else v
-internal fun <T> Ok(v: T, a: Any?, b: Any?): T = if (a == null && b == null) v else v
+private fun Ok(): Unit = Unit
+private fun <T> Ok(v: T): T = v
+private fun <T> Ok(v: T, a: Any?): T = if (a == null) v else v
+private fun <T> Ok(v: T, a: Any?, b: Any?): T = if (a == null && b == null) v else v
 internal fun Array<Int>.toVec(): List<Int> = this.toList()
 internal val <T> WithDType<T>.self: WithDType<T> get() = this
+internal annotation class Test
+internal fun assertEquals(expected: Any?, actual: Any?) = assertEq(actual, expected)
+
+
+internal val DType.Companion.U8: DType get() = DType.U8
+internal val DType.Companion.U32: DType get() = DType.U32
+internal val DType.Companion.I16: DType get() = DType.I16
+internal val DType.Companion.I32: DType get() = DType.I32
+internal val DType.Companion.I64: DType get() = DType.I64
+internal val DType.Companion.BF16: DType get() = DType.BF16
+internal val DType.Companion.F16: DType get() = DType.F16
+internal val DType.Companion.F32: DType get() = DType.F32
+internal val DType.Companion.F64: DType get() = DType.F64
+internal val DType.Companion.F8E4M3: DType get() = DType.F8E4M3
+internal val DType.Companion.F6E2M3: DType get() = DType.F6E2M3
+internal val DType.Companion.F6E3M2: DType get() = DType.F6E3M2
+internal val DType.Companion.F4: DType get() = DType.F4
+internal val DType.Companion.F8E8M0: DType get() = DType.F8E8M0
+
+public typealias Float16 = io.github.kotlinmania.half.F16
+public typealias BFloat16 = io.github.kotlinmania.half.BF16
+public typealias F16 = io.github.kotlinmania.half.F16
+public typealias BF16 = io.github.kotlinmania.half.BF16
+public typealias F8E4M3 = io.github.kotlinmania.float8.F8E4M3
+public typealias F8E5M2 = io.github.kotlinmania.float8.F8E5M2
+
+public val Float16.bits: Short get() = rawBits.toShort()
+public val BFloat16.bits: Short get() = rawBits.toShort()
+public val F8E4M3.bits: Byte get() = rawBits.toByte()
+
+public typealias CandleError = CandleException
+
+public val CandleException.Companion.Wrap: (Throwable) -> CandleException
+    get() = { err -> CandleException.Wrapped(err.message ?: err.toString()) }
+public val CandleException.Companion.Context: (Throwable, String) -> CandleException
+    get() = { err, ctx -> CandleException.Context(err as? CandleException ?: CandleException.Wrapped(err.toString()), ctx) }
+
+public sealed class CandleResult<out T> {
+    public data class Ok<out T>(public val value: T) : CandleResult<T>()
+    public data class Err(public val error: Throwable) : CandleResult<Nothing>()
+
+    public val isOk: Boolean get() = this is Ok
+    public val isErr: Boolean get() = this is Err
+
+    public fun unwrap(): T = when (this) {
+        is Ok -> value
+        is Err -> throw error
+    }
+
+    public fun getOrThrow(): T = unwrap()
+
+    public fun exceptionOrNull(): Throwable? = when (this) {
+        is Ok -> null
+        is Err -> error
+    }
+
+    public inline fun unwrapOrElse(onFailure: (CandleException) -> @UnsafeVariance T): T = when (this) {
+        is Ok -> value
+        is Err -> onFailure(error as? CandleException ?: CandleException.wrap(error))
+    }
+
+    public inline fun <R> map(transform: (T) -> R): CandleResult<R> = when (this) {
+        is Ok -> Ok(transform(value))
+        is Err -> this
+    }
+
+    public inline fun mapErr(transform: (CandleException) -> Throwable): CandleResult<T> = when (this) {
+        is Ok -> this
+        is Err -> Err(transform(error as? CandleException ?: CandleException.wrap(error)))
+    }
+
+    public inline fun <R> andThen(transform: (T) -> CandleResult<R>): CandleResult<R> = when (this) {
+        is Ok -> transform(value)
+        is Err -> this
+    }
+}
 
 public object Float16Utils {
     public val floatToF16Bits: (Float) -> Short = { value ->

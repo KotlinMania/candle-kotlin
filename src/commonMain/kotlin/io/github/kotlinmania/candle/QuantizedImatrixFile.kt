@@ -1,10 +1,10 @@
 // port-lint: source quantized/imatrix_file.rs
 package io.github.kotlinmania.candle
 
-import io.github.kotlinmania.anyhow.Ok
-import io.github.kotlinmania.anyhow.Result
+import io.github.kotlinmania.candle.CandleException as Error
+import io.github.kotlinmania.candle.CandleResult.Ok
 
-public fun <P : Any> loadImatrix(fname: P): Result<HashMap<String, MutableList<Float>>> {
+public fun <P : Any> loadImatrix(fname: P): CandleResult<kotlin.collections.HashMap<String, MutableList<Float>>> {
     val allData = HashMap.new<String, MutableList<Float>>()
 
     val file = File.open(fname).mapErr { e ->

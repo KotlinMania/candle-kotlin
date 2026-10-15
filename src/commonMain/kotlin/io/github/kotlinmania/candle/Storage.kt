@@ -4,8 +4,7 @@ package io.github.kotlinmania.candle
 import io.github.kotlinmania.candle.CandleException as Error
 
 private val <T> T.self: T get() = this
-private val <T> T.Ok: (T) -> T get() = { it }
-private val Ok: () -> Unit get() = { }
+private fun <T> Ok(v: T): T = v
 private val Err: (Throwable) -> Nothing get() = { throw it }
 private val unreachable: () -> Nothing get() = { error("unreachable") }
 private val CpuStorage.clone: () -> CpuStorage get() = { this }
@@ -21,15 +20,18 @@ private val SentinelMetalStorage: MetalStorage = MetalStorage()
 private val SentinelCuda: Storage = Storage.Cuda(SentinelCudaStorage)
 private val SentinelMetal: Storage = Storage.Metal(SentinelMetalStorage)
 
-private val Pair: (Storage, Storage) -> Storage get() = { a, b ->
+private data class StorageMatch(val s: Storage)
+
+private fun Pair(a: Storage, b: Storage): StorageMatch {
     a.p2 = b
     a.p3 = null
-    a
+    return StorageMatch(a)
 }
-private val Triple: (Storage, Storage, Storage) -> Storage get() = { a, b, c ->
+private fun <A, B> Pair(a: A, b: B): kotlin.Pair<A, B> = kotlin.Pair(a, b)
+private fun Triple(a: Storage, b: Storage, c: Storage): StorageMatch {
     a.p2 = b
     a.p3 = c
-    a
+    return StorageMatch(a)
 }
 
 private val Storage.storage: Lazy<Storage> get() = lazyOf(this)
@@ -260,72 +262,72 @@ private val Lazy<Storage>.copy2d: (Storage, Int, Int, Int, Int, Int, Int) -> Uni
     }
 }
 
-private val CustomOp1.cpuFwd: (Lazy<Storage>, Layout) -> kotlin.Pair<Storage, Shape> get() = { s, l ->
+private fun CustomOp1.cpuFwd(s: Lazy<Storage>, l: Layout): kotlin.Pair<Storage, Shape> {
     val (out, shape) = cpuFwd((s.value as Storage.Cpu).storage, l)
-    kotlin.Pair(Storage.Cpu(out), shape)
+    return kotlin.Pair(Storage.Cpu(out), shape)
 }
-private val CustomOp1.cudaFwd: (Lazy<Storage>, Layout) -> kotlin.Pair<Storage, Shape> get() = { s, l ->
+private fun CustomOp1.cudaFwd(s: Lazy<Storage>, l: Layout): kotlin.Pair<Storage, Shape> {
     val (out, shape) = cudaFwd((s.value as Storage.Cuda).storage, l)
-    kotlin.Pair(Storage.Cuda(out), shape)
+    return kotlin.Pair(Storage.Cuda(out), shape)
 }
-private val CustomOp1.metalFwd: (Lazy<Storage>, Layout) -> kotlin.Pair<Storage, Shape> get() = { s, l ->
+private fun CustomOp1.metalFwd(s: Lazy<Storage>, l: Layout): kotlin.Pair<Storage, Shape> {
     val (out, shape) = metalFwd((s.value as Storage.Metal).storage, l)
-    kotlin.Pair(Storage.Metal(out), shape)
+    return kotlin.Pair(Storage.Metal(out), shape)
 }
 
-private val CustomOp2.cpuFwd: (Lazy<Storage>, Layout, Lazy<Storage>, Layout) -> kotlin.Pair<Storage, Shape> get() = { s1, l1, s2, l2 ->
+private fun CustomOp2.cpuFwd(s1: Lazy<Storage>, l1: Layout, s2: Lazy<Storage>, l2: Layout): kotlin.Pair<Storage, Shape> {
     val (out, shape) = cpuFwd((s1.value as Storage.Cpu).storage, l1, (s2.value as Storage.Cpu).storage, l2)
-    kotlin.Pair(Storage.Cpu(out), shape)
+    return kotlin.Pair(Storage.Cpu(out), shape)
 }
-private val CustomOp2.cudaFwd: (Lazy<Storage>, Layout, Lazy<Storage>, Layout) -> kotlin.Pair<Storage, Shape> get() = { s1, l1, s2, l2 ->
+private fun CustomOp2.cudaFwd(s1: Lazy<Storage>, l1: Layout, s2: Lazy<Storage>, l2: Layout): kotlin.Pair<Storage, Shape> {
     val (out, shape) = cudaFwd((s1.value as Storage.Cuda).storage, l1, (s2.value as Storage.Cuda).storage, l2)
-    kotlin.Pair(Storage.Cuda(out), shape)
+    return kotlin.Pair(Storage.Cuda(out), shape)
 }
-private val CustomOp2.metalFwd: (Lazy<Storage>, Layout, Lazy<Storage>, Layout) -> kotlin.Pair<Storage, Shape> get() = { s1, l1, s2, l2 ->
+private fun CustomOp2.metalFwd(s1: Lazy<Storage>, l1: Layout, s2: Lazy<Storage>, l2: Layout): kotlin.Pair<Storage, Shape> {
     val (out, shape) = metalFwd((s1.value as Storage.Metal).storage, l1, (s2.value as Storage.Metal).storage, l2)
-    kotlin.Pair(Storage.Metal(out), shape)
+    return kotlin.Pair(Storage.Metal(out), shape)
 }
 
-private val CustomOp3.cpuFwd: (Lazy<Storage>, Layout, Lazy<Storage>, Layout, Lazy<Storage>, Layout) -> kotlin.Pair<Storage, Shape> get() = { s1, l1, s2, l2, s3, l3 ->
+private fun CustomOp3.cpuFwd(s1: Lazy<Storage>, l1: Layout, s2: Lazy<Storage>, l2: Layout, s3: Lazy<Storage>, l3: Layout): kotlin.Pair<Storage, Shape> {
     val (out, shape) = cpuFwd((s1.value as Storage.Cpu).storage, l1, (s2.value as Storage.Cpu).storage, l2, (s3.value as Storage.Cpu).storage, l3)
-    kotlin.Pair(Storage.Cpu(out), shape)
+    return kotlin.Pair(Storage.Cpu(out), shape)
 }
-private val CustomOp3.cudaFwd: (Lazy<Storage>, Layout, Lazy<Storage>, Layout, Lazy<Storage>, Layout) -> kotlin.Pair<Storage, Shape> get() = { s1, l1, s2, l2, s3, l3 ->
+private fun CustomOp3.cudaFwd(s1: Lazy<Storage>, l1: Layout, s2: Lazy<Storage>, l2: Layout, s3: Lazy<Storage>, l3: Layout): kotlin.Pair<Storage, Shape> {
     val (out, shape) = cudaFwd((s1.value as Storage.Cuda).storage, l1, (s2.value as Storage.Cuda).storage, l2, (s3.value as Storage.Cuda).storage, l3)
-    kotlin.Pair(Storage.Cuda(out), shape)
+    return kotlin.Pair(Storage.Cuda(out), shape)
 }
-private val CustomOp3.metalFwd: (Lazy<Storage>, Layout, Lazy<Storage>, Layout, Lazy<Storage>, Layout) -> kotlin.Pair<Storage, Shape> get() = { s1, l1, s2, l2, s3, l3 ->
+private fun CustomOp3.metalFwd(s1: Lazy<Storage>, l1: Layout, s2: Lazy<Storage>, l2: Layout, s3: Lazy<Storage>, l3: Layout): kotlin.Pair<Storage, Shape> {
     val (out, shape) = metalFwd((s1.value as Storage.Metal).storage, l1, (s2.value as Storage.Metal).storage, l2, (s3.value as Storage.Metal).storage, l3)
-    kotlin.Pair(Storage.Metal(out), shape)
+    return kotlin.Pair(Storage.Metal(out), shape)
 }
 
-private val InplaceOp1.cpuFwd: (Lazy<Storage>, Layout) -> Unit get() = { s, l ->
+private fun InplaceOp1.cpuFwd(s: Lazy<Storage>, l: Layout) {
     cpuFwd((s.value as Storage.Cpu).storage, l)
 }
-private val InplaceOp1.cudaFwd: (Lazy<Storage>, Layout) -> Unit get() = { s, l ->
+private fun InplaceOp1.cudaFwd(s: Lazy<Storage>, l: Layout) {
     cudaFwd((s.value as Storage.Cuda).storage, l)
 }
-private val InplaceOp1.metalFwd: (Lazy<Storage>, Layout) -> Unit get() = { s, l ->
+private fun InplaceOp1.metalFwd(s: Lazy<Storage>, l: Layout) {
     metalFwd((s.value as Storage.Metal).storage, l)
 }
 
-private val InplaceOp2.cpuFwd: (Lazy<Storage>, Layout, Lazy<Storage>, Layout) -> Unit get() = { s1, l1, s2, l2 ->
+private fun InplaceOp2.cpuFwd(s1: Lazy<Storage>, l1: Layout, s2: Lazy<Storage>, l2: Layout) {
     cpuFwd((s1.value as Storage.Cpu).storage, l1, (s2.value as Storage.Cpu).storage, l2)
 }
-private val InplaceOp2.cudaFwd: (Lazy<Storage>, Layout, Lazy<Storage>, Layout) -> Unit get() = { s1, l1, s2, l2 ->
+private fun InplaceOp2.cudaFwd(s1: Lazy<Storage>, l1: Layout, s2: Lazy<Storage>, l2: Layout) {
     cudaFwd((s1.value as Storage.Cuda).storage, l1, (s2.value as Storage.Cuda).storage, l2)
 }
-private val InplaceOp2.metalFwd: (Lazy<Storage>, Layout, Lazy<Storage>, Layout) -> Unit get() = { s1, l1, s2, l2 ->
+private fun InplaceOp2.metalFwd(s1: Lazy<Storage>, l1: Layout, s2: Lazy<Storage>, l2: Layout) {
     metalFwd((s1.value as Storage.Metal).storage, l1, (s2.value as Storage.Metal).storage, l2)
 }
 
-private val InplaceOp3.cpuFwd: (Lazy<Storage>, Layout, Lazy<Storage>, Layout, Lazy<Storage>, Layout) -> Unit get() = { s1, l1, s2, l2, s3, l3 ->
+private fun InplaceOp3.cpuFwd(s1: Lazy<Storage>, l1: Layout, s2: Lazy<Storage>, l2: Layout, s3: Lazy<Storage>, l3: Layout) {
     cpuFwd((s1.value as Storage.Cpu).storage, l1, (s2.value as Storage.Cpu).storage, l2, (s3.value as Storage.Cpu).storage, l3)
 }
-private val InplaceOp3.cudaFwd: (Lazy<Storage>, Layout, Lazy<Storage>, Layout, Lazy<Storage>, Layout) -> Unit get() = { s1, l1, s2, l2, s3, l3 ->
+private fun InplaceOp3.cudaFwd(s1: Lazy<Storage>, l1: Layout, s2: Lazy<Storage>, l2: Layout, s3: Lazy<Storage>, l3: Layout) {
     cudaFwd((s1.value as Storage.Cuda).storage, l1, (s2.value as Storage.Cuda).storage, l2, (s3.value as Storage.Cuda).storage, l3)
 }
-private val InplaceOp3.metalFwd: (Lazy<Storage>, Layout, Lazy<Storage>, Layout, Lazy<Storage>, Layout) -> Unit get() = { s1, l1, s2, l2, s3, l3 ->
+private fun InplaceOp3.metalFwd(s1: Lazy<Storage>, l1: Layout, s2: Lazy<Storage>, l2: Layout, s3: Lazy<Storage>, l3: Layout) {
     metalFwd((s1.value as Storage.Metal).storage, l1, (s2.value as Storage.Metal).storage, l2, (s3.value as Storage.Metal).storage, l3)
 }
 
@@ -338,56 +340,56 @@ public sealed class Storage {
     private val match1: ((Storage) -> Boolean) -> Storage get() = { pred ->
         if (pred(this@Storage)) this@Storage else if (this@Storage is Cuda) SentinelMetal else SentinelCuda
     }
-    private val Storage.match2: Storage get() {
+    private val StorageMatch.match2: StorageMatch get() {
         val b = this@Storage.p2
         val ok = (b is Cpu && this@Storage is Cpu) || (b is Cuda && this@Storage is Cuda) || (b is Metal && this@Storage is Metal)
-        return if (this === this@Storage && ok) this@Storage else if (this@Storage is Cuda) SentinelMetal else SentinelCuda
+        return StorageMatch(if (this.s === this@Storage && ok) this@Storage else if (this@Storage is Cuda) SentinelMetal else SentinelCuda)
     }
-    private val Storage.match3: Storage get() {
+    private val StorageMatch.match3: StorageMatch get() {
         val c = this@Storage.p3
         val ok = (c is Cpu && this@Storage is Cpu) || (c is Cuda && this@Storage is Cuda) || (c is Metal && this@Storage is Metal)
-        return if (this === this@Storage && ok) this@Storage else if (this@Storage is Cuda) SentinelMetal else SentinelCuda
+        return StorageMatch(if (this.s === this@Storage && ok) this@Storage else if (this@Storage is Cuda) SentinelMetal else SentinelCuda)
     }
 
     private val Cpu.Companion.storage: Storage get() = match1 { it is Cpu }
-    private val Cpu.Companion.lhs: Storage get() = match1 { it is Cpu }
-    private val Cpu.Companion.inp: Storage get() = match1 { it is Cpu }
-    private val Cpu.Companion.cond: Storage get() = match1 { it is Cpu }
-    private val Cpu.Companion.s: Storage get() = match1 { it is Cpu }
-    private val Cpu.Companion.src: Storage get() = match1 { it is Cpu }
-    private val Cpu.Companion.s1: Storage get() = match1 { it is Cpu }
+    private val Cpu.Companion.lhs: StorageMatch get() = StorageMatch(match1 { it is Cpu })
+    private val Cpu.Companion.inp: StorageMatch get() = StorageMatch(match1 { it is Cpu })
+    private val Cpu.Companion.cond: StorageMatch get() = StorageMatch(match1 { it is Cpu })
+    private val Cpu.Companion.s: StorageMatch get() = StorageMatch(match1 { it is Cpu })
+    private val Cpu.Companion.src: StorageMatch get() = StorageMatch(match1 { it is Cpu })
+    private val Cpu.Companion.s1: StorageMatch get() = StorageMatch(match1 { it is Cpu })
 
     private val Cuda.Companion.storage: Storage get() = match1 { it is Cuda }
-    private val Cuda.Companion.inp: Storage get() = match1 { it is Cuda }
+    private val Cuda.Companion.inp: StorageMatch get() = StorageMatch(match1 { it is Cuda })
 
     private val Metal.Companion.storage: Storage get() = match1 { it is Metal }
-    private val Metal.Companion.inp: Storage get() = match1 { it is Metal }
+    private val Metal.Companion.inp: StorageMatch get() = StorageMatch(match1 { it is Metal })
 
     private val ((Any?) -> Storage).storage: Storage get() = match1 {
         if (this === Self.Cpu) it is Cpu else if (this === Self.Cuda) it is Cuda else it is Metal
     }
-    private val ((Any?) -> Storage).lhs: Storage get() = storage
-    private val ((Any?) -> Storage).inp: Storage get() = storage
-    private val ((Any?) -> Storage).cond: Storage get() = storage
-    private val ((Any?) -> Storage).s: Storage get() = storage
-    private val ((Any?) -> Storage).src: Storage get() = storage
-    private val ((Any?) -> Storage).s1: Storage get() = storage
+    private val ((Any?) -> Storage).lhs: StorageMatch get() = StorageMatch(storage)
+    private val ((Any?) -> Storage).inp: StorageMatch get() = StorageMatch(storage)
+    private val ((Any?) -> Storage).cond: StorageMatch get() = StorageMatch(storage)
+    private val ((Any?) -> Storage).s: StorageMatch get() = StorageMatch(storage)
+    private val ((Any?) -> Storage).src: StorageMatch get() = StorageMatch(storage)
+    private val ((Any?) -> Storage).s1: StorageMatch get() = StorageMatch(storage)
 
-    private val Storage.Storage: Storage get() = this
-    private val Storage.Self: Storage get() = this
-    private val Storage.Cpu: Storage get() = this
-    private val Storage.Cuda: Storage get() = this
-    private val Storage.Metal: Storage get() = this
+    private val StorageMatch.Storage: StorageMatch get() = this
+    private val StorageMatch.Self: StorageMatch get() = this
+    private val StorageMatch.Cpu: StorageMatch get() = this
+    private val StorageMatch.Cuda: StorageMatch get() = this
+    private val StorageMatch.Metal: StorageMatch get() = this
 
-    private val Storage.rhs: Storage get() = match2
-    private val Storage.kernel: Storage get() = match2
-    private val Storage.indexes: Storage get() = match2
-    private val Storage.dst: Storage get() = match2
-    private val Storage.s2: Storage get() = match2
-    private val Storage.t: Storage get() = match2
-    private val Storage.f: Storage get() = match3
-    private val Storage.source: Storage get() = match3
-    private val Storage.s3: Storage get() = match3
+    private val StorageMatch.rhs: StorageMatch get() = match2
+    private val StorageMatch.kernel: StorageMatch get() = match2
+    private val StorageMatch.indexes: StorageMatch get() = match2
+    private val StorageMatch.dst: StorageMatch get() = match2
+    private val StorageMatch.s2: StorageMatch get() = match2
+    private val StorageMatch.t: StorageMatch get() = match2
+    private val StorageMatch.f: StorageMatch get() = match3
+    private val StorageMatch.source: StorageMatch get() = match3
+    private val StorageMatch.s3: StorageMatch get() = match3
 
     public data class Cpu(
         val storage: CpuStorage,
@@ -495,7 +497,7 @@ public sealed class Storage {
         when (self) {
             Storage.Cpu.storage -> storage.constSet(v, l)
             Storage.Cuda.storage -> storage.constSet(v, l)
-            Storage.Metal.storage -> storage.constSet(v, l)
+            Storage.Metal.storage -> storage.constSet(v, l) else -> unreachable()
         }
     }
 
@@ -1296,7 +1298,8 @@ public sealed class Storage {
         }
     }
 
-    public companion object Self {
+    public companion object {
+        public val Self: Companion get() = this
         public val Cpu: (Any?) -> Storage = { s -> Storage.Cpu(s) }
         public val Cuda: (Any?) -> Storage = { s -> Storage.Cuda(s) }
         public val Metal: (Any?) -> Storage = { s -> Storage.Metal(s) }

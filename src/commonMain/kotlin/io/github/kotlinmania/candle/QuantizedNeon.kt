@@ -16,7 +16,8 @@ private val vdupqNF32: (Float) -> FloatArray = { v -> FloatArray(4) { v } }
 private val vdupqNS32: (Int) -> IntArray = { v -> IntArray(4) { v } }
 private val vdupqNU8: (Int) -> ByteArray = { v -> ByteArray(16) { v.toByte() } }
 private val vdupqNS8: (Int) -> ByteArray = { v -> ByteArray(16) { v.toByte() } }
-private val vld1qU8: (UByteArray, Int) -> ByteArray = { src, off -> ByteArray(16) { i -> src[off + i].toByte() } }
+private fun vld1qU8(src: UByteArray, off: Int): ByteArray = ByteArray(16) { i -> src[off + i].toByte() }
+private fun vld1qU8(src: ByteArray, off: Int): ByteArray = ByteArray(16) { i -> src[off + i] }
 private val vld1qS8: (ByteArray, Int) -> ByteArray = { src, off -> ByteArray(16) { i -> src[off + i] } }
 private val vld1qS16: (ShortArray, Int) -> ShortArray = { src, off -> ShortArray(8) { i -> src[off + i] } }
 private val vld1qS16X2: (ShortArray, Int) -> Array<ShortArray> = { src, off ->
@@ -25,10 +26,10 @@ private val vld1qS16X2: (ShortArray, Int) -> Array<ShortArray> = { src, off ->
         ShortArray(8) { i -> src[off + 8 + i] },
     )
 }
-private val vld1qU8X2: (UByteArray, Int) -> Array<ByteArray> = { src, off ->
+private val vld1qU8X2: (ByteArray, Int) -> Array<ByteArray> = { src, off ->
     arrayOf(
-        ByteArray(16) { i -> src[off + i].toByte() },
-        ByteArray(16) { i -> src[off + 16 + i].toByte() },
+        ByteArray(16) { i -> src[off + i] },
+        ByteArray(16) { i -> src[off + 16 + i] },
     )
 }
 private val vld1qS8X2: (ByteArray, Int) -> Array<ByteArray> = { src, off ->
@@ -37,12 +38,12 @@ private val vld1qS8X2: (ByteArray, Int) -> Array<ByteArray> = { src, off ->
         ByteArray(16) { i -> src[off + 16 + i] },
     )
 }
-private val vld1qU8X4: (UByteArray, Int) -> Array<ByteArray> = { src, off ->
+private val vld1qU8X4: (ByteArray, Int) -> Array<ByteArray> = { src, off ->
     arrayOf(
-        ByteArray(16) { i -> src[off + i].toByte() },
-        ByteArray(16) { i -> src[off + 16 + i].toByte() },
-        ByteArray(16) { i -> src[off + 32 + i].toByte() },
-        ByteArray(16) { i -> src[off + 48 + i].toByte() },
+        ByteArray(16) { i -> src[off + i] },
+        ByteArray(16) { i -> src[off + 16 + i] },
+        ByteArray(16) { i -> src[off + 32 + i] },
+        ByteArray(16) { i -> src[off + 48 + i] },
     )
 }
 private val vld1qS8X4: (ByteArray, Int) -> Array<ByteArray> = { src, off ->
@@ -97,7 +98,7 @@ private val vcvtqF32S32: (IntArray) -> FloatArray = { a ->
 internal expect val vmlaqNF32: (FloatArray, FloatArray, Float) -> FloatArray
 private val vaddvqF32: (FloatArray) -> Float = { a -> a[0] + a[1] + a[2] + a[3] }
 internal expect val vaddvqS32: (IntArray) -> Int
-private val readU32Into: (UByteArray, IntArray, Int) -> Unit = { src, dst, count ->
+private val readU32Into: (ByteArray, IntArray, Int) -> Unit = { src, dst, count ->
     for (w in 0 until count) {
         val b0 = src[w * 4].toInt() and 0xFF
         val b1 = src[w * 4 + 1].toInt() and 0xFF

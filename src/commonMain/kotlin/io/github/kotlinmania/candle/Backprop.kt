@@ -6,19 +6,14 @@ import io.github.kotlinmania.envie.getenv
 import io.github.kotlinmania.threadlocal.ThreadLocal
 
 private val <T> T.self: T get() = this
-private val <T> T.Ok: (T) -> T get() = { it }
+private fun <T> Ok(v: T): T = v
 private val Err: (Throwable) -> Nothing get() = { throw it }
-private val <T> List<T>.iter: () -> List<T> get() = { this }
-private val <T> List<T>.len: () -> Int get() = { size }
-private val <T> List<T>.toVec: () -> MutableList<T> get() = { toMutableList() }
-private val <T> MutableList<T>.push: (T) -> Unit get() = { add(it) }
-private val <T> MutableList<T>.asSlice: () -> List<T> get() = { this }
-private val <K, V> MutableMap<K, V>.insert: (K, V) -> V? get() = { k, v -> put(k, v) }
-private val <K, V> MutableMap<K, V>.keys: () -> Set<K> get() = { this.keys }
-private val <K, V> MutableMap<K, V>.entry: (K) -> V? get() = { k -> this[k] }
+private fun <K, V> MutableMap<K, V>.insert(k: K, v: V): V? = put(k, v)
+private fun <K, V> MutableMap<K, V>.keys(): Set<K> = this.keys
+private fun <K, V> MutableMap<K, V>.entry(k: K): V? = this[k]
 private val Tensor.intoMut: () -> Tensor get() = { this }
 private val Tensor.get: () -> Tensor get() = { this }
-private val <T : Any> T?.expect: (String) -> T get() = { msg -> this ?: error(msg) }
+private fun <T : Any> T?.expect(msg: String): T = this ?: error(msg)
 private val Tensor.reshape: (List<Int>) -> Tensor get() = { dims -> reshape(Shape(dims)) }
 private val Tensor.broadcastAs: (List<Int>) -> Tensor get() = { dims -> broadcastAs(Shape(dims)) }
 private val Tensor.Self.zeros: (List<Int>, DType, Device) -> Tensor
@@ -855,7 +850,8 @@ public class GradStore(
 ) {
     private val self: MutableMap<TensorId, Tensor> get() = grads
 
-    public companion object Self {
+    public companion object {
+        public val Self: Companion get() = this
         public val default: () -> GradStore = { GradStore() }
 
         /**

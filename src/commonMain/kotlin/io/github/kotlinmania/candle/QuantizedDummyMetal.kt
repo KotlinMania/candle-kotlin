@@ -1,5 +1,7 @@
 package io.github.kotlinmania.candle
 
+import io.github.kotlinmania.candle.CandleException as Error
+
 /**
  * Implementation of quantized Metal storage when Metal support has not been compiled in.
  *
@@ -9,7 +11,6 @@ package io.github.kotlinmania.candle
 // port-lint: source quantized/dummy_metal.rs
 
 private val Err: (CandleError) -> CandleResult<Nothing> = { CandleResult.Err(it) }
-private val Error = CandleError
 
 public class QMetalStorage(
     private val dtype: GgmlDType,

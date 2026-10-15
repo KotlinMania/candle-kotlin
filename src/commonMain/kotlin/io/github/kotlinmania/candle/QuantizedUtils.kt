@@ -6,48 +6,6 @@ import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.pow
 import kotlin.math.round
-import kotlin.math.roundToInt
-
-private val Float.round: () -> Float get() = { round(this) }
-private val Float.abs: () -> Float get() = { abs(this) }
-private val Float.min: (Float) -> Float get() = { other -> min(this, other) }
-private val Float.powi: (Int) -> Float get() = { n -> this.pow(n) }
-private val Int.clamp: (Int, Int) -> Int get() = { lo, hi -> coerceIn(lo, hi) }
-private val UByte.min: (UByte) -> UByte get() = { other -> if (this <= other) this else other }
-private val FloatArray.len: () -> Int get() = { size }
-private val UByteArray.len: () -> Int get() = { size }
-private val <T> List<T>.len: () -> Int get() = { size }
-private val <T> List<T>.iter: () -> List<T> get() = { this }
-private val <T> MutableList<T>.iterMut: () -> List<Int> get() = { indices.toList() }
-private val FloatArray.chunksExact: (Int) -> List<FloatArray>
-    get() = { blockSize ->
-        val count = size / blockSize
-        val out = ArrayList<FloatArray>(count)
-        for (i in 0 until count) {
-            val start = i * blockSize
-            out.add(copyOfRange(start, start + blockSize))
-        }
-        out
-    }
-private val FloatArray.chunksExactMut: (Int) -> List<Int>
-    get() = { blockSize ->
-        val count = size / blockSize
-        val out = ArrayList<Int>(count)
-        for (i in 0 until count) {
-            out.add(i * blockSize)
-        }
-        out
-    }
-private val <T> List<T>.collect: () -> List<T> get() = { this }
-private val UByteArray.copyFromSlice: (UByteArray) -> Unit get() = { src -> src.copyInto(this) }
-private val debugAssertEq: (Any?, Any?, String) -> Unit
-    get() = { a, b, msg ->
-        check(a == b) { msg }
-    }
-private val assertEq: (Any?, Any?) -> Unit
-    get() = { a, b ->
-        check(a == b)
-    }
 
 internal fun nearestInt(v: Float): Int {
     return v.round().toInt()
@@ -61,9 +19,9 @@ internal fun nearestInt(v: Float): Int {
 internal fun <T> groupForQuantization(
     xs: FloatArray,
     ys: MutableList<T>,
-    blockSize: Int,
-    dtype: GgmlDType,
-): List<Pair<Int, FloatArray>> {
+    blockSize: Int = 256,
+    dtype: GgmlDType = GgmlDType.F32,
+): List<Pair<T, FloatArray>> {
     val expectedBlocks = xs.len() / blockSize
     val actualBlocks = ys.len()
 
@@ -85,8 +43,8 @@ internal fun <T> groupForQuantization(
 internal fun <T> groupForDequantization(
     xs: List<T>,
     ys: FloatArray,
-    blockSize: Int,
-    dtype: GgmlDType,
+    blockSize: Int = 256,
+    dtype: GgmlDType = GgmlDType.F32,
 ): List<Pair<T, Int>> {
     val actualOutputLen = ys.len()
     val expectedOutputLen = xs.len() * blockSize
@@ -96,6 +54,7 @@ internal fun <T> groupForDequantization(
         actualOutputLen,
         "dequantize $dtype: ys (len = $actualOutputLen) does not match the expected length of $expectedOutputLen!",
     )
+
     // Zip the blocks and outputs together
     return xs.iter().zip(ys.chunksExactMut(blockSize)).collect()
 }
@@ -116,17 +75,14 @@ internal fun makeQxQuants(
     n: Int,
     nmax: Int,
     x: FloatArray,
-    xOffset: Int,
     ls: ByteArray,
-    lsOffset: Int,
     rmseType: Int,
     qw: FloatArray?,
-    qwOffset: Int = 0,
 ): Float {
     var max = 0f
     var amax = 0f
     for (i in 0 until n) {
-        val xi = x[xOffset + i]
+        val xi = x[i]
         val ax = xi.abs()
         if (ax > amax) {
             amax = ax
@@ -136,16 +92,16 @@ internal fun makeQxQuants(
     if (amax == 0f) {
         // all zero
         for (i in 0 until n) {
-            ls[lsOffset + i] = 0
+            ls[i] = 0
         }
         return 0f
     }
     var iscale = -nmax.toFloat() / max
     if (rmseType == 0) {
         for (i in 0 until n) {
-            val xi = x[xOffset + i]
+            val xi = x[i]
             val l = nearestInt(iscale * xi)
-            ls[lsOffset + i] = (nmax + l.clamp(-nmax, nmax - 1)).toByte()
+            ls[i] = (nmax + l.clamp(-nmax, nmax - 1)).toByte()
         }
         return 1.0f / iscale
     }
@@ -153,11 +109,11 @@ internal fun makeQxQuants(
     var sumlx = 0f
     var suml2 = 0f
     for (i in 0 until n) {
-        val xi = x[xOffset + i]
+        val xi = x[i]
         val l = nearestInt(iscale * xi).clamp(-nmax, nmax - 1)
-        ls[lsOffset + i] = (l + nmax).toByte()
-        val w = if (qw != null) {
-            qw[qwOffset + i]
+        ls[i] = (l + nmax).toByte()
+        val w = if (qw != null && qw.isNotEmpty()) {
+            qw[i]
         } else if (weightType == 1) {
             xi * xi
         } else {
@@ -175,13 +131,13 @@ internal fun makeQxQuants(
         var sl2 = 0f
         var changed = false
         for (i in 0 until n) {
-            val xi = x[xOffset + i]
+            val xi = x[i]
             val l = nearestInt(curIscale * xi).clamp(-nmax, nmax - 1)
-            if (l + nmax != ls[lsOffset + i].toInt()) {
+            if (l + nmax != ls[i].toInt()) {
                 changed = true
             }
-            val w = if (qw != null) {
-                qw[qwOffset + i]
+            val w = if (qw != null && qw.isNotEmpty()) {
+                qw[i]
             } else if (weightType == 1) {
                 xi * xi
             } else {
@@ -195,9 +151,9 @@ internal fun makeQxQuants(
             break
         }
         for (i in 0 until n) {
-            val xi = x[xOffset + i]
+            val xi = x[i]
             val l = nearestInt(curIscale * xi)
-            ls[lsOffset + i] = (nmax + l.clamp(-nmax, nmax - 1)).toByte()
+            ls[i] = (nmax + l.clamp(-nmax, nmax - 1)).toByte()
         }
         sumlx = slx
         suml2 = sl2
@@ -207,15 +163,15 @@ internal fun makeQxQuants(
     for (itry in 0 until 5) {
         var nChanged = 0
         for (i in 0 until n) {
-            val xi = x[xOffset + i]
-            val w = if (qw != null) {
-                qw[qwOffset + i]
+            val xi = x[i]
+            val w = if (qw != null && qw.isNotEmpty()) {
+                qw[i]
             } else if (weightType == 1) {
                 xi * xi
             } else {
                 1.0f
             }
-            val l = ls[lsOffset + i].toInt() - nmax
+            val l = ls[i].toInt() - nmax
             var slx = sumlx - w * xi * l.toFloat()
             if (slx > 0f) {
                 var sl2 = suml2 - w * l.toFloat() * l.toFloat()
@@ -225,7 +181,7 @@ internal fun makeQxQuants(
                     slx += w * xi * clampedL.toFloat()
                     sl2 += w * clampedL.toFloat() * clampedL.toFloat()
                     if (sl2 > 0f && slx * slx * suml2 > sumlx * sumlx * sl2) {
-                        ls[lsOffset + i] = (nmax + clampedL).toByte()
+                        ls[i] = (nmax + clampedL).toByte()
                         sumlx = slx
                         suml2 = sl2
                         scale = sumlx / suml2
@@ -250,10 +206,10 @@ internal fun makeQxQuants(
         var curSumlx = 0f
         var curSuml2 = 0f
         for (i in 0 until n) {
-            val xi = x[xOffset + i]
+            val xi = x[i]
             val l = nearestInt(iscale * xi).clamp(-nmax, nmax - 1)
-            val w = if (qw != null) {
-                qw[qwOffset + i]
+            val w = if (qw != null && qw.isNotEmpty()) {
+                qw[i]
             } else if (weightType == 1) {
                 xi * xi
             } else {
@@ -265,9 +221,9 @@ internal fun makeQxQuants(
         }
         if (curSuml2 > 0f && curSumlx * curSumlx > best * curSuml2) {
             for (i in 0 until n) {
-                val xi = x[xOffset + i]
+                val xi = x[i]
                 val l = nearestInt(iscale * xi)
-                ls[lsOffset + i] = (nmax + l.clamp(-nmax, nmax - 1)).toByte()
+                ls[i] = (nmax + l.clamp(-nmax, nmax - 1)).toByte()
             }
             scale = curSumlx / curSuml2
             best = scale * curSumlx
@@ -276,13 +232,15 @@ internal fun makeQxQuants(
     return scale
 }
 
-internal fun makeQkx1Quants(nmax: Int, ntry: Int, x: FloatArray, xOffset: Int = 0, n: Int = x.len() - xOffset): Pair<Float, Float> {
+// https://github.com/ggerganov/llama.cpp/blob/8183159cf3def112f6d1fe94815fce70e1bffa12/k_quants.c#L224
+internal fun makeQkx1Quants(nmax: Int, ntry: Int, x: FloatArray): Pair<Float, Float> {
+    val n = x.len()
     val l = UByteArray(n)
     // Get min/max
-    var min = x[xOffset]
-    var max = x[xOffset]
+    var min = x[0]
+    var max = x[0]
     for (i in 1 until n) {
-        val v = x[xOffset + i]
+        val v = x[i]
         if (v < min) min = v
         if (v > max) max = v
     }
@@ -305,7 +263,7 @@ internal fun makeQkx1Quants(nmax: Int, ntry: Int, x: FloatArray, xOffset: Int = 
         var didChange = false
 
         for (i in 0 until n) {
-            val value = x[xOffset + i]
+            val value = x[i]
             val li = nearestInt(iscale * (value - min)).clamp(0, nmax)
             val clampedLi = li.toUByte()
             if (clampedLi != l[i]) {
@@ -319,7 +277,7 @@ internal fun makeQkx1Quants(nmax: Int, ntry: Int, x: FloatArray, xOffset: Int = 
 
         var sum = 0.0f
         for (i in 0 until n) {
-            val xi = x[xOffset + i]
+            val xi = x[i]
             sum += xi - scale * l[i].toInt().toFloat()
         }
 
@@ -335,12 +293,15 @@ internal fun makeQkx1Quants(nmax: Int, ntry: Int, x: FloatArray, xOffset: Int = 
     return Pair(scale, -min)
 }
 
-internal fun makeQ3Quants(x: FloatArray, xOffset: Int, n: Int, nmax: Int, doRmse: Boolean): Float {
+// https://github.com/ggerganov/llama.cpp/blob/8183159cf3def112f6d1fe94815fce70e1bffa12/k_quants.c#L165
+internal fun makeQ3Quants(x: FloatArray, nmax: Int, doRmse: Boolean): Float {
+    val n = x.len()
     val l = ByteArray(n)
+
     var max = 0.0f
     var amax = 0.0f
     for (i in 0 until n) {
-        val xi = x[xOffset + i]
+        val xi = x[i]
         val ax = xi.abs()
         if (ax > amax) {
             amax = ax
@@ -357,24 +318,24 @@ internal fun makeQ3Quants(x: FloatArray, xOffset: Int, n: Int, nmax: Int, doRmse
         var sumlx = 0.0f
         var suml2 = 0.0f
         for (i in 0 until n) {
-            val li = (iscale * x[xOffset + i]).round().toInt()
+            val li = (iscale * x[i]).round().toInt()
             val clamped = li.clamp(-nmax, nmax - 1)
             l[i] = clamped.toByte()
-            val w = x[xOffset + i] * x[xOffset + i]
-            sumlx += w * x[xOffset + i] * clamped.toFloat()
+            val w = x[i] * x[i]
+            sumlx += w * x[i] * clamped.toFloat()
             suml2 += w * (clamped * clamped).toFloat()
         }
         for (itry in 0 until 5) {
             var nChanged = 0
             for (i in 0 until n) {
-                val w = x[xOffset + i] * x[xOffset + i]
-                var slx = sumlx - w * x[xOffset + i] * l[i].toFloat()
+                val w = x[i] * x[i]
+                var slx = sumlx - w * x[i] * l[i].toFloat()
                 if (slx > 0.0f) {
                     var sl2 = suml2 - w * (l[i].toInt() * l[i].toInt()).toFloat()
-                    var newL = (x[xOffset + i] * sl2 / slx).round().toInt()
+                    var newL = (x[i] * sl2 / slx).round().toInt()
                     newL = newL.clamp(-nmax, nmax - 1)
                     if (newL != l[i].toInt()) {
-                        slx += w * x[xOffset + i] * newL.toFloat()
+                        slx += w * x[i] * newL.toFloat()
                         sl2 += w * (newL * newL).toFloat()
                         if (sl2 > 0.0f && slx * slx * suml2 > sumlx * sumlx * sl2) {
                             l[i] = newL.toByte()
@@ -395,45 +356,44 @@ internal fun makeQ3Quants(x: FloatArray, xOffset: Int, n: Int, nmax: Int, doRmse
         return sumlx / suml2
     }
     for (i in 0 until n) {
-        val li = (iscale * x[xOffset + i]).round().toInt()
+        val li = (iscale * x[i]).round().toInt()
         l[i] = (li.clamp(-nmax, nmax - 1) + nmax).toByte()
     }
     return 1.0f / iscale
 }
 
+// https://github.com/ggerganov/llama.cpp/blob/678d7994f4da0af3d29046be99950ac999ee9762/ggml/src/ggml-quants.c#L744
 /**
  * (scale, min)
  */
 internal fun makeQkx3Quants(
     nmax: Int,
     x: FloatArray,
-    xOffset: Int,
-    n: Int,
     weights: FloatArray?,
-    weightsOffset: Int,
     rmin: Float,
     rdelta: Float,
     nstep: Int,
     useMad: Boolean,
 ): Pair<Float, Float> {
+    val n = x.len()
     val l = UByteArray(32)
     val lAux = UByteArray(32)
 
-    var minVal = x[xOffset]
-    var maxVal = x[xOffset]
-    var sumW = if (weights != null) weights[weightsOffset] else x[xOffset] * x[xOffset]
-    var sumX = sumW * x[xOffset]
+    var minVal = x[0]
+    var maxVal = x[0]
+    var sumW = if (weights != null) weights[0] else x[0] * x[0]
+    var sumX = sumW * x[0]
 
     for (i in 1 until n) {
-        if (x[xOffset + i] < minVal) minVal = x[xOffset + i]
-        if (x[xOffset + i] > maxVal) maxVal = x[xOffset + i]
+        if (x[i] < minVal) minVal = x[i]
+        if (x[i] > maxVal) maxVal = x[i]
         val w = if (weights != null) {
-            weights[weightsOffset + i]
+            weights[i]
         } else {
-            x[xOffset + i] * x[xOffset + i]
+            x[i] * x[i]
         }
         sumW += w
-        sumX += w * x[xOffset + i]
+        sumX += w * x[i]
     }
 
     if (minVal > 0.0f) {
@@ -449,14 +409,14 @@ internal fun makeQkx3Quants(
     var bestMad = 0.0f
 
     for (i in 0 until n) {
-        val lVal = nearestInt(iscale * (x[xOffset + i] - minVal)).clamp(0, nmax).toUByte()
+        val lVal = nearestInt(iscale * (x[i] - minVal)).clamp(0, nmax).toUByte()
         l[i] = lVal
-        val rawDiff = scale * lVal.toFloat() + minVal - x[xOffset + i]
+        val rawDiff = scale * lVal.toFloat() + minVal - x[i]
         val diff = if (useMad) rawDiff.abs() else rawDiff * rawDiff
         val w = if (weights != null) {
-            weights[weightsOffset + i]
+            weights[i]
         } else {
-            x[xOffset + i] * x[xOffset + i]
+            x[i] * x[i]
         }
         bestMad += w * diff
     }
@@ -472,12 +432,12 @@ internal fun makeQkx3Quants(
         var sumXl = 0.0f
 
         for (i in 0 until n) {
-            val lVal = nearestInt(iscale * (x[xOffset + i] - minVal)).clamp(0, nmax).toUByte()
+            val lVal = nearestInt(iscale * (x[i] - minVal)).clamp(0, nmax).toUByte()
             lAux[i] = lVal
-            val w = if (weights != null) weights[weightsOffset + i] else x[xOffset + i] * x[xOffset + i]
+            val w = if (weights != null) weights[i] else x[i] * x[i]
             sumL += w * lVal.toFloat()
             sumL2 += w * lVal.toFloat().powi(2)
-            sumXl += w * lVal.toFloat() * x[xOffset + i]
+            sumXl += w * lVal.toFloat() * x[i]
         }
 
         val d = sumW * sumL2 - sumL * sumL
@@ -492,12 +452,12 @@ internal fun makeQkx3Quants(
 
             var mad = 0.0f
             for (i in 0 until n) {
-                val rawDiff = thisScale * lAux[i].toFloat() + thisMin - x[xOffset + i]
+                val rawDiff = thisScale * lAux[i].toFloat() + thisMin - x[i]
                 val diff = if (useMad) rawDiff.abs() else rawDiff * rawDiff
                 val w = if (weights != null) {
-                    weights[weightsOffset + i]
+                    weights[i]
                 } else {
-                    x[xOffset + i] * x[xOffset + i]
+                    x[i] * x[i]
                 }
                 mad += w * diff
             }
@@ -510,36 +470,36 @@ internal fun makeQkx3Quants(
             }
         }
     }
+
     return Pair(scale, -minVal)
 }
 
+// https://github.com/ggerganov/llama.cpp/blob/678d7994f4da0af3d29046be99950ac999ee9762/ggml/src/ggml-quants.c#L827
 internal fun makeQpQuants(
     n: Int,
-    nmax: UByte,
+    nmax: Int,
     x: FloatArray,
-    xOffset: Int,
     l: UByteArray,
-    lOffset: Int,
     quantWeights: FloatArray,
-    qwOffset: Int,
 ): Float {
-    assertEq(x.len() - xOffset >= n, true)
-    assertEq(l.len() - lOffset >= n, true)
-    assertEq(quantWeights.len() - qwOffset >= n, true)
+    assertEq(x.len(), n)
+    assertEq(l.len(), n)
+    assertEq(quantWeights.len(), n)
+    val nmaxU = nmax.toUByte()
     var max = 0.0f
-    for (i in 0 until n) max = max(max, x[xOffset + i])
+    for (i in 0 until n) max = max(max, x[i])
     if (max == 0.0f) {
-        for (i in 0 until n) l[lOffset + i] = 0u
+        for (i in 0 until n) l[i] = 0u
         return 0.0f
     }
     var iscale = nmax.toFloat() / max
-    for (i in 0 until n) l[lOffset + i] = nearestInt(iscale * x[xOffset + i]).toUByte()
+    for (i in 0 until n) l[i] = nearestInt(iscale * x[i]).toUByte()
     val scale = 1.0f / iscale
     var bestMse = 0.0f
     for (i in 0 until n) {
-        val xi = x[xOffset + i]
-        val li = l[lOffset + i]
-        val w = quantWeights[qwOffset + i]
+        val xi = x[i]
+        val li = l[i]
+        val w = quantWeights[i]
         val diff = xi - scale * li.toFloat()
         bestMse += w * diff * diff
     }
@@ -551,10 +511,10 @@ internal fun makeQpQuants(
 
         var mse = 0.0f
         for (i in 0 until n) {
-            val xi = x[xOffset + i]
-            val w = quantWeights[qwOffset + i]
+            val xi = x[i]
+            val w = quantWeights[i]
             var li = nearestInt(iscaleIs * xi).toUByte()
-            li = li.min(nmax)
+            li = li.min(nmaxU)
             val diff = xi - scaleIs * li.toFloat()
             mse += w * diff * diff
         }
@@ -568,11 +528,11 @@ internal fun makeQpQuants(
     var sumlx = 0.0f
     var suml2 = 0.0f
     for (i in 0 until n) {
-        val xi = x[xOffset + i]
-        val w = quantWeights[qwOffset + i]
+        val xi = x[i]
+        val w = quantWeights[i]
         var liNew = (iscale * xi).round().toInt().toUByte()
-        liNew = liNew.min(nmax)
-        l[lOffset + i] = liNew
+        liNew = liNew.min(nmaxU)
+        l[i] = liNew
         sumlx += w * xi * liNew.toFloat()
         suml2 += w * liNew.toFloat().powi(2)
     }
@@ -580,18 +540,18 @@ internal fun makeQpQuants(
     for (itry in 0 until 5) {
         var nChanged = 0
         for (i in 0 until n) {
-            val xi = x[xOffset + i]
-            val w = quantWeights[qwOffset + i]
-            val li = l[lOffset + i]
+            val xi = x[i]
+            val w = quantWeights[i]
+            val li = l[i]
             var slx = sumlx - w * xi * li.toFloat()
             var sl2 = suml2 - w * li.toFloat().powi(2)
             if (slx > 0.0f && sl2 > 0.0f) {
-                val newLi = nearestInt(xi * sl2 / slx).toUByte().min(nmax)
+                val newLi = nearestInt(xi * sl2 / slx).toUByte().min(nmaxU)
                 if (newLi != li) {
                     slx += w * xi * newLi.toFloat()
                     sl2 += w * newLi.toFloat().powi(2)
                     if (slx.powi(2) * suml2 > sumlx.powi(2) * sl2) {
-                        l[lOffset + i] = newLi
+                        l[i] = newLi
                         sumlx = slx
                         suml2 = sl2
                         nChanged += 1
@@ -603,3 +563,18 @@ internal fun makeQpQuants(
     }
     return sumlx / suml2
 }
+
+private val Float.round: () -> Float get() = { round(this) }
+private val Float.abs: () -> Float get() = { abs(this) }
+private val Float.min: (Float) -> Float get() = { other -> min(this, other) }
+private val Float.powi: (Int) -> Float get() = { n -> this.pow(n) }
+private val Int.clamp: (Int, Int) -> Int get() = { lo, hi -> coerceIn(lo, hi) }
+private val UByte.min: (UByte) -> UByte get() = { other -> if (this <= other) this else other }
+private val FloatArray.len: () -> Int get() = { size }
+private val UByteArray.len: () -> Int get() = { size }
+private fun <T> MutableList<T>.iterMut(): List<T> = this
+private val FloatArray.chunksExact: (Int) -> List<FloatArray> get() = { b -> ArrayList<FloatArray>(size / b).also { for (i in 0 until size / b) it.add(copyOfRange(i * b, (i + 1) * b)) } }
+private val FloatArray.chunksExactMut: (Int) -> List<Int> get() = { b -> ArrayList<Int>(size / b).also { for (i in 0 until size / b) it.add(i * b) } }
+private val UByteArray.copyFromSlice: (UByteArray) -> Unit get() = { src -> src.copyInto(this) }
+private val debugAssertEq: (Any?, Any?, String) -> Unit get() = { a, b, msg -> check(a == b) { msg } }
+private val assertEq: (Any?, Any?) -> Unit get() = { a, b -> check(a == b) }

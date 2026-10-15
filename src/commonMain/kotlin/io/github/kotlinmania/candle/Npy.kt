@@ -1,17 +1,15 @@
 // port-lint: source npy.rs
 package io.github.kotlinmania.candle
 
-import kotlin.test.Test
-import kotlin.test.assertEquals
+import io.github.kotlinmania.candle.CandleException as Error
 
 private val NPY_MAGIC_STRING: ByteArray = byteArrayOf(
     0x93.toByte(), 'N'.code.toByte(), 'U'.code.toByte(), 'M'.code.toByte(), 'P'.code.toByte(), 'Y'.code.toByte(),
 )
 private const val NPY_SUFFIX: String = ".npy"
 
-private val Error: CandleError.Companion get() = CandleError.Companion
-private val <T> T.Ok: (T) -> T get() = { it }
-private val <R> R.Err: (CandleException) -> R get() = { throw it }
+private fun <T> Ok(v: T): T = v
+private fun Err(e: CandleException): Nothing = throw e
 private val String.into: () -> String get() = { this }
 private val String.asRef: () -> String get() = { this }
 private val String.toOwned: () -> String get() = { this }
@@ -25,22 +23,25 @@ private val String.parse: () -> Int get() = { toIntOrNull() ?: throw CandleError
 private val ByteArray.len: () -> Int get() = { size }
 private val ByteArray.iter: () -> List<Byte> get() = { toList() }
 private val ByteArray.intoIter: () -> Sequence<UByte> get() = { asSequence().map { it.toUByte() } }
-private val <T> List<T>.rev: () -> List<T> get() = { reversed() }
-private val <T> List<T>.iter: () -> List<T> get() = { this }
 private val List<Int>.asSlice: () -> IntArray get() = { toIntArray() }
-private val <T> List<T>.collect: () -> List<T> get() = { this }
 private val List<String>.join: (String) -> String get() = { sep -> joinToString(sep) }
-private val <T> MutableList<T>.push: (T) -> Unit get() = { add(it) }
-private val <T> Set<T>.collect: () -> List<T> get() = { toList() }
-private val <T> Sequence<T>.collect: () -> List<T> get() = { toList() }
-private val <K, V> Map<K, V>.keys: () -> Set<K> get() = { this.keys }
+private fun <T> Set<T>.collect(): List<T> = toList()
+private fun <K, V> Map<K, V>.keys(): Set<K> = this.keys
 private val IntArray.toVec: () -> List<Int> get() = { toList() }
 private val Tensor.asRef: () -> Tensor get() = { this }
 private val Tensor.self: Tensor get() = this
 private val Header.self: Header get() = this
 private val NpzTensors.self: NpzTensors get() = this
-private val String.Companion.fromUtf8Lossy: (ByteArray) -> String get() = { it.decodeToString() }
 private val Self: Tensor.Companion get() = Tensor.Companion
+private fun Tensor.Companion.fromVecBf16(data: List<BF16>, shape: Shape, device: Device): Tensor = Tensor.fromVec(data, shape, device)
+private fun Tensor.Companion.fromVecF16(data: List<F16>, shape: Shape, device: Device): Tensor = Tensor.fromVec(data, shape, device)
+private fun Tensor.Companion.fromSliceF64(data: DoubleArray, shape: Shape, device: Device): Tensor = Tensor.fromSlice(data, shape, device)
+private fun Tensor.Companion.fromSliceU8(data: UByteArray, shape: Shape, device: Device): Tensor = Tensor.fromSlice(data, shape, device)
+private fun Tensor.Companion.fromSliceU32(data: UIntArray, shape: Shape, device: Device): Tensor = Tensor.fromSlice(data, shape, device)
+private fun Tensor.Companion.fromSliceI16(data: ShortArray, shape: Shape, device: Device): Tensor = Tensor.fromSlice(data, shape, device)
+private fun Tensor.Companion.fromSliceI32(data: IntArray, shape: Shape, device: Device): Tensor = Tensor.fromSlice(data, shape, device)
+private fun Tensor.Companion.fromSliceI64(data: LongArray, shape: Shape, device: Device): Tensor = Tensor.fromSlice(data, shape, device)
+private fun Tensor.Companion.fromVecF8E4M3(data: List<F8E4M3>, shape: Shape, device: Device): Tensor = Tensor.fromVec(data, shape, device)
 private val Tensor.writeBytesToWrite: (Write) -> Unit get() = { f ->
     val writer = f as? NpyByteWriter ?: NpyByteWriter()
     this.writeBytes(writer).unwrap()
@@ -112,7 +113,8 @@ public data class Header(
         )
     }
 
-    public companion object Self {
+    public companion object {
+        public val Self: Companion get() = this
         // Hacky parser for the npy header, a typical example would be
         // descr f8, fortranOrder False, shape (128,)
         public fun parse(header: String): Header {
@@ -417,7 +419,8 @@ public class NpzTensors private constructor(
         return Ok(tensor)
     }
 
-    public companion object Self {
+    public companion object {
+        public val Self: Companion get() = this
         public fun new(path: String): NpzTensors {
             val path = path.asRef().toOwned()
             val zipReader = BufReader.new(File.open(path).unwrap())

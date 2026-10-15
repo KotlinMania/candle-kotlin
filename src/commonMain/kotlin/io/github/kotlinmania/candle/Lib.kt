@@ -44,8 +44,8 @@ package io.github.kotlinmania.candle
  * - [candle-pyo3](https://docs.rs/candle-pyo3/). Access to Candle from Python.
  * - [candle-transformers](https://docs.rs/candle-transformers/). Candle implementation of many published transformer models.
  */
-private val <T> T.Ok: (T) -> T get() = { it }
-private val <T> T.Ok2: (T, Any?) -> T get() = { v, _ -> v }
+private fun <T> Ok(v: T): T = v
+private fun <T> Ok2(v: T, a: Any?): T = if (a == null) v else v
 
 /**
  * Conversion trait for 2D kernel sizes, strides, padding, and dilation parameters.

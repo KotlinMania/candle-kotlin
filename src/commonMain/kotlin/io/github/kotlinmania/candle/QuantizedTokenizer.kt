@@ -216,17 +216,13 @@ private val format: (String, Any?) -> String = { fmt, a ->
         .replace("{}", a.toString())
 }
 
-private val <T> T?.withContext: (() -> String) -> CandleResult<T>
-    get() = { f ->
-        if (this != null) CandleResult.Ok(this) else CandleResult.Err(CandleError.Msg(f()))
-    }
+private fun <T> T?.withContext(f: () -> String): CandleResult<T> =
+    if (this != null) CandleResult.Ok(this) else CandleResult.Err(CandleError.Msg(f()))
 
-private val <T> CandleResult<T>.withContext: (() -> String) -> CandleResult<T>
-    get() = { f ->
-        when (this) {
-            is CandleResult.Ok -> this
-            is CandleResult.Err -> CandleResult.Err(CandleError.Context(this.error, f()))
-        }
+private fun <T> CandleResult<T>.withContext(f: () -> String): CandleResult<T> =
+    when (this) {
+        is CandleResult.Ok -> this
+        is CandleResult.Err -> CandleResult.Err(CandleError.Context(this.error, f()))
     }
 
 private val String.splitOnce: (Char) -> Pair<String, String>?
@@ -235,10 +231,8 @@ private val String.splitOnce: (Char) -> Pair<String, String>?
         if (idx >= 0) Pair(this.substring(0, idx), this.substring(idx + 1)) else null
     }
 
-private val <T> T?.okOrElse: (() -> Throwable) -> CandleResult<T>
-    get() = { errFn ->
-        if (this != null) CandleResult.Ok(this) else CandleResult.Err(errFn())
-    }
+private fun <T> T?.okOrElse(errFn: () -> Throwable): CandleResult<T> =
+    if (this != null) CandleResult.Ok(this) else CandleResult.Err(errFn())
 
 public interface TokenizerFromGguf {
     public fun fromGguf(ct: Content): Result<Tokenizer>

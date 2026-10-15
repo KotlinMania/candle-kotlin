@@ -80,7 +80,8 @@ sealed class CudaStorageSlice {
     data class F16(val data: CudaSlice<Float16>) : CudaStorageSlice()
     data class F32(val data: CudaSlice<Float>) : CudaStorageSlice()
     data class F64(val data: CudaSlice<Double>) : CudaStorageSlice()
-    data class F8E4M3Slice(val data: CudaSlice<F8E4M3>) : CudaStorageSlice()
+    data class F8E4M3(val data: CudaSlice<io.github.kotlinmania.candle.F8E4M3>) : CudaStorageSlice()
+    typealias F8E4M3Slice = F8E4M3
     // Dummy types that store raw bytes
     data class F6E2M3(val data: CudaSlice<UByte>) : CudaStorageSlice()
     data class F6E3M2(val data: CudaSlice<UByte>) : CudaStorageSlice()

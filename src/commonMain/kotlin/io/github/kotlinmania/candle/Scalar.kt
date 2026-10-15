@@ -1,8 +1,7 @@
 // port-lint: source scalar.rs
 package io.github.kotlinmania.candle
 
-import io.github.kotlinmania.anyhow.Ok
-import io.github.kotlinmania.anyhow.Result
+import io.github.kotlinmania.candle.CandleResult.Ok
 
 /** TensorScalar Enum and Trait */
 public sealed class Scalar {
@@ -97,17 +96,17 @@ public sealed class TensorScalar {
 }
 
 public interface TensorOrScalar {
-    public fun toTensorScalar(): Result<TensorScalar>
+    public fun toTensorScalar(): CandleResult<TensorScalar>
 }
 
 public class TensorAsTensorOrScalar(public val self: Tensor) : TensorOrScalar {
-    override fun toTensorScalar(): Result<TensorScalar> {
+    override fun toTensorScalar(): CandleResult<TensorScalar> {
         return Ok(TensorScalar.Tensor(self.clone()))
     }
 }
 
 public class ScalarAsTensorOrScalar<T : Any>(public val self: T) : TensorOrScalar {
-    override fun toTensorScalar(): Result<TensorScalar> {
+    override fun toTensorScalar(): CandleResult<TensorScalar> {
         val scalar = Tensor.new(self, Device.Cpu).getOrThrow()
         return Ok(TensorScalar.Scalar(scalar))
     }

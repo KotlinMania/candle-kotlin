@@ -1,6 +1,8 @@
 // port-lint: source variable.rs
 package io.github.kotlinmania.candle
 
+import io.github.kotlinmania.candle.CandleException as Error
+
 // Variables are wrappers around tensors that can be modified, they are typically used for holding
 // weights and being modified by gradient descent.
 // We do not expose a public way to create variables as this would break the invariant that the

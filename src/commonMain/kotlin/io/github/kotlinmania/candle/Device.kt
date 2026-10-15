@@ -17,38 +17,19 @@ public sealed class DeviceLocation {
     ) : DeviceLocation()
 }
 
-private val <T> Array<T>.len: () -> Int
-    get() = { this.size }
+private fun <T> Array<T>.len(): Int = this.size
 
-private val <T> Array<T>.asSlice: () -> List<T>
-    get() = { this.asList() }
+private fun <T> Array<T>.asSlice(): List<T> = this.asList()
 
-private val <T> Array<Array<T>>.concat: () -> List<T>
-    get() = { this.flatMap { it.asList() } }
+private fun <T> Array<Array<T>>.concat(): List<T> = this.flatMap { it.asList() }
 
-private val <T> List<T>.len: () -> Int
-    get() = { this.size }
+private fun <T> List<T>.copied(): List<T> = this
 
-private val <T> List<T>.asSlice: () -> List<T>
-    get() = { this }
+private fun <T> List<T>.toCpuStorage(): CpuStorage = NdArray.S.toCpuStorage(this)
 
-private val <T> List<T>.iter: () -> List<T>
-    get() = { this }
+private fun <T> MutableList<T>.extend(arr: Array<T>): Unit { this.addAll(arr.asList()) }
 
-private val <T> List<T>.copied: () -> List<T>
-    get() = { this }
-
-private val <T> List<T>.collect: () -> List<T>
-    get() = { this }
-
-private val <T> List<T>.toCpuStorage: () -> CpuStorage
-    get() = { NdArray.S.toCpuStorage(this) }
-
-private val <T> MutableList<T>.extend: (Array<T>) -> Unit
-    get() = { arr -> this.addAll(arr.asList()) }
-
-private val <T> MutableList<T>.extendList: (List<T>) -> Unit
-    get() = { list -> this.addAll(list) }
+private fun <T> MutableList<T>.extendList(list: List<T>): Unit { this.addAll(list) }
 
 private val IntArray.asSlice: () -> List<Int>
     get() = { this.toList() }
@@ -56,11 +37,9 @@ private val IntArray.asSlice: () -> List<Int>
 private val List<List<Int>>.concat: () -> List<Int>
     get() = { this.flatten() }
 
-private val <T> List<List<T>>.shape: () -> Shape
-    get() = { NdArray.Vec2(this).shape() }
+private fun <T> List<List<T>>.shape(): Shape = NdArray.Vec2(this).shape()
 
-private val <T> List<List<List<T>>>.shape: () -> Shape
-    get() = { NdArray.Vec3(this).shape() }
+private fun <T> List<List<List<T>>>.shape(): Shape = NdArray.Vec3(this).shape()
 
 public interface NdArray {
     public fun shape(): Shape
@@ -352,7 +331,7 @@ public interface NdArray {
  * Cpu, Cuda, or Metal
  */
 public sealed class Device {
-    private val self: Device get() = this
+    private val self: Device = this
 
     public object Cpu : Device()
 

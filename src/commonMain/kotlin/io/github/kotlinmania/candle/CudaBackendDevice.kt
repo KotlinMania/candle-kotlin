@@ -115,35 +115,29 @@ class CudaStream(val context: CudaContext = CudaContext(0)) {
     val captureStatus: () -> Result<Int> = { Result.success(if (captureActive) 1 else 0) }
 }
 
-private val <T> CudaStream.streamAlloc: (Int) -> Result<CudaSlice<T>>
-    get() = { len -> Result.success(CudaSlice(ArrayList(maxOf(len, 0)))) }
-private val <T> CudaStream.streamAllocZeros: (Int) -> Result<CudaSlice<T>>
-    get() = { len -> Result.success(CudaSlice(ArrayList(maxOf(len, 0)))) }
-private val <T> CudaStream.memcpyHtod: (List<T>, CudaSlice<T>) -> Result<Unit>
-    get() = { src, dst ->
-        runCatching {
-            dst.data.clear()
-            dst.data.addAll(src)
-        }
+private fun <T> CudaStream.streamAlloc(len: Int): Result<CudaSlice<T>> =
+    Result.success(CudaSlice(ArrayList(maxOf(len, 0))))
+private fun <T> CudaStream.streamAllocZeros(len: Int): Result<CudaSlice<T>> =
+    Result.success(CudaSlice(ArrayList(maxOf(len, 0))))
+private fun <T> CudaStream.memcpyHtod(src: List<T>, dst: CudaSlice<T>): Result<Unit> =
+    runCatching {
+        dst.data.clear()
+        dst.data.addAll(src)
     }
-private val <T> CudaStream.cloneDtoh: (CudaSlice<T>) -> Result<List<T>>
-    get() = { src -> runCatching { src.data.toList() } }
-private val <T> CudaStream.memcpyDtod: (CudaSlice<T>, CudaSlice<T>) -> Result<Unit>
-    get() = { src, dst ->
-        runCatching {
-            dst.data.clear()
-            dst.data.addAll(src.data)
-        }
+private fun <T> CudaStream.cloneDtoh(src: CudaSlice<T>): Result<List<T>> =
+    runCatching { src.data.toList() }
+private fun <T> CudaStream.memcpyDtod(src: CudaSlice<T>, dst: CudaSlice<T>): Result<Unit> =
+    runCatching {
+        dst.data.clear()
+        dst.data.addAll(src.data)
     }
-private val <T> CudaStream.memcpyDtoh: (CudaSlice<T>, MutableList<T>) -> Result<Unit>
-    get() = { src, dst ->
-        runCatching {
-            dst.clear()
-            dst.addAll(src.data)
-        }
+private fun <T> CudaStream.memcpyDtoh(src: CudaSlice<T>, dst: MutableList<T>): Result<Unit> =
+    runCatching {
+        dst.clear()
+        dst.addAll(src.data)
     }
-private val <T> CudaStream.cloneHtod: (List<T>) -> Result<CudaSlice<T>>
-    get() = { src -> runCatching { CudaSlice(src.toMutableList()) } }
+private fun <T> CudaStream.cloneHtod(src: List<T>): Result<CudaSlice<T>> =
+    runCatching { CudaSlice(src.toMutableList()) }
 
 class CudaContext(val ordinalVal: Int = 0) {
     var eventTracking: Boolean = true
@@ -179,7 +173,9 @@ sealed class CudaStorageSlice {
     data class F8E4M3Slice(val data: CudaSlice<F8E4M3>) : CudaStorageSlice()
 
     companion object {
-        val F8E4M3: (CudaSlice<F8E4M3>) -> F8E4M3Slice = { F8E4M3Slice(it) }
+        fun BF16(s: CudaSlice<Short>): BF16 = BF16(CudaSlice(s.data.map { BFloat16.fromBits(it.toUShort()) }.toMutableList()))
+        fun F16(s: CudaSlice<Short>): F16 = F16(CudaSlice(s.data.map { Float16.fromBits(it.toUShort()) }.toMutableList()))
+        fun F8E4M3(s: CudaSlice<Byte>): F8E4M3Slice = F8E4M3Slice(CudaSlice(s.data.map { io.github.kotlinmania.candle.F8E4M3.fromBits(it.toUByte()) }.toMutableList()))
     }
 }
 
@@ -925,23 +921,24 @@ class CudaFunc(
 
 private data class CompileOptions(val useFastMath: Boolean? = true, val defaultOpts: Boolean = true)
 private const val CU_STREAM_CAPTURE_STATUS_NONE: Int = 0
-private val Ok: (Any?) -> Result<Nothing> = { Result.success(it as Nothing) }
+private fun <T> Ok(v: T): Result<T> = Result.success(v)
 private val Err: (Throwable) -> Result<Nothing> = { Result.failure(it) }
-private val Some: (Any?) -> Nothing = { it as Nothing }
+private fun <T> Some(v: T): T = v
 private val Throwable.into: () -> Throwable get() = { this }
 private val debugAssert: (Boolean) -> Unit = { check(it) }
 private val drop: (Any?) -> Unit = {}
 private val IntArray.get: () -> Int get() = { this[0] }
 private val IntArray.set: (Int) -> Unit get() = { v -> this[0] = v }
 private val Int.saturatingSub: (Int) -> Int get() = { other -> maxOf(0, this - other) }
-private val <R> ThreadLocal<IntArray>.with: ((IntArray) -> R) -> R
-    get() = { block -> block(getOr { intArrayOf(0) }) }
-private val <R> ThreadLocal<MutableMap<CudaGraphHtodCacheKey, Any>>.with: ((MutableMap<CudaGraphHtodCacheKey, Any>) -> R) -> R
-    get() = { block -> block(getOr { HashMap() }) }
-private val <K, V> MutableMap<K, V>.borrow: () -> MutableMap<K, V> get() = { this }
-private val <K, V> MutableMap<K, V>.borrowMut: () -> MutableMap<K, V> get() = { this }
-private val <T> List<T>.len: () -> Int get() = { size }
-private val <T> List<T>.streamSyncedSlice: (CudaStream) -> Pair<List<T>, Unit> get() = { Pair(this, Unit) }
+private fun <R> ThreadLocal<IntArray>.with(block: (IntArray) -> R): R =
+    block(getOr { intArrayOf(0) })
+@kotlin.jvm.JvmName("withCache")
+private fun <R> ThreadLocal<MutableMap<CudaGraphHtodCacheKey, Any>>.with(block: (MutableMap<CudaGraphHtodCacheKey, Any>) -> R): R =
+    block(getOr { HashMap() })
+private fun <K, V> MutableMap<K, V>.borrow(): MutableMap<K, V> = this
+private fun <K, V> MutableMap<K, V>.borrowMut(): MutableMap<K, V> = this
+private fun <T> List<T>.len(): Int = size
+private fun <T> List<T>.streamSyncedSlice(stream: CudaStream): Pair<List<T>, Unit> = if (stream.captureActive) Pair(this, Unit) else Pair(this, Unit)
 private val sizeOfVal: (List<*>) -> Int = { it.size * 8 }
 private val List<*>.asPtr: () -> List<*> get() = { this }
 private val List<*>.cast: () -> List<*> get() = { this }
@@ -951,8 +948,10 @@ private val typeIdOf: (List<*>) -> String = { list -> list.firstOrNull()?.let { 
 private val candleUgCudaCodeGenGen: (MutableList<Byte>, String, UgKernel) -> Result<Unit> = { _, _, _ -> Result.success(Unit) }
 private val compilePtxWithOpts: (String, CompileOptions) -> Result<String> = { code, _ -> Result.success(code) }
 private val String.into: () -> String get() = { this }
-private val <T> T.read: () -> T get() = { this }
-private val <T> T.write: () -> T get() = { this }
-private val <T> T.lock: () -> T get() = { this }
-private val <T> T.unwrap: () -> T get() = { this }
+private fun <T> T.read(): T = this
+private fun <T> T.write(): T = this
+private fun <T> T.lock(): T = this
+private fun <T> T.unwrap(): T = this
+private fun CudaDevice.cloneHtod(src: ShortArray): Result<CudaSlice<Short>> = cloneHtod(src.toList())
+private fun CudaDevice.cloneHtod(src: ByteArray): Result<CudaSlice<Byte>> = cloneHtod(src.toList())
 private val affineMap: (Double, Double, CudaStorageSlice, CudaDevice, Layout) -> CudaStorageSlice = { _, _, s, _, _ -> s }

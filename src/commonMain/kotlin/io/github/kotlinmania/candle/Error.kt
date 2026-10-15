@@ -13,7 +13,12 @@ public data class MatMulUnexpectedStriding(
     val rhsL: Layout,
     val bmnk: List<Int>,
     val msg: String,
-)
+) {
+    public constructor(lhsL: Layout, rhsL: Layout, bmnk: Dims4, msg: String) : this(
+        lhsL, rhsL, listOf(bmnk.d0, bmnk.d1, bmnk.d2, bmnk.d3), msg
+    )
+}
+public typealias MatMulUnexpectedStridingDetails = MatMulUnexpectedStriding
 
 /**
  * Main library error type.
@@ -22,6 +27,13 @@ public enum class BacktraceStatus {
     Disabled,
     Unsupported,
     Captured,
+    ;
+
+    public companion object {
+        public val Disabled: BacktraceStatus get() = BacktraceStatus.Disabled
+        public val Unsupported: BacktraceStatus get() = BacktraceStatus.Unsupported
+        public val Captured: BacktraceStatus get() = BacktraceStatus.Captured
+    }
 }
 
 public class Backtrace(
@@ -33,15 +45,13 @@ public class Backtrace(
         public val capture: () -> Backtrace = { Backtrace(BacktraceStatus.Disabled) }
     }
 }
+public typealias Result<T> = kotlin.Result<T>
 
 public sealed class CandleException(
     message: String,
     cause: Throwable? = null,
 ) : Exception(message, cause),
-    StdError,
-    CandleException.Error {
-    public interface Error
-    public interface Result
+    StdError {
 
     // === DType Errors ===
     public data class UnexpectedDType(
@@ -194,11 +204,15 @@ public sealed class CandleException(
     // === Wrapped Errors ===
     public data class Cuda(
         val details: String,
-    ) : CandleException("cuda error: $details")
+    ) : CandleException("cuda error: $details") {
+        public constructor(err: Throwable) : this(err.message ?: err.toString())
+    }
 
     public data class Metal(
         val details: String,
-    ) : CandleException("Metal error $details")
+    ) : CandleException("Metal error $details") {
+        public constructor(err: Throwable) : this(err.message ?: err.toString())
+    }
 
     public data class Ug(
         val details: String,
@@ -302,7 +316,7 @@ public sealed class CandleException(
     private val path: Int get() = 0
     private val context: Int get() = 0
 
-    public fun fmt(f: Formatter = std.fmt.Formatter): Result<Unit> =
+    public fun fmt(f: Formatter = std.fmt.Formatter): CandleResult<Unit> =
         write(
             f, "{$self}")
 
@@ -332,7 +346,8 @@ public sealed class CandleException(
             context, new(c),
         )
 
-    public companion object Self {
+    public companion object {
+        public val Self: Companion get() = this
         public val Wrapped: (Any) -> CandleException get() = { err -> CandleException.Wrapped(err.toString()) }
         public val Msg: (String) -> CandleException get() = { err -> CandleException.Msg(err) }
         public val WithBacktrace: (Int, CandleException, Any, Any) -> CandleException get() = { _, inner, _, backtrace ->
@@ -344,6 +359,90 @@ public sealed class CandleException(
         public val Context: (Int, CandleException, Int, Any) -> CandleException get() = { _, inner, _, context ->
             CandleException.Context(inner = inner, context = context.toString())
         }
+        public val WrappedContext: (Int, Any, Any?, String) -> CandleException get() = { _, wrapped, _, context ->
+            CandleException.WrappedContext(wrapped = wrapped.toString(), context = context)
+        }
+        public val UnwrapNone: CandleException.UnwrapNone get() = CandleException.UnwrapNone
+        public val NotCompiledWithCudaSupport: CandleException.NotCompiledWithCudaSupport get() = CandleException.NotCompiledWithCudaSupport
+        public val NotCompiledWithMetalSupport: CandleException.NotCompiledWithMetalSupport get() = CandleException.NotCompiledWithMetalSupport
+        public fun UnexpectedDType(msg: String, expected: DType, got: DType): UnexpectedDType =
+            CandleException.UnexpectedDType(msg, expected, got)
+        public fun DTypeMismatchBinaryOp(lhs: DType, rhs: DType, op: String): DTypeMismatchBinaryOp =
+            CandleException.DTypeMismatchBinaryOp(lhs, rhs, op)
+        public fun UnsupportedDTypeForOp(dtype: DType, op: String): UnsupportedDTypeForOp =
+            CandleException.UnsupportedDTypeForOp(dtype, op)
+        public fun DimOutOfRange(shape: Shape, dim: Int, op: String): DimOutOfRange =
+            CandleException.DimOutOfRange(shape, dim, op)
+        public fun DuplicateDimIndex(shape: Shape, dims: List<Int>, op: String): DuplicateDimIndex =
+            CandleException.DuplicateDimIndex(shape, dims, op)
+        public fun UnexpectedNumberOfDims(expected: Int, got: Int, shape: Shape): UnexpectedNumberOfDims =
+            CandleException.UnexpectedNumberOfDims(expected, got, shape)
+        public fun UnexpectedShape(msg: String, expected: Shape, got: Shape): UnexpectedShape =
+            CandleException.UnexpectedShape(msg, expected, got)
+        public fun ShapeMismatch(bufferSize: Int, shape: Shape): ShapeMismatch =
+            CandleException.ShapeMismatch(bufferSize, shape)
+        public fun ShapeMismatchBinaryOp(lhs: Shape, rhs: Shape, op: String): ShapeMismatchBinaryOp =
+            CandleException.ShapeMismatchBinaryOp(lhs, rhs, op)
+        public fun ShapeMismatchCat(dim: Int, firstShape: Shape, n: Int, nthShape: Shape): ShapeMismatchCat =
+            CandleException.ShapeMismatchCat(dim, firstShape, n, nthShape)
+        public fun ShapeMismatchSplit(shape: Shape, dim: Int, nParts: Int): ShapeMismatchSplit =
+            CandleException.ShapeMismatchSplit(shape, dim, nParts)
+        public fun OnlySingleDimension(op: String, dims: List<Int>): OnlySingleDimension =
+            CandleException.OnlySingleDimension(op, dims)
+        public fun EmptyTensor(op: String): EmptyTensor =
+            CandleException.EmptyTensor(op)
+        public fun DeviceMismatchBinaryOp(lhs: DeviceLocation, rhs: DeviceLocation, op: String): DeviceMismatchBinaryOp =
+            CandleException.DeviceMismatchBinaryOp(lhs, rhs, op)
+        public fun NarrowInvalidArgs(shape: Shape, dim: Int, start: Int, len: Int, msg: String): NarrowInvalidArgs =
+            CandleException.NarrowInvalidArgs(shape, dim, start, len, msg)
+        public fun Conv1dInvalidArgs(inpShape: Shape, kShape: Shape, padding: Int, stride: Int, msg: String): Conv1dInvalidArgs =
+            CandleException.Conv1dInvalidArgs(inpShape, kShape, padding, stride, msg)
+        public fun InvalidIndex(op: String, index: Int, size: Int): InvalidIndex =
+            CandleException.InvalidIndex(op, index, size)
+        public fun BroadcastIncompatibleShapes(srcShape: Shape, dstShape: Shape): BroadcastIncompatibleShapes =
+            CandleException.BroadcastIncompatibleShapes(srcShape, dstShape)
+        public fun CannotSetVar(msg: String): CannotSetVar =
+            CandleException.CannotSetVar(msg)
+        public fun MatMulUnexpectedStriding(details: MatMulUnexpectedStriding): MatMulUnexpectedStridingError =
+            MatMulUnexpectedStridingError(details)
+        public fun RequiresContiguous(op: String): RequiresContiguous =
+            CandleException.RequiresContiguous(op)
+        public fun OpRequiresAtLeastOneTensor(op: String): OpRequiresAtLeastOneTensor =
+            CandleException.OpRequiresAtLeastOneTensor(op)
+        public fun OpRequiresAtLeastTwoTensors(op: String): OpRequiresAtLeastTwoTensors =
+            CandleException.OpRequiresAtLeastTwoTensors(op)
+        public fun BackwardNotSupported(op: String): BackwardNotSupported =
+            CandleException.BackwardNotSupported(op)
+        public fun CannotFindTensor(path: String): CannotFindTensor =
+            CandleException.CannotFindTensor(path)
+        public fun Cuda(details: String): Cuda =
+            CandleException.Cuda(details)
+        public fun Cuda(err: Throwable): Cuda =
+            CandleException.Cuda(err)
+        public fun Metal(details: String): Metal =
+            CandleException.Metal(details)
+        public fun Metal(err: Throwable): Metal =
+            CandleException.Metal(err)
+        public fun Ug(details: String): Ug =
+            CandleException.Ug(details)
+        public fun TryFromIntError(details: String): TryFromIntError =
+            CandleException.TryFromIntError(details)
+        public fun Npy(details: String): Npy =
+            CandleException.Npy(details)
+        public fun Zip(details: String, zipError: ZipError? = null): Zip =
+            CandleException.Zip(details, zipError)
+        public fun Zip(err: ZipError): Zip =
+            CandleException.Zip(err)
+        public fun ParseInt(details: String): ParseInt =
+            CandleException.ParseInt(details)
+        public fun FromUtf8(details: String): FromUtf8 =
+            CandleException.FromUtf8(details)
+        public fun Io(details: String): Io =
+            CandleException.Io(details)
+        public fun SafeTensor(details: String): SafeTensor =
+            CandleException.SafeTensor(details)
+        public fun UnsupportedSafeTensorDtype(details: String): UnsupportedSafeTensorDtype =
+            CandleException.UnsupportedSafeTensorDtype(details)
 
         public fun wrap(err: Any = std.fmt.Display(static)): CandleException =
             Self.Wrapped(new(err))
@@ -359,9 +458,10 @@ public sealed class CandleException(
     }
 }
 
+internal typealias Error = CandleException
+
 private const val static: Int = 0
-private val new: (CandleException) -> CandleException get() = { v -> v }
-private val Any.new: (Any) -> Any get() = { v -> v }
+private fun <T> new(v: T): T = v
 
 private object std {
     object backtrace {
@@ -375,10 +475,6 @@ private object std {
     }
 }
 
-public class Formatter {
-    public val sb: StringBuilder = StringBuilder()
-}
-
 private val write: (Formatter, String) -> Result<Unit> get() = { f, s ->
     f.sb.append(s)
     Result.success(Unit)
@@ -388,22 +484,14 @@ private val format: (String) -> String get() = { s -> s }
 private val Any.asRef: () -> Any get() = { this }
 private val Any.toPathBuf: () -> String get() = { this.toString() }
 
-private object Error {
-    val UnwrapNone: CandleException = CandleException.UnwrapNone
-    val msg: (Any) -> CandleException get() = { c -> CandleException.msg(c) }
-    val WrappedContext: (Int, Any, Any?, String) -> CandleException get() = { _, wrapped, _, context ->
-        CandleException.WrappedContext(wrapped = wrapped.toString(), context = context)
-    }
-}
-
 private val Err: (CandleException) -> Result<Nothing> get() = { e -> Result.failure(e) }
 
 private var zipPair: Pair<Result<*>, Result<*>>? = null
 private val zipOkSentinel: Pair<Result<*>, Result<*>> = Pair(Result.success(Unit), Result.success(Unit))
 private val zipErrSentinel: Pair<Result<*>, Result<*>> = Pair(Result.success(0), Result.success(0))
+private const val Ok: Int = 0
 private val Int.r1: Int get() = 0
 private val Int.Ok: Int get() = 0
-private val ((Any?, Any?) -> Any?).r1: Int get() = 0
 private val Int.r2: Pair<Result<*>, Result<*>> get() {
     val p = zipPair
     return if (p != null && p.first.isSuccess && p.second.isSuccess) p else zipErrSentinel
@@ -412,9 +500,8 @@ private val ((CandleException) -> Result<Nothing>).e: Pair<Result<*>, Result<*>>
     val p = zipPair
     return if (p != null && p.first.isFailure) p else zipOkSentinel
 }
-private val <T, U> Result<T>.to: (Result<U>) -> Pair<Result<T>, Result<U>> get() = { b ->
+private fun <T, U> Result<T>.to(b: Result<U>): Pair<Result<T>, Result<U>> =
     Pair(this, b).also { zipPair = it }
-}
 
 public fun <T, U> zip(r1: Result<T>, r2: Result<U>): Result<Pair<T, U>> =
     when (r1.to(r2)) {
@@ -424,9 +511,8 @@ public fun <T, U> zip(r1: Result<T>, r2: Result<U>): Result<Pair<T, U>> =
         else -> Err(e)
     }
 
-private val <T, U> Any?.Ok: (Result<T>, Result<U>) -> Result<Pair<T, U>> get() = { a, b ->
+private fun <T, U> Ok(a: Result<T>, b: Result<U>): Result<Pair<T, U>> =
     Result.success(Pair(a.getOrThrow(), b.getOrThrow()))
-}
 private val e: CandleException get() {
     val p = zipPair
     val ex = p?.first?.exceptionOrNull() ?: p?.second?.exceptionOrNull()

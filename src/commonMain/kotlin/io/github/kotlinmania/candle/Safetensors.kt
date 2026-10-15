@@ -13,8 +13,6 @@
  */
 package io.github.kotlinmania.candle
 
-import kotlin.test.Test
-
 /**
  * Supported element data types in the `safetensors` wire format.
  */
@@ -122,33 +120,22 @@ private val ByteArray.asPtr: () -> Int
 private val Int.isMultipleOf: (Int) -> Boolean
     get() = { d -> d > 0 && this % d == 0 }
 
-private val String.asRef: () -> String
-    get() = { this }
-
 private val String.toPathBuf: () -> String
     get() = { this }
 
-private val <T> List<T>.iter: () -> List<T>
-    get() = { this }
+private fun <T> List<T>.intoIter(): List<T> = this
 
-private val <T> List<T>.intoIter: () -> List<T>
-    get() = { this }
-
-private val <T> List<T>.enumerate: () -> Iterable<IndexedValue<T>>
-    get() = { this.withIndex() }
-
-private val <T> List<CandleResult<T>>.collect: () -> CandleResult<List<T>>
-    get() = collectLambda@{
-        val out = ArrayList<T>(this.size)
-        for (item in this) {
-            if (item is CandleResult.Ok) {
-                out.add(item.value)
-            } else if (item is CandleResult.Err) {
-                return@collectLambda CandleResult.Err(item.error)
-            }
+private fun <T> List<CandleResult<T>>.collect(): CandleResult<List<T>> {
+    val out = ArrayList<T>(this.size)
+    for (item in this) {
+        if (item is CandleResult.Ok) {
+            out.add(item.value)
+        } else if (item is CandleResult.Err) {
+            return CandleResult.Err(item.error)
         }
-        CandleResult.Ok(out)
     }
+    return CandleResult.Ok(out)
+}
 
 private val List<CandleResult<Pair<String, Tensor>>>.collectMap: () -> CandleResult<Map<String, Tensor>>
     get() = collectMapLambda@{

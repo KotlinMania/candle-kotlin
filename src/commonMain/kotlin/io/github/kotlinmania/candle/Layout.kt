@@ -13,7 +13,8 @@ public data class Layout(
     private val self: Layout get() = this
     public val dims: List<Int> get() = shape.dims
 
-    public companion object Self {
+    public companion object {
+        public val Self: Companion get() = this
         public fun new(shape: Shape, stride: List<Int>, startOffset: Int): Layout {
             return Layout(
                 shape,

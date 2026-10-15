@@ -29,12 +29,11 @@ import io.github.kotlinmania.candle.QStorage
 import io.github.kotlinmania.candle.Shape
 import io.github.kotlinmania.candle.Storage
 import io.github.kotlinmania.candle.bail
-import kotlin.test.Test
+import io.github.kotlinmania.candle.Test
 
 private val <T> T.self: T get() = this
-private val <T> T.Ok: (T) -> T get() = { it }
+private fun <T> Ok(v: T): T = v
 private val Err: (Throwable) -> Nothing get() = { throw it }
-private val <T> T.clone: () -> T get() = { this }
 private val Int.divCeil: (Int) -> Int get() = { q -> (this + q - 1) / q }
 private val UInt.divCeil: (UInt) -> UInt get() = { q -> (this + q - 1u) / q }
 private val Int.toU32: () -> UInt get() = { toUInt() }
@@ -59,9 +58,9 @@ private val IntArray.slice: (IntRange) -> IntArray get() = { r ->
 private val FloatArray.asView: () -> FloatArray get() = { this }
 private val ByteArray.stream: () -> Long get() = { 0L }
 private val ByteArray.devicePtr: (Long) -> Pair<Long, Long> get() = { s -> Pair(0L, s) }
-private val <T> List<T>.toVec: () -> MutableList<T> get() = { toMutableList() }
-private val <T> MutableList<T>.pop: () -> T get() = { removeAt(lastIndex) }
-private val <T> MutableList<T>.push: (T) -> Unit get() = { add(it) }
+private fun <T> List<T>.toVec(): MutableList<T> = toMutableList()
+private fun <T> MutableList<T>.pop(): T = removeAt(lastIndex)
+private fun <T> MutableList<T>.push(v: T): Unit { add(v) }
 private val List<Int>.into: () -> Shape get() = { Shape(this) }
 private val Pair<Int, Int>.into: () -> Shape get() = { Shape.fromDims(first, second) }
 private val Layout.broadcastAs: (Triple<Int, Int, Int>) -> Layout get() = { t ->
@@ -946,14 +945,31 @@ private fun indexedMoeForwardFusedQ81Input(
 fun <T> loadQuantized(
     device: CudaDevice,
     data: List<T>,
-    companion: GgmlTypeCompanion<T>,
-): QStorage {
-    val dtype = companion.DTYPE
+    companion: GgmlTypeCompanion<T, *>? = null,
+): CandleResult<QStorage> {
+    val dtype = companion?.DTYPE ?: when (data.firstOrNull()) {
+        is F32Scalar, is Float -> GgmlDType.F32
+        is F16 -> GgmlDType.F16
+        is BF16 -> GgmlDType.BF16
+        is BlockQ40 -> GgmlDType.Q4_0
+        is BlockQ41 -> GgmlDType.Q4_1
+        is BlockQ50 -> GgmlDType.Q5_0
+        is BlockQ51 -> GgmlDType.Q5_1
+        is BlockQ80 -> GgmlDType.Q8_0
+        is BlockQ81 -> GgmlDType.Q8_1
+        is BlockQ2K -> GgmlDType.Q2K
+        is BlockQ3K -> GgmlDType.Q3K
+        is BlockQ4K -> GgmlDType.Q4K
+        is BlockQ5K -> GgmlDType.Q5K
+        is BlockQ6K -> GgmlDType.Q6K
+        is BlockQ8K -> GgmlDType.Q8K
+        else -> GgmlDType.F32
+    }
     val rawBytes = ByteArray(data.size * dtype.typeSize())
     val paddedLen = rawBytes.len() + MATRIX_ROW_PADDING * dtype.typeSize() / dtype.blockSize()
     val inner = device.allocZeros(paddedLen)
     device.memcpyHtod(rawBytes, inner.sliceMut(0 until rawBytes.len()))
-    return Ok(
+    return CandleResult.Ok(
         QStorage.Cuda(
             QCudaStorage(
                 data = PaddedCudaSlice(inner = inner, len = rawBytes.len()),

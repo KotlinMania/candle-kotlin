@@ -49,14 +49,14 @@ private val mmCvtssF32: (FloatArray) -> Float = { a -> a[0] }
 private val mmLoaduSi128: (ByteArray, Int) -> ByteArray = { src, off ->
     ByteArray(16) { i -> src[off + i] }
 }
-private val mmLoaduSi128U: (UByteArray, Int) -> ByteArray = { src, off ->
-    ByteArray(16) { i -> src[off + i].toByte() }
+private val mmLoaduSi128U: (ByteArray, Int) -> ByteArray = { src, off ->
+    ByteArray(16) { i -> src[off + i] }
 }
 private val mm256LoaduSi256: (ByteArray, Int) -> ByteArray = { src, off ->
     ByteArray(32) { i -> src[off + i] }
 }
-private val mm256LoaduSi256U: (UByteArray, Int) -> ByteArray = { src, off ->
-    ByteArray(32) { i -> src[off + i].toByte() }
+private val mm256LoaduSi256U: (ByteArray, Int) -> ByteArray = { src, off ->
+    ByteArray(32) { i -> src[off + i] }
 }
 private val mm256LoaduSi256S: (ShortArray, Int) -> ShortArray = { src, off ->
     ShortArray(16) { i -> src[off + i] }
@@ -187,7 +187,7 @@ private val mmSetEpi32: (Int, Int, Int, Int) -> ByteArray = { e3, e2, e1, e0 ->
     }
     out
 }
-private val readU32Into: (UByteArray, IntArray, Int) -> Unit = { src, dst, count ->
+private val readU32Into: (ByteArray, IntArray, Int) -> Unit = { src, dst, count ->
     for (w in 0 until count) {
         val b0 = src[w * 4].toInt() and 0xFF
         val b1 = src[w * 4 + 1].toInt() and 0xFF

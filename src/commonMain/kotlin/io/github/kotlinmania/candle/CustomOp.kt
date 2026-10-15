@@ -5,12 +5,10 @@ import io.github.kotlinmania.candle.CandleException as Error
 import io.github.kotlinmania.candle.Tensor.Self.fromStorage
 
 private val <T> T.self: T get() = this
-private val <T> T.Ok: (T) -> T get() = { it }
+private fun <T> Ok(v: T): T = v
 private val Err: (Throwable) -> Nothing get() = { throw it }
 private val format: (String, Any?) -> String get() = { fmt, arg -> fmt.replace("{}", arg.toString()) }
 private val String.into: () -> String get() = { this }
-private val <T> T.asRef: () -> T get() = { this }
-private val <T> T.clone: () -> T get() = { this }
 private val Int.isMultipleOf: (Int) -> Boolean get() = { n -> this % n == 0 }
 private val Int.toU32: () -> UInt get() = { this.toUInt() }
 
@@ -508,7 +506,8 @@ public class UgIOp1(
         Ok(Unit)
     }
 
-    public companion object Self {
+    public companion object {
+        public val Self: Companion get() = this
         public fun new(
             name: String,
             kernel: Any? = null,

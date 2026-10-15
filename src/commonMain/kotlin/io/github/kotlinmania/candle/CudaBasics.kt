@@ -1,15 +1,15 @@
 // port-lint: source ../examples/cuda_basics.rs
 package io.github.kotlinmania.candle.examples.cuda
 
-import io.github.kotlinmania.anyhow.Ok
-import io.github.kotlinmania.anyhow.Result
+import io.github.kotlinmania.candle.CandleResult
+import io.github.kotlinmania.candle.CandleResult.Ok
 import io.github.kotlinmania.candle.Device
 import io.github.kotlinmania.candle.Shape
 import io.github.kotlinmania.candle.Tensor
 import kotlin.time.TimeSource
 
 // xs: [1024, 64, 1924], c Tensor[dims 128, 64, 8; f32, cuda:0] Conv1dConfig { padding: 0, stride: 4, dilation: 1, groups: 1 }
-public fun main(): Result<Unit> {
+public fun main(): CandleResult<Unit> {
     val device = Device.newCuda(0)
     val x = Tensor.randn(0.0f, 1.0f, Shape.fromDims(1024, 64, 1924), device)
     val c = Tensor.randn(0.0f, 1.0f, Shape.fromDims(128, 64, 8), device)

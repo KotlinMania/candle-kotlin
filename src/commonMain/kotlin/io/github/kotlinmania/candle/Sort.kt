@@ -34,30 +34,23 @@ private class ChunkView<T>(
     }
 }
 
-private val <T> MutableList<T>.parChunksExactMut: (Int) -> List<ChunkView<T>>
-    get() = { chunkSize ->
-        val n = size / chunkSize
-        List(n) { c -> ChunkView(this, c * chunkSize, chunkSize) }
-    }
+private fun <T> MutableList<T>.parChunksExactMut(chunkSize: Int): List<ChunkView<T>> {
+    val n = size / chunkSize
+    return List(n) { c -> ChunkView(this, c * chunkSize, chunkSize) }
+}
 
-private val <T> List<T>.parChunksExact: (Int) -> List<List<T>>
-    get() = { chunkSize ->
-        val n = size / chunkSize
-        List(n) { c -> subList(c * chunkSize, (c + 1) * chunkSize) }
-    }
+private fun <T> List<T>.parChunksExact(chunkSize: Int): List<List<T>> {
+    val n = size / chunkSize
+    return List(n) { c -> subList(c * chunkSize, (c + 1) * chunkSize) }
+}
 
 private val List<Int>.enumerate: () -> List<Int>
     get() = { this }
 
-private val <T : Comparable<T>> T.partialCmp: (T) -> Int?
-    get() = { other -> this.compareTo(other) }
+private fun <T : Comparable<T>> T.partialCmp(other: T): Int? = this.compareTo(other)
 
 private val Int?.unwrapOr: (Int) -> Int
     get() = { fallback -> this ?: fallback }
-
-private object Vec {
-    val withCapacity: (Int) -> MutableList<UInt> = { elCount -> ArrayList(elCount) }
-}
 
 private val MutableList<UInt>.setLen: (Int) -> Unit
     get() = { n ->
@@ -72,7 +65,7 @@ public data class ArgSort(
         // Safety: indexes are set later in the parallelized section.
         val sortIndexes = run {
             val elCount = layout.shape().elemCount()
-            val v = Vec.withCapacity(elCount)
+            val v = Vec.withCapacity<UInt>(elCount)
             v.setLen(elCount)
             v
         }

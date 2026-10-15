@@ -48,7 +48,7 @@ sealed class CudaError(message: String) : Exception(message), StdError {
 }
 
 internal object Error {
-    fun Cuda(err: CudaError): CandleError = CandleError.Cuda(err)
+    fun Cuda(err: CudaError): CandleError = io.github.kotlinmania.candle.CandleException.Cuda(err)
 }
 
 fun from(v: CudaError): CandleError =
@@ -71,4 +71,6 @@ class ResultWrapErr<O>(private val self: Result<O>) : WrapErr<O> {
     override fun w(): Result<O> =
         self.mapErr { e -> Error.Cuda(e.into()).bt() }
 }
+
+fun <O> Result<O>.w(): Result<O> = ResultWrapErr(this).w()
 

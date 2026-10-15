@@ -1,6 +1,8 @@
 // port-lint: source cpu_backend/utils.rs
 package io.github.kotlinmania.candle
 
+import io.github.kotlinmania.candle.CandleException as Error
+
 // Helper functions to write CPU kernels.
 
 private interface C

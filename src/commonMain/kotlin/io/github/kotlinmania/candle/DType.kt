@@ -1,9 +1,8 @@
 // port-lint: source dtype.rs
 package io.github.kotlinmania.candle
 
-import io.github.kotlinmania.anyhow.Err
-import io.github.kotlinmania.anyhow.Ok
-import io.github.kotlinmania.anyhow.Result
+import io.github.kotlinmania.candle.CandleResult.Err
+import io.github.kotlinmania.candle.CandleResult.Ok
 
 /**
  * Types for elements that can be stored and manipulated using tensors.
@@ -48,10 +47,11 @@ public enum class DType(
 
     private val self: DType get() = this
 
-    public companion object Self {
+    public companion object {
+        public val Self: Companion get() = this
         public interface Err
 
-        public fun fromStr(s: String): Result<DType> {
+        public fun fromStr(s: String): CandleResult<DType> {
             return when (s) {
                 "u8" -> Ok(Self.U8)
                 "u32" -> Ok(Self.U32)
@@ -154,7 +154,7 @@ public enum class DType(
 public class DTypeParseError(public val raw: String) : Exception("cannot parse '$raw' as a dtype") {
     private val self: String get() = raw
 
-    public fun fmt(f: Formatter): Result<Unit> {
+    public fun fmt(f: Formatter): CandleResult<Unit> {
         return write(f, "cannot parse '{}' as a dtype", self)
     }
 }
@@ -171,8 +171,8 @@ public interface WithDType<T> {
         return self.toCpuStorageOwned(data.toVec())
     }
 
-    public fun cpuStorageAsSlice(s: CpuStorage): Result<List<T>>
-    public fun cpuStorageData(s: CpuStorage): Result<List<T>>
+    public fun cpuStorageAsSlice(s: CpuStorage): CandleResult<List<T>>
+    public fun cpuStorageData(s: CpuStorage): CandleResult<List<T>>
 }
 
 public interface IntDType<T> {

@@ -4,30 +4,36 @@
  */
 package io.github.kotlinmania.candle.ggml
 
-import io.github.kotlinmania.anyhow.Err
-import io.github.kotlinmania.anyhow.Ok
-import io.github.kotlinmania.anyhow.Result
-import io.github.kotlinmania.candle.BF16
-import io.github.kotlinmania.candle.BlockQ2K
-import io.github.kotlinmania.candle.BlockQ3K
-import io.github.kotlinmania.candle.BlockQ40
-import io.github.kotlinmania.candle.BlockQ41
-import io.github.kotlinmania.candle.BlockQ4K
-import io.github.kotlinmania.candle.BlockQ50
-import io.github.kotlinmania.candle.BlockQ51
-import io.github.kotlinmania.candle.BlockQ5K
-import io.github.kotlinmania.candle.BlockQ6K
-import io.github.kotlinmania.candle.BlockQ80
-import io.github.kotlinmania.candle.Device
-import io.github.kotlinmania.candle.F16
-import io.github.kotlinmania.candle.F32Scalar
-import io.github.kotlinmania.candle.GgmlDType
-import io.github.kotlinmania.candle.GgmlType
-import io.github.kotlinmania.candle.NpyByteReader
-import io.github.kotlinmania.candle.QStorage
-import io.github.kotlinmania.candle.QTensor
-import io.github.kotlinmania.candle.bail
-import io.github.kotlinmania.candle.loadQuantized
+import io.github.kotlinmania.candle.*
+import io.github.kotlinmania.candle.CandleResult.Err
+import io.github.kotlinmania.candle.CandleResult.Ok
+
+private inline fun <reified T : Any> companionOf(): Any = when (T::class) {
+    F32Scalar::class -> F32Scalar
+    F16::class -> F16
+    BF16::class -> BF16
+    BlockQ40::class -> BlockQ40
+    BlockQ41::class -> BlockQ41
+    BlockQ50::class -> BlockQ50
+    BlockQ51::class -> BlockQ51
+    BlockQ80::class -> BlockQ80
+    BlockQ81::class -> BlockQ81
+    BlockQ2K::class -> BlockQ2K
+    BlockQ3K::class -> BlockQ3K
+    BlockQ4K::class -> BlockQ4K
+    BlockQ5K::class -> BlockQ5K
+    BlockQ6K::class -> BlockQ6K
+    BlockQ8K::class -> BlockQ8K
+    else -> F32Scalar
+}
+
+private fun ByteArray.asPtr(): ByteArray = this
+private inline fun <reified T : Any> sizeOf(): Int = QuantizedHelper.sizeOf(companionOf<T>())
+private inline fun <reified T : Any> sliceFromRawParts(rawDataPtr: ByteArray, nBlocks: Int): List<Any> =
+    QuantizedHelper.fromRawParts(0, nBlocks, rawDataPtr, companionOf<T>())
+private inline fun <reified T : Any> List<Any>.toVec(): QuantizedType =
+    QuantizedHelper.createQuantizedVec(this.toMutableList(), companionOf<T>())
+private fun Device.clone(): Device = this
 
 // https://github.com/ggerganov/llama.cpp/blob/468ea24fb4633a0d681f7ac84089566c1c6190cb/llama.h#L37
 private enum class Magic {
@@ -41,7 +47,7 @@ private enum class Magic {
     interface Error
 
     companion object {
-        fun tryFrom(value: UInt): Result<Magic> {
+        fun tryFrom(value: UInt): CandleResult<Magic> {
             val magic = when (value) {
                 0x67676a74u -> Ggjt
                 0x67676c61u -> Ggla
@@ -69,7 +75,7 @@ public enum class VersionedMagic {
     }
 
     public companion object {
-        internal fun <R : NpyByteReader> read(reader: R): Result<VersionedMagic> {
+        internal fun <R : NpyByteReader> read(reader: R): CandleResult<VersionedMagic> {
             val rawMagic = reader.readU32<LittleEndian>().unwrap()
             val magic = Magic.tryFrom(rawMagic).unwrap()
             if (magic == Magic.Ggml) {
@@ -98,7 +104,7 @@ public data class HParams(
     public val ftype: UInt,
 ) {
     public companion object {
-        internal fun <R : NpyByteReader> read(reader: R): Result<HParams> {
+        internal fun <R : NpyByteReader> read(reader: R): CandleResult<HParams> {
             val nVocab = reader.readU32<LittleEndian>().unwrap()
             val nEmbd = reader.readU32<LittleEndian>().unwrap()
             val nMult = reader.readU32<LittleEndian>().unwrap()
@@ -125,7 +131,7 @@ public data class Vocab(
     public val tokenScorePairs: List<Pair<ByteArray, Float>>,
 ) {
     public companion object {
-        internal fun <R : NpyByteReader> read(reader: R, nVocab: Int): Result<Vocab> {
+        internal fun <R : NpyByteReader> read(reader: R, nVocab: Int): CandleResult<Vocab> {
             // https://github.com/ggerganov/llama.cpp/blob/468ea24fb4633a0d681f7ac84089566c1c6190cb/llama.cpp#L556
             val tokenScorePairs = Vec.withCapacity<Pair<ByteArray, Float>>(nVocab)
             for (index in 0 until nVocab) {
@@ -140,19 +146,19 @@ public data class Vocab(
     }
 }
 
-private fun <T : GgmlType> fromRawData(
+private inline fun <reified T : Any> fromRawData(
     rawData: ByteArray,
     sizeInBytes: Int,
     dims: List<Int>,
     device: Device,
-): Result<QTensor> {
+): CandleResult<QTensor> {
     val rawDataPtr = rawData.asPtr()
     val nBlocks = sizeInBytes / sizeOf<T>()
     val data = sliceFromRawParts<T>(rawDataPtr, nBlocks)
     val qStorage: QStorage = when (device) {
-        is Device.Cpu -> QStorage.Cpu(data.toVec())
-        is Device.Metal -> loadQuantized<T>(device.device, data).unwrap()
-        is Device.Cuda -> loadQuantized<T>(device.device, data).unwrap()
+        is Device.Cpu -> QStorage.Cpu(data.toVec<T>())
+        is Device.Metal -> loadQuantized(device.device, data).unwrap()
+        is Device.Cuda -> loadQuantized(device.device, data).unwrap()
     }
     return QTensor.new(qStorage, dims)
 }
@@ -165,7 +171,7 @@ public fun qtensorFromGgml(
     rawData: ByteArray,
     dims: List<Int>,
     device: Device,
-): Result<QTensor> {
+): CandleResult<QTensor> {
     val tensorElems = dims.iter().product()
     val blockSize = ggmlDtype.blockSize()
     if (tensorElems % blockSize != 0) {
@@ -217,7 +223,7 @@ private fun <R : NpyByteReader> readOneTensor(
     reader: R,
     magic: VersionedMagic,
     device: Device,
-): Result<Pair<String, QTensor>> {
+): CandleResult<Pair<String, QTensor>> {
     val nDims = reader.readU32<LittleEndian>().unwrap()
     val nameLen = reader.readU32<LittleEndian>().unwrap()
     val rawDtype = reader.readU32<LittleEndian>().unwrap()
@@ -255,7 +261,7 @@ public class Content(
     public val tensors: MutableMap<String, QTensor>,
     public val device: Device,
 ) {
-    public fun remove(name: String): Result<QTensor> {
+    public fun remove(name: String): CandleResult<QTensor> {
         val tensor = this.tensors.remove(name)
         return when (tensor) {
             null -> bail("cannot find tensor with name '$name'")
@@ -267,7 +273,7 @@ public class Content(
         public fun <R : NpyByteReader> read(
             reader: R,
             device: Device,
-        ): Result<Content> {
+        ): CandleResult<Content> {
             // https://github.com/ggerganov/llama.cpp/blob/468ea24fb4633a0d681f7ac84089566c1c6190cb/llama.cpp#L505
             val lastPosition = reader.seek(SeekFrom.End(0)).unwrap()
             reader.seek(SeekFrom.Start(0uL)).unwrap()

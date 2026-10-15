@@ -302,16 +302,21 @@ private const val FRAC_1_SQRT_2_F32: Float = 0.7071067811865475f
 private const val FRAC_1_SQRT_2_F64: Double = 0.7071067811865476
 
 public object MathOps {
-    public val erf: (Double) -> Double = { x -> CpuErf.erfF64(x) }
-    public val erfF32: (Float) -> Float = { x -> CpuErf.erfF32(x) }
-    public val geluErf: (Double) -> Double = { x -> (CpuErf.erfF64(x * FRAC_1_SQRT_2_F64) + 1.0) * 0.5 * x }
-    public val geluErfF32: (Float) -> Float = { x -> (CpuErf.erfF32(x * FRAC_1_SQRT_2_F32) + 1.0f) * 0.5f * x }
-    public val gelu: (Double) -> Double = { x -> 0.5 * x * (1.0 + tanh(SQRT_TWO_OVER_PI_F64 * x * (1.0 + 0.044715 * x * x))) }
-    public val geluF32: (Float) -> Float = { x -> 0.5f * x * (1.0f + tanh(SQRT_TWO_OVER_PI_F32 * x * (1.0f + 0.044715f * x * x))) }
-    public val silu: (Double) -> Double = { x -> x / (1.0 + exp(-x)) }
-    public val siluF32: (Float) -> Float = { x -> x / (1.0f + exp(-x)) }
-    public val relu: (Double) -> Double = { x -> if (x > 0.0) x else 0.0 }
-    public val reluF32: (Float) -> Float = { x -> if (x > 0.0f) x else 0.0f }
+    public fun erf(x: Double): Double = CpuErf.erfF64(x)
+    public fun erf(x: Float): Float = CpuErf.erfF32(x)
+    public fun erfF32(x: Float): Float = CpuErf.erfF32(x)
+    public fun geluErf(x: Double): Double = (CpuErf.erfF64(x * FRAC_1_SQRT_2_F64) + 1.0) * 0.5 * x
+    public fun geluErf(x: Float): Float = (CpuErf.erfF32(x * FRAC_1_SQRT_2_F32) + 1.0f) * 0.5f * x
+    public fun geluErfF32(x: Float): Float = (CpuErf.erfF32(x * FRAC_1_SQRT_2_F32) + 1.0f) * 0.5f * x
+    public fun gelu(x: Double): Double = 0.5 * x * (1.0 + tanh(SQRT_TWO_OVER_PI_F64 * x * (1.0 + 0.044715 * x * x)))
+    public fun gelu(x: Float): Float = 0.5f * x * (1.0f + tanh(SQRT_TWO_OVER_PI_F32 * x * (1.0f + 0.044715f * x * x)))
+    public fun geluF32(x: Float): Float = 0.5f * x * (1.0f + tanh(SQRT_TWO_OVER_PI_F32 * x * (1.0f + 0.044715f * x * x)))
+    public fun silu(x: Double): Double = x / (1.0 + exp(-x))
+    public fun silu(x: Float): Float = x / (1.0f + exp(-x))
+    public fun siluF32(x: Float): Float = x / (1.0f + exp(-x))
+    public fun relu(x: Double): Double = if (x > 0.0) x else 0.0
+    public fun relu(x: Float): Float = if (x > 0.0f) x else 0.0f
+    public fun reluF32(x: Float): Float = if (x > 0.0f) x else 0.0f
 }
 
 public interface UnaryOpT {

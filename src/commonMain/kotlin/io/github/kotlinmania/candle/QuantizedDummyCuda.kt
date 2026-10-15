@@ -1,5 +1,7 @@
 package io.github.kotlinmania.candle
 
+import io.github.kotlinmania.candle.CandleException as Error
+
 /**
  * Implementation of quantized CUDA storage when CUDA support has not been compiled in.
  *
@@ -9,7 +11,6 @@ package io.github.kotlinmania.candle
 // port-lint: source quantized/dummy_cuda.rs
 
 private val Err: (CandleError) -> CandleResult<Nothing> = { CandleResult.Err(it) }
-private val Error = CandleError
 
 public class QCudaStorage(
     private val dtype: GgmlDType,

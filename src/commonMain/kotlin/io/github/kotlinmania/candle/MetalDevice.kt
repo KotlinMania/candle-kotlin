@@ -2,6 +2,7 @@
 package io.github.kotlinmania.candle.metal.device
 
 import io.github.kotlinmania.candle.CandleException
+import io.github.kotlinmania.candle.CandleException as Error
 import io.github.kotlinmania.candle.CpuStorage
 import io.github.kotlinmania.candle.CpuStorageRef
 import io.github.kotlinmania.candle.DType
@@ -10,8 +11,8 @@ import io.github.kotlinmania.candle.Shape
 import io.github.kotlinmania.candle.metal.MetalBackendDevice
 import io.github.kotlinmania.candle.metal.MetalError
 import io.github.kotlinmania.candle.metal.MetalStorage
-import kotlin.test.Test
-import kotlin.test.assertEquals
+import io.github.kotlinmania.candle.Test
+import io.github.kotlinmania.candle.assertEquals
 
 /**
  * Unique identifier for metal devices.
@@ -570,43 +571,41 @@ private fun findAvailableBuffer(size: Int, buffers: Map<Int, List<Buffer>>): Buf
     return bestBuffer.cloned()
 }
 
-internal val Ok: (Any?) -> Result<Nothing> = { Result.success(it as Nothing) }
-internal val Some: (Any?) -> Nothing = { it as Nothing }
+internal fun <T> Ok(v: T): Result<T> = Result.success(v)
+internal fun <T> Some(v: T): T = v
 private val Int.nextPowerOfTwo: () -> Int
     get() = {
         if (this <= 1) 1 else (this - 1).takeHighestOneBit() shl 1
     }
 private val String?.unwrapOr: (String) -> String get() = { default -> this ?: default }
 private val Buffer?.cloned: () -> Buffer? get() = { this?.clone?.invoke() }
-private val <K, V> Map<K, V>.iter: () -> Set<Map.Entry<K, V>> get() = { entries }
-private val <K, V> MutableMap<K, V>.write: () -> Result<MutableMap<K, V>> get() = { Result.success(this) }
-private val <K, V> MutableMap<K, V>.valuesMut: () -> MutableCollection<V> get() = { values }
-private val <T> MutableList<T>.retain: ((T) -> Boolean) -> Unit get() = { pred -> retainAll(pred) }
-private val <K, V> MutableMap<K, MutableList<V>>.entry: (K) -> Pair<MutableMap<K, MutableList<V>>, K>
-    get() = { k -> Pair(this, k) }
-private val <K, V> Pair<MutableMap<K, MutableList<V>>, K>.orInsert: (MutableList<V>) -> MutableList<V>
-    get() = { default -> first.getOrPut(second) { default } }
+internal fun <K, V> Map<K, V>.iter(): Set<Map.Entry<K, V>> = entries
+internal fun <K, V> MutableMap<K, V>.write(): Result<MutableMap<K, V>> = Result.success(this)
+internal fun <K, V> MutableMap<K, V>.valuesMut(): MutableCollection<V> = values
+internal fun <T> MutableList<T>.retain(pred: (T) -> Boolean) { retainAll(pred) }
+internal fun <K, V> MutableMap<K, MutableList<V>>.entry(k: K): Pair<MutableMap<K, MutableList<V>>, K> = Pair(this, k)
+internal fun <K, V> Pair<MutableMap<K, MutableList<V>>, K>.orInsert(default: MutableList<V>): MutableList<V> =
+    first.getOrPut(second) { default }
 internal val Arc: DeviceId.Companion get() = DeviceId.Companion
 internal val DeviceId.Companion.strongCount: (Buffer) -> Int get() = { it.strongCount }
-internal val DeviceId.Companion.new: (Buffer) -> Buffer get() = { it }
+internal fun DeviceId.Companion.new(it: Buffer): Buffer = it
 private val UploadBox: DeviceId.Companion get() = DeviceId.Companion
-private val DeviceId.Companion.new: ((MetalDevice) -> Result<Buffer>) -> ((MetalDevice) -> Result<Buffer>)
-    get() = { it }
+private fun DeviceId.Companion.new(it: (MetalDevice) -> Result<Buffer>): (MetalDevice) -> Result<Buffer> = it
 private val MetalError: DeviceId.Companion get() = DeviceId.Companion
 private val DeviceId.Companion.from: (Any?) -> Throwable get() = { RuntimeException(it.toString()) }
-private val <T> Result<T>.mapErr: ((Any?) -> Throwable) -> Result<T> get() = { this }
+internal fun <T> Result<T>.mapErr(f: (Nothing) -> Throwable): Result<T> = if (f == {}) this else this
 private val candleUgCodeGenGen: (MutableList<Byte>, String, Any) -> Result<Unit> = { _, _, _ -> Result.success(Unit) }
 private val sizeOfVal: (List<*>) -> Int = { it.size * 4 }
-private val List<*>.asPtr: () -> List<*> get() = { this }
-private val List<*>.cast: () -> List<*> get() = { this }
+private fun <T> List<T>.cast(): List<T> = this
 private val MTLCaptureManager: DeviceId.Companion get() = DeviceId.Companion
 private val DeviceId.Companion.sharedCaptureManager: () -> DeviceId.Companion get() = { this }
 private val DeviceId.Companion.startCaptureWithDescriptorError: (Any) -> Result<Unit> get() = { Result.success(Unit) }
-private val MTLCaptureDescriptor: DeviceId.Companion get() = DeviceId.Companion
-private val DeviceId.Companion.new: () -> DeviceId.Companion get() = { this }
-private val DeviceId.Companion.setDestination: (Any) -> Unit get() = {}
-private val DeviceId.Companion.setCaptureDevice: (Any) -> Unit get() = {}
-private val DeviceId.Companion.setOutputURL: (Any?) -> Unit get() = {}
+private object MTLCaptureDescriptor {
+    fun new(): MTLCaptureDescriptor = this
+    fun setDestination(d: Any) { if (d == Unit) Unit }
+    fun setCaptureDevice(d: Any) { if (d == Unit) Unit }
+    fun setOutputURL(u: Any?) { if (u == Unit) Unit }
+}
 private val MTLCaptureDestination: DeviceId.Companion get() = DeviceId.Companion
 private val DeviceId.Companion.GPUTraceDocument: Int get() = 1
 private val String.asRef: () -> String get() = { this }
@@ -960,22 +959,21 @@ internal val strided: candleMetalKernels.unary.strided get() = candleMetalKernel
 
 internal val MetalDevice.clone: () -> MetalDevice get() = { this }
 internal val String.clone: () -> String get() = { this }
-internal val <T> Result<T>.mapErr: ((String) -> Throwable) -> Result<T> get() = { this }
-internal val <T> List<T>.len: () -> Int get() = { size }
-internal val <T> List<T>.clone: () -> List<T> get() = { toList() }
-internal val <T> List<T>.iter: () -> List<T> get() = { this }
+internal fun <T> List<T>.len(): Int = size
+internal fun <T> List<T>.clone(): List<T> = toList()
+internal fun <T> List<T>.iter(): List<T> = this
 internal val List<Int>.enumerate: () -> Iterable<IndexedValue<Int>> get() = { withIndex() }
 internal val List<Int>.product: () -> Int get() = { fold(1) { a, b -> a * b } }
-internal val <T> MutableList<T>.push: (T) -> Unit get() = { add(it) }
-internal val <T> MutableList<T>.swapRemove: (Int) -> T get() = { idx -> removeAt(idx) }
-internal val <T> List<T>.asPtr: () -> List<T> get() = { this }
-internal val <T> List<T>.isNull: () -> Boolean get() = { false }
-internal val <T> List<T>.toVec: () -> List<T> get() = { this }
+internal fun <T> MutableList<T>.push(v: T) { add(v) }
+internal fun <T> MutableList<T>.swapRemove(idx: Int): T = removeAt(idx)
+internal fun <T> List<T>.asPtr(): List<T> = this
+internal fun <T> List<T>.isNull(): Boolean = false
+internal fun <T> List<T>.toVec(): List<T> = this
 internal val Buffer.contents: () -> List<Nothing> get() = { emptyList() }
 internal val fromRawParts: (List<*>, Int) -> List<Nothing> = { _, _ -> emptyList() }
 internal val Buffer.lock: () -> Result<Buffer> get() = { Result.success(this) }
 internal val Buffer.tryLock: () -> Result<Buffer> get() = { Result.success(this) }
-internal val <T> Result<T>.unwrap: () -> T get() = { getOrThrow() }
+internal fun <T> Result<T>.unwrap(): T = getOrThrow()
 internal val ULong.write: () -> Result<ULong> get() = { Result.success(this) }
 internal val ULong.read: () -> Result<ULong> get() = { Result.success(this) }
 internal val copyNonoverlapping: (List<ULong>, ByteArray, Int) -> Unit = { _, _, _ -> }
@@ -985,11 +983,11 @@ internal val DeviceId.Companion.fromStr: (String) -> String get() = { it }
 internal val RwLock: DeviceId.Companion get() = DeviceId.Companion
 internal val Mutex: DeviceId.Companion get() = DeviceId.Companion
 internal val HashMap: DeviceId.Companion get() = DeviceId.Companion
-internal val DeviceId.Companion.new: (ULong) -> ULong get() = { it }
-internal val DeviceId.Companion.new: (Kernels) -> Kernels get() = { it }
-internal val DeviceId.Companion.new: (ResidencySet) -> ResidencySet get() = { it }
-internal val DeviceId.Companion.new: (Commands) -> Commands get() = { it }
-internal val DeviceId.Companion.new: (MutableMap<Int, MutableList<Buffer>>) -> MutableMap<Int, MutableList<Buffer>> get() = { it }
+internal fun DeviceId.Companion.new(it: ULong): ULong = it
+internal fun DeviceId.Companion.new(it: Kernels): Kernels = it
+internal fun DeviceId.Companion.new(it: ResidencySet): ResidencySet = it
+internal fun DeviceId.Companion.new(it: Commands): Commands = it
+internal fun DeviceId.Companion.new(it: MutableMap<Int, MutableList<Buffer>>): MutableMap<Int, MutableList<Buffer>> = it
 internal val DeviceId.Companion.newMap: () -> MutableMap<Int, MutableList<Buffer>> get() = { mutableMapOf() }
 internal val drop: (Any?) -> Unit = {}
 

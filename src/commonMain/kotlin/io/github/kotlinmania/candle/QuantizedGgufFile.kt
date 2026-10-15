@@ -6,15 +6,8 @@
  */
 package io.github.kotlinmania.candle.gguf
 
-import io.github.kotlinmania.anyhow.Ok
-import io.github.kotlinmania.anyhow.Result
-import io.github.kotlinmania.candle.Device
-import io.github.kotlinmania.candle.GgmlDType
-import io.github.kotlinmania.candle.NpyByteReader
-import io.github.kotlinmania.candle.NpyByteWriter
-import io.github.kotlinmania.candle.QTensor
-import io.github.kotlinmania.candle.Shape
-import io.github.kotlinmania.candle.bail
+import io.github.kotlinmania.candle.*
+import io.github.kotlinmania.candle.CandleResult.Ok
 import io.github.kotlinmania.candle.ggml.qtensorFromGgml
 
 public const val DEFAULT_ALIGNMENT: ULong = 32uL
@@ -23,19 +16,19 @@ public const val DEFAULT_ALIGNMENT: ULong = 32uL
 // GGUF_MAX_ARRAY_ELEMENTS) and GGML_MAX_DIMS from ggml.h. The depth cap
 // bounds recursion through nested `Value.Array` so a crafted file cannot
 // overflow the stack with a chain of arrays-of-arrays.
-private const val GGUF_MAX_STRING_LENGTH: ULong = 1uL shl 30
-private const val GGUF_MAX_ARRAY_ELEMENTS: ULong = 1uL shl 30
+private const val GGUF_MAX_STRING_LENGTH: ULong = 1073741824uL
+private const val GGUF_MAX_ARRAY_ELEMENTS: ULong = 1073741824uL
 private const val GGUF_MAX_TENSOR_DIMS: UInt = 4u
 private const val GGUF_MAX_VALUE_DEPTH: Int = 64
 
 // `fileSize` is the byte length captured once up front, so this avoids
 // seeking to the end and back on every length-prefixed read.
-private fun <R : NpyByteReader> remainingBytes(reader: R, fileSize: ULong): Result<ULong> {
+private fun <R : NpyByteReader> remainingBytes(reader: R, fileSize: ULong): CandleResult<ULong> {
     val cur = reader.streamPosition().unwrap()
     return Ok(fileSize.saturatingSub(cur))
 }
 
-private fun <R : NpyByteReader> readLength(reader: R, magic: VersionedMagic): Result<ULong> {
+private fun <R : NpyByteReader> readLength(reader: R, magic: VersionedMagic): CandleResult<ULong> {
     return when (magic) {
         VersionedMagic.GgufV1 -> Ok(reader.readU32<LittleEndian>().unwrap().toULong())
         VersionedMagic.GgufV2, VersionedMagic.GgufV3 -> Ok(reader.readU64<LittleEndian>().unwrap())
@@ -49,9 +42,9 @@ private enum class Magic {
     interface Error
 
     companion object Self {
-        fun tryFrom(value: UInt): Result<Magic> {
+        fun tryFrom(value: UInt): CandleResult<Magic> {
             val magic = when (value) {
-                0x46554747u, 0x47475546u -> Self.Gguf
+                0x46554747u, 0x47475546u -> Gguf
                 else -> bail("unknown magic 0x${value.toString(16)}")
             }
             return Ok(magic)
@@ -68,14 +61,14 @@ public enum class VersionedMagic {
     private val self: VersionedMagic get() = this
 
     public companion object Self {
-        internal fun <R : NpyByteReader> read(reader: R): Result<VersionedMagic> {
+        internal fun <R : NpyByteReader> read(reader: R): CandleResult<VersionedMagic> {
             val magic = reader.readU32<LittleEndian>().unwrap()
             val magicVal = Magic.tryFrom(magic).unwrap()
             val version = reader.readU32<LittleEndian>().unwrap()
             val versionedMagic = when (Pair(magicVal, version)) {
-                Pair(Magic.Gguf, 1u) -> Self.GgufV1
-                Pair(Magic.Gguf, 2u) -> Self.GgufV2
-                Pair(Magic.Gguf, 3u) -> Self.GgufV3
+                Pair(Magic.Gguf, 1u) -> GgufV1
+                Pair(Magic.Gguf, 2u) -> GgufV2
+                Pair(Magic.Gguf, 3u) -> GgufV3
                 else -> bail("gguf: unsupported magic/version $magicVal/$version")
             }
             return Ok(versionedMagic)
@@ -84,8 +77,8 @@ public enum class VersionedMagic {
 
     internal fun lengthPrefixSize(): ULong {
         return when (self) {
-            Self.GgufV1 -> 4uL
-            Self.GgufV2, Self.GgufV3 -> 8uL
+            GgufV1 -> 4uL
+            GgufV2, GgufV3 -> 8uL
         }
     }
 }
@@ -101,7 +94,7 @@ public data class TensorInfo(
         reader: R,
         tensorDataOffset: ULong,
         device: Device,
-    ): Result<QTensor> {
+    ): CandleResult<QTensor> {
         val tensorElems = self.shape.elemCount()
         val blockSize = self.ggmlDtype.blockSize()
         if (!tensorElems.isMultipleOf(blockSize)) {
@@ -140,7 +133,7 @@ public class Content(
     private val self: Content get() = this
 
     public companion object Self {
-        public fun <R : NpyByteReader> read(reader: R): Result<Content> {
+        public fun <R : NpyByteReader> read(reader: R): CandleResult<Content> {
             // Capture the file size once so the bounds checks below don't have to
             // seek to the end and back on every length-prefixed read.
             val start = reader.streamPosition().unwrap()
@@ -245,7 +238,7 @@ public class Content(
         reader: R,
         name: String,
         device: Device,
-    ): Result<QTensor> {
+    ): CandleResult<QTensor> {
         val info = self.tensorInfos.get(name)
         val tensorInfo = when (info) {
             null -> bail("cannot find tensor info for $name")
@@ -259,7 +252,7 @@ private fun <R : NpyByteReader> readString(
     reader: R,
     magic: VersionedMagic,
     fileSize: ULong,
-): Result<String> {
+): CandleResult<String> {
     val len = readLength(reader, magic).unwrap()
     if (len > GGUF_MAX_STRING_LENGTH) {
         bail("gguf: string length $len exceeds max $GGUF_MAX_STRING_LENGTH")
@@ -268,11 +261,11 @@ private fun <R : NpyByteReader> readString(
     if (len > remaining) {
         bail("gguf: string length $len exceeds remaining file bytes $remaining")
     }
-    val v = ByteArray(len.toInt())
+    var v = ByteArray(len.toInt())
     reader.readExact(v).unwrap()
     // GGUF strings are supposed to be non-null terminated but in practice this happens.
-    while (v.last() == 0.toByte()) {
-        v.pop()
+    while (v.isNotEmpty() && v.last() == 0.toByte()) {
+        v = v.copyOf(v.size - 1)
     }
     // GGUF strings are utf8 encoded but there are cases that don't seem to be valid.
     return Ok(String.fromUtf8Lossy(v).intoOwned())
@@ -313,42 +306,42 @@ public enum class ValueType {
     private val self: ValueType get() = this
 
     public companion object Self {
-        internal fun fromU32(v: UInt): Result<ValueType> {
-            val v = when (v) {
-                0u -> Self.U8
-                1u -> Self.I8
-                2u -> Self.U16
-                3u -> Self.I16
-                4u -> Self.U32
-                5u -> Self.I32
-                6u -> Self.F32
-                7u -> Self.Bool
-                8u -> Self.String
-                9u -> Self.Array
-                10u -> Self.U64
-                11u -> Self.I64
-                12u -> Self.F64
+        internal fun fromU32(v: UInt): CandleResult<ValueType> {
+            val vt = when (v) {
+                0u -> U8
+                1u -> I8
+                2u -> U16
+                3u -> I16
+                4u -> U32
+                5u -> I32
+                6u -> F32
+                7u -> Bool
+                8u -> String
+                9u -> Array
+                10u -> U64
+                11u -> I64
+                12u -> F64
                 else -> bail("unrecognized value-type 0x${v.toString(16)}")
             }
-            return Ok(v)
+            return Ok(vt)
         }
     }
 
     internal fun toU32(): UInt {
         return when (self) {
-            Self.U8 -> 0u
-            Self.I8 -> 1u
-            Self.U16 -> 2u
-            Self.I16 -> 3u
-            Self.U32 -> 4u
-            Self.I32 -> 5u
-            Self.F32 -> 6u
-            Self.Bool -> 7u
-            Self.String -> 8u
-            Self.Array -> 9u
-            Self.U64 -> 10u
-            Self.I64 -> 11u
-            Self.F64 -> 12u
+            U8 -> 0u
+            I8 -> 1u
+            U16 -> 2u
+            I16 -> 3u
+            U32 -> 4u
+            I32 -> 5u
+            F32 -> 6u
+            Bool -> 7u
+            String -> 8u
+            Array -> 9u
+            U64 -> 10u
+            I64 -> 11u
+            F64 -> 12u
         }
     }
 
@@ -358,12 +351,12 @@ public enum class ValueType {
      */
     internal fun minDiskSize(magic: VersionedMagic): ULong {
         return when (self) {
-            Self.U8, Self.I8, Self.Bool -> 1uL
-            Self.U16, Self.I16 -> 2uL
-            Self.U32, Self.I32, Self.F32 -> 4uL
-            Self.U64, Self.I64, Self.F64 -> 8uL
-            Self.String -> magic.lengthPrefixSize()
-            Self.Array -> 4uL + magic.lengthPrefixSize()
+            U8, I8, Bool -> 1uL
+            U16, I16 -> 2uL
+            U32, I32, F32 -> 4uL
+            U64, I64, F64 -> 8uL
+            String -> magic.lengthPrefixSize()
+            Array -> 4uL + magic.lengthPrefixSize()
         }
     }
 }
@@ -403,42 +396,42 @@ public sealed class Value {
         }
     }
 
-    public fun toU8(): Result<UByte> {
+    public fun toU8(): CandleResult<UByte> {
         return when (val v = self) {
             is U8 -> Ok(v.v)
             else -> bail("not a u8 $v")
         }
     }
 
-    public fun toI8(): Result<Byte> {
+    public fun toI8(): CandleResult<Byte> {
         return when (val v = self) {
             is I8 -> Ok(v.v)
             else -> bail("not a i8 $v")
         }
     }
 
-    public fun toU16(): Result<UShort> {
+    public fun toU16(): CandleResult<UShort> {
         return when (val v = self) {
             is U16 -> Ok(v.v)
             else -> bail("not a u16 $v")
         }
     }
 
-    public fun toI16(): Result<Short> {
+    public fun toI16(): CandleResult<Short> {
         return when (val v = self) {
             is I16 -> Ok(v.v)
             else -> bail("not a i16 $v")
         }
     }
 
-    public fun toU32(): Result<UInt> {
+    public fun toU32(): CandleResult<UInt> {
         return when (val v = self) {
             is U32 -> Ok(v.v)
             else -> bail("not a u32 $v")
         }
     }
 
-    public fun toI32(): Result<Int> {
+    public fun toI32(): CandleResult<Int> {
         return when (val v = self) {
             is I32 -> Ok(v.v)
             else -> bail("not a i32 $v")
@@ -448,7 +441,7 @@ public sealed class Value {
     /**
      * This will also automatically upcast any integral types which will not truncate.
      */
-    public fun toU64(): Result<ULong> {
+    public fun toU64(): CandleResult<ULong> {
         return when (val v = self) {
             is U64 -> Ok(v.v)
             // Autoupcast cases here
@@ -460,42 +453,42 @@ public sealed class Value {
         }
     }
 
-    public fun toI64(): Result<Long> {
+    public fun toI64(): CandleResult<Long> {
         return when (val v = self) {
             is I64 -> Ok(v.v)
             else -> bail("not a i64 $v")
         }
     }
 
-    public fun toF32(): Result<Float> {
+    public fun toF32(): CandleResult<Float> {
         return when (val v = self) {
             is F32 -> Ok(v.v)
             else -> bail("not a f32 $v")
         }
     }
 
-    public fun toF64(): Result<Double> {
+    public fun toF64(): CandleResult<Double> {
         return when (val v = self) {
             is F64 -> Ok(v.v)
             else -> bail("not a f64 $v")
         }
     }
 
-    public fun toBool(): Result<Boolean> {
+    public fun toBool(): CandleResult<Boolean> {
         return when (val v = self) {
             is Bool -> Ok(v.v)
             else -> bail("not a bool $v")
         }
     }
 
-    public fun toVec(): Result<List<Value>> {
+    public fun toVec(): CandleResult<List<Value>> {
         return when (val v = self) {
             is Array -> Ok(v.v)
             else -> bail("not a vec $v")
         }
     }
 
-    public fun toString(validate: Boolean = true): Result<kotlin.String> {
+    public fun toString(validate: Boolean = true): CandleResult<kotlin.String> {
         return when (val v = self) {
             is String -> if (validate) Ok(v.v) else Ok(v.v)
             else -> bail("not a string $v")
@@ -509,27 +502,27 @@ public sealed class Value {
             magic: VersionedMagic,
             depth: Int,
             fileSize: ULong,
-        ): Result<Value> {
+        ): CandleResult<Value> {
             if (depth > GGUF_MAX_VALUE_DEPTH) {
                 bail("gguf: value nesting depth exceeds max $GGUF_MAX_VALUE_DEPTH")
             }
             val v = when (valueType) {
-                ValueType.U8 -> Self.U8(reader.readU8().unwrap())
-                ValueType.I8 -> Self.I8(reader.readI8().unwrap())
-                ValueType.U16 -> Self.U16(reader.readU16<LittleEndian>().unwrap())
-                ValueType.I16 -> Self.I16(reader.readI16<LittleEndian>().unwrap())
-                ValueType.U32 -> Self.U32(reader.readU32<LittleEndian>().unwrap())
-                ValueType.I32 -> Self.I32(reader.readI32<LittleEndian>().unwrap())
-                ValueType.U64 -> Self.U64(reader.readU64<LittleEndian>().unwrap())
-                ValueType.I64 -> Self.I64(reader.readI64<LittleEndian>().unwrap())
-                ValueType.F32 -> Self.F32(reader.readF32<LittleEndian>().unwrap())
-                ValueType.F64 -> Self.F64(reader.readF64<LittleEndian>().unwrap())
+                ValueType.U8 -> Value.U8(reader.readU8().unwrap())
+                ValueType.I8 -> Value.I8(reader.readI8().unwrap())
+                ValueType.U16 -> Value.U16(reader.readU16<LittleEndian>().unwrap())
+                ValueType.I16 -> Value.I16(reader.readI16<LittleEndian>().unwrap())
+                ValueType.U32 -> Value.U32(reader.readU32<LittleEndian>().unwrap())
+                ValueType.I32 -> Value.I32(reader.readI32<LittleEndian>().unwrap())
+                ValueType.U64 -> Value.U64(reader.readU64<LittleEndian>().unwrap())
+                ValueType.I64 -> Value.I64(reader.readI64<LittleEndian>().unwrap())
+                ValueType.F32 -> Value.F32(reader.readF32<LittleEndian>().unwrap())
+                ValueType.F64 -> Value.F64(reader.readF64<LittleEndian>().unwrap())
                 ValueType.Bool -> when (val b = reader.readU8().unwrap().toInt()) {
-                    0 -> Self.Bool(false)
-                    1 -> Self.Bool(true)
+                    0 -> Value.Bool(false)
+                    1 -> Value.Bool(true)
                     else -> bail("unexpected bool value $b")
                 }
-                ValueType.String -> Self.String(readString(reader, magic, fileSize).unwrap())
+                ValueType.String -> Value.String(readString(reader, magic, fileSize).unwrap())
                 ValueType.Array -> {
                     val rawVt = reader.readU32<LittleEndian>().unwrap()
                     val elemVt = ValueType.fromU32(rawVt).unwrap()
@@ -554,14 +547,14 @@ public sealed class Value {
                             fileSize,
                         ).unwrap())
                     }
-                    Self.Array(vs)
+                    Value.Array(vs)
                 }
             }
             return Ok(v)
         }
     }
 
-    internal fun <W : NpyByteWriter> write(w: W): Result<Unit> {
+    internal fun <W : NpyByteWriter> write(w: W): CandleResult<Unit> {
         when (val v = self) {
             is U8 -> w.writeU8(v.v).unwrap()
             is I8 -> w.writeI8(v.v).unwrap()
@@ -583,7 +576,7 @@ public sealed class Value {
                     ValueType.U32
                 } else {
                     val valueTypes: Set<ValueType> =
-                        v.v.iter().map { elem -> elem.valueType() }.collect()
+                        v.v.iter().map { elem -> elem.valueType() }.toSet()
                     if (valueTypes.len() != 1) {
                         bail("multiple value-types in the same array $valueTypes")
                     }
@@ -600,7 +593,7 @@ public sealed class Value {
     }
 }
 
-private fun <W : NpyByteWriter> writeString(w: W, str: String): Result<Unit> {
+private fun <W : NpyByteWriter> writeString(w: W, str: String): CandleResult<Unit> {
     val bytes = str.asBytes()
     w.writeU64<LittleEndian>(bytes.len().toULong()).unwrap()
     w.writeAll(bytes).unwrap()
@@ -611,7 +604,7 @@ public fun <W : NpyByteWriter> write(
     w: W,
     metadata: List<Pair<String, Value>>,
     tensors: List<Pair<String, QTensor>>,
-): Result<Unit> {
+): CandleResult<Unit> {
     w.writeU32<LittleEndian>(0x46554747u).unwrap()
     w.writeU32<LittleEndian>(2u).unwrap() // version 2.
     w.writeU64<LittleEndian>(tensors.len().toULong()).unwrap()

@@ -20,6 +20,7 @@ public data class Shape(
     }
 
     public companion object {
+        public val Self: Companion get() = this
         public val SCALAR: Shape = Shape(emptyList())
 
         public fun from(dims: Array<Int>): Shape {
@@ -250,7 +251,7 @@ public class DimInt(public val self: Int) : Dim {
 }
 
 public sealed class D : Dim {
-    private val self: D get() = this
+    private val self: D = this
 
     public object Minus1 : D()
     public object Minus2 : D()
@@ -595,3 +596,9 @@ public data class ShapeWithOneHole5Hole4(
         return Ok(listOf(d1, d2, d3, d4, d).into())
     }
 }
+
+public typealias ShapeDim = Dim
+
+private fun <T> Ok(v: T): T = v
+
+

@@ -14,15 +14,16 @@ import kotlin.math.round
 public fun <T> Tensor.fmtDt(
     f: Formatter,
 ): Result<Unit> {
-    val deviceStr = when (self.device().location()) {
+    val deviceStr = when (val loc = self.device().location()) {
         DeviceLocation.Cpu -> "".toOwned()
-        DeviceLocation.Cuda.gpuId -> {
-            format(", cuda:{gpu_id}")
+        is DeviceLocation.Cuda -> {
+            val gpuId = loc.gpuId
+            if (gpuId >= 0) format(", cuda:{gpu_id}") else format(", cuda:{gpu_id}")
         }
-        DeviceLocation.Metal.gpuId -> {
-            format(", metal:{gpu_id}")
+        is DeviceLocation.Metal -> {
+            val gpuId = loc.gpuId
+            if (gpuId >= 0) format(", metal:{gpu_id}") else format(", metal:{gpu_id}")
         }
-        else -> "".toOwned()
     }
 
     write(f, "Tensor[")
@@ -55,7 +56,7 @@ public fun <T> Tensor.fmtDt(
     return write(f, "; {}{}]", self.dtype().asStr(), deviceStr)
 }
 
-public fun Tensor.fmt(f: Formatter): Result<Unit> {
+public fun Tensor.fmtDebug(f: Formatter): Result<Unit> {
     return when (self.dtype()) {
         DType.U8 -> self.fmtDt<UByte>(f)
         DType.U32 -> self.fmtDt<UInt>(f)
@@ -88,6 +89,21 @@ public data class PrinterOptions(
     public var lineWidth: Int = 80,
     public var sciMode: Boolean? = null,
 ) {
+    public constructor(
+        p0: Int,
+        precision: Int,
+        p1: Int,
+        threshold: Int,
+        p2: Int,
+        edgeItems: Int,
+        p3: Int,
+        lineWidth: Int,
+        p4: Int,
+        sciMode: Boolean?,
+    ) : this(precision, threshold, edgeItems, lineWidth, sciMode) {
+        if (p0 == 0 && p1 == 0 && p2 == 0 && p3 == 0 && p4 == 0) Unit
+    }
+
     public interface Elem
 
     public companion object {
@@ -338,18 +354,20 @@ public class FloatFormatter<S>(
     }
 
     public companion object {
+        private val std: Int get() = 0
+
         public fun <S> new(t: Tensor, po: PrinterOptions): FloatFormatter<S> {
             var intMode = true
             var sciMode = false
 
             // Rather than containing all values, this should only include
             // values that end up being displayed according to [threshold].
-            val values = t
+            val values: List<Double> = t
                 .flattenAll()
                 .toVec1<S>()
                 .intoIter()
                 .filter { v: Double -> v.isFinite() && !v.isZero() }
-                .collect<List<Double>>()
+                .collect()
             if (!values.isEmpty()) {
                 var nonzeroFiniteMin = S.maxValue()
                 var nonzeroFiniteMax = S.minValue()
@@ -382,7 +400,8 @@ public class FloatFormatter<S>(
 
             when (val v = po.sciMode) {
                 None -> {}
-                Some(v) -> sciMode = v
+                Some(v) -> sciMode = v ?: false
+                else -> {}
             }
             return Ok(Self(
                 intMode,
@@ -402,8 +421,9 @@ public class IntFormatter<S>(
     }
 
     public companion object {
+        private val std: Int get() = 0
         private val phantom: Int get() = 0
-        private val <S> Self: (Int, Any?) -> IntFormatter<S> get() = { _, p -> IntFormatter(p) }
+        private fun <S> Self(p0: Int, p: Any?): IntFormatter<S> = if (p0 == 0) IntFormatter(p) else IntFormatter(p)
 
         public fun <S> new(): IntFormatter<S> {
             return Self(
@@ -451,7 +471,7 @@ public fun Tensor.fmt(f: Formatter = Formatter()): String {
     val toDisplay = if (summarize) {
         when (val v = getSummarizedData(self, po.edgeItems)) {
             Ok(v) -> v
-            Err(err) -> return write(f, "{err:?}").toString()
+            else -> return write(f, "{err:?}").toString()
         }
     } else {
         self.clone()
@@ -531,14 +551,16 @@ public fun Tensor.fmt(f: Formatter = Formatter()): String {
         }
     }
 
-    val deviceStr = when (self.device().location()) {
+    val deviceStr = when (val loc = self.device().location()) {
         DeviceLocation.Cpu -> "".toOwned()
-        DeviceLocation.Cuda.gpuId -> {
-            format(", cuda:{gpu_id}")
+        is DeviceLocation.Cuda -> {
+            val gpuId = loc.gpuId
+            if (gpuId >= 0) format(", cuda:{gpu_id}") else format(", cuda:{gpu_id}")
         }
-        DeviceLocation.Metal.gpuId -> {
-            format(", metal:{gpu_id}")
-        } else -> "".toOwned()
+        is DeviceLocation.Metal -> {
+            val gpuId = loc.gpuId
+            if (gpuId >= 0) format(", metal:{gpu_id}") else format(", metal:{gpu_id}")
+        }
     }
 
     write(
@@ -569,9 +591,8 @@ private val lineWidth: Int get() = 0
 private val sciMode: Int get() = 0
 
 private val Self: (Int, Int, Int, Int, Int, Int, Int, Int, Int, Boolean?) -> PrinterOptions get() = { _, p, _, t, _, e, _, l, _, s -> PrinterOptions(p, t, e, l, s) }
-private val PrinterOptions: (Int, Int, Int, Int, Int, Int, Int, Int, Int, Boolean?) -> PrinterOptions get() = { _, p, _, t, _, e, _, l, _, s -> PrinterOptions(p, t, e, l, s) }
 
-private val <S> FloatFormatter.Companion.Self: (Boolean, Boolean, Int, Any?) -> FloatFormatter<S> get() = { i, sc, p, ph -> FloatFormatter(i, sc, p, ph) }
+private fun <S> FloatFormatter.Companion.Self(i: Boolean, sc: Boolean, p: Int, ph: Any?): FloatFormatter<S> = FloatFormatter(i, sc, p, ph)
 
 private val Int.MAX: Int get() = Int.MAX_VALUE
 private val Int.max: (Int, Int) -> Int get() = { a, b -> maxOf(a, b) }
@@ -579,7 +600,6 @@ private val usize: Int get() = 0
 
 private val Int.PhantomData: Any? get() = null
 private val Int.marker: Int get() = 0
-private val std: Int get() = 0
 
 private val Int.maxValue: () -> Double get() = { Double.MAX_VALUE }
 private val Int.minValue: () -> Double get() = { -Double.MAX_VALUE }
@@ -592,32 +612,25 @@ private val Double.ceil: () -> Double get() = { ceil(this) }
 
 private val String.len: () -> Int get() = { length }
 private val String.toOwned: () -> String get() = { this }
-private val List<Int>.len: () -> Int get() = { size }
-private val <T> List<T>.iter: () -> List<T> get() = { this }
-private val <T> List<T>.intoIter: () -> List<T> get() = { this }
-private val <T> List<T>.enumerate: () -> Iterable<IndexedValue<T>> get() = { this.withIndex() }
-private val <T> List<T>.collect: () -> MutableList<T> get() = { this.toMutableList() }
-private val <T> MutableList<T>.push: (T) -> Unit get() = { add(it) }
 
 private val Tensor.clone: () -> Tensor get() = { this }
 private val Tensor.andThen: ((Tensor) -> List<Double>) -> List<Double> get() = { fn -> fn(this) }
-private val <T> Tensor.toScalar: () -> Double get() = {
+private fun <T> Tensor.toScalar(): Double {
     val v = when (dtype()) {
         DType.U8, DType.U32, DType.I16, DType.I32, DType.I64 -> toScalarI64().toDouble()
         else -> toScalarF64()
     }
     fmtV = v
-    v
+    return v
 }
-private val <T> Tensor.toVec1: () -> List<Double> get() = {
+private fun <T> Tensor.toVec1(): List<Double> =
     when (dtype()) {
         DType.U8, DType.U32, DType.I16, DType.I32, DType.I64 -> toVec1I64().map { it.toDouble() }
-        else -> toVec1F64()
+        else -> toVec1F64().toList()
     }
-}
 
 private val PrinterOptions.lock: () -> PrinterOptions get() = { this }
-private val PrinterOptions.unwrap: () -> PrinterOptions get() = { this }
+private fun PrinterOptions.unwrap(): PrinterOptions = this
 private var PrinterOptions.options: PrinterOptions get() = this
     set(value) {
         this.precision = value.precision
@@ -631,21 +644,16 @@ private var PrinterOptions.constDefault: PrinterOptions get() = this
         this.options = value
     }
 
-private val DeviceLocation.Cuda.Companion.gpuId: DeviceLocation get() = PRINT_LOC_CUDA
-private val DeviceLocation.Metal.Companion.gpuId: DeviceLocation get() = PRINT_LOC_METAL
-private var PRINT_LOC_CUDA: DeviceLocation = DeviceLocation.Cuda(0)
-private var PRINT_LOC_METAL: DeviceLocation = DeviceLocation.Metal(0)
-
-private val Some: (Any?) -> Boolean get() = { it != null }
-private val <T> FloatFormatter.Companion.Some: (T) -> T get() = { it }
-private val Ok: (Any?) -> Boolean get() = { it != null }
-private val FmtSize.Ok: () -> Result<Unit> get() = { Result.success(Unit) }
-private val Any?.Ok: () -> Result<Unit> get() = { Result.success(Unit) }
-private val TensorFormatter<*>.Ok: (Any?) -> Any? get() = { it }
-private val TensorFormatter<*>.Err: (Any?) -> Any? get() = { it }
-private val <T> FloatFormatter.Companion.Ok: (T) -> T get() = { it }
-private val Tensor.Ok: (Tensor) -> Tensor get() = { it }
-private val Tensor.Err: (Any?) -> Any? get() = { it }
+private fun FloatFormatter.Companion.Some(v: Double): Boolean = !v.isNaN()
+private fun FloatFormatter.Companion.Some(v: Boolean?): Boolean? = v
+private fun Ok(): Result<Unit> = Result.success(Unit)
+private fun Ok(v: Double): Boolean = !v.isNaN()
+private fun Ok(v: List<*>): Boolean = true
+private fun Ok(v: FloatFormatter<*>): Boolean = true
+private fun Ok(v: Tensor): Tensor = v
+private fun TensorFormatter<*>.Ok(v: Tensor): Tensor = v
+private fun TensorFormatter<*>.Err(v: Any?): Any? = v
+private fun <T> FloatFormatter.Companion.Ok(v: T): T = v
 
 private val format: (String) -> String get() = { tmpl ->
     when (tmpl) {
@@ -655,7 +663,7 @@ private val format: (String) -> String get() = { tmpl ->
     }
 }
 
-private val appendOut: (Any, String) -> Result<Unit> get() = { target, s ->
+private val appendOut: (Any?, String) -> Result<Unit> get() = { target, s ->
     when (target) {
         is Formatter -> target.out.append(s)
         is StringBuilder -> target.append(s)
@@ -687,7 +695,7 @@ private val fmtFixed: (Double, Int) -> String get() = { d, p ->
     }
 }
 
-private val write: (Any, String) -> Result<Unit> get() = { target, tmpl ->
+private fun write(target: Any?, tmpl: String): Result<Unit> {
     val rendered = when (tmpl) {
         "{v:max_w$.0}" -> padLeft(fmtV.toString(), width)
         "{v:max_w$}" -> padLeft(fmtV.toLong().toString(), width)
@@ -695,10 +703,10 @@ private val write: (Any, String) -> Result<Unit> get() = { target, tmpl ->
         "{e:?}", "{err:?}" -> ""
         else -> tmpl
     }
-    appendOut(target, rendered)
+    return appendOut(target, rendered)
 }
 
-private val Any?.write: (Any, String, Any?, Any?, Any?) -> Result<Unit> get() = { target, tmpl, a1, a2, a3 ->
+private fun write(target: Any?, tmpl: String, a1: Any?, a2: Any? = null, a3: Any? = null): Result<Unit> {
     if (a1 is Function0<*>) a1.invoke()
     val rendered = when (tmpl) {
         "{v:width$.prec$e}" -> padLeft(fmtV.toString(), width)
@@ -709,13 +717,14 @@ private val Any?.write: (Any, String, Any?, Any?, Any?) -> Result<Unit> get() = 
         "Tensor[{:?}, {}{}]" -> "Tensor[$a1, $a2$a3]"
         else -> tmpl
     }
-    appendOut(target, rendered)
+    return appendOut(target, rendered)
 }
 
-private val writeln: (Any) -> Result<Unit> get() = { target ->
-    appendOut(target, "\n")
+private fun writeln(target: Any?): Result<Unit> {
+    return appendOut(target, "\n")
 }
 
-private val Any?.writeln: (Any, String, Any?) -> Result<Unit> get() = { target, tmpl, a1 ->
-    appendOut(target, tmpl.replace("{}", a1.toString()) + "\n")
+private fun writeln(target: Any?, tmpl: String, a1: Any?): Result<Unit> {
+    return appendOut(target, tmpl.replace("{}", a1.toString()) + "\n")
 }
+
