@@ -2541,17 +2541,17 @@ public class IndexSelect(
 
 public interface ElemUpdate {
     public fun f(dst: MutableList<Double>, idx: Int, src: Double)
-}
 
-private object Set : ElemUpdate {
-    override fun f(dst: MutableList<Double>, idx: Int, src: Double) {
-        dst[idx] = src
+    public object Set : ElemUpdate {
+        override fun f(dst: MutableList<Double>, idx: Int, src: Double) {
+            dst[idx] = src
+        }
     }
-}
 
-private object Add : ElemUpdate {
-    override fun f(dst: MutableList<Double>, idx: Int, src: Double) {
-        dst[idx] = dst[idx] + src
+    public object Add : ElemUpdate {
+        override fun f(dst: MutableList<Double>, idx: Int, src: Double) {
+            dst[idx] = dst[idx] + src
+        }
     }
 }
 
@@ -2559,7 +2559,7 @@ public class Scatter(
     public val ids: List<Long>,
     public val idsL: Layout,
     public val dim: Int,
-    public val update: ElemUpdate = Set,
+    public val update: ElemUpdate = ElemUpdate.Set,
 ) : Map2InPlace {
     override val op: String = "scatter"
 
@@ -2604,7 +2604,7 @@ public class Scatter(
             ids: List<Long>,
             idsL: Layout,
             dim: Int,
-            update: ElemUpdate = Set,
+            update: ElemUpdate = ElemUpdate.Set,
         ): Scatter = Scatter(ids, idsL, dim, update)
     }
 }

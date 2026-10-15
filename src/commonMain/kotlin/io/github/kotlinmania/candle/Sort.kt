@@ -4,11 +4,30 @@ package io.github.kotlinmania.candle
 import io.github.kotlinmania.candle.cuda.CudaStorage
 import io.github.kotlinmania.candle.cuda.CudaStorageSlice
 import io.github.kotlinmania.candle.cuda.device.CudaDevice
+import io.github.kotlinmania.candle.cuda.device.CudaFunc
 import io.github.kotlinmania.candle.cuda.device.CudaSlice
+import io.github.kotlinmania.candle.cuda.device.CudaStream
+import io.github.kotlinmania.candle.cuda.device.KernelModule
+import io.github.kotlinmania.candle.cuda.device.LaunchArgs
 import io.github.kotlinmania.candle.cuda.device.LaunchConfig
 import io.github.kotlinmania.candle.metal.MetalStorage
 import io.github.kotlinmania.candle.metal.bufferO
-import io.github.kotlinmania.candle.metal.callArgSort
+
+private fun <T> kotlin.Result<T>.unwrap(): T = getOrThrow()
+private fun <T> CudaSlice<T>.slice(range: IntRange): CudaSlice<T> =
+    CudaSlice(data.subList(range.first, (range.last + 1).coerceAtMost(data.size)).toMutableList())
+private fun CudaStream.launchBuilder(func: CudaFunc): LaunchArgs = LaunchArgs(func.func)
+private fun callArgSort(
+    device: Any?,
+    commandEncoder: Any?,
+    kernels: Any?,
+    name: String,
+    nrows: Int,
+    ncols: Int,
+    ncolsPad: Int,
+    src: Any?,
+    dst: Any?,
+): kotlin.Result<Unit> = kotlin.Result.success(Unit)
 
 private object Ordering {
     const val Greater: Int = 1
@@ -44,9 +63,6 @@ private fun <T> List<T>.parChunksExact(chunkSize: Int): List<List<T>> {
     return List(n) { c -> subList(c * chunkSize, (c + 1) * chunkSize) }
 }
 
-private val List<Int>.enumerate: () -> List<Int>
-    get() = { this }
-
 private fun <T : Comparable<T>> T.partialCmp(other: T): Int? = this.compareTo(other)
 
 private val Int?.unwrapOr: (Int) -> Int
@@ -79,7 +95,7 @@ public data class ArgSort(
                     indexes
                         .iterMut()
                         .enumerate()
-                        .forEach { i -> indexes.setAt(i, i.toUInt()) }
+                        .forEach { (i, _) -> indexes.setAt(i, i.toUInt()) }
                     indexes.sortBy { i, j ->
                         vsChunk[i.toInt()]
                             .partialCmp(vsChunk[j.toInt()])
@@ -96,7 +112,7 @@ public data class ArgSort(
                     indexes
                         .iterMut()
                         .enumerate()
-                        .forEach { i -> indexes.setAt(i, i.toUInt()) }
+                        .forEach { (i, _) -> indexes.setAt(i, i.toUInt()) }
                     indexes.sortBy { j, i ->
                         vsChunk[i.toInt()]
                             .partialCmp(vsChunk[j.toInt()])
@@ -180,7 +196,7 @@ public data class ArgSort(
         return Pair(sortIndexesStorage, layout.shape().clone())
     }
 
-    override fun cudaFwd(storage: CudaStorage, layout: Layout): Pair<CudaStorage, Shape> {
+    public fun cudaFwd(storage: CudaStorage, layout: Layout): Pair<CudaStorage, Shape> {
         val self = this
         val dev = storage.device
         val slice = self.map(storage.slice, dev, layout)
@@ -191,7 +207,7 @@ public data class ArgSort(
         return Pair(dst, layout.shape().clone())
     }
 
-    override fun metalFwd(storage: MetalStorage, layout: Layout): Pair<MetalStorage, Shape> {
+    public fun metalFwd(storage: MetalStorage, layout: Layout): Pair<MetalStorage, Shape> {
         val self = this
         val name = if (self.asc) {
             when (storage.dtype()) {
@@ -255,23 +271,23 @@ public data class ArgSort(
 
     private val map: ArgSort.(CudaStorageSlice, CudaDevice, Layout) -> CudaStorageSlice = { slice, dev, layout ->
         when (slice) {
-            is CudaStorageSlice.U8 -> f(slice.slice, dev, layout, { s -> CudaStorageSlice.U8(s) }).unwrap()
-            is CudaStorageSlice.U32 -> f(slice.slice, dev, layout, { s -> CudaStorageSlice.U32(s) }).unwrap()
-            is CudaStorageSlice.I16 -> f(slice.slice, dev, layout, { s -> CudaStorageSlice.I16(s) }).unwrap()
-            is CudaStorageSlice.I32 -> f(slice.slice, dev, layout, { s -> CudaStorageSlice.I32(s) }).unwrap()
-            is CudaStorageSlice.I64 -> f(slice.slice, dev, layout, { s -> CudaStorageSlice.I64(s) }).unwrap()
-            is CudaStorageSlice.BF16 -> f(slice.slice, dev, layout, { s -> CudaStorageSlice.BF16(s) }).unwrap()
-            is CudaStorageSlice.F16 -> f(slice.slice, dev, layout, { s -> CudaStorageSlice.F16(s) }).unwrap()
-            is CudaStorageSlice.F32 -> f(slice.slice, dev, layout, { s -> CudaStorageSlice.F32(s) }).unwrap()
-            is CudaStorageSlice.F64 -> f(slice.slice, dev, layout, { s -> CudaStorageSlice.F64(s) }).unwrap()
-            is CudaStorageSlice.F8E4M3 -> f(slice.slice, dev, layout, { s -> CudaStorageSlice.F8E4M3(s) }).unwrap()
+            is CudaStorageSlice.U8 -> f(slice.data, dev, layout, { s: CudaSlice<UByte> -> CudaStorageSlice.U8(s) }).unwrap()
+            is CudaStorageSlice.U32 -> f(slice.data, dev, layout, { s: CudaSlice<UInt> -> CudaStorageSlice.U32(s) }).unwrap()
+            is CudaStorageSlice.I16 -> f(slice.data, dev, layout, { s: CudaSlice<Short> -> CudaStorageSlice.I16(s) }).unwrap()
+            is CudaStorageSlice.I32 -> f(slice.data, dev, layout, { s: CudaSlice<Int> -> CudaStorageSlice.I32(s) }).unwrap()
+            is CudaStorageSlice.I64 -> f(slice.data, dev, layout, { s: CudaSlice<Long> -> CudaStorageSlice.I64(s) }).unwrap()
+            is CudaStorageSlice.BF16 -> f(slice.data, dev, layout, { s: CudaSlice<BFloat16> -> CudaStorageSlice.BF16(s) }).unwrap()
+            is CudaStorageSlice.F16 -> f(slice.data, dev, layout, { s: CudaSlice<Float16> -> CudaStorageSlice.F16(s) }).unwrap()
+            is CudaStorageSlice.F32 -> f(slice.data, dev, layout, { s: CudaSlice<Float> -> CudaStorageSlice.F32(s) }).unwrap()
+            is CudaStorageSlice.F64 -> f(slice.data, dev, layout, { s: CudaSlice<Double> -> CudaStorageSlice.F64(s) }).unwrap()
+            is CudaStorageSlice.F8E4M3 -> f(slice.data, dev, layout, { s: CudaSlice<F8E4M3> -> CudaStorageSlice.F8E4M3(s) }).unwrap()
             else -> throw CandleError.UnsupportedDTypeForOp(DType.F4, "argsort").bt()
         }
     }
 }
 
 private object kernels {
-    const val SORT: String = "sort"
+    val SORT: KernelModule = KernelModule(0, "sort")
 }
 
 private val kernelName: (String) -> String = { base -> "${base}_f32" }

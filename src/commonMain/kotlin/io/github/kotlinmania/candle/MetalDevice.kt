@@ -571,8 +571,8 @@ private fun findAvailableBuffer(size: Int, buffers: Map<Int, List<Buffer>>): Buf
     return bestBuffer.cloned()
 }
 
-internal fun <T> Ok(v: T): Result<T> = Result.success(v)
-internal fun <T> Some(v: T): T = v
+private fun <T> Ok(v: T): Result<T> = Result.success(v)
+private fun <T> Some(v: T): T = v
 private val Int.nextPowerOfTwo: () -> Int
     get() = {
         if (this <= 1) 1 else (this - 1).takeHighestOneBit() shl 1

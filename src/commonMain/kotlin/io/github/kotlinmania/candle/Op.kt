@@ -496,16 +496,16 @@ private class MacroBinaryOp(
     private val f64Fn: (Double, Double) -> Double,
     private val i64Fn: (Long, Long) -> Long,
 ) : BinaryOpT {
-    override val bf16: (BF16, BF16) -> BF16 = { v1, v2 -> BF16.fromFloat(f32Fn(v1.toFloat(), v2.toFloat())) }
-    override val f16: (F16, F16) -> F16 = { v1, v2 -> F16.fromFloat(f32Fn(v1.toFloat(), v2.toFloat())) }
-    override val f32: (Float, Float) -> Float = f32Fn
-    override val f64: (Double, Double) -> Double = f64Fn
-    override val u8: (UByte, UByte) -> UByte = { v1, v2 -> i64Fn(v1.toLong(), v2.toLong()).toUByte() }
-    override val u32: (UInt, UInt) -> UInt = { v1, v2 -> i64Fn(v1.toLong(), v2.toLong()).toUInt() }
-    override val i16: (Short, Short) -> Short = { v1, v2 -> i64Fn(v1.toLong(), v2.toLong()).toShort() }
-    override val i32: (Int, Int) -> Int = { v1, v2 -> i64Fn(v1.toLong(), v2.toLong()).toInt() }
-    override val i64: (Long, Long) -> Long = i64Fn
-    override val f8e4m3: (F8E4M3, F8E4M3) -> F8E4M3 = { v1, v2 -> F8E4M3.fromFloat(f32Fn(v1.toFloat(), v2.toFloat())) }
+    override fun bf16(v1: BF16, v2: BF16): BF16 = BF16.fromFloat(f32Fn(v1.toFloat(), v2.toFloat()))
+    override fun f16(v1: F16, v2: F16): F16 = F16.fromFloat(f32Fn(v1.toFloat(), v2.toFloat()))
+    override fun f32(v1: Float, v2: Float): Float = f32Fn(v1, v2)
+    override fun f64(v1: Double, v2: Double): Double = f64Fn(v1, v2)
+    override fun u8(v1: UByte, v2: UByte): UByte = i64Fn(v1.toLong(), v2.toLong()).toUByte()
+    override fun u32(v1: UInt, v2: UInt): UInt = i64Fn(v1.toLong(), v2.toLong()).toUInt()
+    override fun i16(v1: Short, v2: Short): Short = i64Fn(v1.toLong(), v2.toLong()).toShort()
+    override fun i32(v1: Int, v2: Int): Int = i64Fn(v1.toLong(), v2.toLong()).toInt()
+    override fun i64(v1: Long, v2: Long): Long = i64Fn(v1, v2)
+    override fun f8e4m3(v1: F8E4M3, v2: F8E4M3): F8E4M3 = F8E4M3.fromFloat(f32Fn(v1.toFloat(), v2.toFloat()))
 }
 
 private class MacroUnaryOp(
@@ -514,16 +514,16 @@ private class MacroUnaryOp(
     private val f32Fn: (Float) -> Float,
     private val f64Fn: (Double) -> Double,
 ) : UnaryOpT {
-    override val bf16: (BF16) -> BF16 = { v -> BF16.fromFloat(f32Fn(v.toFloat())) }
-    override val f16: (F16) -> F16 = { v -> F16.fromFloat(f32Fn(v.toFloat())) }
-    override val f32: (Float) -> Float = f32Fn
-    override val f64: (Double) -> Double = f64Fn
-    override val u8: (UByte) -> UByte = { v -> v }
-    override val u32: (UInt) -> UInt = { v -> v }
-    override val i16: (Short) -> Short = { v -> v }
-    override val i32: (Int) -> Int = { v -> v }
-    override val i64: (Long) -> Long = { v -> v }
-    override val f8e4m3: (F8E4M3) -> F8E4M3 = { v -> F8E4M3.fromFloat(f32Fn(v.toFloat())) }
+    override fun bf16(v1: BF16): BF16 = BF16.fromFloat(f32Fn(v1.toFloat()))
+    override fun f16(v1: F16): F16 = F16.fromFloat(f32Fn(v1.toFloat()))
+    override fun f32(v1: Float): Float = f32Fn(v1)
+    override fun f64(v1: Double): Double = f64Fn(v1)
+    override fun u8(v1: UByte): UByte = v1
+    override fun u32(v1: UInt): UInt = v1
+    override fun i16(v1: Short): Short = v1
+    override fun i32(v1: Int): Int = v1
+    override fun i64(v1: Long): Long = v1
+    override fun f8e4m3(v1: F8E4M3): F8E4M3 = F8E4M3.fromFloat(f32Fn(v1.toFloat()))
 }
 
 public object Add : BinaryOpT by MacroBinaryOp("add", "badd", { a, b -> a + b }, { a, b -> a + b }, { a, b -> a + b })
@@ -850,4 +850,100 @@ public object Sign : UnaryOpT {
             F8E4M3.ZERO
         }
 }
+
+private object CpuErf {
+    fun erfF64(x: Double): Double = io.github.kotlinmania.candle.erfF64(x)
+    fun erfF32(x: Float): Float = io.github.kotlinmania.candle.erfF32(x)
+}
+
+private data class Zip2Elem<T>(val x: T, val y: Int)
+private data class Zip3Elem<T>(val a: T, val b: T, val y: Int)
+
+private class Zipped2<T>(val size: Int, val getA: (Int) -> T, val getB: (Int) -> T) {
+    inline fun forEach(action: (Zip2Elem<T>) -> Unit) {
+        for (i in 0 until size) action(Zip2Elem(getA(i), i))
+    }
+
+    fun zip(ys: Any): List<Zip3Elem<T>> = List(size) { i -> Zip3Elem(getA(i), getB(i), i) }
+}
+
+private class SliceIter<T>(val size: Int, val get: (Int) -> T) {
+    fun zip(other: Array<T>): Zipped2<T> = Zipped2(minOf(size, other.size), get) { other[it] }
+}
+
+private fun SliceIter<Float>.zip(other: FloatArray): Zipped2<Float> = Zipped2(minOf(size, other.size), get) { other[it] }
+private fun SliceIter<Double>.zip(other: DoubleArray): Zipped2<Double> = Zipped2(minOf(size, other.size), get) { other[it] }
+private fun SliceIter<UByte>.zip(other: UByteArray): Zipped2<UByte> = Zipped2(minOf(size, other.size), get) { other[it] }
+private fun SliceIter<UInt>.zip(other: UIntArray): Zipped2<UInt> = Zipped2(minOf(size, other.size), get) { other[it] }
+private fun SliceIter<Short>.zip(other: ShortArray): Zipped2<Short> = Zipped2(minOf(size, other.size), get) { other[it] }
+private fun SliceIter<Int>.zip(other: IntArray): Zipped2<Int> = Zipped2(minOf(size, other.size), get) { other[it] }
+private fun SliceIter<Long>.zip(other: LongArray): Zipped2<Long> = Zipped2(minOf(size, other.size), get) { other[it] }
+
+private fun <T> Array<T>.iter(): SliceIter<T> = SliceIter(size) { this[it] }
+private fun FloatArray.iter(): SliceIter<Float> = SliceIter(size) { this[it] }
+private fun DoubleArray.iter(): SliceIter<Double> = SliceIter(size) { this[it] }
+private fun UByteArray.iter(): SliceIter<UByte> = SliceIter(size) { this[it] }
+private fun UIntArray.iter(): SliceIter<UInt> = SliceIter(size) { this[it] }
+private fun ShortArray.iter(): SliceIter<Short> = SliceIter(size) { this[it] }
+private fun IntArray.iter(): SliceIter<Int> = SliceIter(size) { this[it] }
+private fun LongArray.iter(): SliceIter<Long> = SliceIter(size) { this[it] }
+
+private fun BF16.Companion.tanh(v: BF16): BF16 = BF16.fromFloat(kotlin.math.tanh(v.toFloat()))
+private fun F16.Companion.tanh(v: F16): F16 = F16.fromFloat(kotlin.math.tanh(v.toFloat()))
+private fun Float.Companion.tanh(v: Float): Float = kotlin.math.tanh(v)
+private fun Double.Companion.tanh(v: Double): Double = kotlin.math.tanh(v)
+private fun F8E4M3.Companion.tanh(v: F8E4M3): F8E4M3 = F8E4M3.fromFloat(kotlin.math.tanh(v.toFloat()))
+
+private fun BF16.exp(): BF16 = BF16.fromFloat(kotlin.math.exp(toFloat()))
+private fun F16.exp(): F16 = F16.fromFloat(kotlin.math.exp(toFloat()))
+private fun Float.exp(): Float = kotlin.math.exp(this)
+private fun Double.exp(): Double = kotlin.math.exp(this)
+private fun F8E4M3.exp(): F8E4M3 = F8E4M3.fromFloat(kotlin.math.exp(toFloat()))
+
+private fun BF16.abs(): BF16 = BF16.fromFloat(kotlin.math.abs(toFloat()))
+private fun F16.abs(): F16 = F16.fromFloat(kotlin.math.abs(toFloat()))
+private fun Float.abs(): Float = kotlin.math.abs(this)
+private fun Double.abs(): Double = kotlin.math.abs(this)
+private fun Short.abs(): Short = kotlin.math.abs(this.toInt()).toShort()
+private fun Int.abs(): Int = kotlin.math.abs(this)
+private fun Long.abs(): Long = kotlin.math.abs(this)
+private fun F8E4M3.abs(): F8E4M3 = F8E4M3.fromFloat(kotlin.math.abs(toFloat()))
+
+private fun BF16.ceil(): BF16 = BF16.fromFloat(kotlin.math.ceil(toFloat()))
+private fun F16.ceil(): F16 = F16.fromFloat(kotlin.math.ceil(toFloat()))
+private fun Float.ceil(): Float = kotlin.math.ceil(this)
+private fun Double.ceil(): Double = kotlin.math.ceil(this)
+private fun F8E4M3.ceil(): F8E4M3 = F8E4M3.fromFloat(kotlin.math.ceil(toFloat()))
+
+private fun BF16.floor(): BF16 = BF16.fromFloat(kotlin.math.floor(toFloat()))
+private fun F16.floor(): F16 = F16.fromFloat(kotlin.math.floor(toFloat()))
+private fun Float.floor(): Float = kotlin.math.floor(this)
+private fun Double.floor(): Double = kotlin.math.floor(this)
+private fun F8E4M3.floor(): F8E4M3 = F8E4M3.fromFloat(kotlin.math.floor(toFloat()))
+
+private fun BF16.round(): BF16 = BF16.fromFloat(kotlin.math.round(toFloat()))
+private fun F16.round(): F16 = F16.fromFloat(kotlin.math.round(toFloat()))
+private fun Float.round(): Float = kotlin.math.round(this)
+private fun Double.round(): Double = kotlin.math.round(this)
+private fun F8E4M3.round(): F8E4M3 = F8E4M3.fromFloat(kotlin.math.round(toFloat()))
+
+private fun Float.max(other: Float): Float = kotlin.math.max(this, other)
+private fun Double.max(other: Double): Double = kotlin.math.max(this, other)
+private fun Short.max(other: Short): Short = maxOf(this, other)
+private fun Int.max(other: Int): Int = maxOf(this, other)
+private fun Long.max(other: Long): Long = maxOf(this, other)
+
+private fun Op?.isNone(): Boolean = this == null
+
+private fun BF16.Companion.from(b: Boolean): BF16 = if (b) BF16.ONE else BF16.ZERO
+private fun F16.Companion.from(b: Boolean): F16 = if (b) F16.ONE else F16.ZERO
+private fun Float.Companion.from(b: Boolean): Float = if (b) 1.0f else 0.0f
+private fun Double.Companion.from(b: Boolean): Double = if (b) 1.0 else 0.0
+private fun UByte.Companion.min(a: UByte, b: UByte): UByte = minOf(a, b)
+private fun UInt.Companion.min(a: UInt, b: UInt): UInt = minOf(a, b)
+private fun Boolean.toI16(): Short = if (this) 1 else 0
+private fun Boolean.toI32(): Int = if (this) 1 else 0
+private fun Boolean.toI64(): Long = if (this) 1L else 0L
+private operator fun Short.minus(other: Short): Short = (this.toInt() - other.toInt()).toShort()
+
 
