@@ -5,33 +5,37 @@ package io.github.kotlinmania.candle
  * Vectorized and scalar CPU kernel operations over contiguous slices.
  */
 public interface VecOps<T> {
+    public val zero: () -> T
+    public val add: (T, T) -> T
+    public val mul: (T, T) -> T
+
     /**
      * Element-wise minimum of two scalar values.
      */
-    public fun min(lhs: T, rhs: T): T
+    public fun min(self: T, rhs: T): T
 
     /**
      * Element-wise maximum of two scalar values.
      */
-    public fun max(lhs: T, rhs: T): T
+    public fun max(self: T, rhs: T): T
 
     /**
      * Element-wise addition of two slices into a third.
-     *
-     * # Safety
-     *
-     * All slices must have matching lengths.
      */
-    public fun vecAdd(lhs: List<T>, rhs: List<T>, res: MutableList<T>)
+    public fun vecAdd(lhs: List<T>, rhs: List<T>, res: MutableList<T>) {
+        lhs.zip(rhs).forEachIndexed { idx, (a, b) ->
+            res[idx] = add(a, b)
+        }
+    }
 
     /**
      * Add a broadcast scalar to every element of a slice: `ys[i] = xs[i] + scalar`.
-     *
-     * # Safety
-     *
-     * Input and output slices must have matching lengths.
      */
-    public fun scalarAdd(scalar: T, xs: List<T>, ys: MutableList<T>)
+    public fun scalarAdd(scalar: T, xs: List<T>, ys: MutableList<T>) {
+        xs.forEachIndexed { idx, x ->
+            ys[idx] = add(x, scalar)
+        }
+    }
 
     /**
      * Dot-product of two vectors.
@@ -41,7 +45,12 @@ public interface VecOps<T> {
      * The length of `lhs` and `rhs` have to be at least `len`. `res` has to point to a valid
      * element.
      */
-    public fun vecDot(lhs: List<T>, rhs: List<T>, res: MutableList<T>, len: Int)
+    public fun vecDot(lhs: List<T>, rhs: List<T>, res: MutableList<T>, len: Int) {
+        res[0] = zero()
+        for (i in 0 until len) {
+            res[0] = add(res[0], mul(lhs[i], rhs[i]))
+        }
+    }
 
     /**
      * Sum of all elements in a vector.
@@ -51,7 +60,12 @@ public interface VecOps<T> {
      * The length of `xs` must be at least `len`. `res` has to point to a valid
      * element.
      */
-    public fun vecReduceSum(xs: List<T>, res: MutableList<T>, len: Int)
+    public fun vecReduceSum(xs: List<T>, res: MutableList<T>, len: Int) {
+        res[0] = zero()
+        for (i in 0 until len) {
+            res[0] = add(res[0], xs[i])
+        }
+    }
 
     /**
      * Maximum element in a non-empty vector.
@@ -62,11 +76,10 @@ public interface VecOps<T> {
      * element.
      */
     public fun vecReduceMax(xs: List<T>, res: MutableList<T>, len: Int) {
-        var acc = xs[0]
+        res[0] = xs[0]
         for (i in 1 until len) {
-            acc = max(acc, xs[i])
+            res[0] = max(res[0], xs[i])
         }
-        res[0] = acc
     }
 
     /**
@@ -78,50 +91,51 @@ public interface VecOps<T> {
      * element.
      */
     public fun vecReduceMin(xs: List<T>, res: MutableList<T>, len: Int) {
-        var acc = xs[0]
+        res[0] = xs[0]
         for (i in 1 until len) {
-            acc = min(acc, xs[i])
+            res[0] = min(res[0], xs[i])
         }
-        res[0] = acc
     }
 }
 
 public object F32VecOps : VecOps<Float> {
-    override fun min(lhs: Float, rhs: Float): Float = minOf(lhs, rhs)
-    override fun max(lhs: Float, rhs: Float): Float = maxOf(lhs, rhs)
+    override val zero: () -> Float = { 0.0f }
+    override val add: (Float, Float) -> Float = { a, b -> a + b }
+    override val mul: (Float, Float) -> Float = { a, b -> a * b }
+
+    override fun min(self: Float, rhs: Float): Float = minOf(self, rhs)
+
+    override fun max(self: Float, rhs: Float): Float = maxOf(self, rhs)
 
     override fun vecAdd(lhs: List<Float>, rhs: List<Float>, res: MutableList<Float>) {
-        for (i in lhs.indices) {
-            res[i] = lhs[i] + rhs[i]
-        }
-    }
-
-    override fun scalarAdd(scalar: Float, xs: List<Float>, ys: MutableList<Float>) {
-        for (i in xs.indices) {
-            ys[i] = xs[i] + scalar
+        lhs.zip(rhs).forEachIndexed { idx, (a, b) ->
+            res[idx] = a + b
         }
     }
 
     override fun vecDot(lhs: List<Float>, rhs: List<Float>, res: MutableList<Float>, len: Int) {
-        var acc = 0.0f
-        for (i in 0 until len) {
-            acc += lhs[i] * rhs[i]
-        }
-        res[0] = acc
+        val out = FloatArray(1)
+        vecDotF32(lhs.toFloatArray(), rhs.toFloatArray(), out, len)
+        res[0] = out[0]
     }
 
     override fun vecReduceSum(xs: List<Float>, res: MutableList<Float>, len: Int) {
-        var acc = 0.0f
-        for (i in 0 until len) {
-            acc += xs[i]
-        }
-        res[0] = acc
+        val out = FloatArray(1)
+        vecSum(xs.toFloatArray(), out, len)
+        res[0] = out[0]
     }
 }
 
 public object F16VecOps : VecOps<Float16> {
-    override fun min(lhs: Float16, rhs: Float16): Float16 = Float16.fromFloat(minOf(lhs.toFloat(), rhs.toFloat()))
-    override fun max(lhs: Float16, rhs: Float16): Float16 = Float16.fromFloat(maxOf(lhs.toFloat(), rhs.toFloat()))
+    override val zero: () -> Float16 = { Float16.fromFloat(0.0f) }
+    override val add: (Float16, Float16) -> Float16 = { a, b -> Float16.fromFloat(a.toFloat() + b.toFloat()) }
+    override val mul: (Float16, Float16) -> Float16 = { a, b -> Float16.fromFloat(a.toFloat() * b.toFloat()) }
+
+    override fun min(self: Float16, rhs: Float16): Float16 =
+        Float16.fromFloat(minOf(self.toFloat(), rhs.toFloat()))
+
+    override fun max(self: Float16, rhs: Float16): Float16 =
+        Float16.fromFloat(maxOf(self.toFloat(), rhs.toFloat()))
 
     override fun vecAdd(lhs: List<Float16>, rhs: List<Float16>, res: MutableList<Float16>) {
         for (i in lhs.indices) {
@@ -130,65 +144,46 @@ public object F16VecOps : VecOps<Float16> {
     }
 
     override fun scalarAdd(scalar: Float16, xs: List<Float16>, ys: MutableList<Float16>) {
-        val sv = scalar.toFloat()
         for (i in xs.indices) {
-            ys[i] = Float16.fromFloat(xs[i].toFloat() + sv)
+            ys[i] = Float16.fromFloat(xs[i].toFloat() + scalar.toFloat())
         }
     }
 
     override fun vecDot(lhs: List<Float16>, rhs: List<Float16>, res: MutableList<Float16>, len: Int) {
-        var acc = 0.0f
+        var resF32 = 0.0f
         for (i in 0 until len) {
-            acc += lhs[i].toFloat() * rhs[i].toFloat()
+            resF32 += lhs[i].toFloat() * rhs[i].toFloat()
         }
-        res[0] = Float16.fromFloat(acc)
-    }
-
-    override fun vecReduceSum(xs: List<Float16>, res: MutableList<Float16>, len: Int) {
-        var acc = 0.0f
-        for (i in 0 until len) {
-            acc += xs[i].toFloat()
-        }
-        res[0] = Float16.fromFloat(acc)
+        res[0] = Float16.fromFloat(resF32)
     }
 }
 
 public object F64VecOps : VecOps<Double> {
-    override fun min(lhs: Double, rhs: Double): Double = minOf(lhs, rhs)
-    override fun max(lhs: Double, rhs: Double): Double = maxOf(lhs, rhs)
+    override val zero: () -> Double = { 0.0 }
+    override val add: (Double, Double) -> Double = { a, b -> a + b }
+    override val mul: (Double, Double) -> Double = { a, b -> a * b }
+
+    override fun min(self: Double, rhs: Double): Double = minOf(self, rhs)
+
+    override fun max(self: Double, rhs: Double): Double = maxOf(self, rhs)
 
     override fun vecAdd(lhs: List<Double>, rhs: List<Double>, res: MutableList<Double>) {
-        for (i in lhs.indices) {
-            res[i] = lhs[i] + rhs[i]
+        lhs.zip(rhs).forEachIndexed { idx, (a, b) ->
+            res[idx] = a + b
         }
-    }
-
-    override fun scalarAdd(scalar: Double, xs: List<Double>, ys: MutableList<Double>) {
-        for (i in xs.indices) {
-            ys[i] = xs[i] + scalar
-        }
-    }
-
-    override fun vecDot(lhs: List<Double>, rhs: List<Double>, res: MutableList<Double>, len: Int) {
-        var acc = 0.0
-        for (i in 0 until len) {
-            acc += lhs[i] * rhs[i]
-        }
-        res[0] = acc
-    }
-
-    override fun vecReduceSum(xs: List<Double>, res: MutableList<Double>, len: Int) {
-        var acc = 0.0
-        for (i in 0 until len) {
-            acc += xs[i]
-        }
-        res[0] = acc
     }
 }
 
 public object BF16VecOps : VecOps<BFloat16> {
-    override fun min(lhs: BFloat16, rhs: BFloat16): BFloat16 = BFloat16.fromFloat(minOf(lhs.toFloat(), rhs.toFloat()))
-    override fun max(lhs: BFloat16, rhs: BFloat16): BFloat16 = BFloat16.fromFloat(maxOf(lhs.toFloat(), rhs.toFloat()))
+    override val zero: () -> BFloat16 = { BFloat16.fromFloat(0.0f) }
+    override val add: (BFloat16, BFloat16) -> BFloat16 = { a, b -> BFloat16.fromFloat(a.toFloat() + b.toFloat()) }
+    override val mul: (BFloat16, BFloat16) -> BFloat16 = { a, b -> BFloat16.fromFloat(a.toFloat() * b.toFloat()) }
+
+    override fun min(self: BFloat16, rhs: BFloat16): BFloat16 =
+        BFloat16.fromFloat(minOf(self.toFloat(), rhs.toFloat()))
+
+    override fun max(self: BFloat16, rhs: BFloat16): BFloat16 =
+        BFloat16.fromFloat(maxOf(self.toFloat(), rhs.toFloat()))
 
     override fun vecAdd(lhs: List<BFloat16>, rhs: List<BFloat16>, res: MutableList<BFloat16>) {
         for (i in lhs.indices) {
@@ -197,177 +192,78 @@ public object BF16VecOps : VecOps<BFloat16> {
     }
 
     override fun scalarAdd(scalar: BFloat16, xs: List<BFloat16>, ys: MutableList<BFloat16>) {
-        val sv = scalar.toFloat()
         for (i in xs.indices) {
-            ys[i] = BFloat16.fromFloat(xs[i].toFloat() + sv)
+            ys[i] = BFloat16.fromFloat(xs[i].toFloat() + scalar.toFloat())
         }
     }
 
     override fun vecDot(lhs: List<BFloat16>, rhs: List<BFloat16>, res: MutableList<BFloat16>, len: Int) {
-        var acc = 0.0f
+        var resF32 = 0.0f
         for (i in 0 until len) {
-            acc += lhs[i].toFloat() * rhs[i].toFloat()
+            resF32 += lhs[i].toFloat() * rhs[i].toFloat()
         }
-        res[0] = BFloat16.fromFloat(acc)
-    }
-
-    override fun vecReduceSum(xs: List<BFloat16>, res: MutableList<BFloat16>, len: Int) {
-        var acc = 0.0f
-        for (i in 0 until len) {
-            acc += xs[i].toFloat()
-        }
-        res[0] = BFloat16.fromFloat(acc)
+        res[0] = BFloat16.fromFloat(resF32)
     }
 }
 
 public object U8VecOps : VecOps<UByte> {
-    override fun min(lhs: UByte, rhs: UByte): UByte = minOf(lhs, rhs)
-    override fun max(lhs: UByte, rhs: UByte): UByte = maxOf(lhs, rhs)
+    override val zero: () -> UByte = { 0u }
+    override val add: (UByte, UByte) -> UByte = { a, b -> (a + b).toUByte() }
+    override val mul: (UByte, UByte) -> UByte = { a, b -> (a * b).toUByte() }
 
-    override fun vecAdd(lhs: List<UByte>, rhs: List<UByte>, res: MutableList<UByte>) {
-        for (i in lhs.indices) res[i] = (lhs[i] + rhs[i]).toUByte()
-    }
+    override fun min(self: UByte, rhs: UByte): UByte = minOf(self, rhs)
 
-    override fun scalarAdd(scalar: UByte, xs: List<UByte>, ys: MutableList<UByte>) {
-        for (i in xs.indices) ys[i] = (xs[i] + scalar).toUByte()
-    }
-
-    override fun vecDot(lhs: List<UByte>, rhs: List<UByte>, res: MutableList<UByte>, len: Int) {
-        var acc = 0u
-        for (i in 0 until len) acc += lhs[i] * rhs[i]
-        res[0] = acc.toUByte()
-    }
-
-    override fun vecReduceSum(xs: List<UByte>, res: MutableList<UByte>, len: Int) {
-        var acc = 0u
-        for (i in 0 until len) acc += xs[i]
-        res[0] = acc.toUByte()
-    }
+    override fun max(self: UByte, rhs: UByte): UByte = maxOf(self, rhs)
 }
 
 public object U32VecOps : VecOps<UInt> {
-    override fun min(lhs: UInt, rhs: UInt): UInt = minOf(lhs, rhs)
-    override fun max(lhs: UInt, rhs: UInt): UInt = maxOf(lhs, rhs)
+    override val zero: () -> UInt = { 0u }
+    override val add: (UInt, UInt) -> UInt = { a, b -> a + b }
+    override val mul: (UInt, UInt) -> UInt = { a, b -> a * b }
 
-    override fun vecAdd(lhs: List<UInt>, rhs: List<UInt>, res: MutableList<UInt>) {
-        for (i in lhs.indices) res[i] = lhs[i] + rhs[i]
-    }
+    override fun min(self: UInt, rhs: UInt): UInt = minOf(self, rhs)
 
-    override fun scalarAdd(scalar: UInt, xs: List<UInt>, ys: MutableList<UInt>) {
-        for (i in xs.indices) ys[i] = xs[i] + scalar
-    }
-
-    override fun vecDot(lhs: List<UInt>, rhs: List<UInt>, res: MutableList<UInt>, len: Int) {
-        var acc = 0u
-        for (i in 0 until len) acc += lhs[i] * rhs[i]
-        res[0] = acc
-    }
-
-    override fun vecReduceSum(xs: List<UInt>, res: MutableList<UInt>, len: Int) {
-        var acc = 0u
-        for (i in 0 until len) acc += xs[i]
-        res[0] = acc
-    }
+    override fun max(self: UInt, rhs: UInt): UInt = maxOf(self, rhs)
 }
 
 public object I16VecOps : VecOps<Short> {
-    override fun min(lhs: Short, rhs: Short): Short = minOf(lhs, rhs)
-    override fun max(lhs: Short, rhs: Short): Short = maxOf(lhs, rhs)
+    override val zero: () -> Short = { 0 }
+    override val add: (Short, Short) -> Short = { a, b -> (a + b).toShort() }
+    override val mul: (Short, Short) -> Short = { a, b -> (a * b).toShort() }
 
-    override fun vecAdd(lhs: List<Short>, rhs: List<Short>, res: MutableList<Short>) {
-        for (i in lhs.indices) res[i] = (lhs[i] + rhs[i]).toShort()
-    }
+    override fun min(self: Short, rhs: Short): Short = minOf(self, rhs)
 
-    override fun scalarAdd(scalar: Short, xs: List<Short>, ys: MutableList<Short>) {
-        for (i in xs.indices) ys[i] = (xs[i] + scalar).toShort()
-    }
-
-    override fun vecDot(lhs: List<Short>, rhs: List<Short>, res: MutableList<Short>, len: Int) {
-        var acc = 0
-        for (i in 0 until len) acc += lhs[i] * rhs[i]
-        res[0] = acc.toShort()
-    }
-
-    override fun vecReduceSum(xs: List<Short>, res: MutableList<Short>, len: Int) {
-        var acc = 0
-        for (i in 0 until len) acc += xs[i]
-        res[0] = acc.toShort()
-    }
+    override fun max(self: Short, rhs: Short): Short = maxOf(self, rhs)
 }
 
 public object I32VecOps : VecOps<Int> {
-    override fun min(lhs: Int, rhs: Int): Int = minOf(lhs, rhs)
-    override fun max(lhs: Int, rhs: Int): Int = maxOf(lhs, rhs)
+    override val zero: () -> Int = { 0 }
+    override val add: (Int, Int) -> Int = { a, b -> a + b }
+    override val mul: (Int, Int) -> Int = { a, b -> a * b }
 
-    override fun vecAdd(lhs: List<Int>, rhs: List<Int>, res: MutableList<Int>) {
-        for (i in lhs.indices) res[i] = lhs[i] + rhs[i]
-    }
+    override fun min(self: Int, rhs: Int): Int = minOf(self, rhs)
 
-    override fun scalarAdd(scalar: Int, xs: List<Int>, ys: MutableList<Int>) {
-        for (i in xs.indices) ys[i] = xs[i] + scalar
-    }
-
-    override fun vecDot(lhs: List<Int>, rhs: List<Int>, res: MutableList<Int>, len: Int) {
-        var acc = 0
-        for (i in 0 until len) acc += lhs[i] * rhs[i]
-        res[0] = acc
-    }
-
-    override fun vecReduceSum(xs: List<Int>, res: MutableList<Int>, len: Int) {
-        var acc = 0
-        for (i in 0 until len) acc += xs[i]
-        res[0] = acc
-    }
+    override fun max(self: Int, rhs: Int): Int = maxOf(self, rhs)
 }
 
 public object I64VecOps : VecOps<Long> {
-    override fun min(lhs: Long, rhs: Long): Long = minOf(lhs, rhs)
-    override fun max(lhs: Long, rhs: Long): Long = maxOf(lhs, rhs)
+    override val zero: () -> Long = { 0L }
+    override val add: (Long, Long) -> Long = { a, b -> a + b }
+    override val mul: (Long, Long) -> Long = { a, b -> a * b }
 
-    override fun vecAdd(lhs: List<Long>, rhs: List<Long>, res: MutableList<Long>) {
-        for (i in lhs.indices) res[i] = lhs[i] + rhs[i]
-    }
+    override fun min(self: Long, rhs: Long): Long = minOf(self, rhs)
 
-    override fun scalarAdd(scalar: Long, xs: List<Long>, ys: MutableList<Long>) {
-        for (i in xs.indices) ys[i] = xs[i] + scalar
-    }
-
-    override fun vecDot(lhs: List<Long>, rhs: List<Long>, res: MutableList<Long>, len: Int) {
-        var acc = 0L
-        for (i in 0 until len) acc += lhs[i] * rhs[i]
-        res[0] = acc
-    }
-
-    override fun vecReduceSum(xs: List<Long>, res: MutableList<Long>, len: Int) {
-        var acc = 0L
-        for (i in 0 until len) acc += xs[i]
-        res[0] = acc
-    }
+    override fun max(self: Long, rhs: Long): Long = maxOf(self, rhs)
 }
 
 public object F8E4M3VecOps : VecOps<Byte> {
-    override fun min(lhs: Byte, rhs: Byte): Byte = minOf(lhs, rhs)
-    override fun max(lhs: Byte, rhs: Byte): Byte = maxOf(lhs, rhs)
+    override val zero: () -> Byte = { 0 }
+    override val add: (Byte, Byte) -> Byte = { a, b -> (a + b).toByte() }
+    override val mul: (Byte, Byte) -> Byte = { a, b -> (a * b).toByte() }
 
-    override fun vecAdd(lhs: List<Byte>, rhs: List<Byte>, res: MutableList<Byte>) {
-        for (i in lhs.indices) res[i] = (lhs[i] + rhs[i]).toByte()
-    }
+    override fun min(self: Byte, rhs: Byte): Byte = minOf(self, rhs)
 
-    override fun scalarAdd(scalar: Byte, xs: List<Byte>, ys: MutableList<Byte>) {
-        for (i in xs.indices) ys[i] = (xs[i] + scalar).toByte()
-    }
-
-    override fun vecDot(lhs: List<Byte>, rhs: List<Byte>, res: MutableList<Byte>, len: Int) {
-        var acc = 0
-        for (i in 0 until len) acc += lhs[i] * rhs[i]
-        res[0] = acc.toByte()
-    }
-
-    override fun vecReduceSum(xs: List<Byte>, res: MutableList<Byte>, len: Int) {
-        var acc = 0
-        for (i in 0 until len) acc += xs[i]
-        res[0] = acc.toByte()
-    }
+    override fun max(self: Byte, rhs: Byte): Byte = maxOf(self, rhs)
 }
 
 public fun parForEach(nThreads: Int, func: (Int) -> Unit) {
@@ -375,7 +271,8 @@ public fun parForEach(nThreads: Int, func: (Int) -> Unit) {
         func(0)
     } else {
         for (threadIdx in 0 until nThreads) {
-            func(threadIdx)
+            val f = func
+            f(threadIdx)
         }
     }
 }
@@ -387,12 +284,11 @@ public fun parRange(lo: Int, up: Int, nThreads: Int, func: (Int) -> Unit) {
         }
     } else {
         for (threadIdx in 0 until nThreads) {
-            var i = threadIdx
-            while (i < up) {
+            val f = func
+            for (i in (threadIdx until up) step nThreads) {
                 if (i >= lo) {
-                    func(i)
+                    f(i)
                 }
-                i += nThreads
             }
         }
     }

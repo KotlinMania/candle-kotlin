@@ -12,60 +12,259 @@ import io.github.kotlinmania.candle.BlockQ80
 import io.github.kotlinmania.candle.QK80
 import io.github.kotlinmania.candle.QKK
 
-internal fun sumI16PairsFloat(x: ShortArray): FloatArray {
-    val result = FloatArray(8)
-    for (i in 0 until 8) {
-        result[i] = (x[i * 2].toInt() + x[i * 2 + 1].toInt()).toFloat()
-    }
-    return result
+private val mm256Set1Epi16: (Int) -> ShortArray = { v -> ShortArray(16) { v.toShort() } }
+private val mm256Set1Epi8: (Int) -> ByteArray = { v -> ByteArray(32) { v.toByte() } }
+private val mmSet1Epi8: (Int) -> ByteArray = { v -> ByteArray(16) { v.toByte() } }
+private val mm256SetzeroPs: () -> FloatArray = { FloatArray(8) }
+private val mmSetzeroPs: () -> FloatArray = { FloatArray(4) }
+private val mm256SetzeroSi256: () -> IntArray = { IntArray(8) }
+private val mmSetzeroSi128: () -> IntArray = { IntArray(4) }
+private val mm256Set1Ps: (Float) -> FloatArray = { v -> FloatArray(8) { v } }
+private val mmSet1Ps: (Float) -> FloatArray = { v -> FloatArray(4) { v } }
+private val mm256BroadcastSs: (Float) -> FloatArray = { v -> FloatArray(8) { v } }
+private val mm256MaddEpi16: (ShortArray, ShortArray) -> IntArray = { a, b ->
+    IntArray(8) { i -> a[i * 2].toInt() * b[i * 2].toInt() + a[i * 2 + 1].toInt() * b[i * 2 + 1].toInt() }
 }
-
-internal fun mulSumUs8PairsFloat(ax: ByteArray, sy: ByteArray): FloatArray {
-    val dot = ShortArray(16)
-    for (i in 0 until 16) {
+private val mmMaddEpi16: (ShortArray, ShortArray) -> IntArray = { a, b ->
+    IntArray(4) { i -> a[i * 2].toInt() * b[i * 2].toInt() + a[i * 2 + 1].toInt() * b[i * 2 + 1].toInt() }
+}
+private val mm256MaddubsEpi16: (ByteArray, ByteArray) -> ShortArray = { ax, sy ->
+    ShortArray(16) { i ->
         val u0 = ax[i * 2].toInt() and 0xFF
         val u1 = ax[i * 2 + 1].toInt() and 0xFF
         val s0 = sy[i * 2].toInt()
         val s1 = sy[i * 2 + 1].toInt()
-        val prod = (u0 * s0 + u1 * s1).coerceIn(Short.MIN_VALUE.toInt(), Short.MAX_VALUE.toInt())
-        dot[i] = prod.toShort()
+        (u0 * s0 + u1 * s1).coerceIn(Short.MIN_VALUE.toInt(), Short.MAX_VALUE.toInt()).toShort()
     }
+}
+private val mm256Cvtepi32Ps: (IntArray) -> FloatArray = { a -> FloatArray(8) { i -> a[i].toFloat() } }
+private val mmCvtepi32Ps: (IntArray) -> FloatArray = { a -> FloatArray(4) { i -> a[i].toFloat() } }
+private val mm256Extractf128Ps: (FloatArray, Int) -> FloatArray = { x, imm ->
+    FloatArray(4) { i -> x[imm * 4 + i] }
+}
+private val mm256Castps256Ps128: (FloatArray) -> FloatArray = { x ->
+    FloatArray(4) { i -> x[i] }
+}
+private val mmAddPs: (FloatArray, FloatArray) -> FloatArray = { a, b ->
+    FloatArray(4) { i -> a[i] + b[i] }
+}
+private val mmMovehlPs: (FloatArray, FloatArray) -> FloatArray = { a, b ->
+    floatArrayOf(b[2], b[3], a[2], a[3])
+}
+private val mmMovehdupPs: (FloatArray) -> FloatArray = { a ->
+    floatArrayOf(a[1], a[1], a[3], a[3])
+}
+private val mmAddSs: (FloatArray, FloatArray) -> FloatArray = { a, b ->
+    floatArrayOf(a[0] + b[0], a[1], a[2], a[3])
+}
+private val mmCvtssF32: (FloatArray) -> Float = { a -> a[0] }
+private val mmLoaduSi128: (ByteArray, Int) -> ByteArray = { src, off ->
+    ByteArray(16) { i -> src[off + i] }
+}
+private val mmLoaduSi128U: (UByteArray, Int) -> ByteArray = { src, off ->
+    ByteArray(16) { i -> src[off + i].toByte() }
+}
+private val mm256LoaduSi256: (ByteArray, Int) -> ByteArray = { src, off ->
+    ByteArray(32) { i -> src[off + i] }
+}
+private val mm256LoaduSi256U: (UByteArray, Int) -> ByteArray = { src, off ->
+    ByteArray(32) { i -> src[off + i].toByte() }
+}
+private val mm256LoaduSi256S: (ShortArray, Int) -> ShortArray = { src, off ->
+    ShortArray(16) { i -> src[off + i] }
+}
+private val mm256Castsi128Si256: (ByteArray) -> ByteArray = { a ->
+    ByteArray(32) { i -> if (i < 16) a[i] else 0 }
+}
+private val mm256Insertf128Si256: (ByteArray, ByteArray, Int) -> ByteArray = { a, b, imm ->
+    val out = a.copyOf()
+    val base = imm * 16
+    for (i in 0 until 16) out[base + i] = b[i]
+    out
+}
+private val mm256Insertf128Si256S: (ShortArray, ShortArray, Int) -> ShortArray = { a, b, imm ->
+    val out = a.copyOf()
+    val base = imm * 8
+    for (i in 0 until 8) out[base + i] = b[i]
+    out
+}
+private val mmSrliEpi16: (ByteArray, Int) -> ByteArray = { a, shift ->
+    val out = ByteArray(16)
+    for (i in 0 until 8) {
+        val w = ((a[i * 2].toInt() and 0xFF) or ((a[i * 2 + 1].toInt() and 0xFF) shl 8)) ushr shift
+        out[i * 2] = (w and 0xFF).toByte()
+        out[i * 2 + 1] = ((w ushr 8) and 0xFF).toByte()
+    }
+    out
+}
+private val mm256SrliEpi16: (ByteArray, Int) -> ByteArray = { a, shift ->
+    val out = ByteArray(32)
+    for (i in 0 until 16) {
+        val w = ((a[i * 2].toInt() and 0xFF) or ((a[i * 2 + 1].toInt() and 0xFF) shl 8)) ushr shift
+        out[i * 2] = (w and 0xFF).toByte()
+        out[i * 2 + 1] = ((w ushr 8) and 0xFF).toByte()
+    }
+    out
+}
+private val mm256SlliEpi16: (ByteArray, Int) -> ByteArray = { a, shift ->
+    val out = ByteArray(32)
+    for (i in 0 until 16) {
+        val w = (((a[i * 2].toInt() and 0xFF) or ((a[i * 2 + 1].toInt() and 0xFF) shl 8)) shl shift) and 0xFFFF
+        out[i * 2] = (w and 0xFF).toByte()
+        out[i * 2 + 1] = ((w ushr 8) and 0xFF).toByte()
+    }
+    out
+}
+private val mm256AndSi256: (ByteArray, ByteArray) -> ByteArray = { a, b ->
+    ByteArray(32) { i -> (a[i].toInt() and b[i].toInt()).toByte() }
+}
+private val mm256AndnotSi256: (ByteArray, ByteArray) -> ByteArray = { a, b ->
+    ByteArray(32) { i -> (a[i].toInt().inv() and b[i].toInt()).toByte() }
+}
+private val mm256OrSi256: (ByteArray, ByteArray) -> ByteArray = { a, b ->
+    ByteArray(32) { i -> (a[i].toInt() or b[i].toInt()).toByte() }
+}
+private val mmAndSi128: (ByteArray, ByteArray) -> ByteArray = { a, b ->
+    ByteArray(16) { i -> (a[i].toInt() and b[i].toInt()).toByte() }
+}
+private val mm256SubEpi8: (ByteArray, ByteArray) -> ByteArray = { a, b ->
+    ByteArray(32) { i -> (a[i].toInt() - b[i].toInt()).toByte() }
+}
+private val mmSubEpi8: (ByteArray, ByteArray) -> ByteArray = { a, b ->
+    ByteArray(16) { i -> (a[i].toInt() - b[i].toInt()).toByte() }
+}
+private val mm256AddEpi8: (ByteArray, ByteArray) -> ByteArray = { a, b ->
+    ByteArray(32) { i -> (a[i].toInt() + b[i].toInt()).toByte() }
+}
+private val mm256SubEpi16: (ShortArray, ShortArray) -> ShortArray = { a, b ->
+    ShortArray(16) { i -> (a[i].toInt() - b[i].toInt()).toShort() }
+}
+private val mm256AddEpi32: (IntArray, IntArray) -> IntArray = { a, b ->
+    IntArray(8) { i -> a[i] + b[i] }
+}
+private val mm256SignEpi8: (ByteArray, ByteArray) -> ByteArray = { a, b ->
+    ByteArray(32) { i ->
+        val bv = b[i].toInt()
+        when {
+            bv < 0 -> (-a[i].toInt()).toByte()
+            bv == 0 -> 0
+            else -> a[i]
+        }
+    }
+}
+private val mm256FmaddPs: (FloatArray, FloatArray, FloatArray) -> FloatArray = { a, b, c ->
+    FloatArray(8) { i -> a[i] * b[i] + c[i] }
+}
+private val mmFmaddPs: (FloatArray, FloatArray, FloatArray) -> FloatArray = { a, b, c ->
+    FloatArray(4) { i -> a[i] * b[i] + c[i] }
+}
+private val mmShuffleEpi8: (ByteArray, ByteArray) -> ByteArray = { a, shuf ->
+    ByteArray(16) { i ->
+        val idx = shuf[i].toInt()
+        if (idx < 0) 0 else a[idx and 0xF]
+    }
+}
+private val mm256ShuffleEpi8S: (ShortArray, ByteArray) -> ShortArray = { a, shuf ->
+    val bytes = ByteArray(32)
+    for (i in 0 until 16) {
+        bytes[i * 2] = (a[i].toInt() and 0xFF).toByte()
+        bytes[i * 2 + 1] = ((a[i].toInt() ushr 8) and 0xFF).toByte()
+    }
+    val outBytes = ByteArray(32)
+    for (lane in 0 until 2) {
+        val base = lane * 16
+        for (i in 0 until 16) {
+            val idx = shuf[base + i].toInt()
+            outBytes[base + i] = if (idx < 0) 0 else bytes[base + (idx and 0xF)]
+        }
+    }
+    ShortArray(16) { i ->
+        ((outBytes[i * 2].toInt() and 0xFF) or (outBytes[i * 2 + 1].toInt() shl 8)).toShort()
+    }
+}
+private val mm256Cvtepi8Epi16: (ByteArray) -> ShortArray = { a ->
+    ShortArray(16) { i -> a[i].toShort() }
+}
+private val mm256Cvtepu8Epi16: (ByteArray) -> ShortArray = { a ->
+    ShortArray(16) { i -> (a[i].toInt() and 0xFF).toShort() }
+}
+private val mm256Extracti128Si256S: (ShortArray, Int) -> ShortArray = { a, imm ->
+    ShortArray(8) { i -> a[imm * 8 + i] }
+}
+private val mm256Extracti128Si256B: (ByteArray, Int) -> ByteArray = { a, imm ->
+    ByteArray(16) { i -> a[imm * 16 + i] }
+}
+private val mmHaddEpi16: (ShortArray, ShortArray) -> ShortArray = { a, b ->
+    ShortArray(8) { i ->
+        if (i < 4) (a[i * 2].toInt() + a[i * 2 + 1].toInt()).toShort()
+        else (b[(i - 4) * 2].toInt() + b[(i - 4) * 2 + 1].toInt()).toShort()
+    }
+}
+private val mmHaddEpi32: (IntArray, IntArray) -> IntArray = { a, b ->
+    intArrayOf(a[0] + a[1], a[2] + a[3], b[0] + b[1], b[2] + b[3])
+}
+private val mmExtractEpi32: (IntArray, Int) -> Int = { a, imm -> a[imm] }
+private val mmSetEpi32: (Int, Int, Int, Int) -> ByteArray = { e3, e2, e1, e0 ->
+    val words = intArrayOf(e0, e1, e2, e3)
+    val out = ByteArray(16)
+    for (w in 0 until 4) {
+        out[w * 4] = (words[w] and 0xFF).toByte()
+        out[w * 4 + 1] = ((words[w] ushr 8) and 0xFF).toByte()
+        out[w * 4 + 2] = ((words[w] ushr 16) and 0xFF).toByte()
+        out[w * 4 + 3] = ((words[w] ushr 24) and 0xFF).toByte()
+    }
+    out
+}
+private val readU32Into: (UByteArray, IntArray, Int) -> Unit = { src, dst, count ->
+    for (w in 0 until count) {
+        val b0 = src[w * 4].toInt() and 0xFF
+        val b1 = src[w * 4 + 1].toInt() and 0xFF
+        val b2 = src[w * 4 + 2].toInt() and 0xFF
+        val b3 = src[w * 4 + 3].toInt() and 0xFF
+        dst[w] = b0 or (b1 shl 8) or (b2 shl 16) or (b3 shl 24)
+    }
+}
+private val kShuffle128: ByteArray = ByteArray(128) { idx -> (idx / 8).toByte() }
+private val kShuffleK4: ByteArray = ByteArray(256) { idx ->
+    val group = idx / 32
+    val pair = idx % 2
+    (group * 2 + pair).toByte()
+}
+private val kShuffleQ3k: ByteArray = ByteArray(128) { idx ->
+    val group = idx / 16
+    val pair = idx % 2
+    (group * 2 + pair).toByte()
+}
+
+internal fun sumI16PairsFloat(x: ShortArray): FloatArray {
+    val ones = mm256Set1Epi16(1)
+    val summedPairs = mm256MaddEpi16(ones, x)
+    return mm256Cvtepi32Ps(summedPairs)
+}
+
+internal fun mulSumUs8PairsFloat(ax: ByteArray, sy: ByteArray): FloatArray {
+    val dot = mm256MaddubsEpi16(ax, sy)
     return sumI16PairsFloat(dot)
 }
 
 internal fun hsumFloat8(x: FloatArray): Float {
-    val low = FloatArray(4) { i -> x[i] + x[i + 4] }
-    val half = FloatArray(2) { i -> low[i] + low[i + 2] }
-    return half[0] + half[1]
+    var res = mm256Extractf128Ps(x, 1)
+    res = mmAddPs(res, mm256Castps256Ps128(x))
+    res = mmAddPs(res, mmMovehlPs(res, res))
+    res = mmAddSs(res, mmMovehdupPs(res))
+    return mmCvtssF32(res)
 }
 
 internal fun bytesFromNibbles32(rsi: ByteArray): ByteArray {
-    val result = ByteArray(32)
-    for (i in 0 until 16) {
-        val b = rsi[i].toInt() and 0xFF
-        result[i] = (b and 0x0F).toByte()
-        result[i + 16] = ((b ushr 4) and 0x0F).toByte()
-    }
-    return result
+    val tmp = mmLoaduSi128(rsi, 0)
+    val bytes = mm256Insertf128Si256(mm256Castsi128Si256(tmp), mmSrliEpi16(tmp, 4), 1)
+    val lowMask = mm256Set1Epi8(0xF)
+    return mm256AndSi256(lowMask, bytes)
 }
 
 internal fun mulSumI8PairsFloat(x: ByteArray, y: ByteArray): FloatArray {
-    val ax = ByteArray(32)
-    val sy = ByteArray(32)
-    for (i in 0 until 32) {
-        val xv = x[i].toInt()
-        val yv = y[i].toInt()
-        if (xv < 0) {
-            ax[i] = (-xv).toByte()
-            sy[i] = (-yv).toByte()
-        } else if (xv == 0) {
-            ax[i] = 0
-            sy[i] = 0
-        } else {
-            ax[i] = xv.toByte()
-            sy[i] = yv.toByte()
-        }
-    }
+    val ax = mm256SignEpi8(x, x)
+    val sy = mm256SignEpi8(y, x)
     return mulSumUs8PairsFloat(ax, sy)
 }
 
@@ -73,20 +272,15 @@ internal fun vecDotQ40Q80(n: Int, xs: List<BlockQ40>, ys: List<BlockQ80>): Float
     require(n % QK80 == 0) {
         "vecDotQ40Q80: $n is not divisible by $QK80"
     }
-    val acc = FloatArray(8)
-    val count = minOf(xs.size, ys.size)
-    for (idx in 0 until count) {
-        val x = xs[idx]
-        val y = ys[idx]
-        val d = x.d.toFloat() * y.d.toFloat()
-        val bx = bytesFromNibbles32(x.qs)
-        for (i in 0 until 32) {
-            bx[i] = (bx[i].toInt() - 8).toByte()
-        }
-        val q = mulSumI8PairsFloat(bx, y.qs)
-        for (lane in 0 until 8) {
-            acc[lane] += d * q[lane]
-        }
+    var acc = mm256SetzeroPs()
+    for ((x, y) in xs.zip(ys)) {
+        val d = mm256Set1Ps(x.d.toFloat() * y.d.toFloat())
+        var bx = bytesFromNibbles32(mmLoaduSi128U(x.qs, 0))
+        val off = mm256Set1Epi8(8)
+        bx = mm256SubEpi8(bx, off)
+        val by = mm256LoaduSi256(y.qs, 0)
+        val q = mulSumI8PairsFloat(bx, by)
+        acc = mm256FmaddPs(d, q, acc)
     }
     return hsumFloat8(acc)
 }
@@ -95,197 +289,170 @@ internal fun vecDotQ80Q80(n: Int, xs: List<BlockQ80>, ys: List<BlockQ80>): Float
     require(n % QK80 == 0) {
         "vecDotQ80Q80: $n is not divisible by $QK80"
     }
-    val acc = FloatArray(8)
-    val count = minOf(xs.size, ys.size)
-    for (idx in 0 until count) {
-        val x = xs[idx]
-        val y = ys[idx]
-        val d = x.d.toFloat() * y.d.toFloat()
-        val q = mulSumI8PairsFloat(x.qs, y.qs)
-        for (lane in 0 until 8) {
-            acc[lane] += d * q[lane]
-        }
+    var acc = mm256SetzeroPs()
+    for ((x, y) in xs.zip(ys)) {
+        val d = mm256Set1Ps(x.d.toFloat() * y.d.toFloat())
+        val bx = mm256LoaduSi256(x.qs, 0)
+        val by = mm256LoaduSi256(y.qs, 0)
+        val q = mulSumI8PairsFloat(bx, by)
+        acc = mm256FmaddPs(d, q, acc)
     }
     return hsumFloat8(acc)
 }
 
 private fun getScaleShuffle(i: Int): ByteArray {
-    val result = ByteArray(16)
-    val base = i * 2
-    for (k in 0 until 8) {
-        result[k] = base.toByte()
-        result[k + 8] = (base + 1).toByte()
-    }
-    return result
+    return mmLoaduSi128(kShuffle128, i * 16)
 }
 
 private fun getScaleShuffleK4(i: Int): ByteArray {
-    val result = ByteArray(32)
-    val base = i * 2
-    for (k in 0 until 32 step 2) {
-        result[k] = base.toByte()
-        result[k + 1] = (base + 1).toByte()
-    }
-    return result
+    return mm256LoaduSi256(kShuffleK4, i * 32)
 }
 
 private fun getScaleShuffleQ3k(i: Int): ByteArray {
-    val result = ByteArray(32)
-    val base0 = i * 4
-    val base1 = i * 4 + 2
-    for (k in 0 until 16 step 2) {
-        result[k] = base0.toByte()
-        result[k + 1] = (base0 + 1).toByte()
-        result[16 + k] = base1.toByte()
-        result[16 + k + 1] = (base1 + 1).toByte()
-    }
-    return result
+    return mm256LoaduSi256(kShuffleQ3k, i * 32)
 }
 
 internal fun vecDotQ6kQ8k(n: Int, xs: List<BlockQ6K>, ys: List<BlockQ8K>): Float {
     require(n % QKK == 0) {
         "vecDotQ6kQ8k: $n is not divisible by $QKK"
     }
-    val acc = FloatArray(8)
-    val count = minOf(xs.size, ys.size)
-    for (idx in 0 until count) {
-        val x = xs[idx]
-        val y = ys[idx]
+    val m4 = mm256Set1Epi8(0xF)
+    val m2 = mm256Set1Epi8(3)
+    val m32s = mm256Set1Epi8(32)
+    var acc = mm256SetzeroPs()
+    for ((x, y) in xs.zip(ys)) {
         val d = y.d * x.d.toFloat()
-        var q4Offset = 0
-        var qhOffset = 0
-        var q8Offset = 0
-        val sumi = IntArray(8)
+        var q4 = 0
+        var qh = 0
+        var q8 = 0
+
+        val scales = mmLoaduSi128(x.scales, 0)
+        var sumi = mm256SetzeroSi256()
 
         for (j in 0 until QKK / 128) {
             val isIdx = j * 4
-            val shuf0 = getScaleShuffle(isIdx)
-            val shuf1 = getScaleShuffle(isIdx + 1)
-            val shuf2 = getScaleShuffle(isIdx + 2)
-            val shuf3 = getScaleShuffle(isIdx + 3)
+            val scale0 = mmShuffleEpi8(scales, getScaleShuffle(isIdx))
+            val scale1 = mmShuffleEpi8(scales, getScaleShuffle(isIdx + 1))
+            val scale2 = mmShuffleEpi8(scales, getScaleShuffle(isIdx + 2))
+            val scale3 = mmShuffleEpi8(scales, getScaleShuffle(isIdx + 3))
 
-            val scale0 = ShortArray(16) { k -> x.scales[shuf0[k].toInt() and 0xF].toShort() }
-            val scale1 = ShortArray(16) { k -> x.scales[shuf1[k].toInt() and 0xF].toShort() }
-            val scale2 = ShortArray(16) { k -> x.scales[shuf2[k].toInt() and 0xF].toShort() }
-            val scale3 = ShortArray(16) { k -> x.scales[shuf3[k].toInt() and 0xF].toShort() }
+            val q4bits1 = mm256LoaduSi256U(x.ql, q4)
+            q4 += 32
+            val q4bits2 = mm256LoaduSi256U(x.ql, q4)
+            q4 += 32
+            val q4bitsH = mm256LoaduSi256U(x.qh, qh)
+            qh += 32
 
-            for (lane in 0 until 8) {
-                var laneSum = 0
-                for (pair in 0 until 2) {
-                    val elem = lane * 4 + pair * 2
-                    val ql1A = x.ql[q4Offset + elem].toInt() and 0xFF
-                    val ql1B = x.ql[q4Offset + elem + 1].toInt() and 0xFF
-                    val ql2A = x.ql[q4Offset + 32 + elem].toInt() and 0xFF
-                    val ql2B = x.ql[q4Offset + 32 + elem + 1].toInt() and 0xFF
-                    val qhA = x.qh[qhOffset + elem].toInt() and 0xFF
-                    val qhB = x.qh[qhOffset + elem + 1].toInt() and 0xFF
+            val q4h0 = mm256SlliEpi16(mm256AndSi256(q4bitsH, m2), 4)
+            val q4h1 = mm256SlliEpi16(mm256AndSi256(mm256SrliEpi16(q4bitsH, 2), m2), 4)
+            val q4h2 = mm256SlliEpi16(mm256AndSi256(mm256SrliEpi16(q4bitsH, 4), m2), 4)
+            val q4h3 = mm256SlliEpi16(mm256AndSi256(mm256SrliEpi16(q4bitsH, 6), m2), 4)
 
-                    val q40A = ((ql1A and 0xF) or ((qhA and 3) shl 4)) - 32
-                    val q40B = ((ql1B and 0xF) or ((qhB and 3) shl 4)) - 32
-                    val q41A = ((ql2A and 0xF) or (((qhA ushr 2) and 3) shl 4)) - 32
-                    val q41B = ((ql2B and 0xF) or (((qhB ushr 2) and 3) shl 4)) - 32
-                    val q42A = ((ql1A ushr 4) or (((qhA ushr 4) and 3) shl 4)) - 32
-                    val q42B = ((ql1B ushr 4) or (((qhB ushr 4) and 3) shl 4)) - 32
-                    val q43A = ((ql2A ushr 4) or (((qhA ushr 6) and 3) shl 4)) - 32
-                    val q43B = ((ql2B ushr 4) or (((qhB ushr 6) and 3) shl 4)) - 32
+            val q40 = mm256OrSi256(mm256AndSi256(q4bits1, m4), q4h0)
+            val q41 = mm256OrSi256(mm256AndSi256(q4bits2, m4), q4h1)
+            val q42 = mm256OrSi256(mm256AndSi256(mm256SrliEpi16(q4bits1, 4), m4), q4h2)
+            val q43 = mm256OrSi256(mm256AndSi256(mm256SrliEpi16(q4bits2, 4), m4), q4h3)
 
-                    val p0 = q40A * y.qs[q8Offset + elem].toInt() + q40B * y.qs[q8Offset + elem + 1].toInt()
-                    val p1 = q41A * y.qs[q8Offset + 32 + elem].toInt() + q41B * y.qs[q8Offset + 32 + elem + 1].toInt()
-                    val p2 = q42A * y.qs[q8Offset + 64 + elem].toInt() + q42B * y.qs[q8Offset + 64 + elem + 1].toInt()
-                    val p3 = q43A * y.qs[q8Offset + 96 + elem].toInt() + q43B * y.qs[q8Offset + 96 + elem + 1].toInt()
+            val q80 = mm256LoaduSi256(y.qs, q8)
+            q8 += 32
+            val q81 = mm256LoaduSi256(y.qs, q8)
+            q8 += 32
+            val q82 = mm256LoaduSi256(y.qs, q8)
+            q8 += 32
+            val q83 = mm256LoaduSi256(y.qs, q8)
+            q8 += 32
 
-                    val scIdx = lane * 2 + pair
-                    laneSum += scale0[scIdx].toInt() * p0 +
-                        scale1[scIdx].toInt() * p1 +
-                        scale2[scIdx].toInt() * p2 +
-                        scale3[scIdx].toInt() * p3
-                }
-                sumi[lane] += laneSum
-            }
-            q4Offset += 64
-            qhOffset += 32
-            q8Offset += 128
+            val q8s0 = mm256MaddubsEpi16(m32s, q80)
+            val q8s1 = mm256MaddubsEpi16(m32s, q81)
+            val q8s2 = mm256MaddubsEpi16(m32s, q82)
+            val q8s3 = mm256MaddubsEpi16(m32s, q83)
+
+            val p160 = mm256SubEpi16(mm256MaddubsEpi16(q40, q80), q8s0)
+            val p161 = mm256SubEpi16(mm256MaddubsEpi16(q41, q81), q8s1)
+            val p162 = mm256SubEpi16(mm256MaddubsEpi16(q42, q82), q8s2)
+            val p163 = mm256SubEpi16(mm256MaddubsEpi16(q43, q83), q8s3)
+
+            val m0 = mm256MaddEpi16(mm256Cvtepi8Epi16(scale0), p160)
+            val m1 = mm256MaddEpi16(mm256Cvtepi8Epi16(scale1), p161)
+            val m2v = mm256MaddEpi16(mm256Cvtepi8Epi16(scale2), p162)
+            val m3 = mm256MaddEpi16(mm256Cvtepi8Epi16(scale3), p163)
+
+            sumi = mm256AddEpi32(sumi, mm256AddEpi32(m0, m1))
+            sumi = mm256AddEpi32(sumi, mm256AddEpi32(m2v, m3))
         }
-        for (lane in 0 until 8) {
-            acc[lane] += d * sumi[lane].toFloat()
-        }
+        acc = mm256FmaddPs(mm256BroadcastSs(d), mm256Cvtepi32Ps(sumi), acc)
     }
     return hsumFloat8(acc)
 }
 
-private fun mm256SetM128i(a: ByteArray, b: ByteArray): ByteArray {
-    val result = ByteArray(32)
-    for (i in 0 until 16) {
-        result[i] = b[i]
-        result[i + 16] = a[i]
-    }
-    return result
+private fun mm256SetM128i(a: ShortArray, b: ShortArray): ShortArray {
+    return mm256Insertf128Si256S(ShortArray(16) { i -> if (i < 8) b[i] else 0 }, a, 1)
 }
 
 internal fun vecDotQ2kQ8k(n: Int, xs: List<BlockQ2K>, ys: List<BlockQ8K>): Float {
     require(n % QKK == 0) {
         "vecDotQ2kQ8k: $n is not divisible by $QKK"
     }
-    val acc = FloatArray(8)
-    val count = minOf(xs.size, ys.size)
-    for (idx in 0 until count) {
-        val x = xs[idx]
-        val y = ys[idx]
+    val m3 = mm256Set1Epi8(3)
+    val m4 = mmSet1Epi8(0xF)
+    var acc = mm256SetzeroPs()
+
+    for ((x, y) in xs.zip(ys)) {
         val d = y.d * x.d.toFloat()
         val dmin = -y.d * x.dmin.toFloat()
 
-        for (lane in 0 until 8) {
-            val m0 = (x.scales[lane * 2].toInt() and 0xFF) ushr 4
-            val m1 = (x.scales[lane * 2 + 1].toInt() and 0xFF) ushr 4
-            val prod = m0 * y.bsums[lane * 2].toInt() + m1 * y.bsums[lane * 2 + 1].toInt()
-            acc[lane] += dmin * prod.toFloat()
-        }
+        var q2 = 0
+        var q8 = 0
 
-        val lowScales = ByteArray(16)
-        val highScales = ByteArray(16)
-        for (k in 0 until 8) {
-            lowScales[k * 2] = (x.scales[k].toInt() and 0xF).toByte()
-            lowScales[k * 2 + 1] = 0
-            highScales[k * 2] = (x.scales[k + 8].toInt() and 0xF).toByte()
-            highScales[k * 2 + 1] = 0
-        }
+        val minsAndScales = mmLoaduSi128U(x.scales, 0)
+        val scales8 = mmAndSi128(minsAndScales, m4)
+        val mins8 = mmAndSi128(mmSrliEpi16(minsAndScales, 4), m4)
+        val mins = mm256Cvtepi8Epi16(mins8)
+        val prod = mm256MaddEpi16(mins, mm256LoaduSi256S(y.bsums, 0))
+
+        acc = mm256FmaddPs(mm256BroadcastSs(dmin), mm256Cvtepi32Ps(prod), acc)
+
+        val allScales = mm256Cvtepi8Epi16(scales8)
+        val lScales = mm256Extracti128Si256S(allScales, 0)
+        val hScales = mm256Extracti128Si256S(allScales, 1)
         val scales = arrayOf(
-            mm256SetM128i(lowScales, lowScales),
-            mm256SetM128i(highScales, highScales)
+            mm256SetM128i(lScales, lScales),
+            mm256SetM128i(hScales, hScales),
         )
 
-        var q2Offset = 0
-        var q8Offset = 0
-        val sumi = IntArray(8)
-        for (blockIdx in 0 until scales.size) {
-            val scaleVec = scales[blockIdx]
-            for (sStep in 0 until 4) {
-                val shuf = getScaleShuffleQ3k(sStep)
-                val shift = sStep * 2
-                for (lane in 0 until 8) {
-                    var laneAcc = 0
-                    for (pair in 0 until 2) {
-                        val elem = lane * 4 + pair * 2
-                        val q2A = ((x.qs[q2Offset + elem].toInt() and 0xFF) ushr shift) and 3
-                        val q2B = ((x.qs[q2Offset + elem + 1].toInt() and 0xFF) ushr shift) and 3
-                        val q8A = y.qs[q8Offset + sStep * 32 + elem].toInt()
-                        val q8B = y.qs[q8Offset + sStep * 32 + elem + 1].toInt()
-                        val p = q2A * q8A + q2B * q8B
-                        val scByteOffset = if (lane < 4) shuf[lane * 4 + pair * 2].toInt() else 16 + shuf[lane * 4 + pair * 2].toInt()
-                        val sc = scaleVec[scByteOffset].toInt()
-                        laneAcc += sc * p
-                    }
-                    sumi[lane] += laneAcc
-                }
-            }
-            q2Offset += 32
-            q8Offset += 128
-        }
+        var sumi = mm256SetzeroSi256()
 
-        for (lane in 0 until 8) {
-            acc[lane] += d * sumi[lane].toFloat()
+        for (scale in scales) {
+            val q2bits = mm256LoaduSi256U(x.qs, q2)
+            q2 += 32
+
+            val q80 = mm256LoaduSi256(y.qs, q8)
+            q8 += 32
+            val q81 = mm256LoaduSi256(y.qs, q8)
+            q8 += 32
+            val q82 = mm256LoaduSi256(y.qs, q8)
+            q8 += 32
+            val q83 = mm256LoaduSi256(y.qs, q8)
+            q8 += 32
+
+            val q20 = mm256AndSi256(q2bits, m3)
+            val q21 = mm256AndSi256(mm256SrliEpi16(q2bits, 2), m3)
+            val q22 = mm256AndSi256(mm256SrliEpi16(q2bits, 4), m3)
+            val q23 = mm256AndSi256(mm256SrliEpi16(q2bits, 6), m3)
+
+            var p0 = mm256MaddEpi16(mm256ShuffleEpi8S(scale, getScaleShuffleQ3k(0)), mm256MaddubsEpi16(q20, q80))
+            val p1 = mm256MaddEpi16(mm256ShuffleEpi8S(scale, getScaleShuffleQ3k(1)), mm256MaddubsEpi16(q21, q81))
+            var p2 = mm256MaddEpi16(mm256ShuffleEpi8S(scale, getScaleShuffleQ3k(2)), mm256MaddubsEpi16(q22, q82))
+            val p3 = mm256MaddEpi16(mm256ShuffleEpi8S(scale, getScaleShuffleQ3k(3)), mm256MaddubsEpi16(q23, q83))
+
+            p0 = mm256AddEpi32(p0, p1)
+            p2 = mm256AddEpi32(p2, p3)
+
+            sumi = mm256AddEpi32(sumi, mm256AddEpi32(p0, p2))
         }
+        acc = mm256FmaddPs(mm256BroadcastSs(d), mm256Cvtepi32Ps(sumi), acc)
     }
+
     return hsumFloat8(acc)
 }
 
@@ -296,86 +463,119 @@ internal fun vecDotQ3kQ8k(n: Int, xs: List<BlockQ3K>, ys: List<BlockQ8K>): Float
     val kmask1 = 0x03030303
     val kmask2 = 0x0f0f0f0f
     val aux = IntArray(3)
-    val acc = FloatArray(8)
-    val count = minOf(xs.size, ys.size)
 
-    for (idx in 0 until count) {
-        val x = xs[idx]
-        val y = ys[idx]
+    val m3 = mm256Set1Epi8(3)
+    val mone = mm256Set1Epi8(1)
+    val m32 = mmSet1Epi8(32)
+
+    var acc = mm256SetzeroPs()
+    for ((x, y) in xs.zip(ys)) {
         val d = y.d * x.d.toFloat()
 
-        for (w in 0 until 3) {
-            val b0 = x.scales[w * 4].toInt() and 0xFF
-            val b1 = x.scales[w * 4 + 1].toInt() and 0xFF
-            val b2 = x.scales[w * 4 + 2].toInt() and 0xFF
-            val b3 = x.scales[w * 4 + 3].toInt() and 0xFF
-            aux[w] = b0 or (b1 shl 8) or (b2 shl 16) or (b3 shl 24)
-        }
+        var q3 = 0
+        var q8 = 0
 
-        val sWords = intArrayOf(
-            (aux[0] and kmask2) or (((aux[2] and kmask1) shl 4)),
-            (aux[1] and kmask2) or ((((aux[2] ushr 2) and kmask1) shl 4)),
-            ((aux[0] ushr 4) and kmask2) or ((((aux[2] ushr 4) and kmask1) shl 4)),
-            ((aux[1] ushr 4) and kmask2) or ((((aux[2] ushr 6) and kmask1) shl 4))
+        readU32Into(x.scales, aux, 3)
+        var scales128 = mmSetEpi32(
+            ((aux[1] ushr 4) and kmask2) or (((aux[2] ushr 6) and kmask1) shl 4),
+            ((aux[0] ushr 4) and kmask2) or (((aux[2] ushr 4) and kmask1) shl 4),
+            (aux[1] and kmask2) or (((aux[2] ushr 2) and kmask1) shl 4),
+            (aux[0] and kmask2) or ((aux[2] and kmask1) shl 4),
         )
-
-        val scBytes = ByteArray(16)
-        for (w in 0 until 4) {
-            for (b in 0 until 4) {
-                scBytes[w * 4 + b] = (((sWords[w] ushr (b * 8)) and 0xFF) - 32).toByte()
-            }
-        }
-
-        val lowScales = ByteArray(16)
-        val highScales = ByteArray(16)
-        for (k in 0 until 8) {
-            lowScales[k * 2] = scBytes[k]
-            lowScales[k * 2 + 1] = if (scBytes[k] < 0) -1 else 0
-            highScales[k * 2] = scBytes[k + 8]
-            highScales[k * 2 + 1] = if (scBytes[k + 8] < 0) -1 else 0
-        }
+        scales128 = mmSubEpi8(scales128, m32)
+        val allScales = mm256Cvtepi8Epi16(scales128)
+        val lScales = mm256Extracti128Si256S(allScales, 0)
+        val hScales = mm256Extracti128Si256S(allScales, 1)
         val scales = arrayOf(
-            mm256SetM128i(lowScales, lowScales),
-            mm256SetM128i(highScales, highScales)
+            mm256SetM128i(lScales, lScales),
+            mm256SetM128i(hScales, hScales),
         )
 
-        var q3Offset = 0
-        var q8Offset = 0
-        val sumi = IntArray(8)
+        // high bit
+        val hbits = mm256LoaduSi256U(x.hmask, 0)
 
-        for (j in 0 until scales.size) {
-            val scaleVec = scales[j]
-            for (sStep in 0 until 4) {
-                val shuf = getScaleShuffleQ3k(sStep)
-                val shift = sStep * 2
-                val hShift = if (j == 0) sStep else sStep + 4
-                for (lane in 0 until 8) {
-                    var laneAcc = 0
-                    for (pair in 0 until 2) {
-                        val elem = lane * 4 + pair * 2
-                        val q3lA = ((x.qs[q3Offset + elem].toInt() and 0xFF) ushr shift) and 3
-                        val q3lB = ((x.qs[q3Offset + elem + 1].toInt() and 0xFF) ushr shift) and 3
-                        val q3hA = if (((x.hmask[elem].toInt() and 0xFF) and (1 shl hShift)) == 0) 4 else 0
-                        val q3hB = if (((x.hmask[elem + 1].toInt() and 0xFF) and (1 shl hShift)) == 0) 4 else 0
+        var sumi = mm256SetzeroSi256()
 
-                        val q8A = y.qs[q8Offset + sStep * 32 + elem].toInt()
-                        val q8B = y.qs[q8Offset + sStep * 32 + elem + 1].toInt()
-                        val p = (q3lA - q3hA) * q8A + (q3lB - q3hB) * q8B
+        for ((j, scale) in scales.withIndex()) {
+            // load low 2 bits
+            val q3bits = mm256LoaduSi256U(x.qs, q3)
+            q3 += 32
 
-                        val scByteOffset = if (lane < 4) shuf[lane * 4 + pair * 2].toInt() else 16 + shuf[lane * 4 + pair * 2].toInt()
-                        val sc = scaleVec[scByteOffset].toInt()
-                        laneAcc += sc * p
-                    }
-                    sumi[lane] += laneAcc
-                }
-            }
-            q3Offset += 32
-            q8Offset += 128
+            // Prepare low and high bits
+            val q3l0 = mm256AndSi256(q3bits, m3)
+            val q3h0 = mm256SlliEpi16(
+                if (j == 0) {
+                    mm256SrliEpi16(mm256AndnotSi256(hbits, mm256SlliEpi16(mone, 0)), 0)
+                } else {
+                    mm256SrliEpi16(mm256AndnotSi256(hbits, mm256SlliEpi16(mone, 4)), 4)
+                },
+                2,
+            )
+
+            val q3l1 = mm256AndSi256(mm256SrliEpi16(q3bits, 2), m3)
+            val q3h1 = mm256SlliEpi16(
+                if (j == 0) {
+                    mm256SrliEpi16(mm256AndnotSi256(hbits, mm256SlliEpi16(mone, 1)), 1)
+                } else {
+                    mm256SrliEpi16(mm256AndnotSi256(hbits, mm256SlliEpi16(mone, 5)), 5)
+                },
+                2,
+            )
+
+            val q3l2 = mm256AndSi256(mm256SrliEpi16(q3bits, 4), m3)
+            val q3h2 = mm256SlliEpi16(
+                if (j == 0) {
+                    mm256SrliEpi16(mm256AndnotSi256(hbits, mm256SlliEpi16(mone, 2)), 2)
+                } else {
+                    mm256SrliEpi16(mm256AndnotSi256(hbits, mm256SlliEpi16(mone, 6)), 6)
+                },
+                2,
+            )
+
+            val q3l3 = mm256AndSi256(mm256SrliEpi16(q3bits, 6), m3)
+            val q3h3 = mm256SlliEpi16(
+                if (j == 0) {
+                    mm256SrliEpi16(mm256AndnotSi256(hbits, mm256SlliEpi16(mone, 3)), 3)
+                } else {
+                    mm256SrliEpi16(mm256AndnotSi256(hbits, mm256SlliEpi16(mone, 7)), 7)
+                },
+                2,
+            )
+
+            // load Q8 quants
+            val q80 = mm256LoaduSi256(y.qs, q8)
+            q8 += 32
+            val q81 = mm256LoaduSi256(y.qs, q8)
+            q8 += 32
+            val q82 = mm256LoaduSi256(y.qs, q8)
+            q8 += 32
+            val q83 = mm256LoaduSi256(y.qs, q8)
+            q8 += 32
+
+            val q8s0 = mm256MaddubsEpi16(q3h0, q80)
+            val q8s1 = mm256MaddubsEpi16(q3h1, q81)
+            val q8s2 = mm256MaddubsEpi16(q3h2, q82)
+            val q8s3 = mm256MaddubsEpi16(q3h3, q83)
+
+            val p160 = mm256SubEpi16(mm256MaddubsEpi16(q3l0, q80), q8s0)
+            val p161 = mm256SubEpi16(mm256MaddubsEpi16(q3l1, q81), q8s1)
+            val p162 = mm256SubEpi16(mm256MaddubsEpi16(q3l2, q82), q8s2)
+            val p163 = mm256SubEpi16(mm256MaddubsEpi16(q3l3, q83), q8s3)
+
+            // multiply with scales
+            var m0 = mm256MaddEpi16(mm256ShuffleEpi8S(scale, getScaleShuffleQ3k(0)), p160)
+            val m1 = mm256MaddEpi16(mm256ShuffleEpi8S(scale, getScaleShuffleQ3k(1)), p161)
+            var m2 = mm256MaddEpi16(mm256ShuffleEpi8S(scale, getScaleShuffleQ3k(2)), p162)
+            val m3v = mm256MaddEpi16(mm256ShuffleEpi8S(scale, getScaleShuffleQ3k(3)), p163)
+
+            // accumulate
+            m0 = mm256AddEpi32(m0, m1)
+            m2 = mm256AddEpi32(m2, m3v)
+            sumi = mm256AddEpi32(sumi, mm256AddEpi32(m0, m2))
         }
 
-        for (lane in 0 until 8) {
-            acc[lane] += d * sumi[lane].toFloat()
-        }
+        // multiply with block scale and accumulate
+        acc = mm256FmaddPs(mm256BroadcastSs(d), mm256Cvtepi32Ps(sumi), acc)
     }
     return hsumFloat8(acc)
 }
@@ -389,23 +589,16 @@ internal fun vecDotQ4kQ8k(n: Int, xs: List<BlockQ4K>, ys: List<BlockQ8K>): Float
     val kmask2 = 0x0f0f0f0f
     val kmask3 = 0x03030303
 
-    val acc = FloatArray(8)
-    val accM = FloatArray(4)
-    val count = minOf(xs.size, ys.size)
+    val m4 = mm256Set1Epi8(0xF)
 
-    for (idx in 0 until count) {
-        val x = xs[idx]
-        val y = ys[idx]
+    var acc = mm256SetzeroPs()
+    var accM = mmSetzeroPs()
+
+    for ((x, y) in xs.zip(ys)) {
         val d = y.d * x.d.toFloat()
         val dmin = -y.d * x.dmin.toFloat()
 
-        for (w in 0 until 3) {
-            val b0 = x.scales[w * 4].toInt() and 0xFF
-            val b1 = x.scales[w * 4 + 1].toInt() and 0xFF
-            val b2 = x.scales[w * 4 + 2].toInt() and 0xFF
-            val b3 = x.scales[w * 4 + 3].toInt() and 0xFF
-            utmp[w] = b0 or (b1 shl 8) or (b2 shl 16) or (b3 shl 24)
-        }
+        readU32Into(x.scales, utmp, 3)
 
         utmp[3] = ((utmp[2] ushr 4) and kmask2) or (((utmp[1] ushr 6) and kmask3) shl 4)
         val uaux = utmp[1] and kmask1
@@ -413,66 +606,59 @@ internal fun vecDotQ4kQ8k(n: Int, xs: List<BlockQ4K>, ys: List<BlockQ8K>): Float
         utmp[2] = uaux
         utmp[0] = utmp[0] and kmask1
 
-        val scBytes = ByteArray(16)
-        val minBytes = ByteArray(8)
-        for (w in 0 until 2) {
-            for (b in 0 until 4) {
-                scBytes[(w * 4 + b) * 2] = ((utmp[w] ushr (b * 8)) and 0xFF).toByte()
-                minBytes[w * 4 + b] = ((utmp[w + 2] ushr (b * 8)) and 0xFF).toByte()
-            }
-        }
+        var q4 = 0
+        var q8 = 0
 
-        for (lane in 0 until 4) {
-            val q8s0 = y.bsums[lane * 4].toInt() + y.bsums[lane * 4 + 1].toInt()
-            val q8s1 = y.bsums[lane * 4 + 2].toInt() + y.bsums[lane * 4 + 3].toInt()
-            val m0 = minBytes[lane * 2].toInt() and 0xFF
-            val m1 = minBytes[lane * 2 + 1].toInt() and 0xFF
-            accM[lane] += dmin * (m0 * q8s0 + m1 * q8s1).toFloat()
-        }
+        val minsAndScales = mm256Cvtepu8Epi16(
+            mmSetEpi32(
+                utmp[3],
+                utmp[2],
+                utmp[1],
+                utmp[0],
+            )
+        )
 
-        val scales = mm256SetM128i(scBytes, scBytes)
-        var q4Offset = 0
-        var q8Offset = 0
-        val sumi = IntArray(8)
+        val q8sums = mm256LoaduSi256S(y.bsums, 0)
+        val q8s = mmHaddEpi16(
+            mm256Extracti128Si256S(q8sums, 0),
+            mm256Extracti128Si256S(q8sums, 1),
+        )
+        val prod = mmMaddEpi16(mm256Extracti128Si256S(minsAndScales, 1), q8s)
+        accM = mmFmaddPs(mmSet1Ps(dmin), mmCvtepi32Ps(prod), accM)
+
+        val sc128 = mm256Extracti128Si256S(minsAndScales, 0)
+        val scales = mm256SetM128i(sc128, sc128)
+
+        var sumi = mm256SetzeroSi256()
 
         for (j in 0 until QKK / 64) {
-            val shufL = getScaleShuffleK4(2 * j)
-            val shufH = getScaleShuffleK4(2 * j + 1)
+            val scaleL = mm256ShuffleEpi8S(scales, getScaleShuffleK4(2 * j))
+            val scaleH = mm256ShuffleEpi8S(scales, getScaleShuffleK4(2 * j + 1))
 
-            for (lane in 0 until 8) {
-                var prodL = 0
-                var prodH = 0
-                for (pair in 0 until 2) {
-                    val elem = lane * 4 + pair * 2
-                    val b0 = x.qs[q4Offset + elem].toInt() and 0xFF
-                    val b1 = x.qs[q4Offset + elem + 1].toInt() and 0xFF
-                    val q8l0 = y.qs[q8Offset + elem].toInt()
-                    val q8l1 = y.qs[q8Offset + elem + 1].toInt()
-                    val q8h0 = y.qs[q8Offset + 32 + elem].toInt()
-                    val q8h1 = y.qs[q8Offset + 32 + elem + 1].toInt()
+            val q4bits = mm256LoaduSi256U(x.qs, q4)
+            q4 += 32
+            val q4l = mm256AndSi256(q4bits, m4)
+            val q4h = mm256AndSi256(mm256SrliEpi16(q4bits, 4), m4)
 
-                    val pL = (b0 and 0xF) * q8l0 + (b1 and 0xF) * q8l1
-                    val pH = (b0 ushr 4) * q8h0 + (b1 ushr 4) * q8h1
+            val q8l = mm256LoaduSi256(y.qs, q8)
+            q8 += 32
+            val p16l = mm256MaddEpi16(scaleL, mm256MaddubsEpi16(q4l, q8l))
+            sumi = mm256AddEpi32(sumi, p16l)
 
-                    val scL = scales[shufL[elem].toInt() and 0xFF].toInt() and 0xFF
-                    val scH = scales[shufH[elem].toInt() and 0xFF].toInt() and 0xFF
-
-                    prodL += scL * pL
-                    prodH += scH * pH
-                }
-                sumi[lane] += prodL + prodH
-            }
-            q4Offset += 32
-            q8Offset += 64
+            val q8h = mm256LoaduSi256(y.qs, q8)
+            q8 += 32
+            val p16h = mm256MaddEpi16(scaleH, mm256MaddubsEpi16(q4h, q8h))
+            sumi = mm256AddEpi32(sumi, p16h)
         }
 
-        for (lane in 0 until 8) {
-            acc[lane] += d * sumi[lane].toFloat()
-        }
+        val vd = mm256Set1Ps(d)
+        acc = mm256FmaddPs(vd, mm256Cvtepi32Ps(sumi), acc)
     }
 
-    val sumM = accM[0] + accM[1] + accM[2] + accM[3]
-    return hsumFloat8(acc) + sumM
+    accM = mmAddPs(accM, mmMovehlPs(accM, accM))
+    accM = mmAddSs(accM, mmMovehdupPs(accM))
+
+    return hsumFloat8(acc) + mmCvtssF32(accM)
 }
 
 internal fun vecDotQ5kQ8k(n: Int, xs: List<BlockQ5K>, ys: List<BlockQ8K>): Float {
@@ -484,23 +670,18 @@ internal fun vecDotQ5kQ8k(n: Int, xs: List<BlockQ5K>, ys: List<BlockQ8K>): Float
     val kmask2 = 0x0f0f0f0f
     val kmask3 = 0x03030303
 
-    val acc = FloatArray(8)
-    var summs = 0.0f
-    val count = minOf(xs.size, ys.size)
+    val m4 = mm256Set1Epi8(0xF)
+    val mzero = mmSetzeroSi128()
+    val mone = mm256Set1Epi8(1)
 
-    for (idx in 0 until count) {
-        val x = xs[idx]
-        val y = ys[idx]
+    var acc = mm256SetzeroPs()
+    var summs = 0.0f
+
+    for ((x, y) in xs.zip(ys)) {
         val d = y.d * x.d.toFloat()
         val dmin = -y.d * x.dmin.toFloat()
 
-        for (w in 0 until 3) {
-            val b0 = x.scales[w * 4].toInt() and 0xFF
-            val b1 = x.scales[w * 4 + 1].toInt() and 0xFF
-            val b2 = x.scales[w * 4 + 2].toInt() and 0xFF
-            val b3 = x.scales[w * 4 + 3].toInt() and 0xFF
-            utmp[w] = b0 or (b1 shl 8) or (b2 shl 16) or (b3 shl 24)
-        }
+        readU32Into(x.scales, utmp, 3)
 
         utmp[3] = ((utmp[2] ushr 4) and kmask2) or (((utmp[1] ushr 6) and kmask3) shl 4)
         val uaux = utmp[1] and kmask1
@@ -508,68 +689,82 @@ internal fun vecDotQ5kQ8k(n: Int, xs: List<BlockQ5K>, ys: List<BlockQ8K>): Float
         utmp[2] = uaux
         utmp[0] = utmp[0] and kmask1
 
-        val scBytes = ByteArray(16)
-        var minProdSum = 0
-        for (w in 0 until 2) {
-            for (b in 0 until 4) {
-                val scIdx = w * 4 + b
-                scBytes[scIdx * 2] = ((utmp[w] ushr (b * 8)) and 0xFF).toByte()
-                val mVal = (utmp[w + 2] ushr (b * 8)) and 0xFF
-                val q8s = y.bsums[scIdx * 2].toInt() + y.bsums[scIdx * 2 + 1].toInt()
-                minProdSum += mVal * q8s
-            }
-        }
-        summs += dmin * minProdSum.toFloat()
+        var q5 = 0
+        var q8 = 0
 
-        val scales = mm256SetM128i(scBytes, scBytes)
-        var q5Offset = 0
-        var q8Offset = 0
-        val sumi = IntArray(8)
+        val minsAndScales = mm256Cvtepu8Epi16(
+            mmSetEpi32(
+                utmp[3],
+                utmp[2],
+                utmp[1],
+                utmp[0],
+            )
+        )
+
+        val q8sums = mm256LoaduSi256S(y.bsums, 0)
+        val q8s = mmHaddEpi16(
+            mm256Extracti128Si256S(q8sums, 0),
+            mm256Extracti128Si256S(q8sums, 1),
+        )
+        val prod = mmMaddEpi16(mm256Extracti128Si256S(minsAndScales, 1), q8s)
+        val hsum = mmHaddEpi32(mmHaddEpi32(prod, mzero), mzero)
+        summs += dmin * mmExtractEpi32(hsum, 0).toFloat()
+
+        val sc128 = mm256Extracti128Si256S(minsAndScales, 0)
+        val scales = mm256SetM128i(sc128, sc128)
+
+        val hbits = mm256LoaduSi256U(x.qh, 0)
+        var hmask = mone
+
+        var sumi = mm256SetzeroSi256()
 
         for (j in 0 until QKK / 64) {
-            val shuf0 = getScaleShuffleK4(2 * j)
-            val shuf1 = getScaleShuffleK4(2 * j + 1)
-            val bit0 = 2 * j
-            val bit1 = 2 * j + 1
+            val scale0 = mm256ShuffleEpi8S(scales, getScaleShuffleK4(2 * j))
+            val scale1 = mm256ShuffleEpi8S(scales, getScaleShuffleK4(2 * j + 1))
 
-            for (lane in 0 until 8) {
-                var prod0 = 0
-                var prod1 = 0
-                for (pair in 0 until 2) {
-                    val elem = lane * 4 + pair * 2
-                    val b0 = x.qs[q5Offset + elem].toInt() and 0xFF
-                    val b1 = x.qs[q5Offset + elem + 1].toInt() and 0xFF
-                    val qh0 = x.qh[elem].toInt() and 0xFF
-                    val qh1 = x.qh[elem + 1].toInt() and 0xFF
+            val q5bits = mm256LoaduSi256U(x.qs, q5)
+            q5 += 32
 
-                    val q50A = (b0 and 0xF) + (((qh0 ushr bit0) and 1) shl 4)
-                    val q50B = (b1 and 0xF) + (((qh1 ushr bit0) and 1) shl 4)
-                    val q51A = (b0 ushr 4) + (((qh0 ushr bit1) and 1) shl 4)
-                    val q51B = (b1 ushr 4) + (((qh1 ushr bit1) and 1) shl 4)
-
-                    val q80A = y.qs[q8Offset + elem].toInt()
-                    val q80B = y.qs[q8Offset + elem + 1].toInt()
-                    val q81A = y.qs[q8Offset + 32 + elem].toInt()
-                    val q81B = y.qs[q8Offset + 32 + elem + 1].toInt()
-
-                    val p0 = q50A * q80A + q50B * q80B
-                    val p1 = q51A * q81A + q51B * q81B
-
-                    val sc0 = scales[shuf0[elem].toInt() and 0xFF].toInt() and 0xFF
-                    val sc1 = scales[shuf1[elem].toInt() and 0xFF].toInt() and 0xFF
-
-                    prod0 += sc0 * p0
-                    prod1 += sc1 * p1
-                }
-                sumi[lane] += prod0 + prod1
+            // Similar to q3k we hardcode the shifts here to avoid loading them into a separate register
+            val q5l0 = mm256AndSi256(q5bits, m4)
+            val q5l0ShiftInput = mm256AndSi256(hbits, hmask)
+            val q5l0RightShift = when (j) {
+                0 -> mm256SrliEpi16(q5l0ShiftInput, 0)
+                1 -> mm256SrliEpi16(q5l0ShiftInput, 2)
+                2 -> mm256SrliEpi16(q5l0ShiftInput, 4)
+                3 -> mm256SrliEpi16(q5l0ShiftInput, 6)
+                else -> error("unreachable")
             }
-            q5Offset += 32
-            q8Offset += 64
-        }
+            val q5h0 = mm256SlliEpi16(q5l0RightShift, 4)
+            val q50 = mm256AddEpi8(q5l0, q5h0)
+            hmask = mm256SlliEpi16(hmask, 1)
 
-        for (lane in 0 until 8) {
-            acc[lane] += d * sumi[lane].toFloat()
+            val q5l1 = mm256AndSi256(mm256SrliEpi16(q5bits, 4), m4)
+            val q5l1ShiftInput = mm256AndSi256(hbits, hmask)
+            val q5l1RightShift = when (j) {
+                0 -> mm256SrliEpi16(q5l1ShiftInput, 1)
+                1 -> mm256SrliEpi16(q5l1ShiftInput, 3)
+                2 -> mm256SrliEpi16(q5l1ShiftInput, 5)
+                3 -> mm256SrliEpi16(q5l1ShiftInput, 7)
+                else -> error("unreachable")
+            }
+
+            val q5h1 = mm256SlliEpi16(q5l1RightShift, 4)
+            val q51 = mm256AddEpi8(q5l1, q5h1)
+            hmask = mm256SlliEpi16(hmask, 1)
+
+            val q80 = mm256LoaduSi256(y.qs, q8)
+            q8 += 32
+            val q81 = mm256LoaduSi256(y.qs, q8)
+            q8 += 32
+
+            val p160 = mm256MaddEpi16(scale0, mm256MaddubsEpi16(q50, q80))
+            val p161 = mm256MaddEpi16(scale1, mm256MaddubsEpi16(q51, q81))
+
+            sumi = mm256AddEpi32(sumi, mm256AddEpi32(p160, p161))
         }
+        val vd = mm256Set1Ps(d)
+        acc = mm256FmaddPs(vd, mm256Cvtepi32Ps(sumi), acc)
     }
     return hsumFloat8(acc) + summs
 }
@@ -578,31 +773,25 @@ internal fun vecDotQ8kQ8k(n: Int, xs: List<BlockQ8K>, ys: List<BlockQ8K>): Float
     require(n % QKK == 0) {
         "vecDotQ8kQ8k: $n is not divisible by $QKK"
     }
-    val acc = FloatArray(8)
-    val count = minOf(xs.size, ys.size)
-    for (idx in 0 until count) {
-        val x = xs[idx]
-        val y = ys[idx]
-        val sumi = IntArray(8)
+    var acc = mm256SetzeroPs()
+    for ((x, y) in xs.zip(ys)) {
+        var sumi = mm256SetzeroSi256()
+        val xQs = x.qs
+        val yQs = y.qs
         for (j in 0 until QKK step 32) {
-            for (lane in 0 until 8) {
-                val x0 = x.qs[j + lane * 2].toInt()
-                val x1 = x.qs[j + lane * 2 + 1].toInt()
-                val y0 = y.qs[j + lane * 2].toInt()
-                val y1 = y.qs[j + lane * 2 + 1].toInt()
-                sumi[lane] += x0 * y0 + x1 * y1
+            val xsVec = mm256LoaduSi256(xQs, j)
+            val ysVec = mm256LoaduSi256(yQs, j)
 
-                val x2 = x.qs[j + 16 + lane * 2].toInt()
-                val x3 = x.qs[j + 16 + lane * 2 + 1].toInt()
-                val y2 = y.qs[j + 16 + lane * 2].toInt()
-                val y3 = y.qs[j + 16 + lane * 2 + 1].toInt()
-                sumi[lane] += x2 * y2 + x3 * y3
-            }
+            val xs0 = mm256Cvtepi8Epi16(mm256Extracti128Si256B(xsVec, 0))
+            val ys0 = mm256Cvtepi8Epi16(mm256Extracti128Si256B(ysVec, 0))
+            sumi = mm256AddEpi32(sumi, mm256MaddEpi16(xs0, ys0))
+
+            val xs1 = mm256Cvtepi8Epi16(mm256Extracti128Si256B(xsVec, 1))
+            val ys1 = mm256Cvtepi8Epi16(mm256Extracti128Si256B(ysVec, 1))
+            sumi = mm256AddEpi32(sumi, mm256MaddEpi16(xs1, ys1))
         }
-        val d = x.d * y.d
-        for (lane in 0 until 8) {
-            acc[lane] += d * sumi[lane].toFloat()
-        }
+        val d = mm256Set1Ps(x.d * y.d)
+        acc = mm256FmaddPs(d, mm256Cvtepi32Ps(sumi), acc)
     }
     return hsumFloat8(acc)
 }

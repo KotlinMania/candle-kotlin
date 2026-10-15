@@ -12,6 +12,7 @@ import io.github.kotlinmania.candle.quantized.GgmlDType
 import io.github.kotlinmania.candle.quantized.cuda.CudaSlice
 import io.github.kotlinmania.candle.quantized.cuda.MATRIX_ROW_PADDING
 import io.github.kotlinmania.candle.quantized.cuda.QCudaStorage
+import io.github.kotlinmania.oncecell.sync.OnceCell
 
 /**
  * CUDA fast path for GGUF tiled matmul (prompt/prefill phase).
@@ -161,17 +162,18 @@ internal class WorkspaceSlot(
     var cap: Int
 )
 
-private val MMQ_WORKSPACE: MutableMap<DeviceId, WorkspaceSlot> = mutableMapOf()
-private val FIXUP_WORKSPACE: MutableMap<DeviceId, WorkspaceSlot> = mutableMapOf()
+private val MMQ_WORKSPACE: OnceCell<MutableMap<DeviceId, WorkspaceSlot>> = OnceCell.new()
+private val FIXUP_WORKSPACE: OnceCell<MutableMap<DeviceId, WorkspaceSlot>> = OnceCell.new()
 
 private fun workspaceEnsure(
-    ws: MutableMap<DeviceId, WorkspaceSlot>,
+    ws: OnceCell<MutableMap<DeviceId, WorkspaceSlot>>,
     dev: CudaDevice,
     bytes: Int
 ): Result<Pair<ULong, WorkspaceSlot>> = runCatching {
+    val map = ws.getOrInit { HashMap() }
     val deviceKey = DeviceId(dev.ordinal)
     val initialBytes = maxOf(bytes, 1)
-    val slot = ws.getOrPut(deviceKey) {
+    val slot = map.getOrPut(deviceKey) {
         WorkspaceSlot(CudaSlice(ByteArray(initialBytes)), initialBytes)
     }
     if (slot.cap < bytes) {
@@ -193,11 +195,12 @@ internal data class DeviceInfo(
     val warpSize: Int
 )
 
-private val DEVICE_INFO: MutableMap<DeviceId, DeviceInfo> = mutableMapOf()
+private val DEVICE_INFO: OnceCell<MutableMap<DeviceId, DeviceInfo>> = OnceCell.new()
 
 private fun getDeviceInfo(dev: CudaDevice): DeviceInfo {
+    val map = DEVICE_INFO.getOrInit { HashMap() }
     val key = DeviceId(dev.ordinal)
-    val cached = DEVICE_INFO[key]
+    val cached = map[key]
     if (cached != null) {
         return cached
     }
@@ -212,7 +215,7 @@ private fun getDeviceInfo(dev: CudaDevice): DeviceInfo {
         smpbo = smpbo,
         warpSize = warpSize
     )
-    DEVICE_INFO[key] = info
+    map[key] = info
     return info
 }
 

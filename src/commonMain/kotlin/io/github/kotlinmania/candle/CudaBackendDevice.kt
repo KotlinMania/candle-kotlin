@@ -15,6 +15,7 @@ import io.github.kotlinmania.candle.Shape
 import io.github.kotlinmania.candle.WithDType
 import io.github.kotlinmania.candle.cuda.error.CudaError
 import io.github.kotlinmania.candle.cuda.error.w
+import io.github.kotlinmania.threadlocal.ThreadLocal
 
 /**
  * Unique identifier for cuda devices.
@@ -87,16 +88,17 @@ internal class CudaGraphHtodCache(
     val entries: MutableMap<CudaGraphHtodCacheKey, Any> = mutableMapOf()
 )
 
-private val CUDA_GRAPH_HTOD_CACHE: MutableMap<CudaGraphHtodCacheKey, Any> = mutableMapOf()
-private var CUDA_GRAPH_HTOD_CACHE_DEPTH: Int = 0
+private val CUDA_GRAPH_HTOD_CACHE: ThreadLocal<MutableMap<CudaGraphHtodCacheKey, Any>> = ThreadLocal()
+private val CUDA_GRAPH_HTOD_CACHE_DEPTH: ThreadLocal<IntArray> = ThreadLocal()
 
 class CudaGraphHtodCacheGuard {
     interface Target
     interface Storage
 
     fun drop() {
-        check(CUDA_GRAPH_HTOD_CACHE_DEPTH > 0)
-        CUDA_GRAPH_HTOD_CACHE_DEPTH = maxOf(0, CUDA_GRAPH_HTOD_CACHE_DEPTH - 1)
+        val depth = CUDA_GRAPH_HTOD_CACHE_DEPTH.getOr { intArrayOf(0) }
+        check(depth[0] > 0)
+        depth[0] = maxOf(0, depth[0] - 1)
     }
 }
 
@@ -172,7 +174,8 @@ class CudaDevice(
     }.w()
 
     fun enableCudaGraphHtodCache(): CudaGraphHtodCacheGuard {
-        CUDA_GRAPH_HTOD_CACHE_DEPTH += 1
+        val depth = CUDA_GRAPH_HTOD_CACHE_DEPTH.getOr { intArrayOf(0) }
+        depth[0] += 1
         return CudaGraphHtodCacheGuard()
     }
 
@@ -259,7 +262,8 @@ class CudaDevice(
         val typeName = src.firstOrNull()?.let { it::class.simpleName ?: "Unknown" } ?: "Empty"
         val bytes = src.map { it.hashCode().toByte() }
         val key = CudaGraphHtodCacheKey(id, typeName, bytes)
-        val existing = CUDA_GRAPH_HTOD_CACHE[key]
+        val cache = CUDA_GRAPH_HTOD_CACHE.getOr { HashMap() }
+        val existing = cache[key]
         if (existing is CudaSlice<*>) {
             val typed = CudaSlice(existing.data.map { element -> element as T }.toMutableList())
             return@runCatching typed
@@ -269,7 +273,7 @@ class CudaDevice(
         }
 
         val cached = CudaSlice(src.toMutableList())
-        CUDA_GRAPH_HTOD_CACHE[key] = cached
+        cache[key] = cached
         cached
     }
 
@@ -797,7 +801,7 @@ class CudaDevice(
 }
 
 private fun cudaGraphHtodCacheEnabled(): Boolean {
-    return CUDA_GRAPH_HTOD_CACHE_DEPTH > 0
+    return CUDA_GRAPH_HTOD_CACHE_DEPTH.getOr { intArrayOf(0) }[0] > 0
 }
 
 class CudaFunc(

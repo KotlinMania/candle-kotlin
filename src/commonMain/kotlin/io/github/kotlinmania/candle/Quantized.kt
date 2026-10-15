@@ -1,6 +1,9 @@
 // port-lint: source quantized/mod.rs
 package io.github.kotlinmania.candle
 
+import io.github.kotlinmania.envie.getenv
+import io.github.kotlinmania.threadlocal.ThreadLocal
+
 private fun <T> asTSlice(data: ByteArray, typeSize: Int, decodeBlock: (ByteArray, Int) -> T): List<T> {
     check(data.size % typeSize == 0) {
         "Data length must be a multiple of element size"
@@ -757,8 +760,8 @@ private fun checkShape(shape: Shape, blockSize: Int): CandleResult<Unit> {
     return CandleResult.Ok(Unit)
 }
 
-private var DEQUANTIZE_ALL: Boolean = false
-private var DEQUANTIZE_ALL_F16: Boolean = false
+private val DEQUANTIZE_ALL: ThreadLocal<Boolean> = ThreadLocal()
+private val DEQUANTIZE_ALL_F16: ThreadLocal<Boolean> = ThreadLocal()
 
 sealed class QMatMul : Module {
     data class QTensorVariant(val qtensor: QTensor) : QMatMul()
@@ -897,7 +900,10 @@ sealed class QMatMul : Module {
         fun fromArc(qtensor: QTensor): CandleResult<QMatMul> {
             val dequantize = when (qtensor.dtype()) {
                 GgmlDType.F32, GgmlDType.F16, GgmlDType.BF16 -> true
-                else -> DEQUANTIZE_ALL
+                else -> DEQUANTIZE_ALL.getOr {
+                    val s = getenv("CANDLE_DEQUANTIZE_ALL")
+                    s != null && s.isNotEmpty() && s != "0"
+                }
             }
             val t = if (dequantize) {
                 val tensor = when (val res = qtensor.dequantize(qtensor.device())) {
@@ -905,7 +911,12 @@ sealed class QMatMul : Module {
                     is CandleResult.Err -> return CandleResult.Err(res.error)
                 }
                 TensorVariant(tensor)
-            } else if (DEQUANTIZE_ALL_F16) {
+            } else if (
+                DEQUANTIZE_ALL_F16.getOr {
+                    val s = getenv("CANDLE_DEQUANTIZE_ALL_F16")
+                    s != null && s.isNotEmpty() && s != "0"
+                }
+            ) {
                 val tensor = when (val res = qtensor.dequantizeF16(qtensor.device())) {
                     is CandleResult.Ok -> res.value
                     is CandleResult.Err -> return CandleResult.Err(res.error)

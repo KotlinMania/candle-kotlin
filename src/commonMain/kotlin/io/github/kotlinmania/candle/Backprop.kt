@@ -1,12 +1,17 @@
 // port-lint: source backprop.rs
 package io.github.kotlinmania.candle
 
+import io.github.kotlinmania.envie.getenv
+import io.github.kotlinmania.threadlocal.ThreadLocal
+
 private fun broadcastBack(arg: Tensor, node: Tensor, reducedDims: List<Int>): Tensor =
     if (arg.rank() == node.rank()) {
         node.broadcastAs(arg.shape())
     } else {
         node.reshape(Shape(reducedDims)).broadcastAs(arg.shape())
     }
+
+private val CANDLE_GRAD_DO_NOT_DETACH: ThreadLocal<Boolean> = ThreadLocal()
 
 /**
  * A store for gradients, associating a tensor id to the corresponding gradient tensor, used for back propagation.
@@ -368,7 +373,11 @@ public fun Tensor.backward(): GradStore {
             continue
         }
         val grad = grads.remove(node) ?: bail("candle internal error - grad not populated")
-        val detachedGrad = grad.detach()
+        val doNotDetach = CANDLE_GRAD_DO_NOT_DETACH.getOr {
+            val s = getenv("CANDLE_GRAD_DO_NOT_DETACH")
+            s != null && s.isNotEmpty() && s != "0"
+        }
+        val detachedGrad = if (doNotDetach) grad else grad.detach()
         val op = node.op() ?: continue
         when (op) {
             is Op.Binary -> {

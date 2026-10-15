@@ -12,6 +12,7 @@ import io.github.kotlinmania.candle.quantized.GgmlDType
 import io.github.kotlinmania.candle.quantized.cuda.MATRIX_ROW_PADDING
 import io.github.kotlinmania.candle.quantized.cuda.QCudaStorage
 import io.github.kotlinmania.candle.quantized.cuda.CudaSlice
+import io.github.kotlinmania.oncecell.sync.OnceCell
 
 /**
  * CUDA fast path for GGUF matrix-vector multiplication (decode phase).
@@ -56,7 +57,7 @@ internal class WorkspaceSlot(
     var cap: Int
 )
 
-private val WORKSPACE: MutableMap<DeviceId, WorkspaceSlot> = mutableMapOf()
+private val WORKSPACE: OnceCell<MutableMap<DeviceId, WorkspaceSlot>> = OnceCell.new()
 
 /**
  * Returns a device pointer to the scratch workspace, growing it if needed.
@@ -68,8 +69,9 @@ private fun workspaceEnsure(
     dev: CudaDevice,
     bytes: Int
 ): Result<Pair<ULong, MutableMap<DeviceId, WorkspaceSlot>>> = runCatching {
+    val map = WORKSPACE.getOrInit { HashMap() }
     val deviceKey = DeviceId(dev.ordinal)
-    val existing = WORKSPACE[deviceKey]
+    val existing = map[deviceKey]
     val slot = if (existing != null) {
         if (existing.cap < bytes) {
             existing.slice = CudaSlice(ByteArray(bytes))
@@ -78,11 +80,11 @@ private fun workspaceEnsure(
         existing
     } else {
         val created = WorkspaceSlot(CudaSlice(ByteArray(bytes)), bytes)
-        WORKSPACE[deviceKey] = created
+        map[deviceKey] = created
         created
     }
     val ptr = slot.slice.bytes.hashCode().toULong()
-    Pair(ptr, WORKSPACE)
+    Pair(ptr, map)
 }
 
 // ---------------------------------------------------------------------------

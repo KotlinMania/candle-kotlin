@@ -15,6 +15,10 @@ thiserror = "0.2.0"
 zip = "0.1.0"
 anyhow = "0.1.1"
 clap = "0.1.2"
+threadlocal = "0.3.3"
+onceCell = "0.1.1"
+envie = "0.1.0"
+windowsSys = "0.1.1"
 
 [plugins]
 kotlin-multiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
@@ -39,6 +43,10 @@ thiserror-kotlin = { module = "io.github.kotlinmania:thiserror-kotlin", version.
 zip-kotlin = { module = "io.github.kotlinmania:zip-kotlin", version.ref = "zip" }
 anyhow-kotlin = { module = "io.github.kotlinmania:anyhow-kotlin", version.ref = "anyhow" }
 clap-kotlin = { module = "io.github.kotlinmania:clap-kotlin", version.ref = "clap" }
+threadlocal-kotlin = { module = "io.github.kotlinmania:threadlocal-kotlin", version.ref = "threadlocal" }
+once-cell-kotlin = { module = "io.github.kotlinmania:once-cell-kotlin", version.ref = "onceCell" }
+envie-kotlin = { module = "io.github.kotlinmania:envie-kotlin", version.ref = "envie" }
+windows-sys-kotlin = { module = "io.github.kotlinmania:windows-sys-kotlin", version.ref = "windowsSys" }
 
 [bundles]
 candle-commonMain = [
@@ -52,6 +60,10 @@ candle-commonMain = [
   "thiserror-kotlin",
   "zip-kotlin",
   "anyhow-kotlin",
+  "threadlocal-kotlin",
+  "once-cell-kotlin",
+  "envie-kotlin",
+  "windows-sys-kotlin",
 ]
 candle-commonTest = [
   "kotlinx-coroutines-test",
