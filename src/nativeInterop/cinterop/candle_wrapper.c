@@ -249,7 +249,7 @@ void candle_neon_f16_vec_fma(const uint16_t* a, const uint16_t* b, const uint16_
 }
 
 void candle_neon_f16_from_f32(float v, uint16_t* out) {
-#if defined(__aarch64__)
+#if defined(__aarch64__) && defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
     uint16x8_t dst;
     float tmp;
     uint32_t w;
@@ -258,6 +258,16 @@ void candle_neon_f16_from_f32(float v, uint16_t* out) {
         "fmov %w[w], %h[tmp]\n\t"
         "dup %[dst].8h, %w[w]"
         : [tmp] "=w"(tmp), [w] "=r"(w), [dst] "=w"(dst)
+        : [src] "w"(v)
+    );
+    vst1q_u16(out, dst);
+#elif defined(__aarch64__)
+    uint16x8_t dst;
+    float tmp;
+    __asm__ volatile(
+        "fcvt %h[tmp], %s[src]\n\t"
+        "dup %[dst].8h, %[tmp].h[0]"
+        : [tmp] "=w"(tmp), [dst] "=w"(dst)
         : [src] "w"(v)
     );
     vst1q_u16(out, dst);
