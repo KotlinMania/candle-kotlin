@@ -73,22 +73,36 @@ fun Scalar.builderArg(builder: LaunchArgs) {
 }
 
 sealed class CudaStorageSlice {
-    data class U8(val data: CudaSlice<UByte>) : CudaStorageSlice()
-    data class U32(val data: CudaSlice<UInt>) : CudaStorageSlice()
-    data class I16(val data: CudaSlice<Short>) : CudaStorageSlice()
-    data class I32(val data: CudaSlice<Int>) : CudaStorageSlice()
-    data class I64(val data: CudaSlice<Long>) : CudaStorageSlice()
-    data class BF16(val data: CudaSlice<BFloat16>) : CudaStorageSlice()
-    data class F16(val data: CudaSlice<Float16>) : CudaStorageSlice()
-    data class F32(val data: CudaSlice<Float>) : CudaStorageSlice()
-    data class F64(val data: CudaSlice<Double>) : CudaStorageSlice()
-    data class F8E4M3(val data: CudaSlice<io.github.kotlinmania.candle.F8E4M3>) : CudaStorageSlice()
+    @ConsistentCopyVisibility
+    data class U8 internal constructor(val data: CudaSlice<UByte>) : CudaStorageSlice()
+    @ConsistentCopyVisibility
+    data class U32 internal constructor(val data: CudaSlice<UInt>) : CudaStorageSlice()
+    @ConsistentCopyVisibility
+    data class I16 internal constructor(val data: CudaSlice<Short>) : CudaStorageSlice()
+    @ConsistentCopyVisibility
+    data class I32 internal constructor(val data: CudaSlice<Int>) : CudaStorageSlice()
+    @ConsistentCopyVisibility
+    data class I64 internal constructor(val data: CudaSlice<Long>) : CudaStorageSlice()
+    @ConsistentCopyVisibility
+    data class BF16 internal constructor(val data: CudaSlice<BFloat16>) : CudaStorageSlice()
+    @ConsistentCopyVisibility
+    data class F16 internal constructor(val data: CudaSlice<Float16>) : CudaStorageSlice()
+    @ConsistentCopyVisibility
+    data class F32 internal constructor(val data: CudaSlice<Float>) : CudaStorageSlice()
+    @ConsistentCopyVisibility
+    data class F64 internal constructor(val data: CudaSlice<Double>) : CudaStorageSlice()
+    @ConsistentCopyVisibility
+    data class F8E4M3 internal constructor(val data: CudaSlice<io.github.kotlinmania.candle.F8E4M3>) : CudaStorageSlice()
     typealias F8E4M3Slice = F8E4M3
     // Dummy types that store raw bytes
-    data class F6E2M3(val data: CudaSlice<UByte>) : CudaStorageSlice()
-    data class F6E3M2(val data: CudaSlice<UByte>) : CudaStorageSlice()
-    data class F4(val data: CudaSlice<UByte>) : CudaStorageSlice()
-    data class F8E8M0(val data: CudaSlice<UByte>) : CudaStorageSlice()
+    @ConsistentCopyVisibility
+    data class F6E2M3 internal constructor(val data: CudaSlice<UByte>) : CudaStorageSlice()
+    @ConsistentCopyVisibility
+    data class F6E3M2 internal constructor(val data: CudaSlice<UByte>) : CudaStorageSlice()
+    @ConsistentCopyVisibility
+    data class F4 internal constructor(val data: CudaSlice<UByte>) : CudaStorageSlice()
+    @ConsistentCopyVisibility
+    data class F8E8M0 internal constructor(val data: CudaSlice<UByte>) : CudaStorageSlice()
 }
 
 data class LaunchConfig(

@@ -842,7 +842,7 @@ public fun Tensor.backward(): GradStore {
 /**
  * A store for gradients, associating a tensor id to the corresponding gradient tensor, used for back propagation.
  */
-public class GradStore(
+public class GradStore internal constructor(
     private val grads: MutableMap<TensorId, Tensor> = mutableMapOf(),
 ) {
     private val self: MutableMap<TensorId, Tensor> get() = grads

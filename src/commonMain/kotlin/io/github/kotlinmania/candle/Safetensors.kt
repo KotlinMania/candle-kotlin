@@ -501,7 +501,7 @@ fun save(
     return SafeTensors.serializeToFile(tensors, null, filename.asRef())
 }
 
-class SafeTensors(
+class SafeTensors internal constructor(
     val entries: LinkedHashMap<String, SafeTensorView>,
 ) {
     val names: () -> List<String> = { this.entries.keys.toList() }

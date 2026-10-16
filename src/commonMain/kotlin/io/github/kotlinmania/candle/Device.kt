@@ -132,7 +132,7 @@ public interface NdArray {
         }
     }
 
-    public class Array2<T>(
+    public class Array2<T> internal constructor(
         public val value: Array<Array<T>>,
         public val m: Int = value.size,
         public val n: Int = if (value.isEmpty()) 0 else value[0].size,
@@ -146,7 +146,7 @@ public interface NdArray {
         }
     }
 
-    public class Array3<T>(
+    public class Array3<T> internal constructor(
         public val value: Array<Array<Array<T>>>,
         public val n1: Int = value.size,
         public val n2: Int = if (value.isEmpty()) 0 else value[0].size,
@@ -167,7 +167,7 @@ public interface NdArray {
         }
     }
 
-    public class Array4<T>(
+    public class Array4<T> internal constructor(
         public val value: Array<Array<Array<Array<T>>>>,
         public val n1: Int = value.size,
         public val n2: Int = if (value.isEmpty()) 0 else value[0].size,

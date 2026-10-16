@@ -180,13 +180,15 @@ public sealed class Op {
         val dilation: Int,
     ) : Op()
 
-    public data class AvgPool2D(
+    @ConsistentCopyVisibility
+    public data class AvgPool2D internal constructor(
         val arg: Tensor,
         val kernelSize: Pair<Int, Int>,
         val stride: Pair<Int, Int>,
     ) : Op()
 
-    public data class MaxPool2D(
+    @ConsistentCopyVisibility
+    public data class MaxPool2D internal constructor(
         val arg: Tensor,
         val kernelSize: Pair<Int, Int>,
         val stride: Pair<Int, Int>,
