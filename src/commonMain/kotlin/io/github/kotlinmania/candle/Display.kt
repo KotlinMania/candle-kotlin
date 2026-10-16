@@ -267,7 +267,7 @@ public interface TensorFormatter<Elem> {
                         if (i > 0) {
                             if (i % elementsPerLine == 0) {
                                 write(f, ",")
-                                Self.writeNewlineIndent(indent, f)
+                                self.writeNewlineIndent(indent, f)
                             } else {
                                 write(f, ", ")
                             }
@@ -284,10 +284,10 @@ public interface TensorFormatter<Elem> {
                             Err(e) -> write(f, "{e:?}")
                         }
                         write(f, ",")
-                        Self.writeNewlineIndent(indent, f)
+                        self.writeNewlineIndent(indent, f)
                     }
                     write(f, "...")
-                    Self.writeNewlineIndent(indent, f)
+                    self.writeNewlineIndent(indent, f)
                     for (i in dims[0] - edgeItems until dims[0]) {
                         when (val t = t.get(i)) {
                             Ok(t) -> self.fmtTensor(t, indent + 1, maxW, summarize, po, f)
@@ -295,7 +295,7 @@ public interface TensorFormatter<Elem> {
                         }
                         if (i + 1 != dims[0]) {
                             write(f, ",")
-                            Self.writeNewlineIndent(indent, f)
+                            self.writeNewlineIndent(indent, f)
                         }
                     }
                 } else {
@@ -306,7 +306,7 @@ public interface TensorFormatter<Elem> {
                         }
                         if (i + 1 != dims[0]) {
                             write(f, ",")
-                            Self.writeNewlineIndent(indent, f)
+                            self.writeNewlineIndent(indent, f)
                         }
                     }
                 }
@@ -581,7 +581,6 @@ private val err: Any? get() = null
 private val Tensor.self: Tensor get() = this
 private val Tensor.s: Int get() = dims().firstOrNull() ?: 10
 private val <E> TensorFormatter<E>.self: TensorFormatter<E> get() = this
-private val <E> TensorFormatter<E>.Self: TensorFormatter<E> get() = this
 
 private val None: Boolean? get() = null
 private val precision: Int get() = 0

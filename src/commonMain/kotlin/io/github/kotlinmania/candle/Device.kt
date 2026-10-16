@@ -37,9 +37,13 @@ private val IntArray.asSlice: () -> List<Int>
 private val List<List<Int>>.concat: () -> List<Int>
     get() = { this.flatten() }
 
-private fun <T> List<List<T>>.shape(): Shape = NdArray.Vec2(this).shape()
-
-private fun <T> List<List<List<T>>>.shape(): Shape = NdArray.Vec3(this).shape()
+private fun List<List<*>>.shape(): Shape {
+    if (this.isNotEmpty() && this[0].isNotEmpty() && this[0][0] is List<*>) {
+        val list3 = this.map { row -> row.map { cell -> cell as List<*> } }
+        return NdArray.Vec3(list3).shape()
+    }
+    return NdArray.Vec2(this).shape()
+}
 
 public interface NdArray {
     public fun shape(): Shape

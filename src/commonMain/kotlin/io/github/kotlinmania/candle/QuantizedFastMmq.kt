@@ -369,7 +369,6 @@ private object std {
 private fun <T> T?.expect(msg: String): T = this ?: throw IllegalStateException(msg)
 private fun <T> T?.isSome(): Boolean = this != null
 private fun <T> T?.asRef(): T? = this
-private fun <T> T?.unwrapOr(def: T): T = this ?: def
 private val List<Int>.toVec: () -> MutableList<Int> get() = { this.toMutableList() }
 private fun <T> MutableList<T>.pop(): T = this.removeAt(this.size - 1)
 private fun <T> MutableList<T>.push(v: T): Unit { this.add(v) }
@@ -438,7 +437,7 @@ fun tryFwd(
     }
 
     // Get the f32 slice (either original or converted)
-    val rhsF32Ref = rhsF32Storage.asRef().unwrapOr(rhs)
+    val rhsF32Ref = rhsF32Storage.asRef() ?: rhs
     val rhsF32SliceBase = rhsF32Ref.asCudaSliceF32().getOrElse { return Result.failure(it) }
     // For the converted case, offset is 0 (toDtype returns contiguous from 0).
     // For the original f32 case, apply the original offsets.

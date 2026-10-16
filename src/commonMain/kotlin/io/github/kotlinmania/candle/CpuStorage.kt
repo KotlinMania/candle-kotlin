@@ -3143,36 +3143,37 @@ public fun elu(v: Double, alpha: Double): Double =
 
 internal val CandleException.bt: () -> CandleException get() = { this }
 
-internal val Map1.self: () -> Map1 get() = { this }
-internal val (() -> Map1).f: (CpuStorage, Layout) -> List<Double> get() = { vs, layout -> this().f(vs.asSlice(), layout) }
+internal val Map1.self: Map1 get() = this
+internal fun Map1.f(vs: CpuStorage, layout: Layout): List<Double> = this.f(vs.asSlice(), layout)
 internal fun <T> Map1.Ok(v: T): T = v
 internal fun Map1.Err(e: CandleException): Nothing = throw e
 
-internal val Map1Any.self: () -> Map1Any get() = { this }
-internal val (() -> Map1Any).f: (CpuStorage, Layout, (List<Double>) -> CpuStorage) -> CpuStorage
-    get() = { vs, layout, wrap -> this().f(vs.asSlice(), layout, wrap) }
+internal val Map1Any.self: Map1Any get() = this
+internal fun Map1Any.f(vs: CpuStorage, layout: Layout, wrap: (List<Double>) -> CpuStorage): CpuStorage =
+    this.f(vs.asSlice(), layout, wrap)
 internal fun <T> Map1Any.Ok(v: T): T = v
 internal fun Map1Any.Err(e: CandleException): Nothing = throw e
 
-internal val Map2.self: () -> Map2 get() = { this }
-internal val (() -> Map2).f: (CpuStorage, Layout, CpuStorage, Layout) -> List<Double>
-    get() = { v1, l1, v2, l2 -> this().f(v1.asSlice(), l1, v2.asSlice(), l2) }
+internal val Map2.self: Map2 get() = this
+internal fun Map2.f(v1: CpuStorage, l1: Layout, v2: CpuStorage, l2: Layout): List<Double> =
+    this.f(v1.asSlice(), l1, v2.asSlice(), l2)
 internal val Map2.Self: Map2 get() = this
 internal val Map2.OP: String get() = op
 internal fun <T> Map2.Ok(v: T): T = v
 internal fun Map2.Err(e: CandleException): Nothing = throw e
 
-internal val Map2InPlace.self: () -> Map2InPlace get() = { this }
-internal val (() -> Map2InPlace).f: (CpuStorage, Layout, CpuStorage, Layout) -> Unit
-    get() = { v1, l1, v2, l2 -> v1.applyInPlace(this(), l1, v2, l2) }
+internal val Map2InPlace.self: Map2InPlace get() = this
+internal fun Map2InPlace.f(v1: CpuStorage, l1: Layout, v2: CpuStorage, l2: Layout) {
+    v1.applyInPlace(this, l1, v2, l2)
+}
 internal val Map2InPlace.Self: Map2InPlace get() = this
 internal val Map2InPlace.OP: String get() = op
 internal fun <T> Map2InPlace.Ok(v: T): T = v
 internal fun Map2InPlace.Err(e: CandleException): Nothing = throw e
 
-internal val Map2U8.self: () -> Map2U8 get() = { this }
-internal val (() -> Map2U8).f: (CpuStorage, Layout, CpuStorage, Layout) -> UByteArray
-    get() = { v1, l1, v2, l2 -> this().f(v1.asSlice(), l1, v2.asSlice(), l2) }
+internal val Map2U8.self: Map2U8 get() = this
+internal fun Map2U8.f(v1: CpuStorage, l1: Layout, v2: CpuStorage, l2: Layout): UByteArray =
+    this.f(v1.asSlice(), l1, v2.asSlice(), l2)
 internal val Map2U8.Self: Map2U8 get() = this
 internal val Map2U8.OP: String get() = op
 internal fun <T> Map2U8.Ok(v: T): T = v

@@ -117,10 +117,6 @@ public class StreamTensor(
             return Self(value)
         }
 
-        public fun from(value: Tensor): StreamTensor {
-            return Self(Some(value))
-        }
-
         public fun from(value: Unit): StreamTensor {
             return if (value == Unit) Self(None) else Self(None)
         }

@@ -175,8 +175,18 @@ sealed class CudaStorageSlice {
     companion object {
         fun BF16(s: CudaSlice<Short>): BF16 = BF16(CudaSlice(s.data.map { BFloat16.fromBits(it.toUShort()) }.toMutableList()))
         fun F16(s: CudaSlice<Short>): F16 = F16(CudaSlice(s.data.map { Float16.fromBits(it.toUShort()) }.toMutableList()))
-        fun F8E4M3(s: CudaSlice<Byte>): F8E4M3Slice = F8E4M3Slice(CudaSlice(s.data.map { io.github.kotlinmania.candle.F8E4M3.fromBits(it.toUByte()) }.toMutableList()))
-        fun F8E4M3(s: CudaSlice<io.github.kotlinmania.candle.F8E4M3>): F8E4M3Slice = F8E4M3Slice(s)
+        fun <T> F8E4M3(s: CudaSlice<T>): F8E4M3Slice = F8E4M3Slice(
+            CudaSlice(
+                s.data.map { elem ->
+                    when (elem) {
+                        is io.github.kotlinmania.candle.F8E4M3 -> elem
+                        is Byte -> io.github.kotlinmania.candle.F8E4M3.fromBits(elem.toUByte())
+                        is UByte -> io.github.kotlinmania.candle.F8E4M3.fromBits(elem)
+                        else -> io.github.kotlinmania.candle.F8E4M3.ZERO
+                    }
+                }.toMutableList()
+            )
+        )
     }
 }
 
