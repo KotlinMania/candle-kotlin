@@ -6,7 +6,6 @@ import io.github.kotlinmania.candle.CandleException as Error
 private val <T> T.self: T get() = this
 private val Err: (Throwable) -> Nothing get() = { throw it }
 private val unreachable: () -> Nothing get() = { error("unreachable") }
-private val CpuStorage.clone: () -> CpuStorage get() = { this }
 private val BackendDevice.clone: () -> BackendDevice get() = { this }
 private val Device.Companion.Cuda: (BackendDevice) -> Device get() = { d -> Device.Cuda(d as CudaDevice) }
 private val Device.Companion.Metal: (BackendDevice) -> Device get() = { d -> Device.Metal(d as MetalDevice) }
@@ -44,12 +43,6 @@ private val Storage.s1: Lazy<Storage> get() = lazyOf(this)
 private val Storage.s2: Lazy<Storage> get() = lazyOf(this.p2 ?: this)
 private val Storage.s3: Lazy<Storage> get() = lazyOf(this.p3 ?: this)
 
-private val Lazy<Storage>.clone: () -> Storage get() = {
-    when (val v = value) {
-        is Storage.Cpu -> Storage.Cpu(v.storage.clone())
-        else -> v
-    }
-}
 private val Lazy<Storage>.tryClone: (Layout) -> Storage get() = { layout ->
     when (val v = value) {
         is Storage.Cpu -> Storage.Cpu(v.storage.tryClone(layout))
@@ -434,7 +427,7 @@ public sealed class Storage {
 
     public fun tryClone(layout: Layout): Storage {
         return when (self) {
-            Self.Cpu.storage -> Ok(Self.Cpu(storage.clone()))
+            Self.Cpu.storage -> Ok(Self.Cpu(storage.tryClone(layout)))
             Self.Cuda.storage -> {
                 val storage = storage.tryClone(layout)
                 Ok(Self.Cuda(storage))
