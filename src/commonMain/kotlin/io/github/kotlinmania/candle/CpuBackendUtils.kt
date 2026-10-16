@@ -73,7 +73,7 @@ public interface Map2 {
             else -> Err(Error.DTypeMismatchBinaryOp(
                 v1.dtype(),
                 v2.dtype(),
-                Self.OP,
+                self.OP,
             )
             .bt())
         }
@@ -99,7 +99,7 @@ public interface Map2InPlace {
             else -> Err(Error.DTypeMismatchBinaryOp(
                 v1.dtype(),
                 v2.dtype(),
-                Self.OP,
+                self.OP,
             )
             .bt())
         }
@@ -126,7 +126,7 @@ public interface Map2U8 {
             else -> Err(Error.DTypeMismatchBinaryOp(
                 v1.dtype(),
                 v2.dtype(),
-                Self.OP,
+                self.OP,
             )
             .bt())
         }
