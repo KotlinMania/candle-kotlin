@@ -126,7 +126,7 @@ public sealed class Object {
         override fun equals(other: Any?): Boolean =
             other is Class && moduleName == other.moduleName && className == other.className
 
-        override fun hashCode(): Int =
+        override fun hashCode(): kotlin.Int =
             31 * moduleName.hashCode() + className.hashCode()
 
         override fun toString(): String =
