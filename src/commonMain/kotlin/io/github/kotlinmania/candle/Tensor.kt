@@ -670,10 +670,10 @@ public class Tensor internal constructor(
 
     private fun binaryOp(rhs: Tensor, bOp: BinaryOp): Tensor {
         val targetShape = shape().broadcastShapeBinaryOp(rhs.shape(), bOp.name)
-        val lhsL = layout.broadcastAs(targetShape)
-        val rhsL = rhs.layout.broadcastAs(targetShape)
-        val newStorage = storage.binaryImpl(rhs.storage, lhsL, rhsL, bOp)
-        val newOp = BackpropOp.new2(this, rhs) { l, r -> Op.Binary(l, r, bOp) }
+        val lhsTensor = if (shape() != targetShape) broadcastAs(targetShape) else this
+        val rhsTensor = if (rhs.shape() != targetShape) rhs.broadcastAs(targetShape) else rhs
+        val newStorage = lhsTensor.storage.binaryImpl(rhsTensor.storage, lhsTensor.layout, rhsTensor.layout, bOp)
+        val newOp = BackpropOp.new2(lhsTensor, rhsTensor) { l, r -> Op.Binary(l, r, bOp) }
         return fromStorage(newStorage, targetShape, newOp, false)
     }
 
@@ -1244,8 +1244,8 @@ public class Tensor internal constructor(
      */
     public fun matmul(rhs: Tensor): Tensor {
         val (lhsBcastShape, rhsBcastShape) = shape().broadcastShapeMatmul(rhs.shape())
-        val lhsL = layout.broadcastAs(lhsBcastShape)
-        val rhsL = rhs.layout.broadcastAs(rhsBcastShape)
+        val lhsTensor = if (shape() != lhsBcastShape) broadcastAs(lhsBcastShape) else this
+        val rhsTensor = if (rhs.shape() != rhsBcastShape) rhs.broadcastAs(rhsBcastShape) else rhs
 
         val lhsDims = lhsBcastShape.dims
         val rhsDims = rhsBcastShape.dims
@@ -1254,10 +1254,10 @@ public class Tensor internal constructor(
         val n = rhsDims[rhsDims.size - 1]
         val b = lhsDims.subList(0, lhsDims.size - 2).fold(1) { acc, d -> acc * d }
 
-        val newStorage = storage.matmul(rhs.storage, listOf(b, m, n, k), lhsL, rhsL)
+        val newStorage = lhsTensor.storage.matmul(rhsTensor.storage, listOf(b, m, n, k), lhsTensor.layout, rhsTensor.layout)
         val outDims = lhsDims.subList(0, lhsDims.size - 2) + listOf(m, n)
         val outShape = Shape(outDims)
-        val newOp = BackpropOp.new2(this, rhs) { l, r -> Op.Matmul(l, r) }
+        val newOp = BackpropOp.new2(lhsTensor, rhsTensor) { l, r -> Op.Matmul(l, r) }
         return fromStorage(newStorage, outShape, newOp, false)
     }
 
@@ -1576,7 +1576,8 @@ public class Tensor internal constructor(
         val newStorage = storage.indexSelect(indexes.storage, layout, indexes.layout, normalizedDim)
         val outDims = dims().toMutableList()
         outDims[normalizedDim] = indexes.elemCount()
-        return fromStorage(newStorage, Shape(outDims), BackpropOp.None, false)
+        val op = BackpropOp.new2(this, indexes) { t, i -> Op.IndexSelect(t, i, normalizedDim) }
+        return fromStorage(newStorage, Shape(outDims), op, false)
     }
 
     /**
@@ -1782,7 +1783,8 @@ public class Tensor internal constructor(
         }
         if (isContiguous()) {
             val newLayout = Layout.contiguousWithOffset(shape, layout.startOffset)
-            return Tensor(TensorId.next(), storage, newLayout, BackpropOp.None, false)
+            val op = BackpropOp.new1(this) { Op.Reshape(it) }
+            return Tensor(TensorId.next(), storage, newLayout, op, false)
         } else {
             return contiguous().reshape(shape)
         }
@@ -1892,7 +1894,8 @@ public class Tensor internal constructor(
         newDims.removeAt(normalizedDim)
         val newStride = stride().toMutableList()
         newStride.removeAt(normalizedDim)
-        return Tensor(TensorId.next(), storage, Layout(Shape(newDims), newStride, layout.startOffset), BackpropOp.None, false)
+        val op = BackpropOp.new1(this) { Op.Reshape(it) }
+        return Tensor(TensorId.next(), storage, Layout(Shape(newDims), newStride, layout.startOffset), op, false)
     }
 
     /**
@@ -1916,7 +1919,8 @@ public class Tensor internal constructor(
         val newStride = stride().toMutableList()
         val s = if (normalizedDim < stride().size) stride()[normalizedDim] else 1
         newStride.add(normalizedDim, s)
-        return Tensor(TensorId.next(), storage, Layout(Shape(newDims), newStride, layout.startOffset), BackpropOp.None, false)
+        val op = BackpropOp.new1(this) { Op.Reshape(it) }
+        return Tensor(TensorId.next(), storage, Layout(Shape(newDims), newStride, layout.startOffset), op, false)
     }
 
     /**
@@ -1935,8 +1939,10 @@ public class Tensor internal constructor(
      * ```
      */
     public fun transpose(dim1: Int, dim2: Int): Tensor {
+        if (dim1 == dim2) return this
         val newLayout = layout.transpose(dim1, dim2)
-        return Tensor(TensorId.next(), storage, newLayout, BackpropOp.None, false)
+        val op = BackpropOp.new1(this) { Op.Transpose(it, dim1, dim2) }
+        return Tensor(TensorId.next(), storage, newLayout, op, false)
     }
 
     /**
@@ -1975,7 +1981,8 @@ public class Tensor internal constructor(
      */
     public fun permute(idxs: List<Int>): Tensor {
         val newLayout = layout.permute(idxs)
-        return Tensor(TensorId.next(), storage, newLayout, BackpropOp.None, false)
+        val op = BackpropOp.new1(this) { Op.Permute(it, idxs) }
+        return Tensor(TensorId.next(), storage, newLayout, op, false)
     }
 
     /**
@@ -1994,7 +2001,8 @@ public class Tensor internal constructor(
      */
     public fun broadcastAs(targetShape: Shape): Tensor {
         val newLayout = layout.broadcastAs(targetShape)
-        return Tensor(TensorId.next(), storage, newLayout, BackpropOp.None, false)
+        val op = BackpropOp.new1(this) { Op.Broadcast(it) }
+        return Tensor(TensorId.next(), storage, newLayout, op, false)
     }
 
     /**
@@ -2034,7 +2042,8 @@ public class Tensor internal constructor(
     public fun narrow(dim: Int, start: Int, len: Int): Tensor {
         val normalizedDim = Shape.toIndex(dim, shape(), "narrow")
         val newLayout = layout.narrow(normalizedDim, start, len)
-        return Tensor(TensorId.next(), storage, newLayout, BackpropOp.None, false)
+        val op = BackpropOp.new1(this) { Op.Narrow(it, normalizedDim, start, len) }
+        return Tensor(TensorId.next(), storage, newLayout, op, false)
     }
 
     /**
@@ -2044,7 +2053,8 @@ public class Tensor internal constructor(
     public fun contiguous(): Tensor {
         if (isContiguous() && layout.startOffset == 0) return this
         val newStorage = storage.tryClone(layout)
-        return fromStorage(newStorage, shape(), BackpropOp.None, false)
+        val op = BackpropOp.new1(this) { Op.Copy(it) }
+        return fromStorage(newStorage, shape(), op, false)
     }
 
     /**
@@ -2084,7 +2094,8 @@ public class Tensor internal constructor(
     public fun toDtype(targetDType: DType): Tensor {
         if (dtype() == targetDType) return this
         val newStorage = storage.toDtype(layout, targetDType)
-        return fromStorage(newStorage, shape(), BackpropOp.None, false)
+        val op = BackpropOp.new1(this) { Op.ToDType(it) }
+        return fromStorage(newStorage, shape(), op, false)
     }
 
     /**
