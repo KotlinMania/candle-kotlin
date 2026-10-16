@@ -11,7 +11,7 @@ import io.github.kotlinmania.oncecell.sync.OnceCell
  * Useful functions for checking features.
  */
 
-public class CandlePool(
+internal class CandlePool(
     public val numThreads: Int = 1,
 ) {
     public fun numThreads(n: Int): CandlePool = CandlePool(n)
@@ -72,7 +72,7 @@ public fun getNumThreads(): Int =
         else -> defaultNumThreads()
     }
 
-public fun defaultNumThreads(): Int {
+internal fun defaultNumThreads(): Int {
     var physical = run {
         if (cfg(targetOs == "macos")) {
             perfCoreCount().unwrapOrElse(numCpus.getPhysical)
@@ -97,7 +97,7 @@ public fun defaultNumThreads(): Int {
  * On Apple Silicon: P-core count via `hw.perflevel0.logicalcpu`.
  * Returns None on Intel Macs (key absent) or on error.
  */
-public fun perfCoreCount(): Int? {
+internal fun perfCoreCount(): Int? {
     val cVoid = std.os.raw.cVoid
     var count: UInt = 0u
     var size = std.mem.sizeOf()
@@ -113,7 +113,7 @@ public fun perfCoreCount(): Int? {
     return (ret == 0 && count > 0u).thenSome(count.toInt())
 }
 
-public fun candlePool(): CandlePool {
+internal fun candlePool(): CandlePool {
     return POOL.getOrInit {
         rayon.ThreadPoolBuilder.new()
             .numThreads(getNumThreads())
@@ -126,14 +126,14 @@ public fun candlePool(): CandlePool {
 /**
  * Elevate the thread QoS so macOS prefers running on Performance (P) cores.
  */
-public fun setThreadAffinity() {
+internal fun setThreadAffinity() {
     libc; qosClassT; qosClassUserInteractive
     pthreadSetQosClassSelfNp(
         qosClassUserInteractive, 0
     )
 }
 
-public fun <F : () -> R, R> withThreadpool(f: F): R =
+internal fun <F : () -> R, R> withThreadpool(f: F): R =
     // Install closure on the global candle pool.
     candlePool().install(f)
 

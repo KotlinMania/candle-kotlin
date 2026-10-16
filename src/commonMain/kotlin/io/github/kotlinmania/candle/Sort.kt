@@ -73,11 +73,11 @@ private val MutableList<UInt>.setLen: (Int) -> Unit
         while (size < n) add(0u)
     }
 
-public data class ArgSort(
+internal data class ArgSort(
     val asc: Boolean,
     val lastDim: Int,
 ) : CustomOp1 {
-    public fun <T : Comparable<T>> asort(vs: List<T>, layout: Layout, self: ArgSort = this): MutableList<UInt> {
+    internal fun <T : Comparable<T>> asort(vs: List<T>, layout: Layout, self: ArgSort = this): MutableList<UInt> {
         // Safety: indexes are set later in the parallelized section.
         val sortIndexes = run {
             val elCount = layout.shape().elemCount()
@@ -123,13 +123,13 @@ public data class ArgSort(
         return sortIndexes
     }
 
-    public fun <T, W : (CudaSlice<T>) -> CudaStorageSlice> f(
+    internal fun <T, W : (CudaSlice<T>) -> CudaStorageSlice> f(
         src: CudaSlice<T>,
         dev: CudaDevice,
         layout: Layout,
         _wrap: W,
-        self: ArgSort = this,
     ): CandleResult<CudaStorageSlice> {
+        val self = this
         val offsets = layout.contiguousOffsets()
         val slice = when (offsets) {
             null -> bail("input has to be contiguous")
@@ -307,7 +307,8 @@ public fun nextPowerOf2(x: Int): Int {
  * descending order. The sort is unstable so there is no guarantees on the final order when it
  * comes to ties.
  */
-public fun Tensor.argSortLastDim(asc: Boolean, self: Tensor = this): Tensor {
+public fun Tensor.argSortLastDim(asc: Boolean): Tensor {
+    val self = this
     if (!self.isContiguous()) {
         throw CandleError.RequiresContiguous("arg_sort_last_dim")
     }
@@ -328,7 +329,8 @@ public fun Tensor.argSortLastDim(asc: Boolean, self: Tensor = this): Tensor {
  * descending order. The sort is unstable so there is no guarantees on the final order when it
  * comes to ties.
  */
-public fun Tensor.sortLastDim(asc: Boolean, self: Tensor = this): Pair<Tensor, Tensor> {
+public fun Tensor.sortLastDim(asc: Boolean): Pair<Tensor, Tensor> {
+    val self = this
     if (!self.isContiguous()) {
         throw CandleError.RequiresContiguous("sort_last_dim")
     }

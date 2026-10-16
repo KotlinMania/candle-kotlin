@@ -162,8 +162,8 @@ public class DTypeParseError(public val raw: String) : Exception("cannot parse '
 public interface WithDType<T> {
     public val dtype: DType
     public fun fromF64(v: Double): T
-    public fun toF64(self: T): Double
-    public fun toScalar(self: T): Scalar
+    public fun toF64(v: T): Double
+    public fun toScalar(v: T): Scalar
     public fun cpuStorageRef(data: List<T>): CpuStorageRef
     public fun toCpuStorageOwned(data: List<T>): CpuStorage
 
@@ -176,52 +176,52 @@ public interface WithDType<T> {
 }
 
 public interface IntDType<T> {
-    public fun isTrue(self: T): Boolean
-    public fun asUsize(self: T): Int
+    public fun isTrue(v: T): Boolean
+    public fun asUsize(v: T): Int
 }
 
 public object IntDTypeI64 : IntDType<Int> {
-    override fun isTrue(self: Int): Boolean {
-        return self != 0
+    override fun isTrue(v: Int): Boolean {
+        return v != 0
     }
-    override fun asUsize(self: Int): Int {
-        return self
+    override fun asUsize(v: Int): Int {
+        return v
     }
 }
 
 public object IntDTypeU32 : IntDType<Int> {
-    override fun isTrue(self: Int): Boolean {
-        return self != 0
+    override fun isTrue(v: Int): Boolean {
+        return v != 0
     }
-    override fun asUsize(self: Int): Int {
-        return self
+    override fun asUsize(v: Int): Int {
+        return v
     }
 }
 
 public object IntDTypeU8 : IntDType<Int> {
-    override fun isTrue(self: Int): Boolean {
-        return self != 0
+    override fun isTrue(v: Int): Boolean {
+        return v != 0
     }
-    override fun asUsize(self: Int): Int {
-        return self
+    override fun asUsize(v: Int): Int {
+        return v
     }
 }
 
 public object IntDTypeI16 : IntDType<Int> {
-    override fun isTrue(self: Int): Boolean {
-        return self != 0
+    override fun isTrue(v: Int): Boolean {
+        return v != 0
     }
-    override fun asUsize(self: Int): Int {
-        return self
+    override fun asUsize(v: Int): Int {
+        return v
     }
 }
 
 public object IntDTypeI32 : IntDType<Int> {
-    override fun isTrue(self: Int): Boolean {
-        return self != 0
+    override fun isTrue(v: Int): Boolean {
+        return v != 0
     }
-    override fun asUsize(self: Int): Int {
-        return self
+    override fun asUsize(v: Int): Int {
+        return v
     }
 }
 

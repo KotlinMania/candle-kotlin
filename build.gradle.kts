@@ -1455,10 +1455,11 @@ tasks.register("swiftExportSmokeTest") {
                 commandLine(
                     "./gradlew",
                     "embedSwiftExportForXcode",
-                    "-Dorg.gradle.jvmargs=-Xmx6g -XX:MaxMetaspaceSize=1g",
+                    "-Dorg.gradle.jvmargs=-Xmx6g -XX:MaxMetaspaceSize=1g -Xss16m",
                     "--no-configuration-cache",
                     "--no-daemon",
                     "--console=plain",
+                    "--stacktrace",
                 )
                 environment(
                     mapOf(

@@ -89,7 +89,8 @@ public interface Map1 {
         layout: Layout,
     ): CudaSlice<T>
 
-    public fun map(s: S, d: CudaDevice, l: Layout, self: Map1 = this): S {
+    public fun map(s: S, d: CudaDevice, l: Layout): S {
+        val self = this
         val out = when (s) {
             is CudaStorageSlice.U8 -> CudaStorageSlice.U8(self.f(s.s, d, l))
             is CudaStorageSlice.U32 -> CudaStorageSlice.U32(self.f(s.s, d, l))
@@ -118,7 +119,8 @@ public interface Map2 {
         dev: CudaDevice,
     ): CudaSlice<T>
 
-    public fun map(s1: S, l1: Layout, s2: S, l2: Layout, d: CudaDevice, self: Map2 = this): S {
+    public fun map(s1: S, l1: Layout, s2: S, l2: Layout, d: CudaDevice): S {
+        val self = this
         val out = when {
             s1 is CudaStorageSlice.U8 && s2 is CudaStorageSlice.U8 -> CudaStorageSlice.U8(self.f(s1.s1, l1, s2.s2, l2, d))
             s1 is CudaStorageSlice.U32 && s2 is CudaStorageSlice.U32 -> CudaStorageSlice.U32(self.f(s1.s1, l1, s2.s2, l2, d))
@@ -155,8 +157,8 @@ public interface Map3 {
         s3: S,
         l3: Layout,
         d: CudaDevice,
-        self: Map3 = this,
     ): S {
+        val self = this
         val out = when {
             s1 is CudaStorageSlice.U8 && s2 is CudaStorageSlice.U8 && s3 is CudaStorageSlice.U8 -> CudaStorageSlice.U8(self.f(s1.s1, l1, s2.s2, l2, s3.s3, l3, d))
             s1 is CudaStorageSlice.U32 && s2 is CudaStorageSlice.U32 && s3 is CudaStorageSlice.U32 -> CudaStorageSlice.U32(self.f(s1.s1, l1, s2.s2, l2, s3.s3, l3, d))
@@ -189,8 +191,8 @@ public interface Map2InPlace {
         src: S,
         srcL: Layout,
         d: CudaDevice,
-        self: Map2InPlace = this,
     ) {
+        val self = this
         when {
             dst is CudaStorageSlice.U8 && src is CudaStorageSlice.U8 -> self.f(dst.dst, dstL, src.src, srcL, d)
             dst is CudaStorageSlice.U32 && src is CudaStorageSlice.U32 -> self.f(dst.dst, dstL, src.src, srcL, d)
@@ -215,7 +217,8 @@ public interface Map1Any {
         wrap: (CudaSlice<T>) -> S,
     ): S
 
-    public fun map(s: S, d: CudaDevice, l: Layout, self: Map1Any = this): S {
+    public fun map(s: S, d: CudaDevice, l: Layout): S {
+        val self = this
         val out = when (s) {
             is CudaStorageSlice.U8 -> self.f(s.s, d, l, CudaStorageSlice::U8)
             is CudaStorageSlice.U32 -> self.f(s.s, d, l, CudaStorageSlice::U32)
@@ -244,7 +247,8 @@ public interface Map2Any {
         dev: CudaDevice,
     ): S
 
-    public fun map(s1: S, l1: Layout, s2: S, l2: Layout, d: CudaDevice, self: Map2Any = this): S {
+    public fun map(s1: S, l1: Layout, s2: S, l2: Layout, d: CudaDevice): S {
+        val self = this
         val out = when {
             s1 is CudaStorageSlice.U8 && s2 is CudaStorageSlice.U8 -> self.f(s1.s1, l1, s2.s2, l2, d)
             s1 is CudaStorageSlice.U32 && s2 is CudaStorageSlice.U32 -> self.f(s1.s1, l1, s2.s2, l2, d)

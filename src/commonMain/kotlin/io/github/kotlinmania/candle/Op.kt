@@ -31,8 +31,8 @@ public enum class ReduceOp {
     ArgMax,
     ;
 
-    public fun name(self: ReduceOp = this): String =
-        when (self) {
+    public fun name(): String =
+        when (this) {
             ArgMax -> "argmax"
             ArgMin -> "argmin"
             Min -> "min"
@@ -770,9 +770,9 @@ public open class BackpropOp(
 
     public val toOp: () -> Op? = { inner }
 
-    public fun isNone(self: BackpropOp = this): Boolean = self.inner.isNone()
+    public fun isNone(): Boolean = this.inner.isNone()
 
-    public fun deref(self: BackpropOp = this): Op? = self.inner
+    public fun deref(): Op? = this.inner
 
     public companion object {
         public interface Target

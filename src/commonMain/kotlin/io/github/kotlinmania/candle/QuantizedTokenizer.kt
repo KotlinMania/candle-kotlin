@@ -295,7 +295,8 @@ public class Pipeline(
     public val decoder: DecoderWrapper?,
     public val postProcessor: PostProcessorWrapper?,
 ) {
-    public fun apply(tokenizer: Tokenizer, self: Pipeline = this) {
+    public fun apply(tokenizer: Tokenizer) {
+        val self = this
         val norm = self.normalizer
         if (norm != null) {
             tokenizer.withNormalizer(norm)

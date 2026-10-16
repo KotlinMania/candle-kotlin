@@ -98,7 +98,8 @@ internal fun Tensor.toVec1F8E4M3(): List<F8E4M3> {
     return List(elemCount()) { F8E4M3.fromBits(cpu.data[it].toUByte()) }
 }
 
-public fun Tensor.writeBytes(f: NpyByteWriter, self: Tensor = this): CandleResult<Unit> {
+public fun Tensor.writeBytes(f: NpyByteWriter): CandleResult<Unit> {
+    val self = this
     val vs = self.flattenAll()
     when (self.dtype()) {
         DType.BF16 -> {
