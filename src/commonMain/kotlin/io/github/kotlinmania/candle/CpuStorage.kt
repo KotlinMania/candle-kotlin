@@ -3267,7 +3267,6 @@ internal fun <T> debugAssertEq(a: T, b: T) {
     require(a == b)
 }
 internal fun <T> Some(v: T): T = v
-internal val None: IntArray? = null
 internal fun <T> Iterator<T>.collect(): List<T> = this.asSequence().toList()
 internal fun <T> vec(vararg elements: T): List<T> = elements.toList()
 internal fun NdIter.nextOrNull(): IntArray? = if (this.hasNext()) this.next() else null

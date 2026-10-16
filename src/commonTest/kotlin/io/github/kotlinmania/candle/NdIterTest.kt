@@ -4,6 +4,8 @@ package io.github.kotlinmania.candle
 import kotlin.test.Test
 
 class NdIterTest {
+    private val None: IntArray? = null
+
     private fun layout(dims: IntArray, strides: IntArray): Layout {
         return Layout.new(Shape.from(dims.toVec()), strides.toVec(), 0)
     }
