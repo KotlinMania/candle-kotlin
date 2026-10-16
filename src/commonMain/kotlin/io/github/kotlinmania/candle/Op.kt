@@ -31,8 +31,8 @@ public enum class ReduceOp {
     ArgMax,
     ;
 
-    public fun name(): String =
-        when (this) {
+    internal fun name(op: ReduceOp = this): String =
+        when (op) {
             ArgMax -> "argmax"
             ArgMin -> "argmin"
             Min -> "min"
