@@ -88,7 +88,7 @@ class LaunchConfig(
     val sharedMemBytes: UInt = 0u
 )
 
-class CudaSlice<T>(val data: MutableList<T> = mutableListOf()) {
+class CudaSlice<T> internal constructor(internal val data: MutableList<T> = mutableListOf()) {
     val len: () -> Int = { data.size }
     val clone: () -> CudaSlice<T> = { CudaSlice(data.toMutableList()) }
 }

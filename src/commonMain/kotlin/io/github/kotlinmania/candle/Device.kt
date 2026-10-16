@@ -93,7 +93,7 @@ public interface NdArray {
     }
 
     public object Vec {
-        public fun <T> withCapacity(cap: Int): MutableList<T> = ArrayList(cap)
+        internal fun <T> withCapacity(cap: Int): MutableList<T> = ArrayList(cap)
     }
 
     public class Scalar<T>(

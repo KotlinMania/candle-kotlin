@@ -502,7 +502,7 @@ fun save(
 }
 
 class SafeTensors internal constructor(
-    val entries: LinkedHashMap<String, SafeTensorView>,
+    internal val entries: LinkedHashMap<String, SafeTensorView>,
 ) {
     val names: () -> List<String> = { this.entries.keys.toList() }
     val tensors: () -> List<kotlin.Pair<String, SafeTensorView>> = { this.entries.entries.map { kotlin.Pair(it.key, it.value) } }
@@ -599,11 +599,11 @@ class SafeTensors internal constructor(
             List(elemCount) { i -> rawDecodeU16(data, i * 2) }
         }
 
-        val withCapacityU16: (Int) -> MutableList<UShort> = { elemCount ->
+        internal val withCapacityU16: (Int) -> MutableList<UShort> = { elemCount ->
             ArrayList(elemCount)
         }
 
-        val copyNonoverlappingU16: (Int, Int, Int, ByteArray, MutableList<UShort>) -> Unit = { _, _, len, data, c ->
+        internal val copyNonoverlappingU16: (Int, Int, Int, ByteArray, MutableList<UShort>) -> Unit = { _, _, len, data, c ->
             val elemCount = len / 2
             for (i in 0 until elemCount) {
                 c.add(rawDecodeU16(data, i * 2))
