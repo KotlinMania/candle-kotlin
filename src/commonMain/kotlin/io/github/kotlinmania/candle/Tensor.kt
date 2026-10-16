@@ -1610,6 +1610,25 @@ public class Tensor internal constructor(
      */
     public fun deref(): Tensor = this
 
+    public inline fun <reified S> convertCpuScalar(cpu: CpuStorage, index: Int): S {
+        val v: Any = when (S::class) {
+            Float::class -> cpu.getAsFloat(index)
+            Double::class -> cpu.getAsDouble(index)
+            Long::class -> cpu.getAsLong(index)
+            Int::class -> cpu.getAsLong(index).toInt()
+            Short::class -> cpu.getAsLong(index).toShort()
+            Byte::class -> cpu.getAsLong(index).toByte()
+            UInt::class -> cpu.getAsLong(index).toUInt()
+            UShort::class -> cpu.getAsLong(index).toUShort()
+            UByte::class -> cpu.getAsLong(index).toUByte()
+            ULong::class -> cpu.getAsLong(index).toULong()
+            F16::class -> F16.fromFloat(cpu.getAsFloat(index))
+            BF16::class -> BF16.fromFloat(cpu.getAsFloat(index))
+            else -> cpu.getAsDouble(index)
+        }
+        return v as S
+    }
+
     /**
      * Returns the data contained in a 1D tensor as a list of scalar values.
      */
@@ -1620,8 +1639,7 @@ public class Tensor internal constructor(
         val cpu = (cont.storage() as Storage.Cpu).storage
         val list = ArrayList<S>(count)
         for (i in 0 until count) {
-            val v: Any = cpu.getAsDouble(i)
-            list.add(v as S)
+            list.add(convertCpuScalar<S>(cpu, i))
         }
         return list
     }
@@ -1638,8 +1656,7 @@ public class Tensor internal constructor(
             val row = ArrayList<S>(dim2)
             for (j in 0 until dim2) {
                 val idx = i * dim2 + j
-                val v: Any = cpu.getAsDouble(idx)
-                row.add(v as S)
+                row.add(convertCpuScalar<S>(cpu, idx))
             }
             result.add(row)
         }
@@ -1660,8 +1677,7 @@ public class Tensor internal constructor(
                 val row = ArrayList<S>(dim3)
                 for (k in 0 until dim3) {
                     val idx = (i * dim2 + j) * dim3 + k
-                    val v: Any = cpu.getAsDouble(idx)
-                    row.add(v as S)
+                    row.add(convertCpuScalar<S>(cpu, idx))
                 }
                 page.add(row)
             }
@@ -1675,8 +1691,10 @@ public class Tensor internal constructor(
      * dimensions, an error is returned instead.
      */
     public inline fun <reified S> toScalar(): S {
-        if (elemCount() != 1) throw CandleException.UnexpectedNumberOfDims(0, rank(), shape())
-        return toVec1<S>()[0]
+        if (rank() != 0) throw CandleException.UnexpectedNumberOfDims(0, rank(), shape())
+        val cont = contiguous()
+        val cpu = (cont.storage() as Storage.Cpu).storage
+        return convertCpuScalar<S>(cpu, 0)
     }
 
     /**
