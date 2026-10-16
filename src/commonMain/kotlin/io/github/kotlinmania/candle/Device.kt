@@ -97,60 +97,60 @@ public interface NdArray {
     }
 
     public class Scalar<T>(
-        public val self: T,
+        public val value: T,
     ) : NdArray {
         override fun shape(): Shape {
             return Shape.from()
         }
 
         override fun toCpuStorage(): CpuStorage {
-            return S.toCpuStorage(listOf(self))
+            return S.toCpuStorage(listOf(value))
         }
     }
 
     public class Array1<T>(
-        public val self: Array<T>,
+        public val value: Array<T>,
     ) : NdArray {
         override fun shape(): Shape {
-            return Shape.from(self.len())
+            return Shape.from(value.len())
         }
 
         override fun toCpuStorage(): CpuStorage {
-            return S.toCpuStorage(self.asSlice())
+            return S.toCpuStorage(value.asSlice())
         }
     }
 
     public class Slice1<T>(
-        public val self: List<T>,
+        public val value: List<T>,
     ) : NdArray {
         override fun shape(): Shape {
-            return Shape.from(self.len())
+            return Shape.from(value.len())
         }
 
         override fun toCpuStorage(): CpuStorage {
-            return S.toCpuStorage(self)
+            return S.toCpuStorage(value)
         }
     }
 
     public class Array2<T>(
-        public val self: Array<Array<T>>,
-        public val m: Int = self.size,
-        public val n: Int = if (self.isEmpty()) 0 else self[0].size,
+        public val value: Array<Array<T>>,
+        public val m: Int = value.size,
+        public val n: Int = if (value.isEmpty()) 0 else value[0].size,
     ) : NdArray {
         override fun shape(): Shape {
             return Shape.from(m, n)
         }
 
         override fun toCpuStorage(): CpuStorage {
-            return S.toCpuStorageOwned(self.concat())
+            return S.toCpuStorageOwned(value.concat())
         }
     }
 
     public class Array3<T>(
-        public val self: Array<Array<Array<T>>>,
-        public val n1: Int = self.size,
-        public val n2: Int = if (self.isEmpty()) 0 else self[0].size,
-        public val n3: Int = if (self.isEmpty() || self[0].isEmpty()) 0 else self[0][0].size,
+        public val value: Array<Array<Array<T>>>,
+        public val n1: Int = value.size,
+        public val n2: Int = if (value.isEmpty()) 0 else value[0].size,
+        public val n3: Int = if (value.isEmpty() || value[0].isEmpty()) 0 else value[0][0].size,
     ) : NdArray {
         override fun shape(): Shape {
             return Shape.from(n1, n2, n3)
@@ -160,7 +160,7 @@ public interface NdArray {
             val vec = Vec.withCapacity<T>(n1 * n2 * n3)
             for (i1 in 0 until n1) {
                 for (i2 in 0 until n2) {
-                    vec.extend(self[i1][i2])
+                    vec.extend(value[i1][i2])
                 }
             }
             return S.toCpuStorageOwned(vec)
@@ -168,11 +168,11 @@ public interface NdArray {
     }
 
     public class Array4<T>(
-        public val self: Array<Array<Array<Array<T>>>>,
-        public val n1: Int = self.size,
-        public val n2: Int = if (self.isEmpty()) 0 else self[0].size,
-        public val n3: Int = if (self.isEmpty() || self[0].isEmpty()) 0 else self[0][0].size,
-        public val n4: Int = if (self.isEmpty() || self[0].isEmpty() || self[0][0].isEmpty()) 0 else self[0][0][0].size,
+        public val value: Array<Array<Array<Array<T>>>>,
+        public val n1: Int = value.size,
+        public val n2: Int = if (value.isEmpty()) 0 else value[0].size,
+        public val n3: Int = if (value.isEmpty() || value[0].isEmpty()) 0 else value[0][0].size,
+        public val n4: Int = if (value.isEmpty() || value[0].isEmpty() || value[0][0].isEmpty()) 0 else value[0][0][0].size,
     ) : NdArray {
         override fun shape(): Shape {
             return Shape.from(n1, n2, n3, n4)
@@ -183,7 +183,7 @@ public interface NdArray {
             for (i1 in 0 until n1) {
                 for (i2 in 0 until n2) {
                     for (i3 in 0 until n3) {
-                        vec.extend(self[i1][i2][i3])
+                        vec.extend(value[i1][i2][i3])
                     }
                 }
             }
@@ -192,27 +192,27 @@ public interface NdArray {
     }
 
     public class Vec1<T>(
-        public val self: List<T>,
+        public val value: List<T>,
     ) : NdArray {
         override fun shape(): Shape {
-            return Shape.from(self.len())
+            return Shape.from(value.len())
         }
 
         override fun toCpuStorage(): CpuStorage {
-            return S.toCpuStorage(self.asSlice())
+            return S.toCpuStorage(value.asSlice())
         }
     }
 
     public class VecSlice<T>(
-        public val self: List<List<T>>,
+        public val value: List<List<T>>,
     ) : NdArray {
         override fun shape(): Shape {
-            if (self.isEmpty()) {
+            if (value.isEmpty()) {
                 bail("empty array")
             }
-            val n = self.len()
-            val m = self[0].len()
-            for (v in self.iter()) {
+            val n = value.len()
+            val m = value[0].len()
+            for (v in value.iter()) {
                 if (v.len() != m) {
                     bail("two elements have different len $m ${v.len()}")
                 }
@@ -221,21 +221,21 @@ public interface NdArray {
         }
 
         override fun toCpuStorage(): CpuStorage {
-            val data = self.iter().copied().flatten().copied().collect()
+            val data = value.iter().copied().flatten().copied().collect()
             return S.toCpuStorageOwned(data)
         }
     }
 
     public class Vec2<T>(
-        public val self: List<List<T>>,
+        public val value: List<List<T>>,
     ) : NdArray {
         override fun shape(): Shape {
-            if (self.isEmpty()) {
+            if (value.isEmpty()) {
                 bail("empty array")
             }
-            val n = self.len()
-            val m = self[0].len()
-            for (v in self.iter()) {
+            val n = value.len()
+            val m = value[0].len()
+            for (v in value.iter()) {
                 if (v.len() != m) {
                     bail("two elements have different len $m ${v.len()}")
                 }
@@ -244,9 +244,9 @@ public interface NdArray {
         }
 
         override fun toCpuStorage(): CpuStorage {
-            val len = self.iter().map { v -> v.len() }.sum()
+            val len = value.iter().map { v -> v.len() }.sum()
             val dst = Vec.withCapacity<T>(len)
-            for (v in self.iter()) {
+            for (v in value.iter()) {
                 dst.extendList(v.iter().copied())
             }
             return S.toCpuStorageOwned(dst)
@@ -254,15 +254,15 @@ public interface NdArray {
     }
 
     public class Vec3<T>(
-        public val self: List<List<List<T>>>,
+        public val value: List<List<List<T>>>,
     ) : NdArray {
         override fun shape(): Shape {
-            if (self.isEmpty()) {
+            if (value.isEmpty()) {
                 bail("empty array")
             }
-            val shape0 = self[0].shape()
-            val n = self.len()
-            for (v in self.iter()) {
+            val shape0 = value[0].shape()
+            val n = value.len()
+            for (v in value.iter()) {
                 val shape = v.shape()
                 if (shape != shape0) {
                     bail("two elements have different shapes $shape $shape0")
@@ -272,15 +272,15 @@ public interface NdArray {
         }
 
         override fun toCpuStorage(): CpuStorage {
-            if (self.isEmpty()) {
+            if (value.isEmpty()) {
                 return S.toCpuStorageOwned(emptyList<T>())
             }
-            val len = self
+            val len = value
                 .iter()
                 .map { v -> v.iter().map { v2 -> v2.len() }.sum() }
                 .sum()
             val dst = Vec.withCapacity<T>(len)
-            for (v1 in self.iter()) {
+            for (v1 in value.iter()) {
                 for (v2 in v1.iter()) {
                     dst.extendList(v2.iter().copied())
                 }
@@ -290,15 +290,15 @@ public interface NdArray {
     }
 
     public class Vec4<T>(
-        public val self: List<List<List<List<T>>>>,
+        public val value: List<List<List<List<T>>>>,
     ) : NdArray {
         override fun shape(): Shape {
-            if (self.isEmpty()) {
+            if (value.isEmpty()) {
                 bail("empty array")
             }
-            val shape0 = self[0].shape()
-            val n = self.len()
-            for (v in self.iter()) {
+            val shape0 = value[0].shape()
+            val n = value.len()
+            for (v in value.iter()) {
                 val shape = v.shape()
                 if (shape != shape0) {
                     bail("two elements have different shapes $shape $shape0")
@@ -308,7 +308,7 @@ public interface NdArray {
         }
 
         override fun toCpuStorage(): CpuStorage {
-            val len = self
+            val len = value
                 .iter()
                 .map { v ->
                     v.iter()
@@ -317,7 +317,7 @@ public interface NdArray {
                 }
                 .sum()
             val dst = Vec.withCapacity<T>(len)
-            for (v1 in self.iter()) {
+            for (v1 in value.iter()) {
                 for (v2 in v1.iter()) {
                     for (v3 in v2.iter()) {
                         dst.extendList(v3.iter().copied())
