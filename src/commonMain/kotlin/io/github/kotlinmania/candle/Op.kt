@@ -396,20 +396,6 @@ public interface BinaryOpT {
             .forEach { (a, b, y) -> ys[y] = Self.f64(a, b) }
     }
 
-    public fun u8Vec(xs1: UByteArray, xs2: UByteArray, ys: UByteArray) {
-        xs1.iter()
-            .zip(xs2)
-            .zip(ys)
-            .forEach { (a, b, y) -> ys[y] = Self.u8(a, b) }
-    }
-
-    public fun u32Vec(xs1: UIntArray, xs2: UIntArray, ys: UIntArray) {
-        xs1.iter()
-            .zip(xs2)
-            .zip(ys)
-            .forEach { (a, b, y) -> ys[y] = Self.u32(a, b) }
-    }
-
     public fun i16Vec(xs1: ShortArray, xs2: ShortArray, ys: ShortArray) {
         xs1.iter()
             .zip(xs2)
@@ -458,18 +444,6 @@ public interface BinaryOpT {
             .forEach { (x, y) -> ys[y] = Self.f64(x, scalar) }
     }
 
-    public fun u8ScalarVec(scalar: UByte, xs: UByteArray, ys: UByteArray) {
-        xs.iter()
-            .zip(ys)
-            .forEach { (x, y) -> ys[y] = Self.u8(x, scalar) }
-    }
-
-    public fun u32ScalarVec(scalar: UInt, xs: UIntArray, ys: UIntArray) {
-        xs.iter()
-            .zip(ys)
-            .forEach { (x, y) -> ys[y] = Self.u32(x, scalar) }
-    }
-
     public fun i16ScalarVec(scalar: Short, xs: ShortArray, ys: ShortArray) {
         xs.iter()
             .zip(ys)
@@ -487,6 +461,32 @@ public interface BinaryOpT {
             .zip(ys)
             .forEach { (x, y) -> ys[y] = Self.i64(x, scalar) }
     }
+}
+
+public fun BinaryOpT.u8Vec(xs1: UByteArray, xs2: UByteArray, ys: UByteArray) {
+    xs1.iter()
+        .zip(xs2)
+        .zip(ys)
+        .forEach { (a, b, y) -> ys[y] = Self.u8(a, b) }
+}
+
+public fun BinaryOpT.u32Vec(xs1: UIntArray, xs2: UIntArray, ys: UIntArray) {
+    xs1.iter()
+        .zip(xs2)
+        .zip(ys)
+        .forEach { (a, b, y) -> ys[y] = Self.u32(a, b) }
+}
+
+public fun BinaryOpT.u8ScalarVec(scalar: UByte, xs: UByteArray, ys: UByteArray) {
+    xs.iter()
+        .zip(ys)
+        .forEach { (x, y) -> ys[y] = Self.u8(x, scalar) }
+}
+
+public fun BinaryOpT.u32ScalarVec(scalar: UInt, xs: UIntArray, ys: UIntArray) {
+    xs.iter()
+        .zip(ys)
+        .forEach { (x, y) -> ys[y] = Self.u32(x, scalar) }
 }
 
 private class MacroBinaryOp(

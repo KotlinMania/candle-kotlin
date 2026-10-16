@@ -21,7 +21,7 @@ private fun checkShape(shape: Shape, blockSize: Int): CandleResult<Unit> {
 
 class QTensor(
     val storage: QStorage,
-    val shape: Shape,
+    internal val shape: Shape,
 ) : CustomOp1 {
     private val self: QTensor get() = this
 

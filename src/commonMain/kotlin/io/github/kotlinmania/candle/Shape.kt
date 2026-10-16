@@ -6,14 +6,20 @@ import kotlin.math.max
 /**
  * The shape of a tensor is a tuple with the size of each of its dimensions.
  */
-public data class Shape(
-    val dims: List<Int>,
+public class Shape(
+    internal val dims: List<Int>,
 ) {
     public constructor(vararg dims: Int) : this(dims.toList())
 
     private val self: List<Int> get() = dims
 
-    public val rank: Int get() = dims.size
+    internal val rank: Int get() = dims.size
+
+    public fun copy(dims: List<Int> = this.dims): Shape = Shape(dims)
+
+    override fun equals(other: Any?): Boolean = other is Shape && dims == other.dims
+
+    override fun hashCode(): Int = dims.hashCode()
 
     public fun fmt(f: String = ""): String {
         return write(f, "{:?}", this.dims())

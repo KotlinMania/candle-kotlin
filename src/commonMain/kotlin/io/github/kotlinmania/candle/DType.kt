@@ -13,7 +13,7 @@ import io.github.kotlinmania.candle.CandleResult.Ok
  */
 public enum class DType(
     public val typeName: String,
-    public val sizeInBytes: Int,
+    internal val sizeInBytes: Int,
 ) {
     // Unsigned 8 bits integer.
     U8("u8", 1),

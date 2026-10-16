@@ -1006,7 +1006,7 @@ interface CudaDType<T> {
 
 class CudaStorage(
     var slice: CudaStorageSlice,
-    val device: CudaDevice
+    internal val device: CudaDevice
 ) {
     companion object {
         fun <T> wrapCudaSlice(slice: CudaSlice<T>, device: CudaDevice, wrapper: CudaDType<T>): CudaStorage {

@@ -4,14 +4,29 @@ package io.github.kotlinmania.candle
 import kotlin.math.max
 
 /** Tensor Layouts including contiguous or sparse strides */
-public data class Layout(
-    val shape: Shape,
+public class Layout(
+    internal val shape: Shape,
     // The strides are given in number of elements and not in bytes.
-    val stride: List<Int>,
-    val startOffset: Int = 0,
+    internal val stride: List<Int>,
+    internal val startOffset: Int = 0,
 ) {
     private val self: Layout get() = this
-    public val dims: List<Int> get() = shape.dims
+    internal val dims: List<Int> get() = shape.dims
+
+    public fun copy(
+        shape: Shape = this.shape,
+        stride: List<Int> = this.stride,
+        startOffset: Int = this.startOffset,
+    ): Layout = Layout(shape, stride, startOffset)
+
+    override fun equals(other: Any?): Boolean =
+        other is Layout && shape == other.shape && stride == other.stride && startOffset == other.startOffset
+
+    override fun hashCode(): Int =
+        31 * (31 * shape.hashCode() + stride.hashCode()) + startOffset.hashCode()
+
+    override fun toString(): String =
+        "Layout(shape=$shape, stride=$stride, startOffset=$startOffset)"
 
     public companion object {
         public val Self: Companion get() = this

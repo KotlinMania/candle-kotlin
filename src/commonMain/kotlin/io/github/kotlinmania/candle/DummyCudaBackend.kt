@@ -98,7 +98,7 @@ public class CudaStorage() : BackendStorage {
     }
 
     private val self: CudaStorage get() = this
-    public val dtype: DType get() = dtype()
+    internal val dtype: DType get() = dtype()
     public val slice: io.github.kotlinmania.candle.cuda.CudaStorageSlice get() = fail()
 
     public fun <T> asCudaSlice(): List<T> = fail()

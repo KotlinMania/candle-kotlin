@@ -442,7 +442,7 @@ public fun <C : InplaceOp3> Tensor.inplaceOp3(t2: Tensor, t3: Tensor, c: C) {
 }
 
 public class UgIOp1(
-    public val name: String,
+    internal val name: String,
     public val func: Any? = null,
 ) : InplaceOp1 {
     override fun name(): String {

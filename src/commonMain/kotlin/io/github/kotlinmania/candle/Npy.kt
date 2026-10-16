@@ -71,14 +71,26 @@ public fun <R : Read> readHeader(reader: R): String {
     return Ok(String.fromUtf8Lossy(header))
 }
 
-public data class Header(
-    val descr: DType,
-    val fortranOrder: Boolean,
-    val shape: List<Int>,
+public class Header(
+    public val descr: DType,
+    public val fortranOrder: Boolean,
+    internal val shape: List<Int>,
 ) {
     public fun shape(): Shape {
         return Shape.from(self.shape.asSlice())
     }
+
+    public fun copy(
+        descr: DType = this.descr,
+        fortranOrder: Boolean = this.fortranOrder,
+        shape: List<Int> = this.shape,
+    ): Header = Header(descr, fortranOrder, shape)
+
+    override fun equals(other: Any?): Boolean =
+        other is Header && descr == other.descr && fortranOrder == other.fortranOrder && shape == other.shape
+
+    override fun hashCode(): Int =
+        31 * (31 * descr.hashCode() + fortranOrder.hashCode()) + shape.hashCode()
 
     override fun toString(): String {
         val fortranOrder = if (self.fortranOrder) "True" else "False"

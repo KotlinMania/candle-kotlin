@@ -112,10 +112,26 @@ private fun <R : NpyByteReader> readToNewline(r: R): CandleResult<ByteArray> {
 }
 
 public sealed class Object {
-    public data class Class(
+    public class Class(
         public val moduleName: String,
-        public val className: String,
-    ) : Object()
+        internal val className: String,
+    ) : Object() {
+        public val clsName: String get() = className
+
+        public fun copy(
+            moduleName: String = this.moduleName,
+            className: String = this.className,
+        ): Class = Class(moduleName, className)
+
+        override fun equals(other: Any?): Boolean =
+            other is Class && moduleName == other.moduleName && className == other.className
+
+        override fun hashCode(): Int =
+            31 * moduleName.hashCode() + className.hashCode()
+
+        override fun toString(): String =
+            "Class(moduleName=$moduleName, className=$className)"
+    }
 
     public data class Int(public val value: kotlin.Int) : Object()
     public data class Long(public val value: kotlin.Long) : Object()
