@@ -219,10 +219,6 @@ private object BPE {
     val builder: () -> BpeBuilder = { BpeBuilder() }
 }
 
-private object Error {
-    val msg: (String) -> Throwable = { m -> CandleError.Msg(m) }
-    val wrap: (Throwable) -> Throwable = { e -> CandleError.wrap(e) }
-}
 
 private fun <T> CandleResult<T>.ok(): T? = (this as? CandleResult.Ok)?.value
 
@@ -310,7 +306,7 @@ public fun mergesFromValue(v: Value): CandleResult<List<Pair<String, String>>> {
                 m
                     .splitOnce(' ')
                     ?.let { pair -> Pair(pair.first, pair.second) }
-                    .okOrElse { Error.msg(format("invalid merge entry `{m}`", m)) }
+                    .okOrElse { CandleError.Msg(format("invalid merge entry `{m}`", m)) }
                     .unwrap()
             }
     return CandleResult.Ok(list)
@@ -353,7 +349,7 @@ public fun preTokenizerSequence(
                 SplitPattern.Regex(regex),
                 SplitDelimiterBehavior.Isolated,
                 false,
-            ).mapErr(Error.wrap)
+            ).mapErr(CandleError::wrap)
             .unwrap()
     return CandleResult.Ok(PreTokenizerWrapper.Sequence.new(listOf(split.into(), byteLevel.into())).into())
 }
@@ -531,7 +527,7 @@ public class Tokenizer internal constructor(
                 builder = builder.ignoreMerges(ignoreMergesRes.value.toBool().unwrap())
             }
 
-            val bpe = builder.build().mapErr(Error.wrap).unwrap()
+            val bpe = builder.build().mapErr(CandleError::wrap).unwrap()
             val tokenizer = Tokenizer.new(bpe)
 
             val pre =

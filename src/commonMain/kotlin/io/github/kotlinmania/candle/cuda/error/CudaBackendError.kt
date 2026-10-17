@@ -63,13 +63,7 @@ sealed class CudaError(
     fun into(): CudaError = this
 }
 
-internal object Error {
-    fun Cuda(err: CudaError): CandleError =
-        io.github.kotlinmania.candle.CandleException
-            .Cuda(err)
-}
-
-fun from(v: CudaError): CandleError = Error.Cuda(v).bt()
+fun from(v: CudaError): CandleError = io.github.kotlinmania.candle.CandleException.Cuda(v).bt()
 
 interface WrapErr<O> {
     fun w(): Result<O>
@@ -89,7 +83,7 @@ class ResultWrapErr<O>(
             },
         )
 
-    override fun w(): Result<O> = self.mapErr { e -> Error.Cuda(e.into()).bt() }
+    override fun w(): Result<O> = self.mapErr { e -> io.github.kotlinmania.candle.CandleException.Cuda(e.into()).bt() }
 }
 
 fun <O> Result<O>.w(): Result<O> = ResultWrapErr(this).w()

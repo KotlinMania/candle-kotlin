@@ -550,7 +550,6 @@ public sealed class CandleException(
     }
 }
 
-internal typealias Error = CandleException
 
 private const val static: Int = 0
 
@@ -710,7 +709,7 @@ public interface ErrorContext<T, E> : Sealed {
 
                 Err.error -> {
                     Err(
-                        Error
+                        CandleException
                             .WrappedContext(
                                 wrapped,
                                 new(error),
@@ -735,7 +734,7 @@ public interface ErrorContext<T, E> : Sealed {
 
                 Err.error -> {
                     Err(
-                        Error
+                        CandleException
                             .WrappedContext(
                                 wrapped,
                                 new(error),
@@ -769,7 +768,7 @@ public interface ErrorContext<T, E> : Sealed {
             // Converts None to Err with message context.
             when (self) {
                 Some.ok -> Ok(ok)
-                None -> Err(Error.msg(context).bt())
+                None -> Err(CandleException.msg(context).bt())
                 else -> Ok(ok)
             }
 
@@ -778,7 +777,7 @@ public interface ErrorContext<T, E> : Sealed {
             // Converts None to Err with UnwrapNone context.
             when (self) {
                 Some.v -> Ok(v)
-                None -> Err(Error.UnwrapNone.context(f()).bt())
+                None -> Err(CandleException.UnwrapNone.context(f()).bt())
                 else -> Ok(v)
             }
     }

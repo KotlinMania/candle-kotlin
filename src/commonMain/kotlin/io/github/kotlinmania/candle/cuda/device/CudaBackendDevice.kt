@@ -76,7 +76,7 @@ class CudaGraphHtodCacheGuard {
     interface Storage
 
     fun drop() {
-        CUDA_GRAPH_HTOD_CACHE_DEPTH.with { depth ->
+        CUDA_GRAPH_HTOD_CACHE_DEPTH.withDepth { depth ->
             debugAssert(depth.get() > 0)
             depth.set(depth.get().saturatingSub(1))
         }
@@ -315,7 +315,7 @@ class CudaDevice internal constructor(
     }
 
     fun enableCudaGraphHtodCache(): CudaGraphHtodCacheGuard {
-        CUDA_GRAPH_HTOD_CACHE_DEPTH.with { depth -> depth.set(depth.get() + 1) }
+        CUDA_GRAPH_HTOD_CACHE_DEPTH.withDepth { depth -> depth.set(depth.get() + 1) }
         return CudaGraphHtodCacheGuard()
     }
 
@@ -413,7 +413,7 @@ class CudaDevice internal constructor(
                 .toVec()
         val key = CudaGraphHtodCacheKey(self.id, typeIdOf(srcSlice), bytes)
         val existing =
-            CUDA_GRAPH_HTOD_CACHE.with { cache ->
+            CUDA_GRAPH_HTOD_CACHE.withCache { cache ->
                 if (cache.borrow().containsKey(key)) {
                     CudaSlice(srcSlice.toMutableList())
                 } else {
@@ -432,7 +432,7 @@ class CudaDevice internal constructor(
                 .cloneHtod(src)
                 .w()
                 .getOrThrow()
-        CUDA_GRAPH_HTOD_CACHE.with { cache ->
+        CUDA_GRAPH_HTOD_CACHE.withCache { cache ->
             cache.borrowMut().put(key, cached.clone())
         }
         return Ok(cached)
@@ -1130,7 +1130,7 @@ class CudaDevice internal constructor(
     }
 }
 
-private fun cudaGraphHtodCacheEnabled(): Boolean = CUDA_GRAPH_HTOD_CACHE_DEPTH.with { depth -> depth.get() > 0 }
+private fun cudaGraphHtodCacheEnabled(): Boolean = CUDA_GRAPH_HTOD_CACHE_DEPTH.withDepth { depth -> depth.get() > 0 }
 
 class CudaFunc(
     val func: CudaFunction,
@@ -1165,10 +1165,9 @@ private val IntArray.get: () -> Int get() = { this[0] }
 private val IntArray.set: (Int) -> Unit get() = { v -> this[0] = v }
 private val Int.saturatingSub: (Int) -> Int get() = { other -> maxOf(0, this - other) }
 
-private fun <R> ThreadLocal<IntArray>.with(block: (IntArray) -> R): R = block(getOr { intArrayOf(0) })
-
-@kotlin.jvm.JvmName("withCache")
-private fun <R> ThreadLocal<MutableMap<CudaGraphHtodCacheKey, Any>>.with(block: (MutableMap<CudaGraphHtodCacheKey, Any>) -> R): R =
+private fun <R> ThreadLocal<IntArray>.withDepth(block: (IntArray) -> R): R = block(getOr { intArrayOf(0) })
+ 
+private fun <R> ThreadLocal<MutableMap<CudaGraphHtodCacheKey, Any>>.withCache(block: (MutableMap<CudaGraphHtodCacheKey, Any>) -> R): R =
     block(getOr { HashMap() })
 
 private fun <K, V> MutableMap<K, V>.borrow(): MutableMap<K, V> = this

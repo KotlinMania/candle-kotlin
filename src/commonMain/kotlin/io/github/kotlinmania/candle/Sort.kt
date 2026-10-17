@@ -206,11 +206,11 @@ internal data class ArgSort(
                 }
 
                 is CpuStorage.BF16 -> {
-                    self.asort(storage.data.map { BFloat16(it).toFloat() }, layout)
+                    self.asort(storage.data.map { BFloat16(it.toUShort()).toFloat() }, layout)
                 }
 
                 is CpuStorage.F16 -> {
-                    self.asort(storage.data.map { Float16(it).toFloat() }, layout)
+                    self.asort(storage.data.map { Float16(it.toUShort()).toFloat() }, layout)
                 }
 
                 is CpuStorage.F32 -> {
@@ -222,7 +222,7 @@ internal data class ArgSort(
                 }
 
                 is CpuStorage.F8E4M3 -> {
-                    self.asort(storage.data.map { F8E4M3(it).toFloat() }, layout)
+                    self.asort(storage.data.map { F8E4M3(it.toUByte()).toFloat() }, layout)
                 }
 
                 // Dummy types do not support sorting

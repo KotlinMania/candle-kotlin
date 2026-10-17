@@ -96,10 +96,7 @@ public data class CudaDevice(
 }
 
 public class CudaStorage() : BackendStorage {
-    public constructor(device: CudaDevice, dtype: DType = DType.F32) : this() {
-        device.hashCode()
-        dtype.hashCode()
-    }
+    public constructor(device: CudaDevice, dtype: DType = DType.F32) : this()
 
     private val self: CudaStorage get() = this
     internal val dtype: DType get() = dtype()
@@ -112,22 +109,13 @@ public class CudaStorage() : BackendStorage {
         bmnk: List<Int>,
         lhsL: Layout,
         rhsL: Layout,
-    ): CudaStorage {
-        rhs.hashCode()
-        bmnk.hashCode()
-        lhsL.hashCode()
-        rhsL.hashCode()
-        fail()
-    }
+    ): CudaStorage = fail()
 
     public companion object {
         public fun wrapCudaSlice(
             slice: Any,
             dev: CudaDevice,
-        ): CudaStorage {
-            slice.hashCode()
-            return CudaStorage(dev)
-        }
+        ): CudaStorage = fail()
     }
 
     public fun transferToDevice(dst: CudaDevice): CudaStorage = Err(Error.NotCompiledWithCudaSupport)
