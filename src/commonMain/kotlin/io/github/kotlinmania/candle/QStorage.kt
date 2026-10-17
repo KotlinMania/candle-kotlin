@@ -428,7 +428,7 @@ internal object QuantizedHelper {
 
     val asSliceF16: (CpuStorage) -> CandleResult<Array<F16>> = { s ->
         when (s) {
-            is CpuStorage.F16 -> CandleResult.Ok(Array(s.data.size) { F16(s.data[it]) })
+            is CpuStorage.F16 -> CandleResult.Ok(Array(s.data.size) { F16(s.data[it].toUShort()) })
             else -> CandleResult.Err(CandleError.Msg("expected f16 storage").bt())
         }
     }
