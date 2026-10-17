@@ -105,14 +105,10 @@ private val CudaDevice.memcpyDtoh: (ByteArray, ByteArray) -> Unit get() = { src,
 private val CudaDevice.storageFromCpuStorage: (CpuStorage) -> CudaStorage get() = { _ ->
     CudaStorage(this)
 }
-private val CudaStorage.Companion.wrapCudaSlice: (Any, CudaDevice) -> CudaStorage get() = { _, dev ->
-    CudaStorage(dev)
-}
 private val String.builder: () -> MutableList<Any?> get() = { mutableListOf(this) }
 private val MutableList<Any?>.arg: (Any?) -> Unit get() = { add(it) }
 private val MutableList<Any?>.launch: (Any?) -> MutableList<Any?> get() = {
-    add(it)
-    this
+    throw Error.NotCompiledWithCudaSupport
 }
 private val MutableList<Any?>.w: () -> Unit get() = { }
 private val barg: (MutableList<Any?>, Any?, Any?, Any?, Any?, Any?, Any?) -> Unit get() = { b, a1, a2, a3, a4, a5, a6 ->
@@ -124,7 +120,7 @@ private val barg: (MutableList<Any?>, Any?, Any?, Any?, Any?, Any?, Any?) -> Uni
     b.add(a6)
 }
 private val format: (String, Any?) -> String get() = { a, b -> "$a$b" }
-private val assertEq: (Any?, Any?) -> Unit get() = { a, b -> if (a != b && a == null) error("$a != $b") }
+private val assertEq: (Any?, Any?) -> Unit get() = { a, b -> if (a != b) error("$a != $b") }
 
 internal data class PaddedCudaSlice(
     val inner: ByteArray,
@@ -151,17 +147,15 @@ class QCudaStorage internal constructor(
             GgmlDType.Q5K,
             GgmlDType.Q6K,
             -> {
-                val inputStorage = FloatArray(inputL.shape().elemCount())
-                val idsStorage = IntArray(idsL.shape().elemCount())
-                input.hashCode()
-                ids.hashCode()
+                val inputStorage = input.asCudaSlice<Float>()
+                val idsStorage = ids.asCudaSlice<UInt>()
                 indexedMoeForwardFusedQ81Input(
                     self.data.inner.slice(0 until self.data.inner.size),
                     selfShape,
                     self.dtype(),
-                    inputStorage,
+                    inputStorage.toFloatArray(),
                     inputL.shape(),
-                    idsStorage.slice(0 until idsStorage.size),
+                    idsStorage.map { it.toInt() }.toIntArray(),
                     idsL.shape(),
                     self.device,
                 )
