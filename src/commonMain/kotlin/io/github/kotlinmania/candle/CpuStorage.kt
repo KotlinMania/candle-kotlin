@@ -1790,15 +1790,45 @@ public sealed class CpuStorage {
         kernelL: Layout,
         params: ParamsConv1D,
     ): CpuStorage {
-        l.hashCode()
+        if (!useIm2colConv1d) {
+            return Conv1D(params).map(this, l, kernel, kernelL)
+        }
+        val op =
+            Im2Col1D(
+                lK = params.kSize,
+                padding = params.padding,
+                stride = params.stride,
+                dilation = params.dilation,
+            )
+        val col = op.map(this, l)
         val b = params.bSize
-        val m = params.lOut()
         val n = params.cOut
-        val k = params.kSize * params.cIn
+        val lOut = params.lOut()
+        val k = op.lK * params.cIn
+        val m = lOut
         val colL = Layout.contiguous(Shape(b, m, k))
-        val kernelTransposed = kernelL.transpose(1, 2)
-        val kernelBroadcast = kernelTransposed.broadcastAs(Shape(b, k, n))
-        return matmul(kernel, listOf(b, m, n, k), colL, kernelBroadcast)
+        val res =
+            if (kernelL.isContiguous()) {
+                val kL =
+                    Layout
+                        .contiguousWithOffset(Shape(1, n, k), kernelL.startOffset)
+                        .transpose(1, 2)
+                        .broadcastAs(Shape(b, k, n))
+                col.matmul(kernel, listOf(b, m, n, k), colL, kL)
+            } else {
+                val kernelC = device().allocUninit(kernelL.shape, kernel.dtype())
+                kernel.copyStridedSrc(kernelC, 0, kernelL)
+                val kL =
+                    Layout
+                        .contiguousWithOffset(Shape(1, n, k), 0)
+                        .transpose(1, 2)
+                        .broadcastAs(Shape(b, k, n))
+                col.matmul(kernelC, listOf(b, m, n, k), colL, kL)
+            }
+        val resL = Layout.contiguous(Shape(b, lOut, params.cOut)).transpose(1, 2)
+        val resT = device().allocUninit(resL.shape, res.dtype())
+        res.copyStridedSrc(resT, 0, resL)
+        return resT
     }
 
     public fun convTranspose1d(
@@ -1807,15 +1837,40 @@ public sealed class CpuStorage {
         kernelL: Layout,
         params: ParamsConvTranspose1D,
     ): CpuStorage {
-        l.hashCode()
-        val b = params.bSize
-        val m = params.lOut()
-        val n = params.cOut
-        val k = params.kSize * params.cIn
-        val colL = Layout.contiguous(Shape(b, m, k))
-        val kernelTransposed = kernelL.transpose(1, 2)
-        val kernelBroadcast = kernelTransposed.broadcastAs(Shape(b, k, n))
-        return matmul(kernel, listOf(b, m, n, k), colL, kernelBroadcast)
+        val canUseCol2im =
+            kernelL.isContiguous() &&
+                params.dilation == 1 &&
+                params.padding == 0 &&
+                params.outputPadding == 0
+        return if (useCol2imConv1dTr && canUseCol2im) {
+            val (bSize, cIn, lIn) = l.shape.dims3()
+            val (cIn2, cOut, kSize) = kernelL.shape.dims3()
+            if (!kernelL.isContiguous()) {
+                bail("convtr1d: the second argument (kernel) has to be contiguous $kernelL")
+            }
+            if (cIn != cIn2) {
+                bail("convtr1d: shape mismatch on c_in ${l.shape} ${kernelL.shape}")
+            }
+            val col =
+                run {
+                    val kernelLMm =
+                        Layout(
+                            Shape(bSize, cIn, kSize * cOut),
+                            listOf(0, kSize * cOut, 1),
+                            kernelL.startOffset,
+                        )
+                    matmul(
+                        kernel,
+                        listOf(bSize, lIn, cOut * kSize, cIn),
+                        l.transpose(1, 2),
+                        kernelLMm,
+                    )
+                }
+            val colL = Layout.contiguous(Shape(bSize, lIn, cOut, kSize))
+            Col2Im1D(stride = params.stride).map(col, colL)
+        } else {
+            ConvTranspose1D(params).map(this, l, kernel, kernelL)
+        }
     }
 
     public fun conv2d(
@@ -1823,34 +1878,14 @@ public sealed class CpuStorage {
         kernel: CpuStorage,
         kernelL: Layout,
         params: ParamsConv2D,
-    ): CpuStorage {
-        l.hashCode()
-        val b = params.bSize
-        val m = params.outH() * params.outW()
-        val n = params.cOut
-        val k = params.kH * params.kW * params.cIn
-        val colL = Layout.contiguous(Shape(b, m, k))
-        val kernelTransposed = kernelL.transpose(1, 2)
-        val kernelBroadcast = kernelTransposed.broadcastAs(Shape(b, k, n))
-        return matmul(kernel, listOf(b, m, n, k), colL, kernelBroadcast)
-    }
+    ): CpuStorage = Conv2D(params).map(this, l, kernel, kernelL)
 
     public fun convTranspose2d(
         l: Layout,
         kernel: CpuStorage,
         kernelL: Layout,
         params: ParamsConvTranspose2D,
-    ): CpuStorage {
-        l.hashCode()
-        val b = params.bSize
-        val m = params.outH() * params.outW()
-        val n = params.cOut
-        val k = params.kH * params.kW * params.cIn
-        val colL = Layout.contiguous(Shape(b, m, k))
-        val kernelTransposed = kernelL.transpose(1, 2)
-        val kernelBroadcast = kernelTransposed.broadcastAs(Shape(b, k, n))
-        return matmul(kernel, listOf(b, m, n, k), colL, kernelBroadcast)
-    }
+    ): CpuStorage = ConvTranspose2D(params).map(this, l, kernel, kernelL)
 
     public fun avgPool2d(
         layout: Layout,
