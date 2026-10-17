@@ -12,8 +12,6 @@ public class StridedIndex(
     public val stride: List<Int>,
     private var remaining: Int,
 ) : Iterator<Int> {
-    public interface Item {}
-
     public constructor(
         dims: List<Int>,
         stride: List<Int>,
@@ -38,16 +36,20 @@ public class StridedIndex(
 
     private var curIdx: Int = 0
     private var multiI: Int get() = self.multiIndex[curIdx]
-        set(v) { self.multiIndex[curIdx] = v }
+        set(v) {
+            self.multiIndex[curIdx] = v
+        }
     private val maxI: Int get() = self.dims[curIdx]
 
     public inner class ZipIter {
         public val zip: (List<Int>) -> ZipIter get() = { _ -> this }
         public val rev: () -> Iterator<Int> get() = {
-            (self.stride.size - 1 downTo 0).asSequence().map { idx ->
-                curIdx = idx
-                self.stride[idx]
-            }.iterator()
+            (self.stride.size - 1 downTo 0)
+                .asSequence()
+                .map { idx ->
+                    curIdx = idx
+                    self.stride[idx]
+                }.iterator()
         }
     }
 
@@ -61,20 +63,27 @@ public class StridedIndex(
         private val multiIndex: Int get() = 0
         private val remaining: Int get() = 0
 
-        public fun new(dims: List<Int>, stride: List<Int>, startOffset: Int): StridedIndex {
+        public fun new(
+            dims: List<Int>,
+            stride: List<Int>,
+            startOffset: Int,
+        ): StridedIndex {
             val elemCount: Int = dims.iter().product()
-            val nextStorageIndex = if (elemCount == 0) {
-                None
-            } else {
-                // This applies to the scalar case.
-                Some(startOffset)
-            }
+            val nextStorageIndex =
+                if (elemCount == 0) {
+                    None
+                } else {
+                    // This applies to the scalar case.
+                    Some(startOffset)
+                }
             return StridedIndex(
                 nextStorageIndex,
-                multiIndex, vec(0, dims.len()),
+                multiIndex,
+                vec(0, dims.len()),
                 dims,
                 stride,
-                remaining, elemCount,
+                remaining,
+                elemCount,
             )
         }
 
@@ -88,10 +97,11 @@ public class StridedIndex(
     override fun hasNext(): Boolean = nextStorageIndex != null
 
     override fun next(): Int {
-        val storageIndex = self.nextStorageIndex.unwrap()
+        val storageIndex = self.nextStorageIndex ?: throw NoSuchElementException()
         var updated = false
         var nextStorageIndex = storageIndex
-        for (strideI in self
+        for (
+        strideI in self
             .multiIndex
             .iterMut()
             .zip(self.dims.iter())
@@ -110,11 +120,12 @@ public class StridedIndex(
             }
         }
         self.remaining -= 1
-        self.nextStorageIndex = if (updated) {
-            Some(nextStorageIndex)
-        } else {
-            None
-        }
+        self.nextStorageIndex =
+            if (updated) {
+                Some(nextStorageIndex)
+            } else {
+                None
+            }
         return Some(storageIndex)
     }
 
@@ -125,12 +136,13 @@ public class StridedIndex(
     public fun len(): Int =
         // Exact number of remaining elements.
         self.remaining
+
+    public interface Item
 }
 
 private val List<Int>.iter: () -> List<Int> get() = { this }
 private val List<Int>.product: () -> Int get() = { if (this.isEmpty()) 1 else this.fold(1) { acc, d -> acc * d } }
 private val List<Int>.len: () -> Int get() = { this.size }
-private fun Int?.unwrap(): Int = this ?: throw NoSuchElementException()
 
 public sealed class StridedBlocks {
     public data class SingleBlock(

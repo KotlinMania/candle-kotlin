@@ -11,12 +11,18 @@ import io.github.kotlinmania.candle.CandleResult.Ok
  * that are defined in the safetensors spec but not yet fully implemented.
  */
 
-public class Formatter(public val out: StringBuilder = StringBuilder()) {
+public class Formatter(
+    public val out: StringBuilder = StringBuilder(),
+) {
     public val sb: StringBuilder get() = out
+
     override fun toString(): String = out.toString()
 }
 
-internal fun write(f: Formatter, text: String): CandleResult<Unit> {
+internal fun write(
+    f: Formatter,
+    text: String,
+): CandleResult<Unit> {
     f.out.append(text)
     return Ok(Unit)
 }
@@ -26,11 +32,9 @@ internal fun write(f: Formatter, text: String): CandleResult<Unit> {
  * This is a dummy type.
  */
 public class F6E2M3 {
-    public fun toF64(): Double =
-        throw IllegalStateException("F6E2M3 is a dummy type and cannot be converted")
+    public fun toF64(): Double = throw IllegalStateException("F6E2M3 is a dummy type and cannot be converted")
 
-    public fun toScalar(): Scalar =
-        throw IllegalStateException("F6E2M3 is a dummy type and cannot be converted to scalar")
+    public fun toScalar(): Scalar = throw IllegalStateException("F6E2M3 is a dummy type and cannot be converted to scalar")
 
     public fun addAssign(other: F6E2M3): Unit =
         throw IllegalStateException("F6E2M3 is a dummy type and does not support operations referencing $other")
@@ -62,8 +66,7 @@ public class F6E2M3 {
     public operator fun rem(other: F6E2M3): F6E2M3 =
         throw IllegalStateException("F6E2M3 is a dummy type and does not support operations referencing $other")
 
-    public fun isZero(): Boolean =
-        throw IllegalStateException("F6E2M3 is a dummy type and does not support operations")
+    public fun isZero(): Boolean = throw IllegalStateException("F6E2M3 is a dummy type and does not support operations")
 
     public fun min(other: F6E2M3): F6E2M3 =
         throw IllegalStateException("F6E2M3 is a dummy type and does not support operations referencing $other")
@@ -80,8 +83,7 @@ public class F6E2M3 {
     public companion object {
         public val DTYPE: DType = DType.F8E4M3
 
-        public fun fromF64(v: Double): F6E2M3 =
-            throw IllegalStateException("F6E2M3 is a dummy type and cannot be constructed from $v")
+        public fun fromF64(v: Double): F6E2M3 = throw IllegalStateException("F6E2M3 is a dummy type and cannot be constructed from $v")
 
         public fun cpuStorageRef(data: List<F6E2M3>): CpuStorageRef =
             throw IllegalStateException("F6E2M3 is a dummy type and does not support storage (${data.size})")
@@ -95,14 +97,14 @@ public class F6E2M3 {
         public fun cpuStorageAsSlice(s: CpuStorage): CandleResult<List<F6E2M3>> =
             Err(CandleException.UnsupportedDTypeForOp(s.dtype(), "cpu_storage_as_slice"))
 
-        public fun zero(): F6E2M3 =
-            throw IllegalStateException("F6E2M3 is a dummy type and does not support operations")
+        public fun zero(): F6E2M3 = throw IllegalStateException("F6E2M3 is a dummy type and does not support operations")
 
-        public fun one(): F6E2M3 =
-            throw IllegalStateException("F6E2M3 is a dummy type and does not support operations")
+        public fun one(): F6E2M3 = throw IllegalStateException("F6E2M3 is a dummy type and does not support operations")
 
-        public fun fromStrRadix(str: String, radix: UInt): CandleResult<F6E2M3> =
-            throw IllegalStateException("F6E2M3 is a dummy type and does not support parsing ($str, $radix)")
+        public fun fromStrRadix(
+            str: String,
+            radix: UInt,
+        ): CandleResult<F6E2M3> = throw IllegalStateException("F6E2M3 is a dummy type and does not support parsing ($str, $radix)")
     }
 }
 
@@ -111,11 +113,9 @@ public class F6E2M3 {
  * This is a dummy type.
  */
 public class F6E3M2 {
-    public fun toF64(): Double =
-        throw IllegalStateException("F6E3M2 is a dummy type and cannot be converted")
+    public fun toF64(): Double = throw IllegalStateException("F6E3M2 is a dummy type and cannot be converted")
 
-    public fun toScalar(): Scalar =
-        throw IllegalStateException("F6E3M2 is a dummy type and cannot be converted to scalar")
+    public fun toScalar(): Scalar = throw IllegalStateException("F6E3M2 is a dummy type and cannot be converted to scalar")
 
     public fun addAssign(other: F6E3M2): Unit =
         throw IllegalStateException("F6E3M2 is a dummy type and does not support operations referencing $other")
@@ -147,8 +147,7 @@ public class F6E3M2 {
     public operator fun rem(other: F6E3M2): F6E3M2 =
         throw IllegalStateException("F6E3M2 is a dummy type and does not support operations referencing $other")
 
-    public fun isZero(): Boolean =
-        throw IllegalStateException("F6E3M2 is a dummy type and does not support operations")
+    public fun isZero(): Boolean = throw IllegalStateException("F6E3M2 is a dummy type and does not support operations")
 
     public fun min(other: F6E3M2): F6E3M2 =
         throw IllegalStateException("F6E3M2 is a dummy type and does not support operations referencing $other")
@@ -165,8 +164,7 @@ public class F6E3M2 {
     public companion object {
         public val DTYPE: DType = DType.F8E4M3
 
-        public fun fromF64(v: Double): F6E3M2 =
-            throw IllegalStateException("F6E3M2 is a dummy type and cannot be constructed from $v")
+        public fun fromF64(v: Double): F6E3M2 = throw IllegalStateException("F6E3M2 is a dummy type and cannot be constructed from $v")
 
         public fun cpuStorageRef(data: List<F6E3M2>): CpuStorageRef =
             throw IllegalStateException("F6E3M2 is a dummy type and does not support storage (${data.size})")
@@ -180,14 +178,14 @@ public class F6E3M2 {
         public fun cpuStorageAsSlice(s: CpuStorage): CandleResult<List<F6E3M2>> =
             Err(CandleException.UnsupportedDTypeForOp(s.dtype(), "cpu_storage_as_slice"))
 
-        public fun zero(): F6E3M2 =
-            throw IllegalStateException("F6E3M2 is a dummy type and does not support operations")
+        public fun zero(): F6E3M2 = throw IllegalStateException("F6E3M2 is a dummy type and does not support operations")
 
-        public fun one(): F6E3M2 =
-            throw IllegalStateException("F6E3M2 is a dummy type and does not support operations")
+        public fun one(): F6E3M2 = throw IllegalStateException("F6E3M2 is a dummy type and does not support operations")
 
-        public fun fromStrRadix(str: String, radix: UInt): CandleResult<F6E3M2> =
-            throw IllegalStateException("F6E3M2 is a dummy type and does not support parsing ($str, $radix)")
+        public fun fromStrRadix(
+            str: String,
+            radix: UInt,
+        ): CandleResult<F6E3M2> = throw IllegalStateException("F6E3M2 is a dummy type and does not support parsing ($str, $radix)")
     }
 }
 
@@ -196,11 +194,9 @@ public class F6E3M2 {
  * This is a dummy type.
  */
 public class F4 {
-    public fun toF64(): Double =
-        throw IllegalStateException("F4 is a dummy type and cannot be converted")
+    public fun toF64(): Double = throw IllegalStateException("F4 is a dummy type and cannot be converted")
 
-    public fun toScalar(): Scalar =
-        throw IllegalStateException("F4 is a dummy type and cannot be converted to scalar")
+    public fun toScalar(): Scalar = throw IllegalStateException("F4 is a dummy type and cannot be converted to scalar")
 
     public fun addAssign(other: F4): Unit =
         throw IllegalStateException("F4 is a dummy type and does not support operations referencing $other")
@@ -232,14 +228,11 @@ public class F4 {
     public operator fun rem(other: F4): F4 =
         throw IllegalStateException("F4 is a dummy type and does not support operations referencing $other")
 
-    public fun isZero(): Boolean =
-        throw IllegalStateException("F4 is a dummy type and does not support operations")
+    public fun isZero(): Boolean = throw IllegalStateException("F4 is a dummy type and does not support operations")
 
-    public fun min(other: F4): F4 =
-        throw IllegalStateException("F4 is a dummy type and does not support operations referencing $other")
+    public fun min(other: F4): F4 = throw IllegalStateException("F4 is a dummy type and does not support operations referencing $other")
 
-    public fun max(other: F4): F4 =
-        throw IllegalStateException("F4 is a dummy type and does not support operations referencing $other")
+    public fun max(other: F4): F4 = throw IllegalStateException("F4 is a dummy type and does not support operations referencing $other")
 
     public fun fmt(f: Formatter) {
         write(f, "F4")
@@ -250,8 +243,7 @@ public class F4 {
     public companion object {
         public val DTYPE: DType = DType.F8E4M3
 
-        public fun fromF64(v: Double): F4 =
-            throw IllegalStateException("F4 is a dummy type and cannot be constructed from $v")
+        public fun fromF64(v: Double): F4 = throw IllegalStateException("F4 is a dummy type and cannot be constructed from $v")
 
         public fun cpuStorageRef(data: List<F4>): CpuStorageRef =
             throw IllegalStateException("F4 is a dummy type and does not support storage (${data.size})")
@@ -265,14 +257,14 @@ public class F4 {
         public fun cpuStorageAsSlice(s: CpuStorage): CandleResult<List<F4>> =
             Err(CandleException.UnsupportedDTypeForOp(s.dtype(), "cpu_storage_as_slice"))
 
-        public fun zero(): F4 =
-            throw IllegalStateException("F4 is a dummy type and does not support operations")
+        public fun zero(): F4 = throw IllegalStateException("F4 is a dummy type and does not support operations")
 
-        public fun one(): F4 =
-            throw IllegalStateException("F4 is a dummy type and does not support operations")
+        public fun one(): F4 = throw IllegalStateException("F4 is a dummy type and does not support operations")
 
-        public fun fromStrRadix(str: String, radix: UInt): CandleResult<F4> =
-            throw IllegalStateException("F4 is a dummy type and does not support parsing ($str, $radix)")
+        public fun fromStrRadix(
+            str: String,
+            radix: UInt,
+        ): CandleResult<F4> = throw IllegalStateException("F4 is a dummy type and does not support parsing ($str, $radix)")
     }
 }
 
@@ -281,11 +273,9 @@ public class F4 {
  * This is a dummy type.
  */
 public class F8E8M0 {
-    public fun toF64(): Double =
-        throw IllegalStateException("F8E8M0 is a dummy type and cannot be converted")
+    public fun toF64(): Double = throw IllegalStateException("F8E8M0 is a dummy type and cannot be converted")
 
-    public fun toScalar(): Scalar =
-        throw IllegalStateException("F8E8M0 is a dummy type and cannot be converted to scalar")
+    public fun toScalar(): Scalar = throw IllegalStateException("F8E8M0 is a dummy type and cannot be converted to scalar")
 
     public fun addAssign(other: F8E8M0): Unit =
         throw IllegalStateException("F8E8M0 is a dummy type and does not support operations referencing $other")
@@ -317,8 +307,7 @@ public class F8E8M0 {
     public operator fun rem(other: F8E8M0): F8E8M0 =
         throw IllegalStateException("F8E8M0 is a dummy type and does not support operations referencing $other")
 
-    public fun isZero(): Boolean =
-        throw IllegalStateException("F8E8M0 is a dummy type and does not support operations")
+    public fun isZero(): Boolean = throw IllegalStateException("F8E8M0 is a dummy type and does not support operations")
 
     public fun min(other: F8E8M0): F8E8M0 =
         throw IllegalStateException("F8E8M0 is a dummy type and does not support operations referencing $other")
@@ -335,8 +324,7 @@ public class F8E8M0 {
     public companion object {
         public val DTYPE: DType = DType.F8E4M3
 
-        public fun fromF64(v: Double): F8E8M0 =
-            throw IllegalStateException("F8E8M0 is a dummy type and cannot be constructed from $v")
+        public fun fromF64(v: Double): F8E8M0 = throw IllegalStateException("F8E8M0 is a dummy type and cannot be constructed from $v")
 
         public fun cpuStorageRef(data: List<F8E8M0>): CpuStorageRef =
             throw IllegalStateException("F8E8M0 is a dummy type and does not support storage (${data.size})")
@@ -350,14 +338,13 @@ public class F8E8M0 {
         public fun cpuStorageAsSlice(s: CpuStorage): CandleResult<List<F8E8M0>> =
             Err(CandleException.UnsupportedDTypeForOp(s.dtype(), "cpu_storage_as_slice"))
 
-        public fun zero(): F8E8M0 =
-            throw IllegalStateException("F8E8M0 is a dummy type and does not support operations")
+        public fun zero(): F8E8M0 = throw IllegalStateException("F8E8M0 is a dummy type and does not support operations")
 
-        public fun one(): F8E8M0 =
-            throw IllegalStateException("F8E8M0 is a dummy type and does not support operations")
+        public fun one(): F8E8M0 = throw IllegalStateException("F8E8M0 is a dummy type and does not support operations")
 
-        public fun fromStrRadix(str: String, radix: UInt): CandleResult<F8E8M0> =
-            throw IllegalStateException("F8E8M0 is a dummy type and does not support parsing ($str, $radix)")
+        public fun fromStrRadix(
+            str: String,
+            radix: UInt,
+        ): CandleResult<F8E8M0> = throw IllegalStateException("F8E8M0 is a dummy type and does not support parsing ($str, $radix)")
     }
 }
-

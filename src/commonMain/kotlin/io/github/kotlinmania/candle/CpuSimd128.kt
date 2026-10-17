@@ -12,6 +12,7 @@ internal expect val f32x4ReduceOne: (FloatArray) -> Float
 public object CpuSimd128 {
     public object AssociatedTypes {
         public interface Unit
+
         public interface Array
     }
 
@@ -24,29 +25,41 @@ public object CpuSimd128 {
         override val epr: Int = CpuSimd128.epr
         override val arr: Int = CpuSimd128.arr
 
-        override fun zero(): FloatArray =
-            f32x4Splat(0.0f)
+        override fun zero(): FloatArray = f32x4Splat(0.0f)
 
-        override fun zeroArray(): Array<FloatArray> =
-            Array(arr) { zero() }
+        override fun zeroArray(): Array<FloatArray> = Array(arr) { zero() }
 
-        override fun fromF32(v: Float): FloatArray =
-            f32x4Splat(v)
+        override fun fromF32(v: Float): FloatArray = f32x4Splat(v)
 
-        override fun load(memAddr: FloatArray, offset: Int): FloatArray =
-            v128Load(memAddr, offset)
+        override fun load(
+            memAddr: FloatArray,
+            offset: Int,
+        ): FloatArray = v128Load(memAddr, offset)
 
-        override fun vecAdd(a: FloatArray, b: FloatArray): FloatArray =
-            f32x4Add(a, b)
+        override fun vecAdd(
+            a: FloatArray,
+            b: FloatArray,
+        ): FloatArray = f32x4Add(a, b)
 
-        override fun vecFma(a: FloatArray, b: FloatArray, c: FloatArray): FloatArray =
-            f32x4Fma(a, b, c)
+        override fun vecFma(
+            a: FloatArray,
+            b: FloatArray,
+            c: FloatArray,
+        ): FloatArray = f32x4Fma(a, b, c)
 
-        override fun vecStore(memAddr: FloatArray, offset: Int, a: FloatArray) {
+        override fun vecStore(
+            memAddr: FloatArray,
+            offset: Int,
+            a: FloatArray,
+        ) {
             v128Store(memAddr, offset, a)
         }
 
-        override fun vecReduce(x: Array<FloatArray>, y: FloatArray, yOffset: Int) {
+        override fun vecReduce(
+            x: Array<FloatArray>,
+            y: FloatArray,
+            yOffset: Int,
+        ) {
             for (i in 0 until arr / 2) {
                 x[2 * i] = f32x4Add(x[2 * i], x[2 * i + 1])
             }

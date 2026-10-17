@@ -28,19 +28,23 @@ import io.github.kotlinmania.candle.GgmlDType
 import io.github.kotlinmania.candle.GgmlTypeCompanion
 import io.github.kotlinmania.candle.Layout
 import io.github.kotlinmania.candle.MetalDevice
-import io.github.kotlinmania.candle.MetalError
 import io.github.kotlinmania.candle.MetalStorage
 import io.github.kotlinmania.candle.QStorage
 import io.github.kotlinmania.candle.Shape
 import io.github.kotlinmania.candle.Storage
 import io.github.kotlinmania.candle.bail
 
-public class Buffer(public var bytes: ByteArray = ByteArray(0)) {
+public class Buffer(
+    public var bytes: ByteArray = ByteArray(0),
+) {
     public fun length(): Int = bytes.size
+
     public fun contents(): ByteArray = bytes
 }
 
-internal class BufferBuilder(private val device: MetalDevice) {
+internal class BufferBuilder(
+    private val device: MetalDevice,
+) {
     private var size: Int = 0
     private var label: String = ""
     private var bytes: ByteArray? = null
@@ -57,7 +61,10 @@ internal class BufferBuilder(private val device: MetalDevice) {
         return this
     }
 
-    fun withSizeFor(elemCount: Int, dtype: DType): BufferBuilder {
+    fun withSizeFor(
+        elemCount: Int,
+        dtype: DType,
+    ): BufferBuilder {
         this.size = elemCount * dtype.sizeInBytes()
         this.bytes = ByteArray(this.size)
         return this
@@ -99,7 +106,13 @@ internal class BlitCommandEncoder {
         this.label = label
     }
 
-    fun copyFromBuffer(src: Buffer, srcOffset: Int, dst: Buffer, dstOffset: Int, length: Int) {
+    fun copyFromBuffer(
+        src: Buffer,
+        srcOffset: Int,
+        dst: Buffer,
+        dstOffset: Int,
+        length: Int,
+    ) {
         val count = minOf(length, src.bytes.size - srcOffset, dst.bytes.size - dstOffset)
         if (count > 0) {
             src.bytes.copyInto(dst.bytes, dstOffset, srcOffset, srcOffset + count)
@@ -109,9 +122,25 @@ internal class BlitCommandEncoder {
 
 internal class CommandEncoder
 
-internal object candleMetalKernels {
+internal val candleMetalKernels: CandleMetalKernels = CandleMetalKernels
+
+internal object CandleMetalKernels {
     enum class GgmlDType {
-        Q4_0, Q4_1, Q5_0, Q5_1, Q8_0, Q8_1, Q2K, Q3K, Q4K, Q5K, Q6K, Q8K, F16, F32, BF16
+        Q4_0,
+        Q4_1,
+        Q5_0,
+        Q5_1,
+        Q8_0,
+        Q8_1,
+        Q2K,
+        Q3K,
+        Q4K,
+        Q5K,
+        Q6K,
+        Q8K,
+        F16,
+        F32,
+        BF16,
     }
 
     fun callQuantizedMatmulMvT(
@@ -174,44 +203,39 @@ internal object candleMetalKernels {
 }
 
 private fun MetalDevice.newBufferBuilder(): BufferBuilder = BufferBuilder(this)
+
 private fun MetalDevice.blitCommandEncoder(): BlitCommandEncoder = BlitCommandEncoder()
+
 private fun MetalDevice.flushAndWaitCurrent() {}
+
 private fun MetalDevice.commandEncoder(): CommandEncoder = CommandEncoder()
+
 private fun MetalDevice.device(): MetalDevice = this
+
 private fun MetalDevice.kernels(): Any = this
+
 private fun MetalDevice.clone(): MetalDevice = this
+
 private fun MetalStorage.buffer(): Buffer = Buffer()
-private fun MetalStorage.CompanionNew(buffer: Buffer, device: MetalDevice, elemCount: Int, dtype: DType): MetalStorage {
-    buffer.hashCode()
-    device.hashCode()
-    elemCount.hashCode()
-    dtype.hashCode()
-    return MetalStorage()
-}
 
 public class QMetalStorage internal constructor(
     private val dtype: GgmlDType,
     private val device: MetalDevice,
     private var buffer: Buffer,
 ) {
-    public fun dtype(): GgmlDType {
-        return this.dtype
-    }
+    public fun dtype(): GgmlDType = this.dtype
 
-    public fun device(): MetalDevice {
-        return this.device
-    }
+    public fun device(): MetalDevice = this.device
 
-    public fun buffer(): Buffer {
-        return this.buffer
-    }
+    public fun buffer(): Buffer = this.buffer
 
     public fun dequantize(elemCount: Int): CandleResult<MetalStorage> {
-        val buffer = this.device
-            .newBufferBuilder()
-            .withSize(this.buffer.length())
-            .withLabel("qstorage_dequantize_blit")
-            .build()
+        val buffer =
+            this.device
+                .newBufferBuilder()
+                .withSize(this.buffer.length())
+                .withLabel("qstorage_dequantize_blit")
+                .build()
         run {
             val blit = this.device.blitCommandEncoder()
             blit.setLabel("blit_to_cpu")
@@ -225,76 +249,91 @@ public class QMetalStorage internal constructor(
                 val vec: List<Float> = readToVec(buffer, blockLen)
                 F32GgmlType.toFloat(vec, out)
             }
+
             GgmlDType.F16 -> {
                 val vec: List<F16> = readToVec(buffer, blockLen)
                 F16GgmlType.toFloat(vec, out)
             }
+
             GgmlDType.BF16 -> {
                 val vec: List<BF16> = readToVec(buffer, blockLen)
                 BF16GgmlType.toFloat(vec, out)
             }
+
             GgmlDType.Q4_0 -> {
                 val vec: List<BlockQ40> = readToVec(buffer, blockLen)
                 BlockQ40.toFloat(vec, out)
             }
+
             GgmlDType.Q4_1 -> {
                 val vec: List<BlockQ41> = readToVec(buffer, blockLen)
                 BlockQ41.toFloat(vec, out)
             }
+
             GgmlDType.Q5_0 -> {
                 val vec: List<BlockQ50> = readToVec(buffer, blockLen)
                 BlockQ50.toFloat(vec, out)
             }
+
             GgmlDType.Q5_1 -> {
                 val vec: List<BlockQ51> = readToVec(buffer, blockLen)
                 BlockQ51.toFloat(vec, out)
             }
+
             GgmlDType.Q8_0 -> {
                 val vec: List<BlockQ80> = readToVec(buffer, blockLen)
                 BlockQ80.toFloat(vec, out)
             }
+
             GgmlDType.Q8_1 -> {
                 val vec: List<BlockQ81> = readToVec(buffer, blockLen)
                 BlockQ81.toFloat(vec, out)
             }
+
             GgmlDType.Q2K -> {
                 val vec: List<BlockQ2K> = readToVec(buffer, blockLen)
                 BlockQ2K.toFloat(vec, out)
             }
+
             GgmlDType.Q3K -> {
                 val vec: List<BlockQ3K> = readToVec(buffer, blockLen)
                 BlockQ3K.toFloat(vec, out)
             }
+
             GgmlDType.Q4K -> {
                 val vec: List<BlockQ4K> = readToVec(buffer, blockLen)
                 BlockQ4K.toFloat(vec, out)
             }
+
             GgmlDType.Q5K -> {
                 val vec: List<BlockQ5K> = readToVec(buffer, blockLen)
                 BlockQ5K.toFloat(vec, out)
             }
+
             GgmlDType.Q6K -> {
                 val vec: List<BlockQ6K> = readToVec(buffer, blockLen)
                 BlockQ6K.toFloat(vec, out)
             }
+
             GgmlDType.Q8K -> {
                 val vec: List<BlockQ8K> = readToVec(buffer, blockLen)
                 BlockQ8K.toFloat(vec, out)
             }
         }
 
-        val outBuffer = this.device
-            .newBufferBuilder()
-            .withData(out)
-            .withLabel("qstorage_dequantized")
-            .build()
+        val outBuffer =
+            this.device
+                .newBufferBuilder()
+                .withData(out)
+                .withLabel("qstorage_dequantized")
+                .build()
         return Ok(
             MetalStorage.new(
                 outBuffer,
                 this.device.clone(),
                 elemCount,
                 DType.F32,
-            )
+            ),
         )
     }
 
@@ -305,11 +344,12 @@ public class QMetalStorage internal constructor(
         val srcStorage = Storage.Cpu(CpuStorage.F32(srcCpu))
         val qcpuStorage = Device.Cpu.qzeros(elemCount, this.dtype).unwrap()
         qcpuStorage.quantize(srcStorage).unwrap()
-        val buffer = this.device
-            .newBufferBuilder()
-            .withData(qcpuStorage.data().unwrap())
-            .withLabel("qstorage_quantized")
-            .build()
+        val buffer =
+            this.device
+                .newBufferBuilder()
+                .withData(qcpuStorage.data().unwrap())
+                .withLabel("qstorage_quantized")
+                .build()
         this.buffer = buffer
         return Ok(Unit)
     }
@@ -325,11 +365,12 @@ public class QMetalStorage internal constructor(
         val srcStorage = Storage.Cpu(CpuStorage.F32(srcCpu))
         val qcpuStorage = Device.Cpu.qzeros(elemCount, this.dtype).unwrap()
         qcpuStorage.quantizeImatrix(srcStorage, imatrixWeights, nPerRow).unwrap()
-        val buffer = this.device
-            .newBufferBuilder()
-            .withData(qcpuStorage.data().unwrap())
-            .withLabel("qstorage_quantize_imatrix")
-            .build()
+        val buffer =
+            this.device
+                .newBufferBuilder()
+                .withData(qcpuStorage.data().unwrap())
+                .withLabel("qstorage_quantize_imatrix")
+                .build()
         this.buffer = buffer
         return Ok(Unit)
     }
@@ -350,11 +391,12 @@ public class QMetalStorage internal constructor(
             throw IllegalStateException("unreachable")
         }
 
-        val buffer = this.device
-            .newBufferBuilder()
-            .withData(qcpuStorage.data().unwrap())
-            .withLabel("qstorage_quantize_imatrix_onto")
-            .build()
+        val buffer =
+            this.device
+                .newBufferBuilder()
+                .withData(qcpuStorage.data().unwrap())
+                .withLabel("qstorage_quantize_imatrix_onto")
+                .build()
         this.buffer = buffer
         return Ok(Unit)
     }
@@ -371,18 +413,17 @@ public class QMetalStorage internal constructor(
             throw IllegalStateException("unreachable")
         }
 
-        val buffer = this.device
-            .newBufferBuilder()
-            .withData(qcpuStorage.data().unwrap())
-            .withLabel("qstorage_quantize_onto")
-            .build()
+        val buffer =
+            this.device
+                .newBufferBuilder()
+                .withData(qcpuStorage.data().unwrap())
+                .withLabel("qstorage_quantize_onto")
+                .build()
         this.buffer = buffer
         return Ok(Unit)
     }
 
-    public fun storageSizeInBytes(): Int {
-        return this.buffer.length()
-    }
+    public fun storageSizeInBytes(): Int = this.buffer.length()
 
     private fun fwdMv(
         selfShape: Shape,
@@ -403,11 +444,12 @@ public class QMetalStorage internal constructor(
         // We always use a single batch dimension and stack all the tensors in the batch on the
         // second dimension as the implementation in candle-metal-kernels doesn't handle batch
         // properly.
-        val m = when (dstShape.size) {
-            3 -> dstShape[0] * dstShape[1]
-            2 -> dstShape[0]
-            else -> bail("Invalid rank ${dstShape.size} for quantized matmul metal")
-        }
+        val m =
+            when (dstShape.size) {
+                3 -> dstShape[0] * dstShape[1]
+                2 -> dstShape[0]
+                else -> bail("Invalid rank ${dstShape.size} for quantized matmul metal")
+            }
         val lastK = dstShape.removeAt(dstShape.lastIndex)
         if (lastK != k) {
             bail("input tensor $layout incompatible with $selfShape")
@@ -415,27 +457,29 @@ public class QMetalStorage internal constructor(
         dstShape.add(n)
         val outShape = Shape.from(dstShape)
         val device = storage.device() as MetalDevice
-        val dst = device
-            .newBufferBuilder()
-            .withSizeFor(outShape.elemCount(), DType.F32)
-            .withLabel("qmatmul")
-            .build()
+        val dst =
+            device
+                .newBufferBuilder()
+                .withSizeFor(outShape.elemCount(), DType.F32)
+                .withLabel("qmatmul")
+                .build()
         val encoder = device.commandEncoder()
         // In some cases it would be better to use the mm variant, though it has its drawbacks
         // around memory alignment.
         for (batchId in 0 until m) {
-            candleMetalKernels.callQuantizedMatmulMvT(
-                device.device(),
-                encoder,
-                device.kernels(),
-                from(this.dtype),
-                listOf(1, 1, n, k),
-                storage.buffer(),
-                (layout.startOffset() + batchId * k) * storage.dtype().sizeInBytes(),
-                this.buffer,
-                batchId * n * DType.F32.sizeInBytes(),
-                dst,
-            ).unwrap()
+            candleMetalKernels
+                .callQuantizedMatmulMvT(
+                    device.device(),
+                    encoder,
+                    device.kernels(),
+                    from(this.dtype),
+                    listOf(1, 1, n, k),
+                    storage.buffer(),
+                    (layout.startOffset() + batchId * k) * storage.dtype().sizeInBytes(),
+                    this.buffer,
+                    batchId * n * DType.F32.sizeInBytes(),
+                    dst,
+                ).unwrap()
         }
         val dstStorage = MetalStorage.new(dst, device.clone(), outShape.elemCount(), DType.F32)
         return Ok(Pair(dstStorage, outShape))
@@ -460,7 +504,7 @@ public class QMetalStorage internal constructor(
 
         if (srcShape.rank() < selfShape.rank()) {
             bail(
-                "input rank (${srcShape.rank()}) must be >= weight rank (${selfShape.rank()})"
+                "input rank (${srcShape.rank()}) must be >= weight rank (${selfShape.rank()})",
             )
         }
 
@@ -475,11 +519,12 @@ public class QMetalStorage internal constructor(
         dstShape.add(n)
         val outShape = Shape.from(dstShape)
         val device = storage.device() as MetalDevice
-        val dst = device
-            .newBufferBuilder()
-            .withSizeFor(outShape.elemCount(), DType.F32)
-            .withLabel("qmatmul")
-            .build()
+        val dst =
+            device
+                .newBufferBuilder()
+                .withSizeFor(outShape.elemCount(), DType.F32)
+                .withLabel("qmatmul")
+                .build()
         val encoder = device.commandEncoder()
 
         require(storage.dtype() == DType.F32)
@@ -487,51 +532,56 @@ public class QMetalStorage internal constructor(
         if (selfShape.rank() > 4) {
             bail("weight rank (${selfShape.rank()}) must be <= 4")
         }
-        val src0L = Layout.contiguous(
-            Shape(List(4 - selfShape.rank()) { 1 } + selfShape.dims())
-        )
-        val src0Stride = src0L
-            .stride()
-            .map { x ->
-                (x.toFloat() * (this.dtype.typeSize().toFloat() / this.dtype.blockSize().toFloat())).toInt()
-            }
+        val src0L =
+            Layout.contiguous(
+                Shape(List(4 - selfShape.rank()) { 1 } + selfShape.dims()),
+            )
+        val src0Stride =
+            src0L
+                .stride()
+                .map { x ->
+                    (x.toFloat() * (this.dtype.typeSize().toFloat() / this.dtype.blockSize().toFloat())).toInt()
+                }
 
         if (srcShape.rank() > 4) {
             bail("weight rank (${srcShape.rank()}) must be <= 4")
         }
-        val src1L = Layout.contiguous(
-            Shape(List(4 - srcShape.rank()) { 1 } + srcShape.dims())
-        )
+        val src1L =
+            Layout.contiguous(
+                Shape(List(4 - srcShape.rank()) { 1 } + srcShape.dims()),
+            )
 
-        candleMetalKernels.callQuantizedMatmulMmT(
-            device.device(),
-            encoder,
-            device.kernels(),
-            from(this.dtype),
-            src0L.dims().toList(),
-            src0Stride,
-            this.buffer,
-            src1L.dims().toList(),
-            src1L
-                .stride()
-                .map { x -> x * DType.F32.sizeInBytes() },
-            storage.buffer(),
-            src1L.startOffset() * storage.dtype().sizeInBytes(),
-            outShape.dims().toList(),
-            0,
-            dst,
-        ).unwrap()
+        candleMetalKernels
+            .callQuantizedMatmulMmT(
+                device.device(),
+                encoder,
+                device.kernels(),
+                from(this.dtype),
+                src0L.dims().toList(),
+                src0Stride,
+                this.buffer,
+                src1L.dims().toList(),
+                src1L
+                    .stride()
+                    .map { x -> x * DType.F32.sizeInBytes() },
+                storage.buffer(),
+                src1L.startOffset() * storage.dtype().sizeInBytes(),
+                outShape.dims().toList(),
+                0,
+                dst,
+            ).unwrap()
 
         val dstStorage = MetalStorage.new(dst, device.clone(), outShape.elemCount(), DType.F32)
         return Ok(Pair(dstStorage, outShape))
     }
 
     public fun data(): CandleResult<ByteArray> {
-        val buffer = this.device
-            .newBufferBuilder()
-            .withSize(this.buffer.length())
-            .withLabel("qstorage_data_blit")
-            .build()
+        val buffer =
+            this.device
+                .newBufferBuilder()
+                .withSize(this.buffer.length())
+                .withLabel("qstorage_data_blit")
+                .build()
         run {
             val blit = this.device.blitCommandEncoder()
             blit.setLabel("blit_to_cpu")
@@ -543,26 +593,33 @@ public class QMetalStorage internal constructor(
     }
 
     public companion object {
-        public fun zeros(device: MetalDevice, elemCount: Int, dtype: GgmlDType): CandleResult<QMetalStorage> {
+        public fun zeros(
+            device: MetalDevice,
+            elemCount: Int,
+            dtype: GgmlDType,
+        ): CandleResult<QMetalStorage> {
             val size = elemCount * dtype.typeSize() / dtype.blockSize()
-            val buffer = device
-                .newBufferBuilder()
-                .withZeros(size)
-                .withLabel("qstorage_zeros")
-                .build()
+            val buffer =
+                device
+                    .newBufferBuilder()
+                    .withZeros(size)
+                    .withLabel("qstorage_zeros")
+                    .build()
             return Ok(
                 QMetalStorage(
                     dtype = dtype,
                     device = device.clone(),
                     buffer = buffer,
-                )
+                ),
             )
         }
     }
 }
 
-private fun Device.Cpu.qzeros(elemCount: Int, dtype: GgmlDType): CandleResult<QStorage> =
-    QStorage.zeros(Device.Cpu, elemCount, dtype)
+private fun Device.Cpu.qzeros(
+    elemCount: Int,
+    dtype: GgmlDType,
+): CandleResult<QStorage> = QStorage.zeros(Device.Cpu, elemCount, dtype)
 
 private fun Shape.dims2(): Pair<Int, Int> = Pair(dims[0], dims[1])
 
@@ -571,29 +628,31 @@ public fun <T> loadQuantized(
     data: List<T>,
     companion: GgmlTypeCompanion<T, *>? = null,
 ): CandleResult<QStorage> {
-    val dtype = companion?.DTYPE ?: when (data.firstOrNull()) {
-        is Float -> GgmlDType.F32
-        is F16 -> GgmlDType.F16
-        is BF16 -> GgmlDType.BF16
-        is BlockQ40 -> GgmlDType.Q4_0
-        is BlockQ41 -> GgmlDType.Q4_1
-        is BlockQ50 -> GgmlDType.Q5_0
-        is BlockQ51 -> GgmlDType.Q5_1
-        is BlockQ80 -> GgmlDType.Q8_0
-        is BlockQ81 -> GgmlDType.Q8_1
-        is BlockQ2K -> GgmlDType.Q2K
-        is BlockQ3K -> GgmlDType.Q3K
-        is BlockQ4K -> GgmlDType.Q4K
-        is BlockQ5K -> GgmlDType.Q5K
-        is BlockQ6K -> GgmlDType.Q6K
-        is BlockQ8K -> GgmlDType.Q8K
-        else -> GgmlDType.F32
-    }
-    val buffer = device
-        .newBufferBuilder()
-        .withData(data)
-        .withLabel("qstorage_load_quantized")
-        .build()
+    val dtype =
+        companion?.DTYPE ?: when (data.firstOrNull()) {
+            is Float -> GgmlDType.F32
+            is F16 -> GgmlDType.F16
+            is BF16 -> GgmlDType.BF16
+            is BlockQ40 -> GgmlDType.Q4_0
+            is BlockQ41 -> GgmlDType.Q4_1
+            is BlockQ50 -> GgmlDType.Q5_0
+            is BlockQ51 -> GgmlDType.Q5_1
+            is BlockQ80 -> GgmlDType.Q8_0
+            is BlockQ81 -> GgmlDType.Q8_1
+            is BlockQ2K -> GgmlDType.Q2K
+            is BlockQ3K -> GgmlDType.Q3K
+            is BlockQ4K -> GgmlDType.Q4K
+            is BlockQ5K -> GgmlDType.Q5K
+            is BlockQ6K -> GgmlDType.Q6K
+            is BlockQ8K -> GgmlDType.Q8K
+            else -> GgmlDType.F32
+        }
+    val buffer =
+        device
+            .newBufferBuilder()
+            .withData(data)
+            .withLabel("qstorage_load_quantized")
+            .build()
     buffer.length()
     val clonedDevice = device.clone()
     return Ok(
@@ -602,34 +661,36 @@ public fun <T> loadQuantized(
                 dtype = dtype,
                 device = clonedDevice,
                 buffer = buffer,
-            )
-        )
+            ),
+        ),
     )
 }
 
-private fun <T> readToVec(buffer: Buffer, n: Int): List<T> {
+private fun <T> readToVec(
+    buffer: Buffer,
+    n: Int,
+): List<T> {
     val ptr = buffer.contents()
     require(ptr.isNotEmpty() || n == 0)
     val slice = ArrayList<T>(n)
     return slice.toList()
 }
 
-internal fun from(value: GgmlDType): candleMetalKernels.GgmlDType =
+internal fun from(value: GgmlDType): CandleMetalKernels.GgmlDType =
     when (value) {
-        GgmlDType.Q4_0 -> candleMetalKernels.GgmlDType.Q4_0
-        GgmlDType.Q4_1 -> candleMetalKernels.GgmlDType.Q4_1
-        GgmlDType.Q5_0 -> candleMetalKernels.GgmlDType.Q5_0
-        GgmlDType.Q5_1 -> candleMetalKernels.GgmlDType.Q5_1
-        GgmlDType.Q8_0 -> candleMetalKernels.GgmlDType.Q8_0
-        GgmlDType.Q8_1 -> candleMetalKernels.GgmlDType.Q8_1
-        GgmlDType.Q2K -> candleMetalKernels.GgmlDType.Q2K
-        GgmlDType.Q3K -> candleMetalKernels.GgmlDType.Q3K
-        GgmlDType.Q4K -> candleMetalKernels.GgmlDType.Q4K
-        GgmlDType.Q5K -> candleMetalKernels.GgmlDType.Q5K
-        GgmlDType.Q6K -> candleMetalKernels.GgmlDType.Q6K
-        GgmlDType.Q8K -> candleMetalKernels.GgmlDType.Q8K
-        GgmlDType.F16 -> candleMetalKernels.GgmlDType.F16
-        GgmlDType.F32 -> candleMetalKernels.GgmlDType.F32
-        GgmlDType.BF16 -> candleMetalKernels.GgmlDType.BF16
+        GgmlDType.Q4_0 -> CandleMetalKernels.GgmlDType.Q4_0
+        GgmlDType.Q4_1 -> CandleMetalKernels.GgmlDType.Q4_1
+        GgmlDType.Q5_0 -> CandleMetalKernels.GgmlDType.Q5_0
+        GgmlDType.Q5_1 -> CandleMetalKernels.GgmlDType.Q5_1
+        GgmlDType.Q8_0 -> CandleMetalKernels.GgmlDType.Q8_0
+        GgmlDType.Q8_1 -> CandleMetalKernels.GgmlDType.Q8_1
+        GgmlDType.Q2K -> CandleMetalKernels.GgmlDType.Q2K
+        GgmlDType.Q3K -> CandleMetalKernels.GgmlDType.Q3K
+        GgmlDType.Q4K -> CandleMetalKernels.GgmlDType.Q4K
+        GgmlDType.Q5K -> CandleMetalKernels.GgmlDType.Q5K
+        GgmlDType.Q6K -> CandleMetalKernels.GgmlDType.Q6K
+        GgmlDType.Q8K -> CandleMetalKernels.GgmlDType.Q8K
+        GgmlDType.F16 -> CandleMetalKernels.GgmlDType.F16
+        GgmlDType.F32 -> CandleMetalKernels.GgmlDType.F32
+        GgmlDType.BF16 -> CandleMetalKernels.GgmlDType.BF16
     }
-

@@ -28,8 +28,11 @@ internal actual val mm256SignEpi8: (ByteArray, ByteArray) -> ByteArray = { a, b 
 }
 internal actual val mmHaddEpi16: (ShortArray, ShortArray) -> ShortArray = { a, b ->
     ShortArray(8) { i ->
-        if (i < 4) (a[i * 2].toInt() + a[i * 2 + 1].toInt()).toShort()
-        else (b[(i - 4) * 2].toInt() + b[(i - 4) * 2 + 1].toInt()).toShort()
+        if (i < 4) {
+            (a[i * 2].toInt() + a[i * 2 + 1].toInt()).toShort()
+        } else {
+            (b[(i - 4) * 2].toInt() + b[(i - 4) * 2 + 1].toInt()).toShort()
+        }
     }
 }
 internal actual val mmHaddEpi32: (IntArray, IntArray) -> IntArray = { a, b ->

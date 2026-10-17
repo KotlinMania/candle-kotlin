@@ -270,7 +270,10 @@ public object Accelerate {
         )
     }
 
-    public fun vsExp(a: FloatArray, y: FloatArray) {
+    public fun vsExp(
+        a: FloatArray,
+        y: FloatArray,
+    ) {
         val aLen = a.size
         val yLen = y.size
         if (aLen != yLen) {
@@ -279,7 +282,10 @@ public object Accelerate {
         Ffi.vvexpf(y, a, aLen)
     }
 
-    public fun vdExp(a: DoubleArray, y: DoubleArray) {
+    public fun vdExp(
+        a: DoubleArray,
+        y: DoubleArray,
+    ) {
         val aLen = a.size
         val yLen = y.size
         if (aLen != yLen) {
@@ -288,7 +294,10 @@ public object Accelerate {
         Ffi.vvexp(y, a, aLen)
     }
 
-    public fun vsSqrt(a: FloatArray, y: FloatArray) {
+    public fun vsSqrt(
+        a: FloatArray,
+        y: FloatArray,
+    ) {
         val aLen = a.size
         val yLen = y.size
         if (aLen != yLen) {
@@ -297,7 +306,10 @@ public object Accelerate {
         Ffi.vvsqrtf(y, a, aLen)
     }
 
-    public fun vdSqrt(a: DoubleArray, y: DoubleArray) {
+    public fun vdSqrt(
+        a: DoubleArray,
+        y: DoubleArray,
+    ) {
         val aLen = a.size
         val yLen = y.size
         if (aLen != yLen) {
@@ -306,7 +318,10 @@ public object Accelerate {
         Ffi.vvsqrt(y, a, aLen)
     }
 
-    public fun vsSin(a: FloatArray, y: FloatArray) {
+    public fun vsSin(
+        a: FloatArray,
+        y: FloatArray,
+    ) {
         val aLen = a.size
         val yLen = y.size
         if (aLen != yLen) {
@@ -315,7 +330,10 @@ public object Accelerate {
         Ffi.vvsinf(y, a, aLen)
     }
 
-    public fun vdSin(a: DoubleArray, y: DoubleArray) {
+    public fun vdSin(
+        a: DoubleArray,
+        y: DoubleArray,
+    ) {
         val aLen = a.size
         val yLen = y.size
         if (aLen != yLen) {
@@ -324,7 +342,10 @@ public object Accelerate {
         Ffi.vvsin(y, a, aLen)
     }
 
-    public fun vsCos(a: FloatArray, y: FloatArray) {
+    public fun vsCos(
+        a: FloatArray,
+        y: FloatArray,
+    ) {
         val aLen = a.size
         val yLen = y.size
         if (aLen != yLen) {
@@ -333,7 +354,10 @@ public object Accelerate {
         Ffi.vvcosf(y, a, aLen)
     }
 
-    public fun vdCos(a: DoubleArray, y: DoubleArray) {
+    public fun vdCos(
+        a: DoubleArray,
+        y: DoubleArray,
+    ) {
         val aLen = a.size
         val yLen = y.size
         if (aLen != yLen) {
@@ -342,7 +366,10 @@ public object Accelerate {
         Ffi.vvcos(y, a, aLen)
     }
 
-    public fun vsTanh(a: FloatArray, y: FloatArray) {
+    public fun vsTanh(
+        a: FloatArray,
+        y: FloatArray,
+    ) {
         val aLen = a.size
         val yLen = y.size
         if (aLen != yLen) {
@@ -351,7 +378,10 @@ public object Accelerate {
         Ffi.vvtanhf(y, a, aLen)
     }
 
-    public fun vdTanh(a: DoubleArray, y: DoubleArray) {
+    public fun vdTanh(
+        a: DoubleArray,
+        y: DoubleArray,
+    ) {
         val aLen = a.size
         val yLen = y.size
         if (aLen != yLen) {
@@ -360,7 +390,10 @@ public object Accelerate {
         Ffi.vvtanh(y, a, aLen)
     }
 
-    public fun vsLn(a: FloatArray, y: FloatArray) {
+    public fun vsLn(
+        a: FloatArray,
+        y: FloatArray,
+    ) {
         val aLen = a.size
         val yLen = y.size
         if (aLen != yLen) {
@@ -369,7 +402,10 @@ public object Accelerate {
         Ffi.vvlogf(y, a, aLen)
     }
 
-    public fun vdLn(a: DoubleArray, y: DoubleArray) {
+    public fun vdLn(
+        a: DoubleArray,
+        y: DoubleArray,
+    ) {
         val aLen = a.size
         val yLen = y.size
         if (aLen != yLen) {
@@ -378,7 +414,10 @@ public object Accelerate {
         Ffi.vvlog(y, a, aLen)
     }
 
-    public fun vsSqr(a: FloatArray, y: FloatArray) {
+    public fun vsSqr(
+        a: FloatArray,
+        y: FloatArray,
+    ) {
         val aLen = a.size
         val yLen = y.size
         if (aLen != yLen) {
@@ -389,7 +428,10 @@ public object Accelerate {
         }
     }
 
-    public fun vdSqr(a: DoubleArray, y: DoubleArray) {
+    public fun vdSqr(
+        a: DoubleArray,
+        y: DoubleArray,
+    ) {
         val aLen = a.size
         val yLen = y.size
         if (aLen != yLen) {
@@ -416,7 +458,10 @@ public object Accelerate {
         Ffi.vvexp(y, y, y.size)
     }
 
-    public fun vsGelu(vs: FloatArray, ys: FloatArray) {
+    public fun vsGelu(
+        vs: FloatArray,
+        ys: FloatArray,
+    ) {
         for (i in vs.indices) {
             val v = vs[i]
             ys[i] = sqrt(2.0f / PI.toFloat()) * v * (1.0f + 0.044715f * v * v)
@@ -428,7 +473,10 @@ public object Accelerate {
         }
     }
 
-    public fun vdGelu(vs: DoubleArray, ys: DoubleArray) {
+    public fun vdGelu(
+        vs: DoubleArray,
+        ys: DoubleArray,
+    ) {
         for (i in vs.indices) {
             val v = vs[i]
             ys[i] = sqrt(2.0 / PI) * v * (1.0 + 0.044715 * v * v)
@@ -440,7 +488,10 @@ public object Accelerate {
         }
     }
 
-    public fun vsSilu(vs: FloatArray, ys: FloatArray) {
+    public fun vsSilu(
+        vs: FloatArray,
+        ys: FloatArray,
+    ) {
         for (i in vs.indices) {
             val v = vs[i]
             ys[i] = -v
@@ -452,7 +503,10 @@ public object Accelerate {
         }
     }
 
-    public fun vdSilu(vs: DoubleArray, ys: DoubleArray) {
+    public fun vdSilu(
+        vs: DoubleArray,
+        ys: DoubleArray,
+    ) {
         for (i in vs.indices) {
             val v = vs[i]
             ys[i] = -v

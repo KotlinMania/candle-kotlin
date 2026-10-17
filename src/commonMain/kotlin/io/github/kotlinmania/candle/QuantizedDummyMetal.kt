@@ -19,59 +19,51 @@ public class QMetalStorage(
 ) {
     private val self: QMetalStorage get() = this
 
-    public fun dtype(): GgmlDType {
-        return self.dtype
-    }
+    public fun dtype(): GgmlDType = self.dtype
 
-    public fun device(): MetalDevice {
-        return self.device
-    }
+    public fun device(): MetalDevice = self.device
 
-    public fun dequantize(
-        elemCount: Int
-    ): CandleResult<MetalStorage> = Err(Error.NotCompiledWithMetalSupport)
+    public fun dequantize(elemCount: Int): CandleResult<MetalStorage> = Err(Error.NotCompiledWithMetalSupport)
 
-    public fun quantize(
-        src: MetalStorage
-    ): CandleResult<Unit> = Err(Error.NotCompiledWithMetalSupport)
+    public fun quantize(src: MetalStorage): CandleResult<Unit> = Err(Error.NotCompiledWithMetalSupport)
 
     public fun quantizeImatrix(
         src: MetalStorage,
         imatrixWeights: FloatArray,
-        nPerRow: Int
+        nPerRow: Int,
     ): CandleResult<Unit> =
         Err(
-            Error.NotCompiledWithMetalSupport
+            Error.NotCompiledWithMetalSupport,
         )
 
     public fun quantizeImatrixOnto(
         src: CpuStorage,
         imatrixWeights: FloatArray,
-        nPerRow: Int
+        nPerRow: Int,
     ): CandleResult<Unit> =
         Err(
-            Error.NotCompiledWithMetalSupport
+            Error.NotCompiledWithMetalSupport,
         )
 
-    public fun quantizeOnto(
-        src: CpuStorage
-    ): CandleResult<Unit> = Err(Error.NotCompiledWithCudaSupport)
+    public fun quantizeOnto(src: CpuStorage): CandleResult<Unit> = Err(Error.NotCompiledWithCudaSupport)
 
     public fun storageSizeInBytes(): Int {
-        self; return 0
+        self
+        return 0
     }
 
     public fun fwd(
         selfShape: Shape,
         storage: MetalStorage,
-        layout: Layout
+        layout: Layout,
     ): CandleResult<Pair<MetalStorage, Shape>> =
         Err(
-            Error.NotCompiledWithMetalSupport
+            Error.NotCompiledWithMetalSupport,
         )
 
     public fun data(): CandleResult<ByteArray> {
-        self; return Err(Error.NotCompiledWithMetalSupport)
+        self
+        return Err(Error.NotCompiledWithMetalSupport)
     }
 
     public fun indexedMoeForward(
@@ -79,22 +71,25 @@ public class QMetalStorage(
         w: MetalStorage,
         wl: Layout,
         i: MetalStorage,
-        il: Layout
+        il: Layout,
     ): CandleResult<Pair<MetalStorage, Shape>> =
         Err(
-            Error.NotCompiledWithMetalSupport
+            Error.NotCompiledWithMetalSupport,
         )
 
     public companion object {
         public fun zeros(
-            d: MetalDevice, e: Int, dt: GgmlDType
+            d: MetalDevice,
+            e: Int,
+            dt: GgmlDType,
         ): CandleResult<QMetalStorage> = Err(Error.NotCompiledWithMetalSupport)
     }
 }
 
 public fun <T> loadQuantized(
     device: MetalDevice,
-    data: List<T>
-): CandleResult<QStorage> = Err(
-    Error.NotCompiledWithMetalSupport
-)
+    data: List<T>,
+): CandleResult<QStorage> =
+    Err(
+        Error.NotCompiledWithMetalSupport,
+    )

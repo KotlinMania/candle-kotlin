@@ -6,9 +6,10 @@ import kotlin.test.Test
 class NdIterTest {
     private val None: IntArray? = null
 
-    private fun layout(dims: IntArray, strides: IntArray): Layout {
-        return Layout.new(Shape.from(dims.toVec()), strides.toVec(), 0)
-    }
+    private fun layout(
+        dims: IntArray,
+        strides: IntArray,
+    ): Layout = Layout.new(Shape.from(dims.toVec()), strides.toVec(), 0)
 
     @Test fun rank0Scalar() {
         val l = Layout.contiguous()

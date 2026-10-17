@@ -1,8 +1,5 @@
 package io.github.kotlinmania.candle
 
-import io.github.kotlinmania.rand.distr.Uniform
-import io.github.kotlinmania.rand.rng
-import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.ceil
 import kotlin.math.cos
@@ -32,13 +29,19 @@ internal class VecList<T>(
 
     override fun get(index: Int): T = buf.getValue(index)
 
-    override fun set(index: Int, element: T): T {
+    override fun set(
+        index: Int,
+        element: T,
+    ): T {
         val prev = buf.put(index, element)
         if (index >= size) size = index + 1
         return prev ?: element
     }
 
-    override fun add(index: Int, element: T) {
+    override fun add(
+        index: Int,
+        element: T,
+    ) {
         buf[index] = element
         if (index >= size) size = index + 1
     }
@@ -64,6 +67,7 @@ internal class VecList<T>(
 // intercept the oom errors to avoid panicking and provide a proper error.
 public sealed class CpuStorage {
     public interface Device
+
     public interface Storage
 
     public data class U8(
@@ -126,7 +130,12 @@ public sealed class CpuStorage {
         public constructor(r: List<Double>) : this(ByteArray(r.size) { r[it].toInt().toByte() })
     }
 
-    public fun applyInPlace(m: Map2InPlace, l1: Layout, v2: CpuStorage, l2: Layout) {
+    public fun applyInPlace(
+        m: Map2InPlace,
+        l1: Layout,
+        v2: CpuStorage,
+        l2: Layout,
+    ) {
         val m1 = asSlice().toMutableList()
         m.f(m1, l1, v2.asSlice(), l2)
         when (this) {
@@ -165,22 +174,23 @@ public sealed class CpuStorage {
     public typealias F8E8M0Storage = F8E8M0
 
     public fun asSlice(): List<Double> {
-        val len = when (this) {
-            is U8 -> data.size
-            is U32 -> data.size
-            is I16 -> data.size
-            is I32 -> data.size
-            is I64 -> data.size
-            is BF16 -> data.size
-            is F16 -> data.size
-            is F32 -> data.size
-            is F64 -> data.size
-            is F8E4M3 -> data.size
-            is F6E2M3 -> data.size
-            is F6E3M2 -> data.size
-            is F4 -> data.size
-            is F8E8M0 -> data.size
-        }
+        val len =
+            when (this) {
+                is U8 -> data.size
+                is U32 -> data.size
+                is I16 -> data.size
+                is I32 -> data.size
+                is I64 -> data.size
+                is BF16 -> data.size
+                is F16 -> data.size
+                is F32 -> data.size
+                is F64 -> data.size
+                is F8E4M3 -> data.size
+                is F6E2M3 -> data.size
+                is F6E3M2 -> data.size
+                is F4 -> data.size
+                is F8E8M0 -> data.size
+            }
         return List(len) { getAsDouble(it) }
     }
 
@@ -216,78 +226,91 @@ public sealed class CpuStorage {
                 for (srcIdx in strided) dst[idx++] = data[srcIdx]
                 U8(dst)
             }
+
             is U32 -> {
                 val dst = UIntArray(count)
                 var idx = 0
                 for (srcIdx in strided) dst[idx++] = data[srcIdx]
                 U32(dst)
             }
+
             is I16 -> {
                 val dst = ShortArray(count)
                 var idx = 0
                 for (srcIdx in strided) dst[idx++] = data[srcIdx]
                 I16(dst)
             }
+
             is I32 -> {
                 val dst = IntArray(count)
                 var idx = 0
                 for (srcIdx in strided) dst[idx++] = data[srcIdx]
                 I32(dst)
             }
+
             is I64 -> {
                 val dst = LongArray(count)
                 var idx = 0
                 for (srcIdx in strided) dst[idx++] = data[srcIdx]
                 I64(dst)
             }
+
             is BF16 -> {
                 val dst = ShortArray(count)
                 var idx = 0
                 for (srcIdx in strided) dst[idx++] = data[srcIdx]
                 BF16(dst)
             }
+
             is F16 -> {
                 val dst = ShortArray(count)
                 var idx = 0
                 for (srcIdx in strided) dst[idx++] = data[srcIdx]
                 F16(dst)
             }
+
             is F32 -> {
                 val dst = FloatArray(count)
                 var idx = 0
                 for (srcIdx in strided) dst[idx++] = data[srcIdx]
                 F32(dst)
             }
+
             is F64 -> {
                 val dst = DoubleArray(count)
                 var idx = 0
                 for (srcIdx in strided) dst[idx++] = data[srcIdx]
                 F64(dst)
             }
+
             is F8E4M3 -> {
                 val dst = ByteArray(count)
                 var idx = 0
                 for (srcIdx in strided) dst[idx++] = data[srcIdx]
                 F8E4M3(dst)
             }
+
             is F6E2M3 -> {
                 val dst = ByteArray(count)
                 var idx = 0
                 for (srcIdx in strided) dst[idx++] = data[srcIdx]
                 F6E2M3(dst)
             }
+
             is F6E3M2 -> {
                 val dst = ByteArray(count)
                 var idx = 0
                 for (srcIdx in strided) dst[idx++] = data[srcIdx]
                 F6E3M2(dst)
             }
+
             is F4 -> {
                 val dst = ByteArray(count)
                 var idx = 0
                 for (srcIdx in strided) dst[idx++] = data[srcIdx]
                 F4(dst)
             }
+
             is F8E8M0 -> {
                 val dst = ByteArray(count)
                 var idx = 0
@@ -297,8 +320,15 @@ public sealed class CpuStorage {
         }
     }
 
-    public fun constSet(v: Scalar, layout: Layout) {
-        fun <T> set(src: MutableList<T>, l: Layout, s: T) {
+    public fun constSet(
+        v: Scalar,
+        layout: Layout,
+    ) {
+        fun <T> set(
+            src: MutableList<T>,
+            l: Layout,
+            s: T,
+        ) {
             for (idx in l.stridedIndex()) {
                 if (idx < src.size) src[idx] = s
             }
@@ -309,50 +339,75 @@ public sealed class CpuStorage {
                 val value = (v as? Scalar.U8)?.value ?: (v.toF64().toInt().toUByte())
                 for (idx in strided) data[idx] = value
             }
+
             is U32 -> {
                 val value = (v as? Scalar.U32)?.value ?: (v.toF64().toLong().toUInt())
                 for (idx in strided) data[idx] = value
             }
+
             is I16 -> {
                 val value = (v as? Scalar.I16)?.value ?: (v.toF64().toInt().toShort())
                 for (idx in strided) data[idx] = value
             }
+
             is I32 -> {
                 val value = (v as? Scalar.I32)?.value ?: (v.toF64().toInt())
                 for (idx in strided) data[idx] = value
             }
+
             is I64 -> {
                 val value = (v as? Scalar.I64)?.value ?: (v.toF64().toLong())
                 for (idx in strided) data[idx] = value
             }
+
             is BF16 -> {
                 val value = (v as? Scalar.BF16)?.value ?: Float16Utils.floatToBF16Bits(v.toF64().toFloat())
                 for (idx in strided) data[idx] = value
             }
+
             is F16 -> {
                 val value = (v as? Scalar.F16)?.value ?: Float16Utils.floatToF16Bits(v.toF64().toFloat())
                 for (idx in strided) data[idx] = value
             }
+
             is F32 -> {
                 val value = (v as? Scalar.F32)?.value ?: (v.toF64().toFloat())
                 for (idx in strided) data[idx] = value
             }
+
             is F64 -> {
                 val value = v.toF64()
                 for (idx in strided) data[idx] = value
             }
+
             is F8E4M3 -> {
                 val value = (v as? Scalar.F8E4M3)?.value ?: 0.toByte()
                 for (idx in strided) data[idx] = value
             }
-            is F6E2M3 -> bail("const_set not supported for dummy type F6E2M3")
-            is F6E3M2 -> bail("const_set not supported for dummy type F6E3M2")
-            is F4 -> bail("const_set not supported for dummy type F4")
-            is F8E8M0 -> bail("const_set not supported for dummy type F8E8M0")
+
+            is F6E2M3 -> {
+                bail("const_set not supported for dummy type F6E2M3")
+            }
+
+            is F6E3M2 -> {
+                bail("const_set not supported for dummy type F6E3M2")
+            }
+
+            is F4 -> {
+                bail("const_set not supported for dummy type F4")
+            }
+
+            is F8E8M0 -> {
+                bail("const_set not supported for dummy type F8E8M0")
+            }
         }
     }
 
-    public fun affine(layout: Layout, mul: Double, add: Double): CpuStorage {
+    public fun affine(
+        layout: Layout,
+        mul: Double,
+        add: Double,
+    ): CpuStorage {
         val count = layout.shape.elemCount()
         val strided = layout.stridedIndex()
         return when (this) {
@@ -364,12 +419,14 @@ public sealed class CpuStorage {
                 for (srcIdx in strided) dst[idx++] = data[srcIdx] * m + a
                 F32(dst)
             }
+
             is F64 -> {
                 val dst = DoubleArray(count)
                 var idx = 0
                 for (srcIdx in strided) dst[idx++] = data[srcIdx] * mul + add
                 F64(dst)
             }
+
             is I32 -> {
                 val dst = IntArray(count)
                 val m = mul.toInt()
@@ -378,6 +435,7 @@ public sealed class CpuStorage {
                 for (srcIdx in strided) dst[idx++] = data[srcIdx] * m + a
                 I32(dst)
             }
+
             is I64 -> {
                 val dst = LongArray(count)
                 val m = mul.toLong()
@@ -386,6 +444,7 @@ public sealed class CpuStorage {
                 for (srcIdx in strided) dst[idx++] = data[srcIdx] * m + a
                 I64(dst)
             }
+
             else -> {
                 val dst = FloatArray(count)
                 val m = mul.toFloat()
@@ -400,7 +459,10 @@ public sealed class CpuStorage {
         }
     }
 
-    public fun powf(layout: Layout, e: Double): CpuStorage {
+    public fun powf(
+        layout: Layout,
+        e: Double,
+    ): CpuStorage {
         val count = layout.shape.elemCount()
         val strided = layout.stridedIndex()
         return when (this) {
@@ -411,12 +473,14 @@ public sealed class CpuStorage {
                 for (srcIdx in strided) dst[idx++] = data[srcIdx].pow(expF)
                 F32(dst)
             }
+
             is F64 -> {
                 val dst = DoubleArray(count)
                 var idx = 0
                 for (srcIdx in strided) dst[idx++] = data[srcIdx].pow(e)
                 F64(dst)
             }
+
             else -> {
                 val dst = FloatArray(count)
                 val expF = e.toFloat()
@@ -427,7 +491,10 @@ public sealed class CpuStorage {
         }
     }
 
-    public fun elu(layout: Layout, alpha: Double): CpuStorage {
+    public fun elu(
+        layout: Layout,
+        alpha: Double,
+    ): CpuStorage {
         val count = layout.shape.elemCount()
         val strided = layout.stridedIndex()
         return when (this) {
@@ -441,6 +508,7 @@ public sealed class CpuStorage {
                 }
                 F32(dst)
             }
+
             is F64 -> {
                 val dst = DoubleArray(count)
                 var idx = 0
@@ -450,6 +518,7 @@ public sealed class CpuStorage {
                 }
                 F64(dst)
             }
+
             else -> {
                 val dst = FloatArray(count)
                 val a = alpha.toFloat()
@@ -463,7 +532,10 @@ public sealed class CpuStorage {
         }
     }
 
-    public fun unaryImpl(layout: Layout, op: UnaryOp): CpuStorage {
+    public fun unaryImpl(
+        layout: Layout,
+        op: UnaryOp,
+    ): CpuStorage {
         val count = layout.shape.elemCount()
         val strided = layout.stridedIndex()
         return when (this) {
@@ -476,6 +548,7 @@ public sealed class CpuStorage {
                 }
                 F32(dst)
             }
+
             is F64 -> {
                 val dst = DoubleArray(count)
                 var idx = 0
@@ -485,6 +558,7 @@ public sealed class CpuStorage {
                 }
                 F64(dst)
             }
+
             is I32 -> {
                 val dst = IntArray(count)
                 var idx = 0
@@ -502,6 +576,7 @@ public sealed class CpuStorage {
                 }
                 I32(dst)
             }
+
             is I64 -> {
                 val dst = LongArray(count)
                 var idx = 0
@@ -519,6 +594,7 @@ public sealed class CpuStorage {
                 }
                 I64(dst)
             }
+
             else -> {
                 val dst = FloatArray(count)
                 var idx = 0
@@ -560,6 +636,7 @@ public sealed class CpuStorage {
                 }
                 F32(dst)
             }
+
             is F64 -> {
                 val rhsData = (rhs as F64).data
                 val dst = DoubleArray(count)
@@ -579,6 +656,7 @@ public sealed class CpuStorage {
                 }
                 F64(dst)
             }
+
             is I32 -> {
                 val rhsData = (rhs as I32).data
                 val dst = IntArray(count)
@@ -598,6 +676,7 @@ public sealed class CpuStorage {
                 }
                 I32(dst)
             }
+
             is I64 -> {
                 val rhsData = (rhs as I64).data
                 val dst = LongArray(count)
@@ -617,6 +696,7 @@ public sealed class CpuStorage {
                 }
                 I64(dst)
             }
+
             else -> {
                 val dst = FloatArray(count)
                 var idx = 0
@@ -694,6 +774,7 @@ public sealed class CpuStorage {
                 }
                 F32(dst)
             }
+
             DType.F64 -> {
                 val tData = (onTrue as F64).data
                 val fData = (onFalse as F64).data
@@ -707,6 +788,7 @@ public sealed class CpuStorage {
                 }
                 F64(dst)
             }
+
             DType.I32 -> {
                 val tData = (onTrue as I32).data
                 val fData = (onFalse as I32).data
@@ -720,6 +802,7 @@ public sealed class CpuStorage {
                 }
                 I32(dst)
             }
+
             DType.I64 -> {
                 val tData = (onTrue as I64).data
                 val fData = (onFalse as I64).data
@@ -733,6 +816,7 @@ public sealed class CpuStorage {
                 }
                 I64(dst)
             }
+
             else -> {
                 val dst = FloatArray(count)
                 var idx = 0
@@ -747,7 +831,10 @@ public sealed class CpuStorage {
         }
     }
 
-    public fun toDType(layout: Layout, target: DType): CpuStorage {
+    public fun toDType(
+        layout: Layout,
+        target: DType,
+    ): CpuStorage {
         val count = layout.shape.elemCount()
         val strided = layout.stridedIndex()
         return when (target) {
@@ -757,62 +844,73 @@ public sealed class CpuStorage {
                 for (srcIdx in strided) dst[idx++] = getAsDouble(srcIdx).toInt().toUByte()
                 U8(dst)
             }
+
             DType.U32 -> {
                 val dst = UIntArray(count)
                 var idx = 0
                 for (srcIdx in strided) dst[idx++] = getAsDouble(srcIdx).toLong().toUInt()
                 U32(dst)
             }
+
             DType.I16 -> {
                 val dst = ShortArray(count)
                 var idx = 0
                 for (srcIdx in strided) dst[idx++] = getAsDouble(srcIdx).toInt().toShort()
                 I16(dst)
             }
+
             DType.I32 -> {
                 val dst = IntArray(count)
                 var idx = 0
                 for (srcIdx in strided) dst[idx++] = getAsDouble(srcIdx).toInt()
                 I32(dst)
             }
+
             DType.I64 -> {
                 val dst = LongArray(count)
                 var idx = 0
                 for (srcIdx in strided) dst[idx++] = getAsDouble(srcIdx).toLong()
                 I64(dst)
             }
+
             DType.BF16 -> {
                 val dst = ShortArray(count)
                 var idx = 0
                 for (srcIdx in strided) dst[idx++] = Float16Utils.floatToBF16Bits(getAsFloat(srcIdx))
                 BF16(dst)
             }
+
             DType.F16 -> {
                 val dst = ShortArray(count)
                 var idx = 0
                 for (srcIdx in strided) dst[idx++] = Float16Utils.floatToF16Bits(getAsFloat(srcIdx))
                 F16(dst)
             }
+
             DType.F32 -> {
                 val dst = FloatArray(count)
                 var idx = 0
                 for (srcIdx in strided) dst[idx++] = getAsFloat(srcIdx)
                 F32(dst)
             }
+
             DType.F64 -> {
                 val dst = DoubleArray(count)
                 var idx = 0
                 for (srcIdx in strided) dst[idx++] = getAsDouble(srcIdx)
                 F64(dst)
             }
+
             DType.F8E4M3 -> {
                 val dst = ByteArray(count)
                 var idx = 0
                 for (srcIdx in strided) dst[idx++] = getAsDouble(srcIdx).toInt().toByte()
                 F8E4M3(dst)
             }
-            DType.F6E2M3, DType.F6E3M2, DType.F4, DType.F8E8M0 ->
+
+            DType.F6E2M3, DType.F6E3M2, DType.F4, DType.F8E8M0 -> {
                 bail("unsupported dtype $target")
+            }
         }
     }
 
@@ -897,6 +995,7 @@ public sealed class CpuStorage {
                     outData[outIdx] += getAsFloat(sIdx)
                 }
             }
+
             ReduceOp.Min -> {
                 outData.fill(Float.POSITIVE_INFINITY)
                 val strided = layout.stridedIndex()
@@ -908,6 +1007,7 @@ public sealed class CpuStorage {
                     if (v < outData[outIdx]) outData[outIdx] = v
                 }
             }
+
             ReduceOp.Max -> {
                 outData.fill(Float.NEGATIVE_INFINITY)
                 val strided = layout.stridedIndex()
@@ -919,6 +1019,7 @@ public sealed class CpuStorage {
                     if (v > outData[outIdx]) outData[outIdx] = v
                 }
             }
+
             ReduceOp.ArgMin, ReduceOp.ArgMax -> {
                 // ArgMin/ArgMax along single dimension
                 val dim = reduceDims[0]
@@ -946,7 +1047,11 @@ public sealed class CpuStorage {
         return F32(outData).toDType(outLayout, dtype())
     }
 
-    private fun getDimStride(srcIdx: Int, dims: List<Int>, targetDim: Int): Int {
+    private fun getDimStride(
+        srcIdx: Int,
+        dims: List<Int>,
+        targetDim: Int,
+    ): Int {
         srcIdx.hashCode()
         var stride = 1
         for (i in (dims.size - 1) downTo (targetDim + 1)) {
@@ -955,7 +1060,11 @@ public sealed class CpuStorage {
         return stride
     }
 
-    private fun getReducedIndex(srcFlatIdx: Int, dims: List<Int>, reduceDims: List<Int>): Int {
+    private fun getReducedIndex(
+        srcFlatIdx: Int,
+        dims: List<Int>,
+        reduceDims: List<Int>,
+    ): Int {
         var remaining = srcFlatIdx
         var outIdx = 0
         var outStride = 1
@@ -1110,7 +1219,10 @@ public sealed class CpuStorage {
             is F8E8M0 -> data[index].toLong()
         }
 
-    public fun setDouble(index: Int, value: Double) {
+    public fun setDouble(
+        index: Int,
+        value: Double,
+    ) {
         when (this) {
             is U8 -> data[index] = value.toInt().toUByte()
             is U32 -> data[index] = value.toLong().toUInt()
@@ -1129,7 +1241,10 @@ public sealed class CpuStorage {
         }
     }
 
-    private fun applyUnaryFloat(v: Float, op: UnaryOp): Float =
+    private fun applyUnaryFloat(
+        v: Float,
+        op: UnaryOp,
+    ): Float =
         when (op) {
             UnaryOp.Exp -> exp(v)
             UnaryOp.Log -> ln(v)
@@ -1152,7 +1267,10 @@ public sealed class CpuStorage {
             UnaryOp.Sign -> sign(v)
         }
 
-    private fun applyUnaryDouble(v: Double, op: UnaryOp): Double =
+    private fun applyUnaryDouble(
+        v: Double,
+        op: UnaryOp,
+    ): Double =
         when (op) {
             UnaryOp.Exp -> exp(v)
             UnaryOp.Log -> ln(v)
@@ -1225,122 +1343,205 @@ public sealed class CpuStorage {
         }
     }
 
-    private fun copy2dByteArray(src: UByteArray, dst: UByteArray, d1: Int, d2: Int, srcStride1: Int, dstStride1: Int, srcOffset: Int, dstOffset: Int) {
+    private fun copy2dByteArray(
+        src: UByteArray,
+        dst: UByteArray,
+        d1: Int,
+        d2: Int,
+        srcStride1: Int,
+        dstStride1: Int,
+        srcOffset: Int,
+        dstOffset: Int,
+    ) {
         if (srcStride1 == d2 && dstStride1 == d2) {
             src.copyInto(dst, dstOffset, srcOffset, srcOffset + d1 * d2)
             return
         }
         var srcIdx = srcOffset
         var dstIdx = dstOffset
-        for (i in 0 until d1) {
+        repeat(d1) {
             src.copyInto(dst, dstIdx, srcIdx, srcIdx + d2)
             srcIdx += srcStride1
             dstIdx += dstStride1
         }
     }
 
-    private fun copy2dUIntArray(src: UIntArray, dst: UIntArray, d1: Int, d2: Int, srcStride1: Int, dstStride1: Int, srcOffset: Int, dstOffset: Int) {
+    private fun copy2dUIntArray(
+        src: UIntArray,
+        dst: UIntArray,
+        d1: Int,
+        d2: Int,
+        srcStride1: Int,
+        dstStride1: Int,
+        srcOffset: Int,
+        dstOffset: Int,
+    ) {
         if (srcStride1 == d2 && dstStride1 == d2) {
             src.copyInto(dst, dstOffset, srcOffset, srcOffset + d1 * d2)
             return
         }
         var srcIdx = srcOffset
         var dstIdx = dstOffset
-        for (i in 0 until d1) {
+        repeat(d1) {
             src.copyInto(dst, dstIdx, srcIdx, srcIdx + d2)
             srcIdx += srcStride1
             dstIdx += dstStride1
         }
     }
 
-    private fun copy2dShortArray(src: ShortArray, dst: ShortArray, d1: Int, d2: Int, srcStride1: Int, dstStride1: Int, srcOffset: Int, dstOffset: Int) {
+    private fun copy2dShortArray(
+        src: ShortArray,
+        dst: ShortArray,
+        d1: Int,
+        d2: Int,
+        srcStride1: Int,
+        dstStride1: Int,
+        srcOffset: Int,
+        dstOffset: Int,
+    ) {
         if (srcStride1 == d2 && dstStride1 == d2) {
             src.copyInto(dst, dstOffset, srcOffset, srcOffset + d1 * d2)
             return
         }
         var srcIdx = srcOffset
         var dstIdx = dstOffset
-        for (i in 0 until d1) {
+        repeat(d1) {
             src.copyInto(dst, dstIdx, srcIdx, srcIdx + d2)
             srcIdx += srcStride1
             dstIdx += dstStride1
         }
     }
 
-    private fun copy2dIntArray(src: IntArray, dst: IntArray, d1: Int, d2: Int, srcStride1: Int, dstStride1: Int, srcOffset: Int, dstOffset: Int) {
+    private fun copy2dIntArray(
+        src: IntArray,
+        dst: IntArray,
+        d1: Int,
+        d2: Int,
+        srcStride1: Int,
+        dstStride1: Int,
+        srcOffset: Int,
+        dstOffset: Int,
+    ) {
         if (srcStride1 == d2 && dstStride1 == d2) {
             src.copyInto(dst, dstOffset, srcOffset, srcOffset + d1 * d2)
             return
         }
         var srcIdx = srcOffset
         var dstIdx = dstOffset
-        for (i in 0 until d1) {
+        repeat(d1) {
             src.copyInto(dst, dstIdx, srcIdx, srcIdx + d2)
             srcIdx += srcStride1
             dstIdx += dstStride1
         }
     }
 
-    private fun copy2dLongArray(src: LongArray, dst: LongArray, d1: Int, d2: Int, srcStride1: Int, dstStride1: Int, srcOffset: Int, dstOffset: Int) {
+    private fun copy2dLongArray(
+        src: LongArray,
+        dst: LongArray,
+        d1: Int,
+        d2: Int,
+        srcStride1: Int,
+        dstStride1: Int,
+        srcOffset: Int,
+        dstOffset: Int,
+    ) {
         if (srcStride1 == d2 && dstStride1 == d2) {
             src.copyInto(dst, dstOffset, srcOffset, srcOffset + d1 * d2)
             return
         }
         var srcIdx = srcOffset
         var dstIdx = dstOffset
-        for (i in 0 until d1) {
+        repeat(d1) {
             src.copyInto(dst, dstIdx, srcIdx, srcIdx + d2)
             srcIdx += srcStride1
             dstIdx += dstStride1
         }
     }
 
-    private fun copy2dFloatArray(src: FloatArray, dst: FloatArray, d1: Int, d2: Int, srcStride1: Int, dstStride1: Int, srcOffset: Int, dstOffset: Int) {
+    private fun copy2dFloatArray(
+        src: FloatArray,
+        dst: FloatArray,
+        d1: Int,
+        d2: Int,
+        srcStride1: Int,
+        dstStride1: Int,
+        srcOffset: Int,
+        dstOffset: Int,
+    ) {
         if (srcStride1 == d2 && dstStride1 == d2) {
             src.copyInto(dst, dstOffset, srcOffset, srcOffset + d1 * d2)
             return
         }
         var srcIdx = srcOffset
         var dstIdx = dstOffset
-        for (i in 0 until d1) {
+        repeat(d1) {
             src.copyInto(dst, dstIdx, srcIdx, srcIdx + d2)
             srcIdx += srcStride1
             dstIdx += dstStride1
         }
     }
 
-    private fun copy2dDoubleArray(src: DoubleArray, dst: DoubleArray, d1: Int, d2: Int, srcStride1: Int, dstStride1: Int, srcOffset: Int, dstOffset: Int) {
+    private fun copy2dDoubleArray(
+        src: DoubleArray,
+        dst: DoubleArray,
+        d1: Int,
+        d2: Int,
+        srcStride1: Int,
+        dstStride1: Int,
+        srcOffset: Int,
+        dstOffset: Int,
+    ) {
         if (srcStride1 == d2 && dstStride1 == d2) {
             src.copyInto(dst, dstOffset, srcOffset, srcOffset + d1 * d2)
             return
         }
         var srcIdx = srcOffset
         var dstIdx = dstOffset
-        for (i in 0 until d1) {
+        repeat(d1) {
             src.copyInto(dst, dstIdx, srcIdx, srcIdx + d2)
             srcIdx += srcStride1
             dstIdx += dstStride1
         }
     }
 
-    private fun copy2dRawByteArray(src: ByteArray, dst: ByteArray, d1: Int, d2: Int, srcStride1: Int, dstStride1: Int, srcOffset: Int, dstOffset: Int) {
+    private fun copy2dRawByteArray(
+        src: ByteArray,
+        dst: ByteArray,
+        d1: Int,
+        d2: Int,
+        srcStride1: Int,
+        dstStride1: Int,
+        srcOffset: Int,
+        dstOffset: Int,
+    ) {
         if (srcStride1 == d2 && dstStride1 == d2) {
             src.copyInto(dst, dstOffset, srcOffset, srcOffset + d1 * d2)
             return
         }
         var srcIdx = srcOffset
         var dstIdx = dstOffset
-        for (i in 0 until d1) {
+        repeat(d1) {
             src.copyInto(dst, dstIdx, srcIdx, srcIdx + d2)
             srcIdx += srcStride1
             dstIdx += dstStride1
         }
     }
 
-    private fun copyStridedSrcByteArray(src: UByteArray, dst: UByteArray, dstOffset: Int, srcLayout: Layout) {
+    private fun copyStridedSrcByteArray(
+        src: UByteArray,
+        dst: UByteArray,
+        dstOffset: Int,
+        srcLayout: Layout,
+    ) {
         when (val blocks = srcLayout.stridedBlocks()) {
-            is StridedBlocks.SingleBlock -> src.copyInto(dst, dstOffset, blocks.startOffset, blocks.startOffset + blocks.len)
-            is StridedBlocks.UniformBlocks -> copy2dByteArray(src, dst, blocks.count, blocks.blockLen, blocks.srcStride, blocks.blockLen, blocks.startOffset, dstOffset)
+            is StridedBlocks.SingleBlock -> {
+                src.copyInto(dst, dstOffset, blocks.startOffset, blocks.startOffset + blocks.len)
+            }
+
+            is StridedBlocks.UniformBlocks -> {
+                copy2dByteArray(src, dst, blocks.count, blocks.blockLen, blocks.srcStride, blocks.blockLen, blocks.startOffset, dstOffset)
+            }
+
             is StridedBlocks.MultipleBlocks -> {
                 val blockStartIndex = blocks.blockStartIndex
                 val blockLen = blocks.blockLen
@@ -1357,10 +1558,21 @@ public sealed class CpuStorage {
         }
     }
 
-    private fun copyStridedSrcUIntArray(src: UIntArray, dst: UIntArray, dstOffset: Int, srcLayout: Layout) {
+    private fun copyStridedSrcUIntArray(
+        src: UIntArray,
+        dst: UIntArray,
+        dstOffset: Int,
+        srcLayout: Layout,
+    ) {
         when (val blocks = srcLayout.stridedBlocks()) {
-            is StridedBlocks.SingleBlock -> src.copyInto(dst, dstOffset, blocks.startOffset, blocks.startOffset + blocks.len)
-            is StridedBlocks.UniformBlocks -> copy2dUIntArray(src, dst, blocks.count, blocks.blockLen, blocks.srcStride, blocks.blockLen, blocks.startOffset, dstOffset)
+            is StridedBlocks.SingleBlock -> {
+                src.copyInto(dst, dstOffset, blocks.startOffset, blocks.startOffset + blocks.len)
+            }
+
+            is StridedBlocks.UniformBlocks -> {
+                copy2dUIntArray(src, dst, blocks.count, blocks.blockLen, blocks.srcStride, blocks.blockLen, blocks.startOffset, dstOffset)
+            }
+
             is StridedBlocks.MultipleBlocks -> {
                 val blockStartIndex = blocks.blockStartIndex
                 val blockLen = blocks.blockLen
@@ -1377,10 +1589,21 @@ public sealed class CpuStorage {
         }
     }
 
-    private fun copyStridedSrcShortArray(src: ShortArray, dst: ShortArray, dstOffset: Int, srcLayout: Layout) {
+    private fun copyStridedSrcShortArray(
+        src: ShortArray,
+        dst: ShortArray,
+        dstOffset: Int,
+        srcLayout: Layout,
+    ) {
         when (val blocks = srcLayout.stridedBlocks()) {
-            is StridedBlocks.SingleBlock -> src.copyInto(dst, dstOffset, blocks.startOffset, blocks.startOffset + blocks.len)
-            is StridedBlocks.UniformBlocks -> copy2dShortArray(src, dst, blocks.count, blocks.blockLen, blocks.srcStride, blocks.blockLen, blocks.startOffset, dstOffset)
+            is StridedBlocks.SingleBlock -> {
+                src.copyInto(dst, dstOffset, blocks.startOffset, blocks.startOffset + blocks.len)
+            }
+
+            is StridedBlocks.UniformBlocks -> {
+                copy2dShortArray(src, dst, blocks.count, blocks.blockLen, blocks.srcStride, blocks.blockLen, blocks.startOffset, dstOffset)
+            }
+
             is StridedBlocks.MultipleBlocks -> {
                 val blockStartIndex = blocks.blockStartIndex
                 val blockLen = blocks.blockLen
@@ -1397,10 +1620,21 @@ public sealed class CpuStorage {
         }
     }
 
-    private fun copyStridedSrcIntArray(src: IntArray, dst: IntArray, dstOffset: Int, srcLayout: Layout) {
+    private fun copyStridedSrcIntArray(
+        src: IntArray,
+        dst: IntArray,
+        dstOffset: Int,
+        srcLayout: Layout,
+    ) {
         when (val blocks = srcLayout.stridedBlocks()) {
-            is StridedBlocks.SingleBlock -> src.copyInto(dst, dstOffset, blocks.startOffset, blocks.startOffset + blocks.len)
-            is StridedBlocks.UniformBlocks -> copy2dIntArray(src, dst, blocks.count, blocks.blockLen, blocks.srcStride, blocks.blockLen, blocks.startOffset, dstOffset)
+            is StridedBlocks.SingleBlock -> {
+                src.copyInto(dst, dstOffset, blocks.startOffset, blocks.startOffset + blocks.len)
+            }
+
+            is StridedBlocks.UniformBlocks -> {
+                copy2dIntArray(src, dst, blocks.count, blocks.blockLen, blocks.srcStride, blocks.blockLen, blocks.startOffset, dstOffset)
+            }
+
             is StridedBlocks.MultipleBlocks -> {
                 val blockStartIndex = blocks.blockStartIndex
                 val blockLen = blocks.blockLen
@@ -1417,10 +1651,21 @@ public sealed class CpuStorage {
         }
     }
 
-    private fun copyStridedSrcLongArray(src: LongArray, dst: LongArray, dstOffset: Int, srcLayout: Layout) {
+    private fun copyStridedSrcLongArray(
+        src: LongArray,
+        dst: LongArray,
+        dstOffset: Int,
+        srcLayout: Layout,
+    ) {
         when (val blocks = srcLayout.stridedBlocks()) {
-            is StridedBlocks.SingleBlock -> src.copyInto(dst, dstOffset, blocks.startOffset, blocks.startOffset + blocks.len)
-            is StridedBlocks.UniformBlocks -> copy2dLongArray(src, dst, blocks.count, blocks.blockLen, blocks.srcStride, blocks.blockLen, blocks.startOffset, dstOffset)
+            is StridedBlocks.SingleBlock -> {
+                src.copyInto(dst, dstOffset, blocks.startOffset, blocks.startOffset + blocks.len)
+            }
+
+            is StridedBlocks.UniformBlocks -> {
+                copy2dLongArray(src, dst, blocks.count, blocks.blockLen, blocks.srcStride, blocks.blockLen, blocks.startOffset, dstOffset)
+            }
+
             is StridedBlocks.MultipleBlocks -> {
                 val blockStartIndex = blocks.blockStartIndex
                 val blockLen = blocks.blockLen
@@ -1437,10 +1682,21 @@ public sealed class CpuStorage {
         }
     }
 
-    private fun copyStridedSrcFloatArray(src: FloatArray, dst: FloatArray, dstOffset: Int, srcLayout: Layout) {
+    private fun copyStridedSrcFloatArray(
+        src: FloatArray,
+        dst: FloatArray,
+        dstOffset: Int,
+        srcLayout: Layout,
+    ) {
         when (val blocks = srcLayout.stridedBlocks()) {
-            is StridedBlocks.SingleBlock -> src.copyInto(dst, dstOffset, blocks.startOffset, blocks.startOffset + blocks.len)
-            is StridedBlocks.UniformBlocks -> copy2dFloatArray(src, dst, blocks.count, blocks.blockLen, blocks.srcStride, blocks.blockLen, blocks.startOffset, dstOffset)
+            is StridedBlocks.SingleBlock -> {
+                src.copyInto(dst, dstOffset, blocks.startOffset, blocks.startOffset + blocks.len)
+            }
+
+            is StridedBlocks.UniformBlocks -> {
+                copy2dFloatArray(src, dst, blocks.count, blocks.blockLen, blocks.srcStride, blocks.blockLen, blocks.startOffset, dstOffset)
+            }
+
             is StridedBlocks.MultipleBlocks -> {
                 val blockStartIndex = blocks.blockStartIndex
                 val blockLen = blocks.blockLen
@@ -1457,10 +1713,21 @@ public sealed class CpuStorage {
         }
     }
 
-    private fun copyStridedSrcDoubleArray(src: DoubleArray, dst: DoubleArray, dstOffset: Int, srcLayout: Layout) {
+    private fun copyStridedSrcDoubleArray(
+        src: DoubleArray,
+        dst: DoubleArray,
+        dstOffset: Int,
+        srcLayout: Layout,
+    ) {
         when (val blocks = srcLayout.stridedBlocks()) {
-            is StridedBlocks.SingleBlock -> src.copyInto(dst, dstOffset, blocks.startOffset, blocks.startOffset + blocks.len)
-            is StridedBlocks.UniformBlocks -> copy2dDoubleArray(src, dst, blocks.count, blocks.blockLen, blocks.srcStride, blocks.blockLen, blocks.startOffset, dstOffset)
+            is StridedBlocks.SingleBlock -> {
+                src.copyInto(dst, dstOffset, blocks.startOffset, blocks.startOffset + blocks.len)
+            }
+
+            is StridedBlocks.UniformBlocks -> {
+                copy2dDoubleArray(src, dst, blocks.count, blocks.blockLen, blocks.srcStride, blocks.blockLen, blocks.startOffset, dstOffset)
+            }
+
             is StridedBlocks.MultipleBlocks -> {
                 val blockStartIndex = blocks.blockStartIndex
                 val blockLen = blocks.blockLen
@@ -1477,10 +1744,30 @@ public sealed class CpuStorage {
         }
     }
 
-    private fun copyStridedSrcRawByteArray(src: ByteArray, dst: ByteArray, dstOffset: Int, srcLayout: Layout) {
+    private fun copyStridedSrcRawByteArray(
+        src: ByteArray,
+        dst: ByteArray,
+        dstOffset: Int,
+        srcLayout: Layout,
+    ) {
         when (val blocks = srcLayout.stridedBlocks()) {
-            is StridedBlocks.SingleBlock -> src.copyInto(dst, dstOffset, blocks.startOffset, blocks.startOffset + blocks.len)
-            is StridedBlocks.UniformBlocks -> copy2dRawByteArray(src, dst, blocks.count, blocks.blockLen, blocks.srcStride, blocks.blockLen, blocks.startOffset, dstOffset)
+            is StridedBlocks.SingleBlock -> {
+                src.copyInto(dst, dstOffset, blocks.startOffset, blocks.startOffset + blocks.len)
+            }
+
+            is StridedBlocks.UniformBlocks -> {
+                copy2dRawByteArray(
+                    src,
+                    dst,
+                    blocks.count,
+                    blocks.blockLen,
+                    blocks.srcStride,
+                    blocks.blockLen,
+                    blocks.startOffset,
+                    dstOffset,
+                )
+            }
+
             is StridedBlocks.MultipleBlocks -> {
                 val blockStartIndex = blocks.blockStartIndex
                 val blockLen = blocks.blockLen
@@ -1572,7 +1859,11 @@ public sealed class CpuStorage {
     ): CpuStorage {
         val (kH, kW) = kernelSize
         val (sH, sW) = stride
-        val (bSz, c, h, w) = layout.shape.dims4()
+        val d = layout.shape.dims4()
+        val bSz = d.d0
+        val c = d.d1
+        val h = d.d2
+        val w = d.d3
         val s = layout.stride
         val (strideH, strideW) = Pair(s[2], s[3])
         val hOut = (h - kH) / sH + 1
@@ -1612,7 +1903,11 @@ public sealed class CpuStorage {
     ): CpuStorage {
         val (kH, kW) = kernelSize
         val (sH, sW) = stride
-        val (bSz, c, h, w) = layout.shape.dims4()
+        val d = layout.shape.dims4()
+        val bSz = d.d0
+        val c = d.d1
+        val h = d.d2
+        val w = d.d3
         val s = layout.stride
         val (strideH, strideW) = Pair(s[2], s[3])
         val hOut = (h - kH) / sH + 1
@@ -1645,7 +1940,10 @@ public sealed class CpuStorage {
         return F32(dst)
     }
 
-    public fun upsampleNearest1d(layout: Layout, dstSz: Int): CpuStorage {
+    public fun upsampleNearest1d(
+        layout: Layout,
+        dstSz: Int,
+    ): CpuStorage {
         val (bSz, c, srcSz) = layout.shape.dims3()
         val s = layout.stride
         val strideSz = s[2]
@@ -1653,9 +1951,10 @@ public sealed class CpuStorage {
         val scaleSz = srcSz.toDouble() / dstSz.toDouble()
         val count = bSz * c * dstSz
         val dst = FloatArray(count)
-        val srcIdxs = IntArray(dstSz) { idx ->
-            minOf(srcSz - 1, (idx.toDouble() * scaleSz).toInt())
-        }
+        val srcIdxs =
+            IntArray(dstSz) { idx ->
+                minOf(srcSz - 1, (idx.toDouble() * scaleSz).toInt())
+            }
         for (bIdx in 0 until bSz) {
             val bOffset = bIdx * c * dstSz
             val srcB = srcIndex + bIdx * s[0]
@@ -1670,8 +1969,16 @@ public sealed class CpuStorage {
         return F32(dst)
     }
 
-    public fun upsampleNearest2d(layout: Layout, dstH: Int, dstW: Int): CpuStorage {
-        val (bSz, c, srcH, srcW) = layout.shape.dims4()
+    public fun upsampleNearest2d(
+        layout: Layout,
+        dstH: Int,
+        dstW: Int,
+    ): CpuStorage {
+        val d = layout.shape.dims4()
+        val bSz = d.d0
+        val c = d.d1
+        val srcH = d.d2
+        val srcW = d.d3
         val s = layout.stride
         val (strideH, strideW) = Pair(s[2], s[3])
         val srcIndex = layout.startOffset
@@ -1679,12 +1986,14 @@ public sealed class CpuStorage {
         val scaleW = srcW.toDouble() / dstW.toDouble()
         val count = bSz * c * dstH * dstW
         val dst = FloatArray(count)
-        val srcHIdxs = IntArray(dstH) { hIdx ->
-            minOf(srcH - 1, (hIdx.toDouble() * scaleH).toInt())
-        }
-        val srcWIdxs = IntArray(dstW) { wIdx ->
-            minOf(srcW - 1, (wIdx.toDouble() * scaleW).toInt())
-        }
+        val srcHIdxs =
+            IntArray(dstH) { hIdx ->
+                minOf(srcH - 1, (hIdx.toDouble() * scaleH).toInt())
+            }
+        val srcWIdxs =
+            IntArray(dstW) { wIdx ->
+                minOf(srcW - 1, (wIdx.toDouble() * scaleW).toInt())
+            }
         for (bIdx in 0 until bSz) {
             val bOffset = bIdx * c * dstH * dstW
             val srcB = srcIndex + bIdx * s[0]
@@ -1711,7 +2020,11 @@ public sealed class CpuStorage {
         scaleHFactor: Double? = null,
         scaleWFactor: Double? = null,
     ): CpuStorage {
-        val (batch, channels, heightIn, widthIn) = layout.shape.dims4()
+        val d = layout.shape.dims4()
+        val batch = d.d0
+        val channels = d.d1
+        val heightIn = d.d2
+        val widthIn = d.d3
         val heightOut = targetH
         val widthOut = targetW
 
@@ -1722,35 +2035,39 @@ public sealed class CpuStorage {
         val s = layout.stride
         val srcOffset = layout.startOffset
 
-        val scaleH = if (alignCorners) {
-            if (heightOut > 1) (heightIn - 1).toDouble() / (heightOut - 1).toDouble() else 0.0
-        } else {
-            scaleHFactor?.let { 1.0 / it } ?: (heightIn.toDouble() / heightOut.toDouble())
-        }
+        val scaleH =
+            if (alignCorners) {
+                if (heightOut > 1) (heightIn - 1).toDouble() / (heightOut - 1).toDouble() else 0.0
+            } else {
+                scaleHFactor?.let { 1.0 / it } ?: (heightIn.toDouble() / heightOut.toDouble())
+            }
 
-        val scaleW = if (alignCorners) {
-            if (widthOut > 1) (widthIn - 1).toDouble() / (widthOut - 1).toDouble() else 0.0
-        } else {
-            scaleWFactor?.let { 1.0 / it } ?: (widthIn.toDouble() / widthOut.toDouble())
-        }
+        val scaleW =
+            if (alignCorners) {
+                if (widthOut > 1) (widthIn - 1).toDouble() / (widthOut - 1).toDouble() else 0.0
+            } else {
+                scaleWFactor?.let { 1.0 / it } ?: (widthIn.toDouble() / widthOut.toDouble())
+            }
 
-        val hIndices = Array(heightOut) { hOut ->
-            val srcH = if (alignCorners) scaleH * hOut.toDouble() else scaleH * (hOut.toDouble() + 0.5) - 0.5
-            val srcHClamped = maxOf(0.0, srcH)
-            val h0 = srcHClamped.toInt()
-            val h1 = minOf(heightIn - 1, h0 + 1)
-            val weightH = (srcHClamped - h0.toDouble()).coerceIn(0.0, 1.0)
-            Triple(h0, h1, weightH)
-        }
+        val hIndices =
+            Array(heightOut) { hOut ->
+                val srcH = if (alignCorners) scaleH * hOut.toDouble() else scaleH * (hOut.toDouble() + 0.5) - 0.5
+                val srcHClamped = maxOf(0.0, srcH)
+                val h0 = srcHClamped.toInt()
+                val h1 = minOf(heightIn - 1, h0 + 1)
+                val weightH = (srcHClamped - h0.toDouble()).coerceIn(0.0, 1.0)
+                Triple(h0, h1, weightH)
+            }
 
-        val wIndices = Array(widthOut) { wOut ->
-            val srcW = if (alignCorners) scaleW * wOut.toDouble() else scaleW * (wOut.toDouble() + 0.5) - 0.5
-            val srcWClamped = maxOf(0.0, srcW)
-            val w0 = srcWClamped.toInt()
-            val w1 = minOf(widthIn - 1, w0 + 1)
-            val weightW = (srcWClamped - w0.toDouble()).coerceIn(0.0, 1.0)
-            Triple(w0, w1, weightW)
-        }
+        val wIndices =
+            Array(widthOut) { wOut ->
+                val srcW = if (alignCorners) scaleW * wOut.toDouble() else scaleW * (wOut.toDouble() + 0.5) - 0.5
+                val srcWClamped = maxOf(0.0, srcW)
+                val w0 = srcWClamped.toInt()
+                val w1 = minOf(widthIn - 1, w0 + 1)
+                val weightW = (srcWClamped - w0.toDouble()).coerceIn(0.0, 1.0)
+                Triple(w0, w1, weightW)
+            }
 
         val dst = FloatArray(batch * channels * heightOut * widthOut)
         for (b in 0 until batch) {
@@ -1854,6 +2171,7 @@ public sealed class CpuStorage {
                     }
                     U8(dst)
                 }
+
                 is U32 -> {
                     val total = storages.sumOf { (it as? U32)?.data?.size ?: bail("dtype mismatch") }
                     val dst = UIntArray(total)
@@ -1865,6 +2183,7 @@ public sealed class CpuStorage {
                     }
                     U32(dst)
                 }
+
                 is I16 -> {
                     val total = storages.sumOf { (it as? I16)?.data?.size ?: bail("dtype mismatch") }
                     val dst = ShortArray(total)
@@ -1876,6 +2195,7 @@ public sealed class CpuStorage {
                     }
                     I16(dst)
                 }
+
                 is I32 -> {
                     val total = storages.sumOf { (it as? I32)?.data?.size ?: bail("dtype mismatch") }
                     val dst = IntArray(total)
@@ -1887,6 +2207,7 @@ public sealed class CpuStorage {
                     }
                     I32(dst)
                 }
+
                 is I64 -> {
                     val total = storages.sumOf { (it as? I64)?.data?.size ?: bail("dtype mismatch") }
                     val dst = LongArray(total)
@@ -1898,6 +2219,7 @@ public sealed class CpuStorage {
                     }
                     I64(dst)
                 }
+
                 is BF16 -> {
                     val total = storages.sumOf { (it as? BF16)?.data?.size ?: bail("dtype mismatch") }
                     val dst = ShortArray(total)
@@ -1909,6 +2231,7 @@ public sealed class CpuStorage {
                     }
                     BF16(dst)
                 }
+
                 is F16 -> {
                     val total = storages.sumOf { (it as? F16)?.data?.size ?: bail("dtype mismatch") }
                     val dst = ShortArray(total)
@@ -1920,6 +2243,7 @@ public sealed class CpuStorage {
                     }
                     F16(dst)
                 }
+
                 is F32 -> {
                     val total = storages.sumOf { (it as? F32)?.data?.size ?: bail("dtype mismatch") }
                     val dst = FloatArray(total)
@@ -1931,6 +2255,7 @@ public sealed class CpuStorage {
                     }
                     F32(dst)
                 }
+
                 is F64 -> {
                     val total = storages.sumOf { (it as? F64)?.data?.size ?: bail("dtype mismatch") }
                     val dst = DoubleArray(total)
@@ -1942,6 +2267,7 @@ public sealed class CpuStorage {
                     }
                     F64(dst)
                 }
+
                 is F8E4M3 -> {
                     val total = storages.sumOf { (it as? F8E4M3)?.data?.size ?: bail("dtype mismatch") }
                     val dst = ByteArray(total)
@@ -1953,6 +2279,7 @@ public sealed class CpuStorage {
                     }
                     F8E4M3(dst)
                 }
+
                 is F6E2M3 -> {
                     val total = storages.sumOf { (it as? F6E2M3)?.data?.size ?: bail("dtype mismatch") }
                     val dst = ByteArray(total)
@@ -1964,6 +2291,7 @@ public sealed class CpuStorage {
                     }
                     F6E2M3(dst)
                 }
+
                 is F6E3M2 -> {
                     val total = storages.sumOf { (it as? F6E3M2)?.data?.size ?: bail("dtype mismatch") }
                     val dst = ByteArray(total)
@@ -1975,6 +2303,7 @@ public sealed class CpuStorage {
                     }
                     F6E3M2(dst)
                 }
+
                 is F4 -> {
                     val total = storages.sumOf { (it as? F4)?.data?.size ?: bail("dtype mismatch") }
                     val dst = ByteArray(total)
@@ -1986,6 +2315,7 @@ public sealed class CpuStorage {
                     }
                     F4(dst)
                 }
+
                 is F8E8M0 -> {
                     val total = storages.sumOf { (it as? F8E8M0)?.data?.size ?: bail("dtype mismatch") }
                     val dst = ByteArray(total)
@@ -2003,23 +2333,66 @@ public sealed class CpuStorage {
 }
 
 public sealed class CpuStorageRef {
-    public data class U8(val data: UByteArray) : CpuStorageRef()
-    public data class U32(val data: UIntArray) : CpuStorageRef()
-    public data class I16(val data: ShortArray) : CpuStorageRef()
-    public data class I32(val data: IntArray) : CpuStorageRef()
-    public data class I64(val data: LongArray) : CpuStorageRef()
-    public data class BF16(val data: ShortArray) : CpuStorageRef()
-    public data class F16(val data: ShortArray) : CpuStorageRef()
-    public data class F32(val data: FloatArray) : CpuStorageRef()
-    public data class F64(val data: DoubleArray) : CpuStorageRef()
-    public data class F8E4M3(val data: ByteArray) : CpuStorageRef()
-    public data class F6E2M3(val data: ByteArray) : CpuStorageRef()
-    public data class F6E3M2(val data: ByteArray) : CpuStorageRef()
-    public data class F4(val data: ByteArray) : CpuStorageRef()
-    public data class F8E8M0(val data: ByteArray) : CpuStorageRef()
+    public data class U8(
+        val data: UByteArray,
+    ) : CpuStorageRef()
+
+    public data class U32(
+        val data: UIntArray,
+    ) : CpuStorageRef()
+
+    public data class I16(
+        val data: ShortArray,
+    ) : CpuStorageRef()
+
+    public data class I32(
+        val data: IntArray,
+    ) : CpuStorageRef()
+
+    public data class I64(
+        val data: LongArray,
+    ) : CpuStorageRef()
+
+    public data class BF16(
+        val data: ShortArray,
+    ) : CpuStorageRef()
+
+    public data class F16(
+        val data: ShortArray,
+    ) : CpuStorageRef()
+
+    public data class F32(
+        val data: FloatArray,
+    ) : CpuStorageRef()
+
+    public data class F64(
+        val data: DoubleArray,
+    ) : CpuStorageRef()
+
+    public data class F8E4M3(
+        val data: ByteArray,
+    ) : CpuStorageRef()
+
+    public data class F6E2M3(
+        val data: ByteArray,
+    ) : CpuStorageRef()
+
+    public data class F6E3M2(
+        val data: ByteArray,
+    ) : CpuStorageRef()
+
+    public data class F4(
+        val data: ByteArray,
+    ) : CpuStorageRef()
+
+    public data class F8E8M0(
+        val data: ByteArray,
+    ) : CpuStorageRef()
 }
 
-public class Cmp(public val opKind: CmpOp) : Map2U8 {
+public class Cmp(
+    public val opKind: CmpOp,
+) : Map2U8 {
     override val op: String = "cmp"
 
     override fun f(
@@ -2028,14 +2401,15 @@ public class Cmp(public val opKind: CmpOp) : Map2U8 {
         v2: List<Double>,
         l2: Layout,
     ): UByteArray {
-        val dst = when (opKind) {
-            CmpOp.Eq -> binaryMap(l1, l2, v1, v2) { x, y -> if (x == y) 1u else 0u }
-            CmpOp.Ne -> binaryMap(l1, l2, v1, v2) { x, y -> if (x != y) 1u else 0u }
-            CmpOp.Lt -> binaryMap(l1, l2, v1, v2) { x, y -> if (x < y) 1u else 0u }
-            CmpOp.Le -> binaryMap(l1, l2, v1, v2) { x, y -> if (x <= y) 1u else 0u }
-            CmpOp.Gt -> binaryMap(l1, l2, v1, v2) { x, y -> if (x > y) 1u else 0u }
-            CmpOp.Ge -> binaryMap(l1, l2, v1, v2) { x, y -> if (x >= y) 1u else 0u }
-        }
+        val dst =
+            when (opKind) {
+                CmpOp.Eq -> binaryMap(l1, l2, v1, v2) { x, y -> if (x == y) 1u else 0u }
+                CmpOp.Ne -> binaryMap(l1, l2, v1, v2) { x, y -> if (x != y) 1u else 0u }
+                CmpOp.Lt -> binaryMap(l1, l2, v1, v2) { x, y -> if (x < y) 1u else 0u }
+                CmpOp.Le -> binaryMap(l1, l2, v1, v2) { x, y -> if (x <= y) 1u else 0u }
+                CmpOp.Gt -> binaryMap(l1, l2, v1, v2) { x, y -> if (x > y) 1u else 0u }
+                CmpOp.Ge -> binaryMap(l1, l2, v1, v2) { x, y -> if (x >= y) 1u else 0u }
+            }
         return UByteArray(dst.size) { dst[it].toUByte() }
     }
 }
@@ -2154,12 +2528,19 @@ public class ReduceIndex(
             throw CandleException.EmptyTensor("reduce")
         }
         return when {
-            !returnIndex && useMin -> wrap(foldImpl(vs, layout, { x, y -> x > y }, { v, _ -> v }))
-            !returnIndex && !useMin -> wrap(foldImpl(vs, layout, { x, y -> x < y }, { v, _ -> v }))
+            !returnIndex && useMin -> {
+                wrap(foldImpl(vs, layout, { x, y -> x > y }, { v, _ -> v }))
+            }
+
+            !returnIndex && !useMin -> {
+                wrap(foldImpl(vs, layout, { x, y -> x < y }, { v, _ -> v }))
+            }
+
             returnIndex && useMin -> {
                 val idxs = foldImpl(vs, layout, { x, y -> x > y }, { _, i -> i.toUInt() })
                 CpuStorage.U32(UIntArray(idxs.size) { idxs[it] })
             }
+
             else -> {
                 val idxs = foldImpl(vs, layout, { x, y -> x < y }, { _, i -> i.toUInt() })
                 CpuStorage.U32(UIntArray(idxs.size) { idxs[it] })
@@ -2168,7 +2549,7 @@ public class ReduceIndex(
     }
 }
 
-public class ReduceSum(
+public class ReduceSum internal constructor(
     public val dstShape: Shape,
     public val reduceDims: IntArray,
     public val reduceDimsAndStride: List<Pair<Int, Int>>,
@@ -2225,26 +2606,37 @@ public class ReduceSum(
         return dst
     }
 
-    override fun f(vs: List<Double>, layout: Layout): List<Double> =
-        foldImpl(vs, layout, 0.0)
+    override fun f(
+        vs: List<Double>,
+        layout: Layout,
+    ): List<Double> = foldImpl(vs, layout, 0.0)
 }
 
 public class Affine(
     public val mul: Double,
     public val add: Double,
 ) : Map1 {
-    override fun f(vs: List<Double>, layout: Layout): List<Double> =
-        unaryMap(vs, layout) { v -> v * mul + add }
+    override fun f(
+        vs: List<Double>,
+        layout: Layout,
+    ): List<Double> = unaryMap(vs, layout) { v -> v * mul + add }
 }
 
-public class AvgPool2D(
+public class AvgPool2D internal constructor(
     public val kernelSize: Pair<Int, Int>,
     public val stride: Pair<Int, Int>,
 ) : Map1 {
-    override fun f(vs: List<Double>, layout: Layout): List<Double> {
+    override fun f(
+        vs: List<Double>,
+        layout: Layout,
+    ): List<Double> {
         val (kH, kW) = kernelSize
         val (sH, sW) = stride
-        val (bSz, c, h, w) = layout.shape.dims4()
+        val d = layout.shape.dims4()
+        val bSz = d.d0
+        val c = d.d1
+        val h = d.d2
+        val w = d.d3
         val s = layout.stride
         val strideH = s[2]
         val strideW = s[3]
@@ -2278,14 +2670,21 @@ public class AvgPool2D(
     }
 }
 
-public class MaxPool2D(
+public class MaxPool2D internal constructor(
     public val kernelSize: Pair<Int, Int>,
     public val stride: Pair<Int, Int>,
 ) : Map1 {
-    override fun f(vs: List<Double>, layout: Layout): List<Double> {
+    override fun f(
+        vs: List<Double>,
+        layout: Layout,
+    ): List<Double> {
         val (kH, kW) = kernelSize
         val (sH, sW) = stride
-        val (bSz, c, h, w) = layout.shape.dims4()
+        val d = layout.shape.dims4()
+        val bSz = d.d0
+        val c = d.d1
+        val h = d.d2
+        val w = d.d3
         val s = layout.stride
         val strideH = s[2]
         val strideW = s[3]
@@ -2319,8 +2718,13 @@ public class MaxPool2D(
     }
 }
 
-public class UpsampleNearest1D(public val targetSize: Int) : Map1 {
-    override fun f(vs: List<Double>, layout: Layout): List<Double> {
+public class UpsampleNearest1D(
+    public val targetSize: Int,
+) : Map1 {
+    override fun f(
+        vs: List<Double>,
+        layout: Layout,
+    ): List<Double> {
         val dstSz = targetSize
         val (bSz, c, srcSz) = layout.shape.dims3()
         val s = layout.stride
@@ -2348,10 +2752,17 @@ public class UpsampleNearest2D(
     public val targetH: Int,
     public val targetW: Int,
 ) : Map1 {
-    override fun f(vs: List<Double>, layout: Layout): List<Double> {
+    override fun f(
+        vs: List<Double>,
+        layout: Layout,
+    ): List<Double> {
         val dstH = targetH
         val dstW = targetW
-        val (bSz, c, srcH, srcW) = layout.shape.dims4()
+        val d = layout.shape.dims4()
+        val bSz = d.d0
+        val c = d.d1
+        val srcH = d.d2
+        val srcW = d.d3
         val s = layout.stride
         val strideH = s[2]
         val strideW = s[3]
@@ -2387,8 +2798,15 @@ public class UpsampleBilinear2D(
     public val scaleHFactor: Double?,
     public val scaleWFactor: Double?,
 ) : Map1 {
-    override fun f(vs: List<Double>, layout: Layout): List<Double> {
-        val (batch, channels, heightIn, widthIn) = layout.shape.dims4()
+    override fun f(
+        vs: List<Double>,
+        layout: Layout,
+    ): List<Double> {
+        val d = layout.shape.dims4()
+        val batch = d.d0
+        val channels = d.d1
+        val heightIn = d.d2
+        val widthIn = d.d3
         val heightOut = targetH
         val widthOut = targetW
         if (heightIn == heightOut && widthIn == widthOut) {
@@ -2396,32 +2814,36 @@ public class UpsampleBilinear2D(
         }
         val s = layout.stride
         val srcOffset = layout.startOffset
-        val scaleH = if (alignCorners) {
-            if (heightOut > 1) (heightIn - 1).toDouble() / (heightOut - 1).toDouble() else 0.0
-        } else {
-            scaleHFactor?.let { 1.0 / it } ?: (heightIn.toDouble() / heightOut.toDouble())
-        }
-        val scaleW = if (alignCorners) {
-            if (widthOut > 1) (widthIn - 1).toDouble() / (widthOut - 1).toDouble() else 0.0
-        } else {
-            scaleWFactor?.let { 1.0 / it } ?: (widthIn.toDouble() / widthOut.toDouble())
-        }
-        val hIndices = Array(heightOut) { hOut ->
-            val srcH = if (alignCorners) scaleH * hOut.toDouble() else scaleH * (hOut.toDouble() + 0.5) - 0.5
-            val srcHClamped = maxOf(0.0, srcH)
-            val h0 = floor(srcHClamped).toInt()
-            val h1 = minOf(heightIn - 1, h0 + 1)
-            val weightH = (srcHClamped - h0.toDouble()).coerceIn(0.0, 1.0)
-            Triple(h0, h1, weightH)
-        }
-        val wIndices = Array(widthOut) { wOut ->
-            val srcW = if (alignCorners) scaleW * wOut.toDouble() else scaleW * (wOut.toDouble() + 0.5) - 0.5
-            val srcWClamped = maxOf(0.0, srcW)
-            val w0 = floor(srcWClamped).toInt()
-            val w1 = minOf(widthIn - 1, w0 + 1)
-            val weightW = (srcWClamped - w0.toDouble()).coerceIn(0.0, 1.0)
-            Triple(w0, w1, weightW)
-        }
+        val scaleH =
+            if (alignCorners) {
+                if (heightOut > 1) (heightIn - 1).toDouble() / (heightOut - 1).toDouble() else 0.0
+            } else {
+                scaleHFactor?.let { 1.0 / it } ?: (heightIn.toDouble() / heightOut.toDouble())
+            }
+        val scaleW =
+            if (alignCorners) {
+                if (widthOut > 1) (widthIn - 1).toDouble() / (widthOut - 1).toDouble() else 0.0
+            } else {
+                scaleWFactor?.let { 1.0 / it } ?: (widthIn.toDouble() / widthOut.toDouble())
+            }
+        val hIndices =
+            Array(heightOut) { hOut ->
+                val srcH = if (alignCorners) scaleH * hOut.toDouble() else scaleH * (hOut.toDouble() + 0.5) - 0.5
+                val srcHClamped = maxOf(0.0, srcH)
+                val h0 = floor(srcHClamped).toInt()
+                val h1 = minOf(heightIn - 1, h0 + 1)
+                val weightH = (srcHClamped - h0.toDouble()).coerceIn(0.0, 1.0)
+                Triple(h0, h1, weightH)
+            }
+        val wIndices =
+            Array(widthOut) { wOut ->
+                val srcW = if (alignCorners) scaleW * wOut.toDouble() else scaleW * (wOut.toDouble() + 0.5) - 0.5
+                val srcWClamped = maxOf(0.0, srcW)
+                val w0 = floor(srcWClamped).toInt()
+                val w1 = minOf(widthIn - 1, w0 + 1)
+                val weightW = (srcWClamped - w0.toDouble()).coerceIn(0.0, 1.0)
+                Triple(w0, w1, weightW)
+            }
         val dst = MutableList(batch * channels * heightOut * widthOut) { 0.0 }
         for (b in 0 until batch) {
             for (c in 0 until channels) {
@@ -2451,7 +2873,10 @@ public class Gather(
     public val idsL: Layout,
     public val dim: Int,
 ) : Map1 {
-    override fun f(vs: List<Double>, layout: Layout): List<Double> {
+    override fun f(
+        vs: List<Double>,
+        layout: Layout,
+    ): List<Double> {
         val idsOffsets = idsL.contiguousOffsets() ?: throw CandleException.RequiresContiguous("gather")
         val srcOffsets = layout.contiguousOffsets() ?: throw CandleException.RequiresContiguous("gather")
         val idsSlice = ids.subList(idsOffsets.start, idsOffsets.end)
@@ -2495,7 +2920,10 @@ public class IndexSelect(
     public val idsL: Layout,
     public val dim: Int,
 ) : Map1 {
-    override fun f(vs: List<Double>, layout: Layout): List<Double> {
+    override fun f(
+        vs: List<Double>,
+        layout: Layout,
+    ): List<Double> {
         val srcOffsets = layout.contiguousOffsets() ?: throw CandleException.RequiresContiguous("index-select")
         val srcSlice = vs.subList(srcOffsets.start, srcOffsets.end)
         val idsDims = idsL.dims
@@ -2536,16 +2964,28 @@ public class IndexSelect(
 }
 
 public interface ElemUpdate {
-    public fun f(dst: MutableList<Double>, idx: Int, src: Double)
+    public fun f(
+        dst: MutableList<Double>,
+        idx: Int,
+        src: Double,
+    )
 
     public object Set : ElemUpdate {
-        override fun f(dst: MutableList<Double>, idx: Int, src: Double) {
+        override fun f(
+            dst: MutableList<Double>,
+            idx: Int,
+            src: Double,
+        ) {
             dst[idx] = src
         }
     }
 
     public object Add : ElemUpdate {
-        override fun f(dst: MutableList<Double>, idx: Int, src: Double) {
+        override fun f(
+            dst: MutableList<Double>,
+            idx: Int,
+            src: Double,
+        ) {
             dst[idx] = dst[idx] + src
         }
     }
@@ -2677,7 +3117,7 @@ public fun copy2d(
     }
     var srcIdx = srcOffset
     var dstIdx = dstOffset
-    for (i in 0 until d1) {
+    repeat(d1) {
         for (j in 0 until d2) {
             dst[dstIdx + j] = src[srcIdx + j]
         }
@@ -2698,6 +3138,7 @@ public fun copyStridedSrc(
                 dst[dstOffset + i] = src[blocks.startOffset + i]
             }
         }
+
         is StridedBlocks.UniformBlocks -> {
             copy2d(
                 src,
@@ -2710,6 +3151,7 @@ public fun copyStridedSrc(
                 dstOffset,
             )
         }
+
         is StridedBlocks.MultipleBlocks -> {
             if (blocks.blockLen == 1) {
                 for ((i, srcIndex) in blocks.blockStartIndex.withIndex()) {
@@ -2728,7 +3170,9 @@ public fun copyStridedSrc(
     }
 }
 
-public class Conv1D(public val params: ParamsConv1D) : Map2 {
+public class Conv1D(
+    public val params: ParamsConv1D,
+) : Map2 {
     override val op: String = "conv1d"
 
     override fun f(
@@ -2785,10 +3229,12 @@ public class Im2Col1D(
     public val dilation: Int,
     public val padding: Int,
 ) : Map1 {
-    public fun lOut(l: Int): Int =
-        (l + 2 * padding - dilation * (lK - 1) - 1) / stride + 1
+    public fun lOut(l: Int): Int = (l + 2 * padding - dilation * (lK - 1) - 1) / stride + 1
 
-    override fun f(vs: List<Double>, layout: Layout): List<Double> {
+    override fun f(
+        vs: List<Double>,
+        layout: Layout,
+    ): List<Double> {
         val (b, c, l) = layout.shape.dims3()
         val lOutVal = lOut(l)
         val src = vs.subList(layout.startOffset, vs.size)
@@ -2827,14 +3273,24 @@ public class Im2Col(
     public val dilation: Int,
     public val padding: Int,
 ) : Map1 {
-    public fun hwOut(h: Int, w: Int): Pair<Int, Int> {
+    public fun hwOut(
+        h: Int,
+        w: Int,
+    ): Pair<Int, Int> {
         val hOut = (h + 2 * padding - dilation * (hK - 1) - 1) / stride + 1
         val wOut = (w + 2 * padding - dilation * (wK - 1) - 1) / stride + 1
         return Pair(hOut, wOut)
     }
 
-    override fun f(vs: List<Double>, layout: Layout): List<Double> {
-        val (b, c, h, w) = layout.shape.dims4()
+    override fun f(
+        vs: List<Double>,
+        layout: Layout,
+    ): List<Double> {
+        val d = layout.shape.dims4()
+        val b = d.d0
+        val c = d.d1
+        val h = d.d2
+        val w = d.d3
         val (hOut, wOut) = hwOut(h, w)
         val src = vs.subList(layout.startOffset, vs.size)
         val dst = MutableList(b * hOut * wOut * c * hK * wK) { 0.0 }
@@ -2876,9 +3332,18 @@ public class Im2Col(
     }
 }
 
-public class Col2Im1D(public val stride: Int) : Map1 {
-    override fun f(vs: List<Double>, layout: Layout): List<Double> {
-        val (bSize, lIn, cOut, kSize) = layout.shape.dims4()
+public class Col2Im1D(
+    public val stride: Int,
+) : Map1 {
+    override fun f(
+        vs: List<Double>,
+        layout: Layout,
+    ): List<Double> {
+        val d = layout.shape.dims4()
+        val bSize = d.d0
+        val lIn = d.d1
+        val cOut = d.d2
+        val kSize = d.d3
         val lOut = (lIn - 1) * stride + kSize
         val im = MutableList(bSize * cOut * lOut) { 0.0 }
         val dstS0 = cOut * lOut
@@ -2902,7 +3367,9 @@ public class Col2Im1D(public val stride: Int) : Map1 {
     }
 }
 
-public class ConvTranspose1D(public val params: ParamsConvTranspose1D) : Map2 {
+public class ConvTranspose1D(
+    public val params: ParamsConvTranspose1D,
+) : Map2 {
     override val op: String = "conv_transpose1d"
 
     override fun f(
@@ -2959,7 +3426,9 @@ public class ConvTranspose1D(public val params: ParamsConvTranspose1D) : Map2 {
     }
 }
 
-public class ConvTranspose2D(public val params: ParamsConvTranspose2D) : Map2 {
+public class ConvTranspose2D(
+    public val params: ParamsConvTranspose2D,
+) : Map2 {
     override val op: String = "conv_transpose2d"
 
     override fun f(
@@ -2970,9 +3439,17 @@ public class ConvTranspose2D(public val params: ParamsConvTranspose2D) : Map2 {
     ): List<Double> {
         val p = params
         val inp = v1.subList(l1.startOffset, v1.size)
-        val (inpS0, inpS1, inpS2, inpS3) = dims4(l1.stride)
+        val inpStrides = dims4(l1.stride)
+        val inpS0 = inpStrides.d0
+        val inpS1 = inpStrides.d1
+        val inpS2 = inpStrides.d2
+        val inpS3 = inpStrides.d3
         val k = v2.subList(l2.startOffset, v2.size)
-        val (kS0, kS1, kS2, kS3) = dims4(l2.stride)
+        val kStrides = dims4(l2.stride)
+        val kS0 = kStrides.d0
+        val kS1 = kStrides.d1
+        val kS2 = kStrides.d2
+        val kS3 = kStrides.d3
         val outH = p.outH()
         val outW = p.outW()
         val dst = MutableList(p.bSize * p.cOut * outH * outW) { 0.0 }
@@ -3026,10 +3503,16 @@ public class ConvTranspose2D(public val params: ParamsConvTranspose2D) : Map2 {
     }
 }
 
-public class MatMul(public val bmnk: Dims4) : Map2 {
+public class MatMul(
+    public val bmnk: Dims4,
+) : Map2 {
     override val op: String = "mat_mul"
 
-    public fun stridingError(lhsL: Layout, rhsL: Layout, msg: String): CandleException =
+    public fun stridingError(
+        lhsL: Layout,
+        rhsL: Layout,
+        msg: String,
+    ): CandleException =
         CandleException.MatMulUnexpectedStriding(
             MatMulUnexpectedStridingDetails(
                 lhsL = lhsL,
@@ -3039,43 +3522,68 @@ public class MatMul(public val bmnk: Dims4) : Map2 {
             ),
         )
 
-    public fun abSkip(lhsL: Layout, rhsL: Layout): Pair<Int, Int> {
+    public fun abSkip(
+        lhsL: Layout,
+        rhsL: Layout,
+    ): Pair<Int, Int> {
         val lhsStride = lhsL.stride
         val rhsStride = rhsL.stride
         val rank = lhsStride.size
-        val (_, m, n, k) = bmnk
+        val m = bmnk.d1
+        val n = bmnk.d2
+        val k = bmnk.d3
         val lhsBatchStride = lhsStride.subList(0, rank - 2)
-        val aSkip = when (lhsBatchStride.size) {
-            2 -> {
-                val s1 = lhsBatchStride[0]
-                val stride = lhsBatchStride[1]
-                when {
-                    s1 == stride * lhsL.dims[1] -> stride
-                    lhsL.dims[0] == 1 -> stride
-                    lhsL.dims[1] == 1 -> s1
-                    else -> throw stridingError(lhsL, rhsL, "non-contiguous lhs")
+        val aSkip =
+            when (lhsBatchStride.size) {
+                2 -> {
+                    val s1 = lhsBatchStride[0]
+                    val stride = lhsBatchStride[1]
+                    when {
+                        s1 == stride * lhsL.dims[1] -> stride
+                        lhsL.dims[0] == 1 -> stride
+                        lhsL.dims[1] == 1 -> s1
+                        else -> throw stridingError(lhsL, rhsL, "non-contiguous lhs")
+                    }
+                }
+
+                1 -> {
+                    lhsBatchStride[0]
+                }
+
+                0 -> {
+                    m * k
+                }
+
+                else -> {
+                    throw stridingError(lhsL, rhsL, "non-contiguous lhs")
                 }
             }
-            1 -> lhsBatchStride[0]
-            0 -> m * k
-            else -> throw stridingError(lhsL, rhsL, "non-contiguous lhs")
-        }
         val rhsBatchStride = rhsStride.subList(0, rank - 2)
-        val bSkip = when (rhsBatchStride.size) {
-            2 -> {
-                val s1 = rhsBatchStride[0]
-                val stride = rhsBatchStride[1]
-                when {
-                    s1 == stride * rhsL.dims[1] -> stride
-                    rhsL.dims[0] == 1 -> stride
-                    rhsL.dims[1] == 1 -> s1
-                    else -> throw stridingError(lhsL, rhsL, "non-contiguous rhs")
+        val bSkip =
+            when (rhsBatchStride.size) {
+                2 -> {
+                    val s1 = rhsBatchStride[0]
+                    val stride = rhsBatchStride[1]
+                    when {
+                        s1 == stride * rhsL.dims[1] -> stride
+                        rhsL.dims[0] == 1 -> stride
+                        rhsL.dims[1] == 1 -> s1
+                        else -> throw stridingError(lhsL, rhsL, "non-contiguous rhs")
+                    }
+                }
+
+                1 -> {
+                    rhsBatchStride[0]
+                }
+
+                0 -> {
+                    n * k
+                }
+
+                else -> {
+                    throw stridingError(lhsL, rhsL, "non-contiguous rhs")
                 }
             }
-            1 -> rhsBatchStride[0]
-            0 -> n * k
-            else -> throw stridingError(lhsL, rhsL, "non-contiguous rhs")
-        }
         return Pair(aSkip, bSkip)
     }
 
@@ -3085,7 +3593,10 @@ public class MatMul(public val bmnk: Dims4) : Map2 {
         v2: List<Double>,
         l2: Layout,
     ): List<Double> {
-        val (b, m, n, k) = bmnk
+        val b = bmnk.d0
+        val m = bmnk.d1
+        val n = bmnk.d2
+        val k = bmnk.d3
         val lhs = v1.subList(l1.startOffset, v1.size)
         val rhs = v2.subList(l2.startOffset, v2.size)
         val lhsStride = l1.stride
@@ -3138,47 +3649,88 @@ public class MatMul(public val bmnk: Dims4) : Map2 {
     }
 }
 
-public fun elu(v: Double, alpha: Double): Double =
-    if (v >= 0.0) v else (exp(v) - 1.0) * alpha
+public fun elu(
+    v: Double,
+    alpha: Double,
+): Double = if (v >= 0.0) v else (exp(v) - 1.0) * alpha
 
 internal val CandleException.bt: () -> CandleException get() = { this }
 
 internal val Map1.self: Map1 get() = this
-internal fun Map1.f(vs: CpuStorage, layout: Layout): List<Double> = this.f(vs.asSlice(), layout)
+
+internal fun Map1.f(
+    vs: CpuStorage,
+    layout: Layout,
+): List<Double> = this.f(vs.asSlice(), layout)
+
 internal fun <T> Map1.Ok(v: T): T = v
+
 internal fun Map1.Err(e: CandleException): Nothing = throw e
 
 internal val Map1Any.self: Map1Any get() = this
-internal fun Map1Any.f(vs: CpuStorage, layout: Layout, wrap: (List<Double>) -> CpuStorage): CpuStorage =
-    this.f(vs.asSlice(), layout, wrap)
+
+internal fun Map1Any.f(
+    vs: CpuStorage,
+    layout: Layout,
+    wrap: (List<Double>) -> CpuStorage,
+): CpuStorage = this.f(vs.asSlice(), layout, wrap)
+
 internal fun <T> Map1Any.Ok(v: T): T = v
+
 internal fun Map1Any.Err(e: CandleException): Nothing = throw e
 
 internal val Map2.self: Map2 get() = this
-internal fun Map2.f(v1: CpuStorage, l1: Layout, v2: CpuStorage, l2: Layout): List<Double> =
-    this.f(v1.asSlice(), l1, v2.asSlice(), l2)
+
+internal fun Map2.f(
+    v1: CpuStorage,
+    l1: Layout,
+    v2: CpuStorage,
+    l2: Layout,
+): List<Double> = this.f(v1.asSlice(), l1, v2.asSlice(), l2)
+
 internal val Map2.OP: String get() = op
+
 internal fun <T> Map2.Ok(v: T): T = v
+
 internal fun Map2.Err(e: CandleException): Nothing = throw e
 
 internal val Map2InPlace.self: Map2InPlace get() = this
-internal fun Map2InPlace.f(v1: CpuStorage, l1: Layout, v2: CpuStorage, l2: Layout) {
+
+internal fun Map2InPlace.f(
+    v1: CpuStorage,
+    l1: Layout,
+    v2: CpuStorage,
+    l2: Layout,
+) {
     v1.applyInPlace(this, l1, v2, l2)
 }
+
 internal val Map2InPlace.OP: String get() = op
+
 internal fun <T> Map2InPlace.Ok(v: T): T = v
+
 internal fun Map2InPlace.Err(e: CandleException): Nothing = throw e
 
 internal val Map2U8.self: Map2U8 get() = this
-internal fun Map2U8.f(v1: CpuStorage, l1: Layout, v2: CpuStorage, l2: Layout): UByteArray =
-    this.f(v1.asSlice(), l1, v2.asSlice(), l2)
+
+internal fun Map2U8.f(
+    v1: CpuStorage,
+    l1: Layout,
+    v2: CpuStorage,
+    l2: Layout,
+): UByteArray = this.f(v1.asSlice(), l1, v2.asSlice(), l2)
+
 internal val Map2U8.OP: String get() = op
+
 internal fun <T> Map2U8.Ok(v: T): T = v
+
 internal fun Map2U8.Err(e: CandleException): Nothing = throw e
 
 internal object Vec {
     fun <T> new(): VecList<T> = VecList(0)
+
     fun <T> withCapacity(cap: Int): VecList<T> = VecList(cap)
+
     val tryFrom1: (Tensor) -> CandleResult<List<Any?>> = { tensor ->
         CandleResult.Ok(tensor.toVec1<Any?>())
     }
@@ -3189,95 +3741,153 @@ internal object Vec {
         CandleResult.Ok(tensor.toVec3<Any?>())
     }
 }
+
 internal fun <T> List<T>.getUnchecked(i: Int): T = this[i]
 
-internal object bf16 {
+internal object Bf16Const {
     const val ZERO: Short = 0
     val ONE: Short get() = Float16Utils.floatToBF16Bits(1.0f)
 }
 
-internal object f16 {
+internal val bf16: Bf16Const = Bf16Const
+
+internal object F16Const {
     const val ZERO: Short = 0
     val ONE: Short get() = Float16Utils.floatToF16Bits(1.0f)
 }
 
-internal object f8e4m3 {
+internal val f16: F16Const = F16Const
+
+internal object F8e4m3Const {
     const val ZERO: Byte = 0
     const val ONE: Byte = 1
 }
 
+internal val f8e4m3: F8e4m3Const = F8e4m3Const
+
 internal fun panic(msg: String): Nothing = throw IllegalStateException(msg)
 
-internal fun Any.toScalar(): Scalar = when (this) {
-    is UByte -> Scalar.U8(this)
-    is UInt -> Scalar.U32(this)
-    is Short -> Scalar.I16(this)
-    is Int -> Scalar.I32(this)
-    is Long -> Scalar.I64(this)
-    is Float -> Scalar.F32(this)
-    is Double -> Scalar.F64(this)
-    is Byte -> Scalar.F8E4M3(this)
-    is Scalar -> this
-    else -> Scalar.F64(0.0)
-}
+internal fun Any.toScalar(): Scalar =
+    when (this) {
+        is UByte -> Scalar.U8(this)
+        is UInt -> Scalar.U32(this)
+        is Short -> Scalar.I16(this)
+        is Int -> Scalar.I32(this)
+        is Long -> Scalar.I64(this)
+        is Float -> Scalar.F32(this)
+        is Double -> Scalar.F64(this)
+        is Byte -> Scalar.F8E4M3(this)
+        is Scalar -> this
+        else -> Scalar.F64(0.0)
+    }
 
 internal fun Scalar.U8.toDouble(): Double = v.toDouble()
+
 internal fun Scalar.U32.toDouble(): Double = v.toDouble()
+
 internal fun Scalar.I16.toDouble(): Double = v.toDouble()
+
 internal fun Scalar.I32.toDouble(): Double = v.toDouble()
+
 internal fun Scalar.I64.toDouble(): Double = v.toDouble()
+
 internal fun Scalar.F32.toDouble(): Double = v.toDouble()
 
-internal fun <T : Any> Tensor.Companion.new(v: T, dev: Device): CandleResult<Tensor> {
-    val t: Tensor = when (v) {
-        is Tensor -> v
-        is Double -> Tensor.new(doubleArrayOf(v), Shape(), dev)
-        is Float -> Tensor.new(floatArrayOf(v), Shape(), dev)
-        is Int -> Tensor.new(intArrayOf(v), Shape(), dev)
-        is Long -> Tensor.new(longArrayOf(v), Shape(), dev)
-        else -> Tensor.new(doubleArrayOf((v as Number).toDouble()), Shape(), dev)
-    }
+internal fun <T : Any> Tensor.Companion.new(
+    v: T,
+    dev: Device,
+): CandleResult<Tensor> {
+    val t: Tensor =
+        when (v) {
+            is Tensor -> v
+            is Double -> Tensor.new(doubleArrayOf(v), Shape(), dev)
+            is Float -> Tensor.new(floatArrayOf(v), Shape(), dev)
+            is Int -> Tensor.new(intArrayOf(v), Shape(), dev)
+            is Long -> Tensor.new(longArrayOf(v), Shape(), dev)
+            else -> Tensor.new(doubleArrayOf((v as Number).toDouble()), Shape(), dev)
+        }
     return CandleResult.Ok(t)
 }
 
-internal fun <T> MutableList<T>.swap(i: Int, j: Int) {
+internal fun <T> MutableList<T>.swap(
+    i: Int,
+    j: Int,
+) {
     val tmp = this[i]
     this[i] = this[j]
     this[j] = tmp
 }
 
 internal fun Shape.into(): Shape = this
+
 internal fun Shape.clone(): Shape = this
+
 internal fun <T> List<T>.clone(): List<T> = this.toList()
+
 internal fun <T> List<T>.len(): Int = this.size
+
 internal fun <T> List<T>.toVec(): MutableList<T> = this.toMutableList()
+
 internal fun <T> Sequence<T>.rev(): List<T> = this.toList().reversed()
+
 internal fun <T> Sequence<T>.enumerate(): Sequence<IndexedValue<T>> = this.withIndex()
+
 internal fun <T, R> Sequence<T>.zip(other: List<R>): Sequence<Pair<T, R>> = this.zip(other.asSequence())
+
 internal fun IntRange.rev(): IntProgression = this.reversed()
-internal fun Int.toIndex(shape: Shape, op: String): Int =
-    if (this < 0 || this >= shape.dims.size) throw CandleException.DimOutOfRange(shape, this, op) else this
+
+internal fun Int.toIndex(
+    shape: Shape,
+    op: String,
+): Int = if (this < 0 || this >= shape.dims.size) throw CandleException.DimOutOfRange(shape, this, op) else this
+
 internal fun <T> Sequence<T>.skip(n: Int): Sequence<T> = this.drop(n)
-private fun IntArray.iter(): Sequence<Int> = this.asSequence()
+
 internal fun Sequence<Int>.product(): Int = this.fold(1) { acc, v -> acc * v }
-internal fun debugAssert(cond: Boolean, msg: String = "", a: Int = 0, b: Int = 0) {
+
+internal fun debugAssert(
+    cond: Boolean,
+    msg: String = "",
+    a: Int = 0,
+    b: Int = 0,
+) {
     require(cond) { "$msg: $a, $b" }
 }
-internal fun <T> debugAssertEq(a: T, b: T) {
+
+internal fun <T> debugAssertEq(
+    a: T,
+    b: T,
+) {
     require(a == b)
 }
+
 internal fun <T> Some(v: T): T = v
+
 internal fun <T> Iterator<T>.collect(): List<T> = this.asSequence().toList()
+
 internal fun <T> vec(vararg elements: T): List<T> = elements.toList()
+
 internal fun NdIter.nextOrNull(): IntArray? = if (this.hasNext()) this.next() else null
+
 internal fun NdIter.len(): Int = this.remaining
+
 internal fun Layout.Companion.contiguous(): Layout = contiguous(Shape())
+
 internal fun Layout.Companion.contiguous(vararg dims: Int): Layout = contiguous(Shape(*dims))
-internal fun Layout.Companion.contiguousWithOffset(dim: Int, startOffset: Int): Layout =
-    contiguousWithOffset(Shape(dim), startOffset)
+
+internal fun Layout.Companion.contiguousWithOffset(
+    dim: Int,
+    startOffset: Int,
+): Layout = contiguousWithOffset(Shape(dim), startOffset)
+
 internal fun NdIter.Companion.new(vararg layouts: Layout): NdIter = new(layouts.toList())
+
 internal fun IntArray.toVec(): List<Int> = this.toList()
-internal fun assertEq(actual: Any?, expected: Any?) {
+
+internal fun assertEq(
+    actual: Any?,
+    expected: Any?,
+) {
     if (actual is IntArray && expected is IntArray) {
         require(actual.contentEquals(expected))
     } else if (actual is List<*> && expected is List<*> && actual.size == expected.size &&
@@ -3290,37 +3900,82 @@ internal fun assertEq(actual: Any?, expected: Any?) {
 }
 
 internal fun Int.into(): Shape = Shape(listOf(this))
-internal fun Pair<Int, Int>.into(): Shape = Shape(listOf(first, second))
-internal fun Triple<Int, Int, Int>.into(): Shape = Shape(listOf(first, second, third))
-internal fun List<Int>.into(): Shape = Shape(this)
-internal fun <D> D.toIndex(shape: Shape, op: String): Int = when (this) {
-    is Dim -> this.toIndex(shape, op)
-    is Int -> Shape.toIndex(this, shape, op)
-    else -> Shape.toIndex(0, shape, op)
-}
-internal fun List<Int>.scan(init: Int, f: (IntArray, Int) -> Int): Sequence<Int> = sequence {
-    val state = intArrayOf(init)
-    for (u in this@scan) {
-        yield(f(state, u))
-    }
-}
-internal fun <T> Sequence<T>.collect(): MutableList<T> = this.toMutableList()
-internal fun <T> List<T>.extend(other: List<T>): List<T> = this + other
-internal fun Int.isMultipleOf(other: Int): Boolean = this % other == 0
-internal fun write(f: String, fmt: String, v: Any?): String = if (fmt.isEmpty()) f else f + v.toString()
-internal fun write(f: Formatter, fmt: String, v: Any?): CandleResult<Unit> =
-    if (fmt.isEmpty() && v == null) CandleResult.Ok(Unit) else CandleResult.Ok(Unit)
-internal fun <T> List<List<T>>.concat(): List<T> = this.flatten()
-internal fun Shape.Companion.Self(dims: List<Int>, u: Unit): Shape = if (u == Unit) Shape(dims) else Shape(dims)
-internal fun Ok(): Unit = Unit
-internal fun <T> Ok(v: T): T = v
-internal fun <T> Ok(v: T, a: Any?): T = if (a == null) v else v
-internal fun <T> Ok(v: T, a: Any?, b: Any?): T = if (a == null && b == null) v else v
-internal fun Array<Int>.toVec(): List<Int> = this.toList()
-internal val <T> WithDType<T>.self: WithDType<T> get() = this
-internal annotation class Test
-internal fun assertEquals(expected: Any?, actual: Any?) = assertEq(actual, expected)
 
+internal fun Pair<Int, Int>.into(): Shape = Shape(listOf(first, second))
+
+internal fun Triple<Int, Int, Int>.into(): Shape = Shape(listOf(first, second, third))
+
+internal fun List<Int>.into(): Shape = Shape(this)
+
+internal fun <D> D.toIndex(
+    shape: Shape,
+    op: String,
+): Int =
+    when (this) {
+        is Dim -> this.toIndex(shape, op)
+        is Int -> Shape.toIndex(this, shape, op)
+        else -> Shape.toIndex(0, shape, op)
+    }
+
+internal fun List<Int>.scan(
+    init: Int,
+    f: (IntArray, Int) -> Int,
+): Sequence<Int> =
+    sequence {
+        val state = intArrayOf(init)
+        for (u in this@scan) {
+            yield(f(state, u))
+        }
+    }
+
+internal fun <T> Sequence<T>.collect(): MutableList<T> = this.toMutableList()
+
+internal fun <T> List<T>.extend(other: List<T>): List<T> = this + other
+
+internal fun Int.isMultipleOf(other: Int): Boolean = this % other == 0
+
+internal fun write(
+    f: String,
+    fmt: String,
+    v: Any?,
+): String = if (fmt.isEmpty()) f else f + v.toString()
+
+internal fun write(
+    f: Formatter,
+    fmt: String,
+    v: Any?,
+): CandleResult<Unit> = if (fmt.isEmpty() && v == null) CandleResult.Ok(Unit) else CandleResult.Ok(Unit)
+
+internal fun <T> List<List<T>>.concat(): List<T> = this.flatten()
+
+internal fun Shape.Companion.Self(
+    dims: List<Int>,
+    u: Unit,
+): Shape = if (u == Unit) Shape(dims) else Shape(dims)
+
+internal fun Ok(): Unit = Unit
+
+internal fun <T> Ok(v: T): T = v
+
+internal fun <T> Ok(
+    v: T,
+    a: Any?,
+): T = if (a == null) v else v
+
+internal fun <T> Ok(
+    v: T,
+    a: Any?,
+    b: Any?,
+): T = if (a == null && b == null) v else v
+
+internal val <T> WithDType<T>.self: WithDType<T> get() = this
+
+internal annotation class Test
+
+internal fun assertEquals(
+    expected: Any?,
+    actual: Any?,
+) = assertEq(actual, expected)
 
 internal val DType.Companion.U8: DType get() = DType.U8
 internal val DType.Companion.U32: DType get() = DType.U32
@@ -3336,4 +3991,3 @@ internal val DType.Companion.F6E2M3: DType get() = DType.F6E2M3
 internal val DType.Companion.F6E3M2: DType get() = DType.F6E3M2
 internal val DType.Companion.F4: DType get() = DType.F4
 internal val DType.Companion.F8E8M0: DType get() = DType.F8E8M0
-

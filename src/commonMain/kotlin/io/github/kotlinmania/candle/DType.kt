@@ -17,30 +17,43 @@ public enum class DType(
 ) {
     // Unsigned 8 bits integer.
     U8("u8", 1),
+
     // Unsigned 32 bits integer.
     U32("u32", 4),
+
     // Signed 16 bits integer.
     I16("i16", 2),
+
     // Signed 32 bits integer.
     I32("i32", 4),
+
     // Signed 64 bits integer.
     I64("i64", 8),
+
     // Brain floating-point using half precision (16 bits).
     BF16("bf16", 2),
+
     // Floating-point using half precision (16 bits).
     F16("f16", 2),
+
     // Floating-point using single precision (32 bits).
     F32("f32", 4),
+
     // Floating-point using double precision (64 bits).
     F64("f64", 8),
+
     // 8-bit floating point with 4-bit exponent and 3-bit mantissa.
     F8E4M3("f8e4m3", 1),
+
     /** 6-bit float with 2 exponent bits and 3 mantissa bits (MX6 format) */
     F6E2M3("f6e2m3", 0),
+
     /** 6-bit float with 3 exponent bits and 2 mantissa bits (MX6 format) */
     F6E3M2("f6e3m2", 0),
+
     /** 4-bit float (MX4 format) */
     F4("f4", 0),
+
     /** 8-bit float with 8 exponent bits and 0 mantissa bits */
     F8E8M0("f8e8m0", 1),
     ;
@@ -49,10 +62,11 @@ public enum class DType(
 
     public companion object {
         public val Self: Companion get() = this
+
         public interface Err
 
-        public fun fromStr(s: String): CandleResult<DType> {
-            return when (s) {
+        public fun fromStr(s: String): CandleResult<DType> =
+            when (s) {
                 "u8" -> Ok(Self.U8)
                 "u32" -> Ok(Self.U32)
                 "i16" -> Ok(Self.I16)
@@ -69,7 +83,6 @@ public enum class DType(
                 "f8e8m0" -> Ok(Self.F8E8M0)
                 else -> Err(DTypeParseError(s))
             }
-        }
 
         public val fromString: (String) -> DType = { s ->
             fromStr(s.lowercase()).getOrThrow()
@@ -79,8 +92,8 @@ public enum class DType(
     /**
      * String representation for dtypes.
      */
-    public fun asStr(): String {
-        return when (self) {
+    public fun asStr(): String =
+        when (self) {
             U8 -> "u8"
             U32 -> "u32"
             I16 -> "i16"
@@ -96,33 +109,48 @@ public enum class DType(
             F4 -> "f4"
             F8E8M0 -> "f8e8m0"
         }
-    }
 
     /**
      * The size used by each element in bytes, i.e. 1 for `U8`, 4 for `F32`.
      */
-    public fun sizeInBytes(): Int {
-        return when (self) {
+    public fun sizeInBytes(): Int =
+        when (self) {
             U8 -> 1
+
             U32 -> 4
+
             I16 -> 2
+
             I32 -> 4
+
             I64 -> 8
+
             BF16 -> 2
+
             F16 -> 2
+
             F32 -> 4
+
             F64 -> 8
+
             F8E4M3 -> 1
-            F6E2M3 -> 0 // 6 bits
-            F6E3M2 -> 0 // 6 bits
-            F4 -> 0     // 4 bits
+
+            F6E2M3 -> 0
+
+            // 6 bits
+            F6E3M2 -> 0
+
+            // 6 bits
+            F4 -> 0
+
+            // 4 bits
             F8E8M0 -> 1
         }
-    }
 
     public fun isInt(): Boolean =
         when (self) {
             U8, U32, I16, I32, I64 -> true
+
             BF16,
             F16,
             F32,
@@ -131,13 +159,14 @@ public enum class DType(
             F6E2M3,
             F6E3M2,
             F4,
-            F8E8M0
+            F8E8M0,
             -> false
         }
 
     public fun isFloat(): Boolean =
         when (self) {
             U8, U32, I16, I32, I64 -> false
+
             BF16,
             F16,
             F32,
@@ -146,83 +175,73 @@ public enum class DType(
             F6E2M3,
             F6E3M2,
             F4,
-            F8E8M0
+            F8E8M0,
             -> true
         }
 }
 
-public class DTypeParseError(public val raw: String) : Exception("cannot parse '$raw' as a dtype") {
+public class DTypeParseError(
+    public val raw: String,
+) : Exception("cannot parse '$raw' as a dtype") {
     private val self: String get() = raw
 
-    public fun fmt(f: Formatter): CandleResult<Unit> {
-        return write(f, "cannot parse '{}' as a dtype", self)
-    }
+    public fun fmt(f: Formatter): CandleResult<Unit> = write(f, "cannot parse '{}' as a dtype", self)
 }
 
 public interface WithDType<T> {
     public val dtype: DType
+
     public fun fromF64(v: Double): T
+
     public fun toF64(v: T): Double
+
     public fun toScalar(v: T): Scalar
+
     public fun cpuStorageRef(data: List<T>): CpuStorageRef
+
     public fun toCpuStorageOwned(data: List<T>): CpuStorage
 
-    public fun toCpuStorage(data: List<T>): CpuStorage {
-        return self.toCpuStorageOwned(data.toVec())
-    }
+    public fun toCpuStorage(data: List<T>): CpuStorage = self.toCpuStorageOwned(data.toVec())
 
     public fun cpuStorageAsSlice(s: CpuStorage): CandleResult<List<T>>
+
     public fun cpuStorageData(s: CpuStorage): CandleResult<List<T>>
 }
 
 public interface IntDType<T> {
     public fun isTrue(v: T): Boolean
+
     public fun asUsize(v: T): Int
 }
 
 public object IntDTypeI64 : IntDType<Int> {
-    override fun isTrue(v: Int): Boolean {
-        return v != 0
-    }
-    override fun asUsize(v: Int): Int {
-        return v
-    }
+    override fun isTrue(v: Int): Boolean = v != 0
+
+    override fun asUsize(v: Int): Int = v
 }
 
 public object IntDTypeU32 : IntDType<Int> {
-    override fun isTrue(v: Int): Boolean {
-        return v != 0
-    }
-    override fun asUsize(v: Int): Int {
-        return v
-    }
+    override fun isTrue(v: Int): Boolean = v != 0
+
+    override fun asUsize(v: Int): Int = v
 }
 
 public object IntDTypeU8 : IntDType<Int> {
-    override fun isTrue(v: Int): Boolean {
-        return v != 0
-    }
-    override fun asUsize(v: Int): Int {
-        return v
-    }
+    override fun isTrue(v: Int): Boolean = v != 0
+
+    override fun asUsize(v: Int): Int = v
 }
 
 public object IntDTypeI16 : IntDType<Int> {
-    override fun isTrue(v: Int): Boolean {
-        return v != 0
-    }
-    override fun asUsize(v: Int): Int {
-        return v
-    }
+    override fun isTrue(v: Int): Boolean = v != 0
+
+    override fun asUsize(v: Int): Int = v
 }
 
 public object IntDTypeI32 : IntDType<Int> {
-    override fun isTrue(v: Int): Boolean {
-        return v != 0
-    }
-    override fun asUsize(v: Int): Int {
-        return v
-    }
+    override fun isTrue(v: Int): Boolean = v != 0
+
+    override fun asUsize(v: Int): Int = v
 }
 
 public interface FloatDType<T> : WithDType<T>
@@ -304,4 +323,3 @@ public object Float16Utils {
         Float.fromBits(fbits)
     }
 }
-

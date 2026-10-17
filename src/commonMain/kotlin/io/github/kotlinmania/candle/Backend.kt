@@ -13,17 +13,39 @@ public interface BackendStorage {
 
     public fun toCpuStorage(): CpuStorage
 
-    public fun affine(layout: Layout, mul: Double, add: Double): BackendStorage
+    public fun affine(
+        layout: Layout,
+        mul: Double,
+        add: Double,
+    ): BackendStorage
 
-    public fun powf(layout: Layout, e: Double): BackendStorage
+    public fun powf(
+        layout: Layout,
+        e: Double,
+    ): BackendStorage
 
-    public fun elu(layout: Layout, alpha: Double): BackendStorage
+    public fun elu(
+        layout: Layout,
+        alpha: Double,
+    ): BackendStorage
 
-    public fun reduceOp(op: ReduceOp, layout: Layout, dims: List<Int>): BackendStorage
+    public fun reduceOp(
+        op: ReduceOp,
+        layout: Layout,
+        dims: List<Int>,
+    ): BackendStorage
 
-    public fun cmp(op: CmpOp, rhs: BackendStorage, lhsL: Layout, rhsL: Layout): BackendStorage
+    public fun cmp(
+        op: CmpOp,
+        rhs: BackendStorage,
+        lhsL: Layout,
+        rhsL: Layout,
+    ): BackendStorage
 
-    public fun toDtype(layout: Layout, targetDType: DType): BackendStorage
+    public fun toDtype(
+        layout: Layout,
+        targetDType: DType,
+    ): BackendStorage
 
     public fun whereCond(
         layout: Layout,
@@ -61,13 +83,28 @@ public interface BackendStorage {
         params: ParamsConvTranspose2D,
     ): BackendStorage
 
-    public fun avgPool2d(l: Layout, kernelSize: Pair<Int, Int>, stride: Pair<Int, Int>): BackendStorage
+    public fun avgPool2d(
+        l: Layout,
+        kernelSize: Pair<Int, Int>,
+        stride: Pair<Int, Int>,
+    ): BackendStorage
 
-    public fun maxPool2d(l: Layout, kernelSize: Pair<Int, Int>, stride: Pair<Int, Int>): BackendStorage
+    public fun maxPool2d(
+        l: Layout,
+        kernelSize: Pair<Int, Int>,
+        stride: Pair<Int, Int>,
+    ): BackendStorage
 
-    public fun upsampleNearest1d(l: Layout, targetSize: Int): BackendStorage
+    public fun upsampleNearest1d(
+        l: Layout,
+        targetSize: Int,
+    ): BackendStorage
 
-    public fun upsampleNearest2d(l: Layout, targetH: Int, targetW: Int): BackendStorage
+    public fun upsampleNearest2d(
+        l: Layout,
+        targetH: Int,
+        targetW: Int,
+    ): BackendStorage
 
     public fun upsampleBilinear2d(
         l: Layout,
@@ -78,7 +115,12 @@ public interface BackendStorage {
         scaleW: Double? = null,
     ): BackendStorage
 
-    public fun gather(l: Layout, indexes: BackendStorage, indexesL: Layout, dim: Int): BackendStorage
+    public fun gather(
+        l: Layout,
+        indexes: BackendStorage,
+        indexesL: Layout,
+        dim: Int,
+    ): BackendStorage
 
     public fun scatterSet(
         l: Layout,
@@ -98,7 +140,12 @@ public interface BackendStorage {
         dim: Int,
     )
 
-    public fun indexSelect(rhs: BackendStorage, lhsL: Layout, rhsL: Layout, dim: Int): BackendStorage
+    public fun indexSelect(
+        rhs: BackendStorage,
+        lhsL: Layout,
+        rhsL: Layout,
+        dim: Int,
+    ): BackendStorage
 
     public fun indexAdd(
         l: Layout,
@@ -116,7 +163,11 @@ public interface BackendStorage {
         rhsL: Layout,
     ): BackendStorage
 
-    public fun copyStridedSrc(dst: BackendStorage, dstOffset: Int, srcLayout: Layout)
+    public fun copyStridedSrc(
+        dst: BackendStorage,
+        dstOffset: Int,
+        srcLayout: Layout,
+    )
 
     public fun copy2d(
         dst: BackendStorage,
@@ -128,7 +179,10 @@ public interface BackendStorage {
         dstOffset: Int,
     )
 
-    public fun constSet(v: Scalar, l: Layout)
+    public fun constSet(
+        v: Scalar,
+        l: Layout,
+    )
 }
 
 public interface BackendDevice {
@@ -136,7 +190,10 @@ public interface BackendDevice {
 
     public fun sameDevice(other: BackendDevice): Boolean
 
-    public fun zerosImpl(shape: Shape, dtype: DType): BackendStorage
+    public fun zerosImpl(
+        shape: Shape,
+        dtype: DType,
+    ): BackendStorage
 
     /**
      * # Safety
@@ -144,15 +201,28 @@ public interface BackendDevice {
      * The caller should ensure that the data is properly initialized as early as possible
      * after this call.
      */
-    public fun allocUninit(shape: Shape, dtype: DType): BackendStorage
+    public fun allocUninit(
+        shape: Shape,
+        dtype: DType,
+    ): BackendStorage
 
     public fun storageFromCpuStorage(storage: CpuStorage): BackendStorage
 
     public fun storageFromCpuStorageOwned(storage: CpuStorage): BackendStorage
 
-    public fun randUniform(shape: Shape, dtype: DType, min: Double, max: Double): BackendStorage
+    public fun randUniform(
+        shape: Shape,
+        dtype: DType,
+        min: Double,
+        max: Double,
+    ): BackendStorage
 
-    public fun randNormal(shape: Shape, dtype: DType, mean: Double, std: Double): BackendStorage
+    public fun randNormal(
+        shape: Shape,
+        dtype: DType,
+        mean: Double,
+        std: Double,
+    ): BackendStorage
 
     public fun setSeed(seed: Long)
 

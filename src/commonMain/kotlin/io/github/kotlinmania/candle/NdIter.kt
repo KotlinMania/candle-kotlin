@@ -43,7 +43,7 @@ public class NdIter internal constructor(
     public val outerLen: Int,
     private val offsets: IntArray,
     private val coords: IntArray,
-    public var remaining: Int
+    public var remaining: Int,
 ) : Iterator<IntArray> {
     public constructor(layouts: List<Layout>) : this(new(layouts))
     public constructor(vararg layouts: Layout) : this(new(layouts.toList()))
@@ -55,7 +55,7 @@ public class NdIter internal constructor(
         other.outerLen,
         other.offsets,
         other.coords,
-        other.remaining
+        other.remaining,
     )
 
     public val n: Int = innerStrides.size
@@ -92,19 +92,24 @@ public class NdIter internal constructor(
                 }
                 outLen = 1
 
-                for ((i, d) in dims.iter().enumerate().take(rank).drop(1)) {
+                for ((i, d) in dims
+                    .iter()
+                    .enumerate()
+                    .take(rank)
+                    .drop(1)) {
                     val top = outLen - 1
                     val lastD = outDims[top]
 
-                    val (canMerge, useInner) = if (lastD == 1) {
-                        Pair(true, true)
-                    } else if (d == 1) {
-                        Pair(true, false)
-                    } else {
-                        val canMerge =
-                            (0 until N).all { n -> outStrides[n][top] == layouts[n].stride()[i] * d }
-                        Pair(canMerge, true)
-                    }
+                    val (canMerge, useInner) =
+                        if (lastD == 1) {
+                            Pair(true, true)
+                        } else if (d == 1) {
+                            Pair(true, false)
+                        } else {
+                            val canMerge =
+                                (0 until N).all { n -> outStrides[n][top] == layouts[n].stride()[i] * d }
+                            Pair(canMerge, true)
+                        }
                     if (canMerge) {
                         outDims[top] = lastD * d
                         if (useInner) {
@@ -189,7 +194,5 @@ public class NdIter internal constructor(
         return Some(item)
     }
 
-    public fun sizeHint(): Pair<Int, Int?> {
-        return Pair(self.remaining, Some(self.remaining))
-    }
+    public fun sizeHint(): Pair<Int, Int?> = Pair(self.remaining, Some(self.remaining))
 }

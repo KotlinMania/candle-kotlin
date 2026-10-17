@@ -5,10 +5,11 @@ import io.github.kotlinmania.threadlocal.ThreadLocal
 
 private val ByteArray.len: () -> Int get() = { this.size }
 private val ByteArray.asPtr: () -> Int get() = { this.size }
-private inline fun Tensor.unwrapOrElse(f: (CandleException) -> Tensor): Tensor = this
-private inline fun Int.unwrapOrElse(f: (CandleException) -> Int): Int = this
 
-internal fun asTSlice(data: ByteArray, companion: Any? = null): List<Any> {
+internal fun asTSlice(
+    data: ByteArray,
+    companion: Any? = null,
+): List<Any> {
     val size = QuantizedHelper.sizeOf(companion)
     check(
         data.len() % size == 0,
@@ -24,16 +25,21 @@ internal fun asTSlice(data: ByteArray, companion: Any? = null): List<Any> {
     return QuantizedHelper.fromRawParts(ptr, data.len() / size, data, companion)
 }
 
-internal fun Device.qzeros(elemCount: Int, dtype: GgmlDType): CandleResult<QStorage> {
+internal fun Device.qzeros(
+    elemCount: Int,
+    dtype: GgmlDType,
+): CandleResult<QStorage> {
     return when (val self = this) {
         is Device.Cpu -> {
             val storage = dtype.cpuZeros(elemCount)
             CandleResult.Ok(QStorage.Cpu(storage))
         }
+
         is Device.Metal -> {
             val storage = QMetalStorage.zeros(self.device, elemCount, dtype).unwrapOrElse { return CandleResult.Err(it) }
             CandleResult.Ok(QStorage.Metal(storage))
         }
+
         is Device.Cuda -> {
             val storage = QCudaStorage.zeros(self.device, elemCount, dtype).unwrapOrElse { return CandleResult.Err(it) }
             CandleResult.Ok(QStorage.Cuda(storage))
@@ -44,50 +50,63 @@ internal fun Device.qzeros(elemCount: Int, dtype: GgmlDType): CandleResult<QStor
 sealed class QStorage {
     private val self: QStorage get() = this
 
-    data class Cpu(val storage: QuantizedType) : QStorage()
-    data class Metal(val storage: QMetalStorage) : QStorage()
-    data class Cuda(val storage: QCudaStorage) : QStorage()
+    data class Cpu(
+        val storage: QuantizedType,
+    ) : QStorage()
 
-    fun blockSize(): Int {
-        return when (self) {
+    data class Metal(
+        val storage: QMetalStorage,
+    ) : QStorage()
+
+    data class Cuda(
+        val storage: QCudaStorage,
+    ) : QStorage()
+
+    fun blockSize(): Int =
+        when (self) {
             is Cpu -> (this as Cpu).storage.blockSize()
             is Metal -> (this as Metal).storage.dtype().blockSize()
             is Cuda -> (this as Cuda).storage.dtype().blockSize()
         }
-    }
 
-    fun dtype(): GgmlDType {
-        return when (self) {
+    fun dtype(): GgmlDType =
+        when (self) {
             is Cpu -> (this as Cpu).storage.dtype()
             is Metal -> (this as Metal).storage.dtype()
             is Cuda -> (this as Cuda).storage.dtype()
         }
-    }
 
-    fun device(): Device {
-        return when (self) {
+    fun device(): Device =
+        when (self) {
             is Cpu -> Device.Cpu
             is Metal -> Device.Metal((this as Metal).storage.device())
             is Cuda -> Device.Cuda((this as Cuda).storage.device())
         }
-    }
 
-    fun sizeInBytes(): Int {
-        return when (self) {
+    fun sizeInBytes(): Int =
+        when (self) {
             is Cpu -> (this as Cpu).storage.storageSizeInBytes()
             is Metal -> (this as Metal).storage.storageSizeInBytes()
             is Cuda -> (this as Cuda).storage.storageSizeInBytes()
         }
-    }
 
     fun quantize(src: Storage): CandleResult<Unit> {
         when {
             self is Cpu && src is Storage.Cpu -> {
                 (this as Cpu).storage.fromFloat(QuantizedHelper.asSliceF32(src.storage).unwrapOrElse { return CandleResult.Err(it) })
             }
-            self is Metal && src is Storage.Metal -> (this as Metal).storage.quantize(src.storage).unwrapOrElse { return CandleResult.Err(it) }
-            self is Cuda && src is Storage.Cuda -> (this as Cuda).storage.quantize(src.storage).unwrapOrElse { return CandleResult.Err(it) }
-            else -> return CandleResult.Err(CandleError.Msg("Invalid quantize storage locations do not match").bt())
+
+            self is Metal && src is Storage.Metal -> {
+                (this as Metal).storage.quantize(src.storage).unwrapOrElse { return CandleResult.Err(it) }
+            }
+
+            self is Cuda && src is Storage.Cuda -> {
+                (this as Cuda).storage.quantize(src.storage).unwrapOrElse { return CandleResult.Err(it) }
+            }
+
+            else -> {
+                return CandleResult.Err(CandleError.Msg("Invalid quantize storage locations do not match").bt())
+            }
         }
         return CandleResult.Ok(Unit)
     }
@@ -105,10 +124,18 @@ sealed class QStorage {
                     nPerRow,
                 )
             }
-            self is Metal && src is Storage.Metal ->
+
+            self is Metal && src is Storage.Metal -> {
                 (this as Metal).storage.quantizeImatrix(src.storage, imatrixWeights, nPerRow).unwrapOrElse { return CandleResult.Err(it) }
-            self is Cuda && src is Storage.Cuda -> (this as Cuda).storage.quantizeImatrix(src.storage, imatrixWeights, nPerRow).unwrapOrElse { return CandleResult.Err(it) }
-            else -> return CandleResult.Err(CandleError.Msg("Invalid quantize storage locations do not match").bt())
+            }
+
+            self is Cuda && src is Storage.Cuda -> {
+                (this as Cuda).storage.quantizeImatrix(src.storage, imatrixWeights, nPerRow).unwrapOrElse { return CandleResult.Err(it) }
+            }
+
+            else -> {
+                return CandleResult.Err(CandleError.Msg("Invalid quantize storage locations do not match").bt())
+            }
         }
         return CandleResult.Ok(Unit)
     }
@@ -118,9 +145,18 @@ sealed class QStorage {
             self is Cpu && src is Storage.Cpu -> {
                 (this as Cpu).storage.fromFloat(QuantizedHelper.asSliceF32(src.storage).unwrapOrElse { return CandleResult.Err(it) })
             }
-            self is Metal && src is Storage.Cpu -> (this as Metal).storage.quantizeOnto(src.storage).unwrapOrElse { return CandleResult.Err(it) }
-            self is Cuda && src is Storage.Cpu -> (this as Cuda).storage.quantizeOnto(src.storage).unwrapOrElse { return CandleResult.Err(it) }
-            else -> return CandleResult.Err(CandleError.Msg("Invalid quantize source storage locations: not on cpu").bt())
+
+            self is Metal && src is Storage.Cpu -> {
+                (this as Metal).storage.quantizeOnto(src.storage).unwrapOrElse { return CandleResult.Err(it) }
+            }
+
+            self is Cuda && src is Storage.Cpu -> {
+                (this as Cuda).storage.quantizeOnto(src.storage).unwrapOrElse { return CandleResult.Err(it) }
+            }
+
+            else -> {
+                return CandleResult.Err(CandleError.Msg("Invalid quantize source storage locations: not on cpu").bt())
+            }
         }
         return CandleResult.Ok(Unit)
     }
@@ -138,19 +174,51 @@ sealed class QStorage {
                     nPerRow,
                 )
             }
-            self is Metal && src is Storage.Cpu ->
-                (this as Metal).storage.quantizeImatrixOnto(src.storage, imatrixWeights, nPerRow).unwrapOrElse { return CandleResult.Err(it) }
-            self is Cuda && src is Storage.Cpu -> (this as Cuda).storage.quantizeImatrixOnto(src.storage, imatrixWeights, nPerRow).unwrapOrElse { return CandleResult.Err(it) }
-            else -> return CandleResult.Err(CandleError.Msg("Invalid quantize storage locations do not match").bt())
+
+            self is Metal && src is Storage.Cpu -> {
+                (this as Metal)
+                    .storage
+                    .quantizeImatrixOnto(
+                        src.storage,
+                        imatrixWeights,
+                        nPerRow,
+                    ).unwrapOrElse { return CandleResult.Err(it) }
+            }
+
+            self is Cuda && src is Storage.Cpu -> {
+                (this as Cuda)
+                    .storage
+                    .quantizeImatrixOnto(
+                        src.storage,
+                        imatrixWeights,
+                        nPerRow,
+                    ).unwrapOrElse { return CandleResult.Err(it) }
+            }
+
+            else -> {
+                return CandleResult.Err(CandleError.Msg("Invalid quantize storage locations do not match").bt())
+            }
         }
         return CandleResult.Ok(Unit)
     }
 
     fun dequantize(elemCount: Int): CandleResult<Storage> {
         return when (self) {
-            is Cpu -> CandleResult.Ok(Storage.Cpu((this as Cpu).storage.dequantize(elemCount).unwrapOrElse { return CandleResult.Err(it) }))
-            is Metal -> CandleResult.Ok(Storage.Metal((this as Metal).storage.dequantize(elemCount).unwrapOrElse { return CandleResult.Err(it) }))
-            is Cuda -> CandleResult.Ok(Storage.Cuda((this as Cuda).storage.dequantize(elemCount).unwrapOrElse { return CandleResult.Err(it) }))
+            is Cpu -> {
+                CandleResult.Ok(Storage.Cpu((this as Cpu).storage.dequantize(elemCount).unwrapOrElse { return CandleResult.Err(it) }))
+            }
+
+            is Metal -> {
+                CandleResult.Ok(
+                    Storage.Metal((this as Metal).storage.dequantize(elemCount).unwrapOrElse { return CandleResult.Err(it) }),
+                )
+            }
+
+            is Cuda -> {
+                CandleResult.Ok(
+                    Storage.Cuda((this as Cuda).storage.dequantize(elemCount).unwrapOrElse { return CandleResult.Err(it) }),
+                )
+            }
         }
     }
 
@@ -163,76 +231,100 @@ sealed class QStorage {
                 val data = QuantizedHelper.cowFromParts(dataPtr, sizeInBytes)
                 CandleResult.Ok(QuantizedHelper.cowFrom(data))
             }
-            is Cuda -> CandleResult.Ok(QuantizedHelper.cowFrom((this as Cuda).storage.data().unwrapOrElse { return CandleResult.Err(it) }))
-            is Metal -> CandleResult.Ok(QuantizedHelper.cowFrom((this as Metal).storage.data().unwrapOrElse { return CandleResult.Err(it) }))
-        }
-    }
 
-    fun devicePtr(): CandleResult<Long> {
-        return when (self) {
-            is Cuda -> (this as Cuda).storage.devicePtr()
-            is Metal, is Cpu -> {
-                CandleResult.Err(CandleError.Msg("not implemented").bt())
+            is Cuda -> {
+                CandleResult.Ok(QuantizedHelper.cowFrom((this as Cuda).storage.data().unwrapOrElse { return CandleResult.Err(it) }))
+            }
+
+            is Metal -> {
+                CandleResult.Ok(QuantizedHelper.cowFrom((this as Metal).storage.data().unwrapOrElse { return CandleResult.Err(it) }))
             }
         }
     }
 
-    fun devicePtrWithGuard(
-        stream: Long,
-    ): CandleResult<
-        Pair<Long,
-            Long
-        >
-    > {
-        return when (self) {
-            is Cuda -> QuantizedHelper.devicePtrWithGuard((this as Cuda).storage, stream)
+    fun devicePtr(): CandleResult<Long> =
+        when (self) {
+            is Cuda -> {
+                (this as Cuda).storage.devicePtr()
+            }
+
             is Metal, is Cpu -> {
                 CandleResult.Err(CandleError.Msg("not implemented").bt())
             }
         }
-    }
+
+    fun devicePtrWithGuard(stream: Long): CandleResult<
+        Pair<
+            Long,
+            Long,
+        >,
+    > =
+        when (self) {
+            is Cuda -> {
+                QuantizedHelper.devicePtrWithGuard((this as Cuda).storage, stream)
+            }
+
+            is Metal, is Cpu -> {
+                CandleResult.Err(CandleError.Msg("not implemented").bt())
+            }
+        }
 
     companion object {
-        fun zeros(device: Device, elemCount: Int, dtype: GgmlDType): CandleResult<QStorage> =
-            device.qzeros(elemCount, dtype)
+        fun zeros(
+            device: Device,
+            elemCount: Int,
+            dtype: GgmlDType,
+        ): CandleResult<QStorage> = device.qzeros(elemCount, dtype)
 
-        fun fromData(data: ByteArray, device: Device, dtype: GgmlDType): CandleResult<QStorage> {
+        fun fromData(
+            data: ByteArray,
+            device: Device,
+            dtype: GgmlDType,
+        ): CandleResult<QStorage> {
             val rawData = data
             return when (device) {
-                is Device.Cpu -> CandleResult.Ok(Cpu(dtype.fromData(QuantizedHelper.cowBorrowed(rawData))))
-                is Device.Metal -> when (dtype) {
-                    GgmlDType.F32 -> loadQuantized(device.device, asTSlice(rawData, F32GgmlType))
-                    GgmlDType.F16 -> loadQuantized(device.device, asTSlice(rawData, F16))
-                    GgmlDType.Q4_0 -> loadQuantized(device.device, asTSlice(rawData, BlockQ40))
-                    GgmlDType.Q4_1 -> loadQuantized(device.device, asTSlice(rawData, BlockQ41))
-                    GgmlDType.Q5_0 -> loadQuantized(device.device, asTSlice(rawData, BlockQ50))
-                    GgmlDType.Q5_1 -> loadQuantized(device.device, asTSlice(rawData, BlockQ51))
-                    GgmlDType.Q8_0 -> loadQuantized(device.device, asTSlice(rawData, BlockQ80))
-                    GgmlDType.Q8_1 -> loadQuantized(device.device, asTSlice(rawData, BlockQ81))
-                    GgmlDType.Q2K -> loadQuantized(device.device, asTSlice(rawData, BlockQ2K))
-                    GgmlDType.Q3K -> loadQuantized(device.device, asTSlice(rawData, BlockQ3K))
-                    GgmlDType.Q4K -> loadQuantized(device.device, asTSlice(rawData, BlockQ4K))
-                    GgmlDType.Q5K -> loadQuantized(device.device, asTSlice(rawData, BlockQ5K))
-                    GgmlDType.Q6K -> loadQuantized(device.device, asTSlice(rawData, BlockQ6K))
-                    GgmlDType.Q8K -> loadQuantized(device.device, asTSlice(rawData, BlockQ8K))
-                    GgmlDType.BF16 -> loadQuantized(device.device, asTSlice(rawData, BF16))
+                is Device.Cpu -> {
+                    CandleResult.Ok(Cpu(dtype.fromData(QuantizedHelper.cowBorrowed(rawData))))
                 }
-                is Device.Cuda -> when (dtype) {
-                    GgmlDType.F32 -> loadQuantized(device.device, asTSlice(rawData, F32GgmlType))
-                    GgmlDType.F16 -> loadQuantized(device.device, asTSlice(rawData, F16))
-                    GgmlDType.Q4_0 -> loadQuantized(device.device, asTSlice(rawData, BlockQ40))
-                    GgmlDType.Q4_1 -> loadQuantized(device.device, asTSlice(rawData, BlockQ41))
-                    GgmlDType.Q5_0 -> loadQuantized(device.device, asTSlice(rawData, BlockQ50))
-                    GgmlDType.Q5_1 -> loadQuantized(device.device, asTSlice(rawData, BlockQ51))
-                    GgmlDType.Q8_0 -> loadQuantized(device.device, asTSlice(rawData, BlockQ80))
-                    GgmlDType.Q8_1 -> loadQuantized(device.device, asTSlice(rawData, BlockQ81))
-                    GgmlDType.Q2K -> loadQuantized(device.device, asTSlice(rawData, BlockQ2K))
-                    GgmlDType.Q3K -> loadQuantized(device.device, asTSlice(rawData, BlockQ3K))
-                    GgmlDType.Q4K -> loadQuantized(device.device, asTSlice(rawData, BlockQ4K))
-                    GgmlDType.Q5K -> loadQuantized(device.device, asTSlice(rawData, BlockQ5K))
-                    GgmlDType.Q6K -> loadQuantized(device.device, asTSlice(rawData, BlockQ6K))
-                    GgmlDType.Q8K -> loadQuantized(device.device, asTSlice(rawData, BlockQ8K))
-                    GgmlDType.BF16 -> loadQuantized(device.device, asTSlice(rawData, BF16))
+
+                is Device.Metal -> {
+                    when (dtype) {
+                        GgmlDType.F32 -> loadQuantized(device.device, asTSlice(rawData, F32GgmlType))
+                        GgmlDType.F16 -> loadQuantized(device.device, asTSlice(rawData, F16))
+                        GgmlDType.Q4_0 -> loadQuantized(device.device, asTSlice(rawData, BlockQ40))
+                        GgmlDType.Q4_1 -> loadQuantized(device.device, asTSlice(rawData, BlockQ41))
+                        GgmlDType.Q5_0 -> loadQuantized(device.device, asTSlice(rawData, BlockQ50))
+                        GgmlDType.Q5_1 -> loadQuantized(device.device, asTSlice(rawData, BlockQ51))
+                        GgmlDType.Q8_0 -> loadQuantized(device.device, asTSlice(rawData, BlockQ80))
+                        GgmlDType.Q8_1 -> loadQuantized(device.device, asTSlice(rawData, BlockQ81))
+                        GgmlDType.Q2K -> loadQuantized(device.device, asTSlice(rawData, BlockQ2K))
+                        GgmlDType.Q3K -> loadQuantized(device.device, asTSlice(rawData, BlockQ3K))
+                        GgmlDType.Q4K -> loadQuantized(device.device, asTSlice(rawData, BlockQ4K))
+                        GgmlDType.Q5K -> loadQuantized(device.device, asTSlice(rawData, BlockQ5K))
+                        GgmlDType.Q6K -> loadQuantized(device.device, asTSlice(rawData, BlockQ6K))
+                        GgmlDType.Q8K -> loadQuantized(device.device, asTSlice(rawData, BlockQ8K))
+                        GgmlDType.BF16 -> loadQuantized(device.device, asTSlice(rawData, BF16))
+                    }
+                }
+
+                is Device.Cuda -> {
+                    when (dtype) {
+                        GgmlDType.F32 -> loadQuantized(device.device, asTSlice(rawData, F32GgmlType))
+                        GgmlDType.F16 -> loadQuantized(device.device, asTSlice(rawData, F16))
+                        GgmlDType.Q4_0 -> loadQuantized(device.device, asTSlice(rawData, BlockQ40))
+                        GgmlDType.Q4_1 -> loadQuantized(device.device, asTSlice(rawData, BlockQ41))
+                        GgmlDType.Q5_0 -> loadQuantized(device.device, asTSlice(rawData, BlockQ50))
+                        GgmlDType.Q5_1 -> loadQuantized(device.device, asTSlice(rawData, BlockQ51))
+                        GgmlDType.Q8_0 -> loadQuantized(device.device, asTSlice(rawData, BlockQ80))
+                        GgmlDType.Q8_1 -> loadQuantized(device.device, asTSlice(rawData, BlockQ81))
+                        GgmlDType.Q2K -> loadQuantized(device.device, asTSlice(rawData, BlockQ2K))
+                        GgmlDType.Q3K -> loadQuantized(device.device, asTSlice(rawData, BlockQ3K))
+                        GgmlDType.Q4K -> loadQuantized(device.device, asTSlice(rawData, BlockQ4K))
+                        GgmlDType.Q5K -> loadQuantized(device.device, asTSlice(rawData, BlockQ5K))
+                        GgmlDType.Q6K -> loadQuantized(device.device, asTSlice(rawData, BlockQ6K))
+                        GgmlDType.Q8K -> loadQuantized(device.device, asTSlice(rawData, BlockQ8K))
+                        GgmlDType.BF16 -> loadQuantized(device.device, asTSlice(rawData, BF16))
+                    }
                 }
             }
         }
@@ -270,24 +362,25 @@ internal object QuantizedHelper {
         val out = ArrayList<Any>(count)
         for (i in 0 until count) {
             val offset = i * size
-            val block: Any = when (comp) {
-                F32GgmlType, GgmlDType.F32, Float -> F32GgmlType.fromBytes(data, offset)
-                F16GgmlType, GgmlDType.F16, F16 -> F16GgmlType.fromBytes(data, offset)
-                BF16GgmlType, GgmlDType.BF16, BF16 -> BF16GgmlType.fromBytes(data, offset)
-                BlockQ40 -> BlockQ40.fromBytes(data, offset)
-                BlockQ41 -> BlockQ41.fromBytes(data, offset)
-                BlockQ50 -> BlockQ50.fromBytes(data, offset)
-                BlockQ51 -> BlockQ51.fromBytes(data, offset)
-                BlockQ80 -> BlockQ80.fromBytes(data, offset)
-                BlockQ81 -> BlockQ81.fromBytes(data, offset)
-                BlockQ2K -> BlockQ2K.fromBytes(data, offset)
-                BlockQ3K -> BlockQ3K.fromBytes(data, offset)
-                BlockQ4K -> BlockQ4K.fromBytes(data, offset)
-                BlockQ5K -> BlockQ5K.fromBytes(data, offset)
-                BlockQ6K -> BlockQ6K.fromBytes(data, offset)
-                BlockQ8K -> BlockQ8K.fromBytes(data, offset)
-                else -> F32GgmlType.zeros()
-            }
+            val block: Any =
+                when (comp) {
+                    F32GgmlType, GgmlDType.F32, Float -> F32GgmlType.fromBytes(data, offset)
+                    F16GgmlType, GgmlDType.F16, F16 -> F16GgmlType.fromBytes(data, offset)
+                    BF16GgmlType, GgmlDType.BF16, BF16 -> BF16GgmlType.fromBytes(data, offset)
+                    BlockQ40 -> BlockQ40.fromBytes(data, offset)
+                    BlockQ41 -> BlockQ41.fromBytes(data, offset)
+                    BlockQ50 -> BlockQ50.fromBytes(data, offset)
+                    BlockQ51 -> BlockQ51.fromBytes(data, offset)
+                    BlockQ80 -> BlockQ80.fromBytes(data, offset)
+                    BlockQ81 -> BlockQ81.fromBytes(data, offset)
+                    BlockQ2K -> BlockQ2K.fromBytes(data, offset)
+                    BlockQ3K -> BlockQ3K.fromBytes(data, offset)
+                    BlockQ4K -> BlockQ4K.fromBytes(data, offset)
+                    BlockQ5K -> BlockQ5K.fromBytes(data, offset)
+                    BlockQ6K -> BlockQ6K.fromBytes(data, offset)
+                    BlockQ8K -> BlockQ8K.fromBytes(data, offset)
+                    else -> F32GgmlType.zeros()
+                }
             out.add(block)
         }
         out

@@ -56,6 +56,7 @@ internal expect val asmBfdot4s8h: (ShortArray, ShortArray, ShortArray) -> ShortA
 public object CpuNeon {
     public object AssociatedTypes {
         public interface Unit
+
         public interface Array
     }
 
@@ -64,38 +65,52 @@ public object CpuNeon {
         override val epr: Int = 4
         override val arr: Int = step / epr
 
-        public fun reduceOne(x: FloatArray): Float =
-            vaddvqF32(x)
+        public fun reduceOne(x: FloatArray): Float = vaddvqF32(x)
 
-        public fun reduceOne(x: FloatArray, offset: Int): Float =
+        public fun reduceOne(
+            x: FloatArray,
+            offset: Int,
+        ): Float =
             vgetqLaneF32(x, offset + 0) +
                 vgetqLaneF32(x, offset + 1) +
                 vgetqLaneF32(x, offset + 2) +
                 vgetqLaneF32(x, offset + 3)
 
-        override fun zero(): FloatArray =
-            vdupqNF32(0.0f)
+        override fun zero(): FloatArray = vdupqNF32(0.0f)
 
-        override fun fromF32(v: Float): FloatArray =
-            vdupqNF32(v)
+        override fun fromF32(v: Float): FloatArray = vdupqNF32(v)
 
-        override fun zeroArray(): Array<FloatArray> =
-            Array(arr) { zero() }
+        override fun zeroArray(): Array<FloatArray> = Array(arr) { zero() }
 
-        override fun load(memAddr: FloatArray, offset: Int): FloatArray =
-            vld1qF32(memAddr, offset)
+        override fun load(
+            memAddr: FloatArray,
+            offset: Int,
+        ): FloatArray = vld1qF32(memAddr, offset)
 
-        override fun vecAdd(a: FloatArray, b: FloatArray): FloatArray =
-            vaddqF32(a, b)
+        override fun vecAdd(
+            a: FloatArray,
+            b: FloatArray,
+        ): FloatArray = vaddqF32(a, b)
 
-        override fun vecFma(a: FloatArray, b: FloatArray, c: FloatArray): FloatArray =
-            vfmaqF32(a, b, c)
+        override fun vecFma(
+            a: FloatArray,
+            b: FloatArray,
+            c: FloatArray,
+        ): FloatArray = vfmaqF32(a, b, c)
 
-        override fun vecStore(memAddr: FloatArray, offset: Int, a: FloatArray) {
+        override fun vecStore(
+            memAddr: FloatArray,
+            offset: Int,
+            a: FloatArray,
+        ) {
             vst1qF32(memAddr, offset, a)
         }
 
-        override fun vecReduce(x: Array<FloatArray>, y: FloatArray, yOffset: Int) {
+        override fun vecReduce(
+            x: Array<FloatArray>,
+            y: FloatArray,
+            yOffset: Int,
+        ) {
             for (i in 0 until arr / 2) {
                 x[2 * i] = vaddqF32(x[2 * i], x[2 * i + 1])
             }
@@ -118,25 +133,35 @@ public object CpuNeon {
                 override val arr: Int = step / epr
                 override val flushInterval: Int = Int.MAX_VALUE
 
-                override fun zero(): FloatArray =
-                    vdupqNF32(0.0f)
+                override fun zero(): FloatArray = vdupqNF32(0.0f)
 
-                override fun zeroArray(): Array<FloatArray> =
-                    Array(arr) { zero() }
+                override fun zeroArray(): Array<FloatArray> = Array(arr) { zero() }
 
-                override fun load(memAddr: ShortArray, offset: Int): FloatArray {
+                override fun load(
+                    memAddr: ShortArray,
+                    offset: Int,
+                ): FloatArray {
                     val bits = vld1U16(memAddr, offset)
                     val result = fcvtl4s4h(bits)
                     return result
                 }
 
-                override fun vecAdd(a: FloatArray, b: FloatArray): FloatArray =
-                    vaddqF32(a, b)
+                override fun vecAdd(
+                    a: FloatArray,
+                    b: FloatArray,
+                ): FloatArray = vaddqF32(a, b)
 
-                override fun vecFma(a: FloatArray, b: FloatArray, c: FloatArray): FloatArray =
-                    vfmaqF32(a, b, c)
+                override fun vecFma(
+                    a: FloatArray,
+                    b: FloatArray,
+                    c: FloatArray,
+                ): FloatArray = vfmaqF32(a, b, c)
 
-                override fun vecReduce(x: Array<FloatArray>, y: FloatArray, yOffset: Int) {
+                override fun vecReduce(
+                    x: Array<FloatArray>,
+                    y: FloatArray,
+                    yOffset: Int,
+                ) {
                     for (i in 0 until arr / 2) {
                         x[2 * i] = vaddqF32(x[2 * i], x[2 * i + 1])
                     }
@@ -149,10 +174,13 @@ public object CpuNeon {
                     y[yOffset] = vaddvqF32(x[0])
                 }
 
-                override fun fromF32(v: Float): FloatArray =
-                    vdupqNF32(v)
+                override fun fromF32(v: Float): FloatArray = vdupqNF32(v)
 
-                override fun vecStore(memAddr: ShortArray, offset: Int, a: FloatArray) {
+                override fun vecStore(
+                    memAddr: ShortArray,
+                    offset: Int,
+                    a: FloatArray,
+                ) {
                     val bits = fcvtn4h4s(a)
                     vst1U16(memAddr, offset, bits)
                 }
@@ -185,23 +213,35 @@ public object CpuNeon {
                     return result
                 }
 
-                override fun zeroArray(): Array<ShortArray> =
-                    Array(arr) { zero() }
+                override fun zeroArray(): Array<ShortArray> = Array(arr) { zero() }
 
-                override fun load(memAddr: ShortArray, offset: Int): ShortArray =
-                    vld1qU16(memAddr, offset)
+                override fun load(
+                    memAddr: ShortArray,
+                    offset: Int,
+                ): ShortArray = vld1qU16(memAddr, offset)
 
-                override fun vecAdd(a: ShortArray, b: ShortArray): ShortArray {
+                override fun vecAdd(
+                    a: ShortArray,
+                    b: ShortArray,
+                ): ShortArray {
                     val result = asmFadd8h(a, b)
                     return result
                 }
 
-                override fun vecFma(a: ShortArray, b: ShortArray, c: ShortArray): ShortArray {
+                override fun vecFma(
+                    a: ShortArray,
+                    b: ShortArray,
+                    c: ShortArray,
+                ): ShortArray {
                     val result = asmFmla8h(a, b, c)
                     return result
                 }
 
-                override fun vecReduce(x: Array<ShortArray>, y: FloatArray, yOffset: Int) {
+                override fun vecReduce(
+                    x: Array<ShortArray>,
+                    y: FloatArray,
+                    yOffset: Int,
+                ) {
                     var sum = 0.0f
                     for (item in x) {
                         sum += reduceOne(item)
@@ -214,7 +254,11 @@ public object CpuNeon {
                     return result
                 }
 
-                override fun vecStore(memAddr: ShortArray, offset: Int, a: ShortArray) {
+                override fun vecStore(
+                    memAddr: ShortArray,
+                    offset: Int,
+                    a: ShortArray,
+                ) {
                     vst1qU16(memAddr, offset, a)
                 }
             }
@@ -229,26 +273,36 @@ public object CpuNeon {
                 override val epr: Int = 4
                 override val arr: Int = step / epr
 
-                override fun zero(): FloatArray =
-                    vdupqNF32(0.0f)
+                override fun zero(): FloatArray = vdupqNF32(0.0f)
 
-                override fun zeroArray(): Array<FloatArray> =
-                    Array(arr) { zero() }
+                override fun zeroArray(): Array<FloatArray> = Array(arr) { zero() }
 
-                override fun load(memAddr: ShortArray, offset: Int): FloatArray {
+                override fun load(
+                    memAddr: ShortArray,
+                    offset: Int,
+                ): FloatArray {
                     // bf16 is the top 16 bits of f32; shift left by 16 to reconstruct f32 bits.
                     val i = vld1U16(memAddr, offset)
                     val s = vshllNU16(i, 16)
                     return vreinterpretqF32U32(s)
                 }
 
-                override fun vecAdd(a: FloatArray, b: FloatArray): FloatArray =
-                    vaddqF32(a, b)
+                override fun vecAdd(
+                    a: FloatArray,
+                    b: FloatArray,
+                ): FloatArray = vaddqF32(a, b)
 
-                override fun vecFma(a: FloatArray, b: FloatArray, c: FloatArray): FloatArray =
-                    vfmaqF32(a, b, c)
+                override fun vecFma(
+                    a: FloatArray,
+                    b: FloatArray,
+                    c: FloatArray,
+                ): FloatArray = vfmaqF32(a, b, c)
 
-                override fun vecReduce(x: Array<FloatArray>, y: FloatArray, yOffset: Int) {
+                override fun vecReduce(
+                    x: Array<FloatArray>,
+                    y: FloatArray,
+                    yOffset: Int,
+                ) {
                     for (i in 0 until arr / 2) {
                         x[2 * i] = vaddqF32(x[2 * i], x[2 * i + 1])
                     }
@@ -261,10 +315,13 @@ public object CpuNeon {
                     y[yOffset] = vaddvqF32(x[0])
                 }
 
-                override fun fromF32(v: Float): FloatArray =
-                    vdupqNF32(v)
+                override fun fromF32(v: Float): FloatArray = vdupqNF32(v)
 
-                override fun vecStore(memAddr: ShortArray, offset: Int, a: FloatArray) {
+                override fun vecStore(
+                    memAddr: ShortArray,
+                    offset: Int,
+                    a: FloatArray,
+                ) {
                     // Extract top 16 bits of each f32 lane, which is the bf16 representation.
                     val s = vreinterpretqU32F32(a)
                     val h = vshrnNU32(s, 16)
@@ -280,21 +337,28 @@ public object CpuNeon {
                 override val epr: Int = 8
                 override val arr: Int = step / epr
 
-                override fun zero(): ShortArray =
-                    vreinterpretqU16F32(vdupqNF32(0.0f))
+                override fun zero(): ShortArray = vreinterpretqU16F32(vdupqNF32(0.0f))
 
-                override fun zeroArray(): Array<ShortArray> =
-                    Array(arr) { zero() }
+                override fun zeroArray(): Array<ShortArray> = Array(arr) { zero() }
 
-                override fun load(memAddr: ShortArray, offset: Int): ShortArray =
-                    vld1qU16(memAddr, offset)
+                override fun load(
+                    memAddr: ShortArray,
+                    offset: Int,
+                ): ShortArray = vld1qU16(memAddr, offset)
 
-                override fun vecAdd(a: ShortArray, b: ShortArray): ShortArray {
+                override fun vecAdd(
+                    a: ShortArray,
+                    b: ShortArray,
+                ): ShortArray {
                     val result = asmFadd4sOnU16x8(a, b)
                     return result
                 }
 
-                override fun vecFma(a: ShortArray, b: ShortArray, c: ShortArray): ShortArray {
+                override fun vecFma(
+                    a: ShortArray,
+                    b: ShortArray,
+                    c: ShortArray,
+                ): ShortArray {
                     // IMPORTANT: a is not bf16x8 here. It is 128 bits used as f32x4 (.4s) to accumulate
                     // results from bfdot. b and c are bf16x8 inputs (.8h).
                     // bfdot: acc[i] += (f32)b[2i]*c[2i] + (f32)b[2i+1]*c[2i+1]
@@ -302,7 +366,11 @@ public object CpuNeon {
                     return result
                 }
 
-                override fun vecReduce(x: Array<ShortArray>, y: FloatArray, yOffset: Int) {
+                override fun vecReduce(
+                    x: Array<ShortArray>,
+                    y: FloatArray,
+                    yOffset: Int,
+                ) {
                     // IMPORTANT: x is not bf16x8 here. It is 128 bits used as f32x4.
                     // This means that if you use vecReduce where x is actually bf16x8 you will get
                     // entirely wrong results.
@@ -316,10 +384,13 @@ public object CpuNeon {
                     y[yOffset] = vaddvqF32(xf[0])
                 }
 
-                override fun fromF32(v: Float): ShortArray =
-                    vreinterpretqU16F32(vdupqNF32(v))
+                override fun fromF32(v: Float): ShortArray = vreinterpretqU16F32(vdupqNF32(v))
 
-                override fun vecStore(memAddr: ShortArray, offset: Int, a: ShortArray) {
+                override fun vecStore(
+                    memAddr: ShortArray,
+                    offset: Int,
+                    a: ShortArray,
+                ) {
                     vst1qU16(memAddr, offset, a)
                 }
             }

@@ -12,8 +12,11 @@ internal actual val vpaddlqS16: (ShortArray) -> IntArray = { a ->
 }
 internal actual val vpaddqS16: (ShortArray, ShortArray) -> ShortArray = { a, b ->
     ShortArray(8) { i ->
-        if (i < 4) (a[i * 2].toInt() + a[i * 2 + 1].toInt()).toShort()
-        else (b[(i - 4) * 2].toInt() + b[(i - 4) * 2 + 1].toInt()).toShort()
+        if (i < 4) {
+            (a[i * 2].toInt() + a[i * 2 + 1].toInt()).toShort()
+        } else {
+            (b[(i - 4) * 2].toInt() + b[(i - 4) * 2 + 1].toInt()).toShort()
+        }
     }
 }
 internal actual val vmlaqNF32: (FloatArray, FloatArray, Float) -> FloatArray = { acc, v, s ->

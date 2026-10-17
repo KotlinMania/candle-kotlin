@@ -15,15 +15,19 @@ public fun interface Module : ModuleT {
     public fun forward(xs: Tensor): Tensor
 
     override fun forwardT(
-        xs: Tensor, train: Boolean,
+        xs: Tensor,
+        train: Boolean,
     ): Tensor = self.forward(xs)
 }
 
 /**
  * Adapter that wraps a function `(Tensor) -> Tensor` as a [Module].
  */
-public class FnModule(public val self: (Tensor) -> Tensor) : Module {
-    public val f: (Tensor) -> Tensor get() = self
+public class FnModule(
+    public val f: (Tensor) -> Tensor,
+) : Module {
+    private val self: (Tensor) -> Tensor get() = f
+
     override fun forward(xs: Tensor): Tensor =
         // Invokes wrapped function on input tensor.
         self(xs)
@@ -35,8 +39,10 @@ public class FnModule(public val self: (Tensor) -> Tensor) : Module {
  * Useful for optional layers (such as optional biases, projections, or normalization blocks)
  * in a sequential forward pipeline without branching at the call site.
  */
-public class OptionModule<M : Module>(public val self: M?) : Module {
-    public val module: M? get() = self
+public class OptionModule<M : Module>(
+    public val module: M?,
+) : Module {
+    private val self: M? get() = module
     private val None: M? get() = null
     private val Some: (M) -> M get() = { it }
     private val m: M get() = self!!
@@ -46,9 +52,14 @@ public class OptionModule<M : Module>(public val self: M?) : Module {
      */
     override fun forward(xs: Tensor): Tensor =
         when (self) {
-            None -> Ok(xs.clone())
+            None -> {
+                Ok(xs.clone())
+            }
+
             else -> {
-                Some(m); m.forward(xs) }
+                Some(m)
+                m.forward(xs)
+            }
         }
 }
 
@@ -64,5 +75,8 @@ public interface ModuleT {
      * Applies this module's forward pass to input tensor [xs], with [train] indicating
      * whether the module is running in training mode (`true`) or evaluation mode (`false`).
      */
-    public fun forwardT(xs: Tensor, train: Boolean): Tensor
+    public fun forwardT(
+        xs: Tensor,
+        train: Boolean,
+    ): Tensor
 }

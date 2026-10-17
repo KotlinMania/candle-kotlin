@@ -3,12 +3,13 @@ package io.github.kotlinmania.candle.tokenizer
 
 import io.github.kotlinmania.candle.CandleError
 import io.github.kotlinmania.candle.CandleResult
-import io.github.kotlinmania.candle.ErrorContext
 import io.github.kotlinmania.candle.bail
 import io.github.kotlinmania.candle.gguf.Content
 import io.github.kotlinmania.candle.gguf.Value
 
-public data class NormalizerWrapper(val kind: String)
+public data class NormalizerWrapper(
+    val kind: String,
+)
 
 private object NFC {
     val into: () -> NormalizerWrapper = { NormalizerWrapper("NFC") }
@@ -19,7 +20,9 @@ public enum class SplitDelimiterBehavior {
 }
 
 public sealed class SplitPattern {
-    public data class Regex(val pattern: String) : SplitPattern()
+    public data class Regex(
+        val pattern: String,
+    ) : SplitPattern()
 }
 
 public sealed class PreTokenizerWrapper {
@@ -40,15 +43,18 @@ public sealed class PreTokenizerWrapper {
 
         public companion object {
             public val new: (SplitPattern, SplitDelimiterBehavior, Boolean) -> CandleResult<Split> = { pat, _, inv ->
-                val rx = when (pat) {
-                    is SplitPattern.Regex -> pat.pattern
-                }
+                val rx =
+                    when (pat) {
+                        is SplitPattern.Regex -> pat.pattern
+                    }
                 CandleResult.Ok(Split(rx, true, inv))
             }
         }
     }
 
-    public data class Sequence(val steps: List<PreTokenizerWrapper>) : PreTokenizerWrapper() {
+    public data class Sequence(
+        val steps: List<PreTokenizerWrapper>,
+    ) : PreTokenizerWrapper() {
         public val into: () -> PreTokenizerWrapper = { this }
 
         public companion object {
@@ -92,13 +98,16 @@ public sealed class PostProcessorWrapper {
         public val into: () -> PostProcessorWrapper = { this }
     }
 
-    public data class Template(
+    @ConsistentCopyVisibility
+    public data class Template internal constructor(
         val single: List<String>,
         val pair: List<String>,
         val specialTokens: List<Pair<String, UInt>>,
     ) : PostProcessorWrapper()
 
-    public data class Sequence(val steps: List<PostProcessorWrapper>) : PostProcessorWrapper() {
+    public data class Sequence(
+        val steps: List<PostProcessorWrapper>,
+    ) : PostProcessorWrapper() {
         public val into: () -> PostProcessorWrapper = { this }
     }
 }
@@ -140,10 +149,18 @@ private class TemplateProcessingBuilder {
     }
 }
 
-private object tokenizers {
-    object processors {
-        object template {
-            object TemplateProcessing {
+private val tokenizers: TokenizersMod = TokenizersMod
+
+private object TokenizersMod {
+    val processors: ProcessorsMod = ProcessorsMod
+
+    object ProcessorsMod {
+        val template: TemplateMod = TemplateMod
+
+        object TemplateMod {
+            val TemplateProcessing: TemplateProcessingMod = TemplateProcessingMod
+
+            object TemplateProcessingMod {
                 val builder: () -> TemplateProcessingBuilder = { TemplateProcessingBuilder() }
             }
         }
@@ -161,7 +178,7 @@ public data class AddedToken(
     }
 }
 
-public class BpeModel(
+public class BpeModel internal constructor(
     public val vocab: Map<String, UInt>,
     public val merges: List<Pair<String, String>>,
     public var unkToken: String? = null,
@@ -208,10 +225,12 @@ private object Error {
 }
 
 private fun <T> CandleResult<T>.ok(): T? = (this as? CandleResult.Ok)?.value
+
 private fun <T> CandleResult<T>.unwrapOr(default: T): T = if (this is CandleResult.Ok) this.value else default
 
 private val format: (String, Any?) -> String = { fmt, a ->
-    fmt.replace("{key}", a.toString())
+    fmt
+        .replace("{key}", a.toString())
         .replace("{v:?}", a.toString())
         .replace("{name}", a.toString())
         .replace("{m}", a.toString())
@@ -241,13 +260,15 @@ public interface TokenizerFromGguf {
     public fun fromGguf(ct: Content): Result<Tokenizer>
 }
 
-public fun metadataValue(ct: Content, key: String): CandleResult<Value> {
-    return ct.metadata[key]
+public fun metadataValue(
+    ct: Content,
+    key: String,
+): CandleResult<Value> =
+    ct.metadata[key]
         .withContext { format("missing GGUF metadata key `{key}`", key) }
-}
 
-public fun ggufValueToU32(v: Value): CandleResult<UInt> {
-    return when (v) {
+public fun ggufValueToU32(v: Value): CandleResult<UInt> =
+    when (v) {
         is Value.U8 -> CandleResult.Ok(v.v.toUInt())
         is Value.I8 -> CandleResult.Ok(v.v.toUInt())
         is Value.U16 -> CandleResult.Ok(v.v.toUInt())
@@ -258,34 +279,40 @@ public fun ggufValueToU32(v: Value): CandleResult<UInt> {
         is Value.I64 -> CandleResult.Ok(v.v.toUInt())
         else -> bail("expected numeric value for token type/id, got $v")
     }
-}
 
-public fun valueToStringArray(v: Value, name: String): CandleResult<List<String>> {
-    val arr = v
-        .toVec()
-        .withContext { format("`{name}` is not an array", name) }
-        .unwrap()
-    val result = arr
-        .iterator()
-        .asSequence()
-        .map { elem ->
-            elem.toString(true)
-                .withContext { format("`{name}` element is not a string: {v:?}", name) }
-                .unwrap()
-        }
-        .toList()
+public fun valueToStringArray(
+    v: Value,
+    name: String,
+): CandleResult<List<String>> {
+    val arr =
+        v
+            .toVec()
+            .withContext { format("`{name}` is not an array", name) }
+            .unwrap()
+    val result =
+        arr
+            .iterator()
+            .asSequence()
+            .map { elem ->
+                elem
+                    .toString(true)
+                    .withContext { format("`{name}` element is not a string: {v:?}", name) }
+                    .unwrap()
+            }.toList()
     return CandleResult.Ok(result)
 }
 
 public fun mergesFromValue(v: Value): CandleResult<List<Pair<String, String>>> {
-    val list = valueToStringArray(v, "tokenizer.ggml.merges")
-        .unwrap()
-        .map { m ->
-            m.splitOnce(' ')
-                ?.let { pair -> Pair(pair.first, pair.second) }
-                .okOrElse { Error.msg(format("invalid merge entry `{m}`", m)) }
-                .unwrap()
-        }
+    val list =
+        valueToStringArray(v, "tokenizer.ggml.merges")
+            .unwrap()
+            .map { m ->
+                m
+                    .splitOnce(' ')
+                    ?.let { pair -> Pair(pair.first, pair.second) }
+                    .okOrElse { Error.msg(format("invalid merge entry `{m}`", m)) }
+                    .unwrap()
+            }
     return CandleResult.Ok(list)
 }
 
@@ -316,12 +343,18 @@ public class Pipeline(
     }
 }
 
-public fun preTokenizerSequence(regex: String, byteLevel: PreTokenizerWrapper.ByteLevel): CandleResult<PreTokenizerWrapper> {
-    val split = PreTokenizerWrapper.Split.new(
-        SplitPattern.Regex(regex),
-        SplitDelimiterBehavior.Isolated,
-        false,
-    ).mapErr(Error.wrap).unwrap()
+public fun preTokenizerSequence(
+    regex: String,
+    byteLevel: PreTokenizerWrapper.ByteLevel,
+): CandleResult<PreTokenizerWrapper> {
+    val split =
+        PreTokenizerWrapper.Split
+            .new(
+                SplitPattern.Regex(regex),
+                SplitDelimiterBehavior.Isolated,
+                false,
+            ).mapErr(Error.wrap)
+            .unwrap()
     return CandleResult.Ok(PreTokenizerWrapper.Sequence.new(listOf(split.into(), byteLevel.into())).into())
 }
 
@@ -332,32 +365,42 @@ public fun pipelineFromPre(pre: String): CandleResult<Pipeline> {
     return CandleResult.Ok(
         when (pre) {
             // Matches Qwen2 tokenizer.json settings
-            "qwen2" -> Pipeline(
-                normalizer = NFC.into(),
-                pretokenizer = preTokenizerSequence(
-                    regexQwen2,
-                    ByteLevelPre.new(false, false, false),
-                ).unwrap(),
-                decoder = ByteLevelDecoder.new(false, false, false).into(),
-                postProcessor = ByteLevelProcessor.new(false, false, false).into(),
-            )
+            "qwen2" -> {
+                Pipeline(
+                    normalizer = NFC.into(),
+                    pretokenizer =
+                        preTokenizerSequence(
+                            regexQwen2,
+                            ByteLevelPre.new(false, false, false),
+                        ).unwrap(),
+                    decoder = ByteLevelDecoder.new(false, false, false).into(),
+                    postProcessor = ByteLevelProcessor.new(false, false, false).into(),
+                )
+            }
+
             // Matches Smaug/Llama3 style byte-level BPE
-            "smaug-bpe", "lfm2", "llama3" -> Pipeline(
-                normalizer = null,
-                pretokenizer = preTokenizerSequence(
-                    regexLlama3,
-                    ByteLevelPre.new(false, true, false),
-                ).unwrap(),
-                decoder = ByteLevelDecoder.new(true, true, true).into(),
-                postProcessor = ByteLevelProcessor.new(true, false, true).into(),
-            )
+            "smaug-bpe", "lfm2", "llama3" -> {
+                Pipeline(
+                    normalizer = null,
+                    pretokenizer =
+                        preTokenizerSequence(
+                            regexLlama3,
+                            ByteLevelPre.new(false, true, false),
+                        ).unwrap(),
+                    decoder = ByteLevelDecoder.new(true, true, true).into(),
+                    postProcessor = ByteLevelProcessor.new(true, false, true).into(),
+                )
+            }
+
             // Default GPT-2 style BPE
-            else -> Pipeline(
-                normalizer = null,
-                pretokenizer = ByteLevelPre.default().into(),
-                decoder = ByteLevelDecoder.default().into(),
-                postProcessor = ByteLevelProcessor.default().into(),
-            )
+            else -> {
+                Pipeline(
+                    normalizer = null,
+                    pretokenizer = ByteLevelPre.default().into(),
+                    decoder = ByteLevelDecoder.default().into(),
+                    postProcessor = ByteLevelProcessor.default().into(),
+                )
+            }
         },
     )
 }
@@ -413,25 +456,27 @@ public fun templateProcessor(
         pair.add(format("{}:1", eos ?: return null))
     }
 
-    val proc = tokenizers.processors.template.TemplateProcessing.builder()
-        .trySingle(single)
-        .ok()
-        ?.tryPair(pair)
-        ?.ok()
-        ?.specialTokens(specials)
-        ?.build()
-        ?.ok() ?: return null
+    val proc =
+        tokenizers.processors.template.TemplateProcessing
+            .builder()
+            .trySingle(single)
+            .ok()
+            ?.tryPair(pair)
+            ?.ok()
+            ?.specialTokens(specials)
+            ?.build()
+            ?.ok() ?: return null
 
     return proc
 }
 
-public class Tokenizer(
+public class Tokenizer internal constructor(
     public val model: BpeModel,
     public var normalizer: NormalizerWrapper? = null,
     public var preTokenizer: PreTokenizerWrapper? = null,
     public var decoder: DecoderWrapper? = null,
     public var postProcessor: PostProcessorWrapper? = null,
-    public val specialTokens: MutableList<AddedToken> = ArrayList(),
+    internal val specialTokens: MutableList<AddedToken> = ArrayList(),
 ) {
     public val withNormalizer: (NormalizerWrapper?) -> Unit = { n -> normalizer = n }
     public val withPreTokenizer: (PreTokenizerWrapper?) -> Unit = { pt -> preTokenizer = pt }
@@ -443,23 +488,26 @@ public class Tokenizer(
         public val new: (BpeModel) -> Tokenizer = { bpe -> Tokenizer(bpe) }
 
         override fun fromGguf(ct: Content): Result<Tokenizer> {
-            val modelKind = metadataValue(ct, "tokenizer.ggml.model")
-                .unwrap()
-                .toString(true)
-                .unwrap()
-                .lowercase()
+            val modelKind =
+                metadataValue(ct, "tokenizer.ggml.model")
+                    .unwrap()
+                    .toString(true)
+                    .unwrap()
+                    .lowercase()
             if (modelKind != "gpt2") {
                 return Result.failure(CandleError.Msg(format("unsupported tokenizer model `{model_kind}`", modelKind)))
             }
 
-            val tokens = valueToStringArray(
-                metadataValue(ct, "tokenizer.ggml.tokens").unwrap(),
-                "tokenizer.ggml.tokens",
-            ).unwrap()
-            val vocab: Map<String, UInt> = tokens
-                .withIndex()
-                .map { indexed -> Pair(indexed.value, indexed.index.toUInt()) }
-                .toMap()
+            val tokens =
+                valueToStringArray(
+                    metadataValue(ct, "tokenizer.ggml.tokens").unwrap(),
+                    "tokenizer.ggml.tokens",
+                ).unwrap()
+            val vocab: Map<String, UInt> =
+                tokens
+                    .withIndex()
+                    .map { indexed -> Pair(indexed.value, indexed.index.toUInt()) }
+                    .toMap()
             val merges = mergesFromValue(metadataValue(ct, "tokenizer.ggml.merges").unwrap()).unwrap()
 
             var builder = BPE.builder().vocabAndMerges(vocab, merges)
@@ -486,24 +534,29 @@ public class Tokenizer(
             val bpe = builder.build().mapErr(Error.wrap).unwrap()
             val tokenizer = Tokenizer.new(bpe)
 
-            val pre = metadataValue(ct, "tokenizer.ggml.pre")
-                .andThen { v -> v.toString(true) }
-                .unwrapOrElse { "gpt2" }
+            val pre =
+                metadataValue(ct, "tokenizer.ggml.pre")
+                    .andThen { v -> v.toString(true) }
+                    .unwrapOrElse { "gpt2" }
             val pipeline = pipelineFromPre(pre).unwrap()
             val postProcessorBase = pipeline.postProcessor
 
-            val addBos = metadataValue(ct, "tokenizer.ggml.add_bos_token")
-                .andThen { v -> v.toBool() }
-                .unwrapOr(false)
-            val addEos = metadataValue(ct, "tokenizer.ggml.add_eos_token")
-                .andThen { v -> v.toBool() }
-                .unwrapOr(false)
-            val bosId = metadataValue(ct, "tokenizer.ggml.bos_token_id")
-                .andThen { v -> ggufValueToU32(v) }
-                .ok()
-            val eosId = metadataValue(ct, "tokenizer.ggml.eos_token_id")
-                .andThen { v -> ggufValueToU32(v) }
-                .ok()
+            val addBos =
+                metadataValue(ct, "tokenizer.ggml.add_bos_token")
+                    .andThen { v -> v.toBool() }
+                    .unwrapOr(false)
+            val addEos =
+                metadataValue(ct, "tokenizer.ggml.add_eos_token")
+                    .andThen { v -> v.toBool() }
+                    .unwrapOr(false)
+            val bosId =
+                metadataValue(ct, "tokenizer.ggml.bos_token_id")
+                    .andThen { v -> ggufValueToU32(v) }
+                    .ok()
+            val eosId =
+                metadataValue(ct, "tokenizer.ggml.eos_token_id")
+                    .andThen { v -> ggufValueToU32(v) }
+                    .ok()
 
             pipeline.apply(tokenizer)
 
@@ -517,11 +570,12 @@ public class Tokenizer(
                 if (templatePp != null) {
                     steps.add(templatePp)
                 }
-                val pp = if (steps.size == 1) {
-                    steps.removeAt(steps.size - 1)
-                } else {
-                    ProcessorSequence.new(steps).into()
-                }
+                val pp =
+                    if (steps.size == 1) {
+                        steps.removeAt(steps.size - 1)
+                    } else {
+                        ProcessorSequence.new(steps).into()
+                    }
                 tokenizer.withPostProcessor(pp)
             }
 
@@ -562,9 +616,10 @@ public class Tokenizer(
                 }
             }
             if (explicitSpecials.isNotEmpty()) {
-                val specials = explicitSpecials
-                    .mapNotNull { id -> tokens.getOrNull(id.toInt()) }
-                    .map { tok -> AddedToken.from(tok, true) }
+                val specials =
+                    explicitSpecials
+                        .mapNotNull { id -> tokens.getOrNull(id.toInt()) }
+                        .map { tok -> AddedToken.from(tok, true) }
                 if (specials.isNotEmpty()) {
                     tokenizer.addSpecialTokens(specials)
                 }

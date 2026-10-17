@@ -6,20 +6,25 @@
 // composable/tensor agnostic at some point.
 package io.github.kotlinmania.candle
 
-import io.github.kotlinmania.candle.CandleException as Error
 import io.github.kotlinmania.candle.CandleResult.Err
 import io.github.kotlinmania.candle.CandleResult.Ok
-import io.github.kotlinmania.candle.zip.ZipArchive
+import io.github.kotlinmania.candle.Zip.ZipArchive
+import io.github.kotlinmania.candle.CandleException as Error
 
 private fun Err(v: UByte): CandleResult<Nothing> = Err(Error.Msg("unknown op-code $v"))
+
 private fun Err(obj: Object): CandleResult<Nothing> = Err(from(obj))
+
 private fun Object.clone(): Object = this
+
 private fun String.stripSuffix(suffix: String): String? = if (this.endsWith(suffix)) this.removeSuffix(suffix) else null
 
 private const val VERBOSE: Boolean = false
 
 // https://docs.juliahub.com/Pickle/LAUNc/0.1.0/opcode/
-public enum class OpCode(public val code: UByte) {
+public enum class OpCode(
+    public val code: UByte,
+) {
     // https://github.com/python/cpython/blob/ed25f097160b5cbb0c9a1f9a746d2f1bbc96515a/Lib/pickletools.py#L2123
     Proto(0x80u),
     Global('c'.code.toUByte()),
@@ -57,6 +62,7 @@ public enum class OpCode(public val code: UByte) {
     ;
 
     public interface Error
+
     public interface OResult
 
     public companion object {
@@ -123,26 +129,52 @@ public sealed class Object {
             className: String = this.className,
         ): Class = Class(moduleName, className)
 
-        override fun equals(other: Any?): Boolean =
-            other is Class && moduleName == other.moduleName && className == other.className
+        override fun equals(other: Any?): Boolean = other is Class && moduleName == other.moduleName && className == other.className
 
-        override fun hashCode(): kotlin.Int =
-            31 * moduleName.hashCode() + className.hashCode()
+        override fun hashCode(): kotlin.Int = 31 * moduleName.hashCode() + className.hashCode()
 
-        override fun toString(): String =
-            "Class(moduleName=$moduleName, className=$className)"
+        override fun toString(): String = "Class(moduleName=$moduleName, className=$className)"
     }
 
-    public data class Int(public val value: kotlin.Int) : Object()
-    public data class Long(public val value: kotlin.Long) : Object()
-    public data class Float(public val value: Double) : Object()
-    public data class Unicode(public val value: String) : Object()
-    public data class Bool(public val value: Boolean) : Object()
+    public data class Int(
+        public val value: kotlin.Int,
+    ) : Object()
+
+    public data class Long(
+        public val value: kotlin.Long,
+    ) : Object()
+
+    public data class Float(
+        public val value: Double,
+    ) : Object()
+
+    public data class Unicode(
+        public val value: String,
+    ) : Object()
+
+    public data class Bool(
+        public val value: Boolean,
+    ) : Object()
+
     public data object None : Object()
-    public data class Tuple(public val values: MutableList<Object>) : Object()
-    public data class List(public val values: MutableList<Object>) : Object()
+
+    @ConsistentCopyVisibility
+    public data class Tuple internal constructor(
+        internal val values: MutableList<Object>,
+    ) : Object()
+
+    @ConsistentCopyVisibility
+    public data class List internal constructor(
+        internal val values: MutableList<Object>,
+    ) : Object()
+
     public data object Mark : Object()
-    public data class Dict(public val entries: MutableList<Pair<Object, Object>>) : Object()
+
+    @ConsistentCopyVisibility
+    public data class Dict internal constructor(
+        internal val entries: MutableList<Pair<Object, Object>>,
+    ) : Object()
+
     public data class Reduce(
         public val callable: Object,
         public val args: Object,
@@ -153,73 +185,87 @@ public sealed class Object {
         public val args: Object,
     ) : Object()
 
-    public data class PersistentLoad(public val value: Object) : Object()
+    public data class PersistentLoad(
+        public val value: Object,
+    ) : Object()
 
-    public fun unicode(): CandleResult<String> = when (this) {
-        is Unicode -> Ok(this.value)
-        else -> Err(this)
-    }
+    public fun unicode(): CandleResult<String> =
+        when (this) {
+            is Unicode -> Ok(this.value)
+            else -> Err(this)
+        }
 
-    public fun reduce(): CandleResult<Pair<Object, Object>> = when (this) {
-        is Reduce -> Ok(Pair(this.callable, this.args))
-        else -> Err(this)
-    }
+    public fun reduce(): CandleResult<Pair<Object, Object>> =
+        when (this) {
+            is Reduce -> Ok(Pair(this.callable, this.args))
+            else -> Err(this)
+        }
 
-    public fun none(): CandleResult<Unit> = when (this) {
-        is None -> Ok(Unit)
-        else -> Err(this)
-    }
+    public fun none(): CandleResult<Unit> =
+        when (this) {
+            is None -> Ok(Unit)
+            else -> Err(this)
+        }
 
-    public fun persistentLoad(): CandleResult<Object> = when (this) {
-        is PersistentLoad -> Ok(this.value)
-        else -> Err(this)
-    }
+    public fun persistentLoad(): CandleResult<Object> =
+        when (this) {
+            is PersistentLoad -> Ok(this.value)
+            else -> Err(this)
+        }
 
-    public fun bool(): CandleResult<Boolean> = when (this) {
-        is Bool -> Ok(this.value)
-        else -> Err(this)
-    }
+    public fun bool(): CandleResult<Boolean> =
+        when (this) {
+            is Bool -> Ok(this.value)
+            else -> Err(this)
+        }
 
-    public fun int(): CandleResult<kotlin.Int> = when (this) {
-        is Int -> Ok(this.value)
-        else -> Err(this)
-    }
+    public fun int(): CandleResult<kotlin.Int> =
+        when (this) {
+            is Int -> Ok(this.value)
+            else -> Err(this)
+        }
 
-    public fun intOrLong(): CandleResult<kotlin.Long> = when (this) {
-        is Int -> Ok(this.value.toLong())
-        is Long -> Ok(this.value)
-        else -> Err(this)
-    }
+    public fun intOrLong(): CandleResult<kotlin.Long> =
+        when (this) {
+            is Int -> Ok(this.value.toLong())
+            is Long -> Ok(this.value)
+            else -> Err(this)
+        }
 
-    public fun tuple(): CandleResult<MutableList<Object>> = when (this) {
-        is Tuple -> Ok(this.values)
-        else -> Err(this)
-    }
+    internal fun tuple(): CandleResult<MutableList<Object>> =
+        when (this) {
+            is Tuple -> Ok(this.values)
+            else -> Err(this)
+        }
 
-    public fun dict(): CandleResult<MutableList<Pair<Object, Object>>> = when (this) {
-        is Dict -> Ok(this.entries)
-        else -> Err(this)
-    }
+    internal fun dict(): CandleResult<MutableList<Pair<Object, Object>>> =
+        when (this) {
+            is Dict -> Ok(this.entries)
+            else -> Err(this)
+        }
 
-    public fun class_(): CandleResult<Pair<String, String>> = when (this) {
-        is Class -> Ok(Pair(this.moduleName, this.className))
-        else -> Err(this)
-    }
+    public fun class_(): CandleResult<Pair<String, String>> =
+        when (this) {
+            is Class -> Ok(Pair(this.moduleName, this.className))
+            else -> Err(this)
+        }
 
     public fun intoTensorInfo(
         nameObj: Object,
         dirName: String,
     ): CandleResult<TensorInfo?> {
         val nameRes = nameObj.unicode()
-        val name = when (nameRes) {
-            is Ok -> nameRes.value
-            is Err -> return Ok(null)
-        }
+        val name =
+            when (nameRes) {
+                is Ok -> nameRes.value
+                is Err -> return Ok(null)
+            }
         val reduceRes = this.reduce()
-        val callableArgs = when (reduceRes) {
-            is Ok -> reduceRes.value
-            else -> return Ok(null)
-        }
+        val callableArgs =
+            when (reduceRes) {
+                is Ok -> reduceRes.value
+                else -> return Ok(null)
+            }
         var callable = callableArgs.first
         var args = callableArgs.second
         when {
@@ -230,6 +276,7 @@ public sealed class Object {
                 callable = nextCallable
                 args = nextArgs
             }
+
             callable is Class && callable.moduleName == "torch._utils" && callable.className == "_rebuild_parameter" -> {
                 val tupleArgs = args.tuple().unwrap()
                 val reduced = tupleArgs.removeAt(0).reduce().unwrap()
@@ -239,7 +286,10 @@ public sealed class Object {
         }
         when {
             callable is Class && callable.moduleName == "torch._utils" && callable.className == "_rebuild_tensor_v2" -> {}
-            else -> return Ok(null)
+
+            else -> {
+                return Ok(null)
+            }
         }
         val rebuilt = rebuildArgs(args).unwrap()
         val layout = rebuilt.first
@@ -258,34 +308,43 @@ public sealed class Object {
     }
 }
 
-public fun tryFrom(value: Object): CandleResult<String> = when (value) {
-    is Object.Unicode -> Ok(value.value)
-    else -> Err(value)
-}
+public fun tryFrom(value: Object): CandleResult<String> =
+    when (value) {
+        is Object.Unicode -> Ok(value.value)
+        else -> Err(value)
+    }
 
-public fun tryFrom(value: Object, allowZero: Boolean = true): CandleResult<Int> = when (value) {
-    is Object.Int -> if (value.value >= 0 || !allowZero) Ok(value.value) else Err(value)
-    else -> Err(value)
-}
+public fun tryFrom(
+    value: Object,
+    allowZero: Boolean = true,
+): CandleResult<Int> =
+    when (value) {
+        is Object.Int -> if (value.value >= 0 || !allowZero) Ok(value.value) else Err(value)
+        else -> Err(value)
+    }
 
 public fun <T> tryFrom(
     value: Object,
     elemConv: (Object) -> CandleResult<T>,
-): CandleResult<List<T>> = when (value) {
-    is Object.Tuple -> {
-        // This does not return the appropriate value in the error case but instead return
-        // the object related to the first error.
-        Ok(
-            value.values
-                .intoIter()
-                .map { v -> elemConv(v).unwrap() }
-                .collect(),
-        )
-    }
-    else -> Err(value)
-}
+): CandleResult<List<T>> =
+    when (value) {
+        is Object.Tuple -> {
+            // This does not return the appropriate value in the error case but instead return
+            // the object related to the first error.
+            Ok(
+                value.values
+                    .intoIter()
+                    .map { v -> elemConv(v).unwrap() }
+                    .collect(),
+            )
+        }
 
-public class Stack(
+        else -> {
+            Err(value)
+        }
+    }
+
+public class Stack internal constructor(
     private val stack: MutableList<Object> = Vec.withCapacity(512),
     private val memo: MutableMap<UInt, Object> = HashMap.new(),
 ) {
@@ -318,16 +377,20 @@ public class Stack(
     private fun build(): CandleResult<Unit> {
         val args = this.pop().unwrap()
         val obj = this.pop().unwrap()
-        val built = when {
-            obj is Object.Dict && args is Object.Dict -> {
-                obj.entries.append(args.entries)
-                Object.Dict(obj.entries)
+        val built =
+            when {
+                obj is Object.Dict && args is Object.Dict -> {
+                    obj.entries.append(args.entries)
+                    Object.Dict(obj.entries)
+                }
+
+                else -> {
+                    Object.Build(
+                        callable = obj,
+                        args = args,
+                    )
+                }
             }
-            else -> Object.Build(
-                callable = obj,
-                args = args,
-            )
-        }
         this.push(built)
         return Ok(Unit)
     }
@@ -335,22 +398,27 @@ public class Stack(
     private fun reduce(): CandleResult<Unit> {
         val args = this.pop().unwrap()
         val callable = this.pop().unwrap()
-        val reduced = when (callable) {
-            is Object.Class -> {
-                if (callable.moduleName == "collections" &&
-                    (callable.className == "OrderedDict" || callable.className == "defaultdict")
-                ) {
-                    Object.Dict(Vec.new())
-                } else {
+        val reduced =
+            when (callable) {
+                is Object.Class -> {
+                    if (callable.moduleName == "collections" &&
+                        (callable.className == "OrderedDict" || callable.className == "defaultdict")
+                    ) {
+                        Object.Dict(Vec.new())
+                    } else {
+                        null
+                    }
+                }
+
+                else -> {
                     null
                 }
             }
-            else -> null
-        }
-        val finalReduced = reduced ?: Object.Reduce(
-            callable = callable,
-            args = args,
-        )
+        val finalReduced =
+            reduced ?: Object.Reduce(
+                callable = callable,
+                args = args,
+            )
         this.push(finalReduced)
         return Ok(Unit)
     }
@@ -366,7 +434,10 @@ public class Stack(
     private fun memoGet(id: UInt): CandleResult<Object> {
         val obj = this.memo.get(id)
         return when (obj) {
-            null -> bail("missing object in memo $id")
+            null -> {
+                bail("missing object in memo $id")
+            }
+
             else -> {
                 // Maybe we should use refcounting rather than doing potential large clones here.
                 Ok(obj.clone())
@@ -380,10 +451,12 @@ public class Stack(
         return Ok(Unit)
     }
 
-    private fun persistentLoad(id: Object): CandleResult<Object> =
-        Ok(Object.PersistentLoad(id))
+    private fun persistentLoad(id: Object): CandleResult<Object> = Ok(Object.PersistentLoad(id))
 
-    private fun newObj(classObj: Object, args: Object): CandleResult<Object> =
+    private fun newObj(
+        classObj: Object,
+        args: Object,
+    ): CandleResult<Object> =
         Ok(
             Object.Reduce(
                 callable = classObj,
@@ -393,14 +466,20 @@ public class Stack(
 
     private fun popToMarker(): CandleResult<MutableList<Object>> {
         var markIdx: Int? = null
-        for ((idx, obj) in this.stack.iter().enumerate().rev()) {
+        for ((idx, obj) in this.stack
+            .iter()
+            .enumerate()
+            .rev()) {
             if (obj == Object.Mark) {
                 markIdx = idx
                 break
             }
         }
         return when (markIdx) {
-            null -> bail("marker object not found")
+            null -> {
+                bail("marker object not found")
+            }
+
             else -> {
                 val objs = this.stack.splitOff(markIdx + 1)
                 this.stack.pop()
@@ -411,10 +490,11 @@ public class Stack(
 
     public fun <R : NpyByteReader> read(r: R): CandleResult<Boolean> {
         val opRes = OpCode.tryFrom(r.readU8().unwrap())
-        val opCode = when (opRes) {
-            is Ok -> opRes.value
-            is Err -> bail("unknown op-code ${opRes.error}")
-        }
+        val opCode =
+            when (opRes) {
+                is Ok -> opRes.value
+                is Err -> bail("unknown op-code ${opRes.error}")
+            }
         // println("op: $opCode")
         // println("${this.stack}")
         when (opCode) {
@@ -424,6 +504,7 @@ public class Stack(
                     println("proto $version")
                 }
             }
+
             OpCode.Global -> {
                 val rawModuleName = readToNewline(r).unwrap()
                 val rawClassName = readToNewline(r).unwrap()
@@ -436,18 +517,22 @@ public class Stack(
                     ),
                 )
             }
+
             OpCode.BinInt1 -> {
                 val arg = r.readU8().unwrap()
                 this.push(Object.Int(arg.toInt()))
             }
+
             OpCode.BinInt2 -> {
                 val arg = r.readU16<LittleEndian>().unwrap()
                 this.push(Object.Int(arg.toInt()))
             }
+
             OpCode.BinInt -> {
                 val arg = r.readI32<LittleEndian>().unwrap()
                 this.push(Object.Int(arg))
             }
+
             OpCode.BinFloat -> {
                 // Somehow floats are encoded using BigEndian whereas int types use LittleEndian.
                 // https://github.com/python/cpython/blob/0c80da4c14d904a367968955544dd6ae58c8101c/Lib/pickletools.py#L855
@@ -455,6 +540,7 @@ public class Stack(
                 val arg = r.readF64<BigEndian>().unwrap()
                 this.push(Object.Float(arg))
             }
+
             OpCode.BinUnicode -> {
                 val len = r.readU32<LittleEndian>().unwrap()
                 val rawData = ByteArray(len.toInt())
@@ -462,32 +548,44 @@ public class Stack(
                 val data = String.fromUtf8(rawData).mapErr { e -> Error.wrap(e) }.unwrap()
                 this.push(Object.Unicode(data))
             }
+
             OpCode.BinPersId -> {
                 val id = this.pop().unwrap()
                 val obj = this.persistentLoad(id).unwrap()
                 this.push(obj)
             }
+
             OpCode.Tuple -> {
                 val objs = this.popToMarker().unwrap()
                 this.push(Object.Tuple(objs))
             }
+
             OpCode.Tuple1 -> {
                 val obj = this.pop().unwrap()
                 this.push(Object.Tuple(mutableListOf(obj)))
             }
+
             OpCode.Tuple2 -> {
                 val obj2 = this.pop().unwrap()
                 val obj1 = this.pop().unwrap()
                 this.push(Object.Tuple(mutableListOf(obj1, obj2)))
             }
+
             OpCode.Tuple3 -> {
                 val obj3 = this.pop().unwrap()
                 val obj2 = this.pop().unwrap()
                 val obj1 = this.pop().unwrap()
                 this.push(Object.Tuple(mutableListOf(obj1, obj2, obj3)))
             }
-            OpCode.NewTrue -> this.push(Object.Bool(true))
-            OpCode.NewFalse -> this.push(Object.Bool(false))
+
+            OpCode.NewTrue -> {
+                this.push(Object.Bool(true))
+            }
+
+            OpCode.NewFalse -> {
+                this.push(Object.Bool(false))
+            }
+
             OpCode.Append -> {
                 val value = this.pop().unwrap()
                 val pylist = this.last().unwrap()
@@ -497,6 +595,7 @@ public class Stack(
                     bail("expected a list, got $pylist")
                 }
             }
+
             OpCode.Appends -> {
                 val objs = this.popToMarker().unwrap()
                 val pylist = this.last().unwrap()
@@ -506,6 +605,7 @@ public class Stack(
                     bail("expected a list, got $pylist")
                 }
             }
+
             OpCode.SetItem -> {
                 val value = this.pop().unwrap()
                 val key = this.pop().unwrap()
@@ -516,6 +616,7 @@ public class Stack(
                     bail("expected a dict, got $pydict")
                 }
             }
+
             OpCode.SetItems -> {
                 val objs = this.popToMarker().unwrap()
                 val pydict = this.last().unwrap()
@@ -532,12 +633,23 @@ public class Stack(
                     bail("expected a dict, got $pydict")
                 }
             }
-            OpCode.None -> this.push(Object.None)
+
+            OpCode.None -> {
+                this.push(Object.None)
+            }
+
             OpCode.Stop -> {
                 return Ok(true)
             }
-            OpCode.Build -> this.build().unwrap()
-            OpCode.EmptyDict -> this.push(Object.Dict(Vec.new()))
+
+            OpCode.Build -> {
+                this.build().unwrap()
+            }
+
+            OpCode.EmptyDict -> {
+                this.push(Object.Dict(Vec.new()))
+            }
+
             OpCode.Dict -> {
                 val objs = this.popToMarker().unwrap()
                 val pydict = Vec.new<Pair<Object, Object>>()
@@ -551,34 +663,52 @@ public class Stack(
                 }
                 this.push(Object.Dict(pydict))
             }
-            OpCode.Mark -> this.push(Object.Mark)
-            OpCode.Reduce -> this.reduce().unwrap()
-            OpCode.EmptyTuple -> this.push(Object.Tuple(Vec.new()))
-            OpCode.EmptyList -> this.push(Object.List(Vec.new()))
+
+            OpCode.Mark -> {
+                this.push(Object.Mark)
+            }
+
+            OpCode.Reduce -> {
+                this.reduce().unwrap()
+            }
+
+            OpCode.EmptyTuple -> {
+                this.push(Object.Tuple(Vec.new()))
+            }
+
+            OpCode.EmptyList -> {
+                this.push(Object.List(Vec.new()))
+            }
+
             OpCode.BinGet -> {
                 val arg = r.readU8().unwrap()
                 val obj = this.memoGet(arg.toUInt()).unwrap()
                 this.push(obj)
             }
+
             OpCode.LongBinGet -> {
                 val arg = r.readU32<LittleEndian>().unwrap()
                 val obj = this.memoGet(arg).unwrap()
                 this.push(obj)
             }
+
             OpCode.BinPut -> {
                 val arg = r.readU8().unwrap()
                 this.memoPut(arg.toUInt()).unwrap()
             }
+
             OpCode.LongBinPut -> {
                 val arg = r.readU32<LittleEndian>().unwrap()
                 this.memoPut(arg).unwrap()
             }
+
             OpCode.NewObj -> {
                 val args = this.pop().unwrap()
                 val classObj = this.pop().unwrap()
                 val obj = this.newObj(classObj, args).unwrap()
                 this.push(obj)
             }
+
             OpCode.Long1 -> {
                 val nBytes = r.readU8().unwrap().toInt()
                 var v = 0L
@@ -593,15 +723,15 @@ public class Stack(
     }
 
     public companion object {
-        public fun empty(): Stack = Stack(
-            stack = Vec.withCapacity(512),
-            memo = HashMap.new(),
-        )
+        public fun empty(): Stack =
+            Stack(
+                stack = Vec.withCapacity(512),
+                memo = HashMap.new(),
+            )
     }
 }
 
-public fun from(value: Object): Error =
-    Error.Msg(format("conversion error on $value"))
+public fun from(value: Object): Error = Error.Msg(format("conversion error on $value"))
 
 // https://github.com/pytorch/pytorch/blob/4eac43d046ded0f0a5a5fa8db03eb40f45bf656e/torch/_utils.py#L198
 // Arguments: storage, storageOffset, size, stride, requiresGrad, backwardHooks
@@ -609,29 +739,59 @@ private fun rebuildArgs(argsObj: Object): CandleResult<Quadruple<Layout, DType, 
     val args = argsObj.tuple().unwrap()
     val stride = tryFrom(args.removeAt(3)) { tryFrom(it, true) }.unwrap()
     val size = tryFrom(args.removeAt(2)) { tryFrom(it, true) }.unwrap()
-    val offset = args.removeAt(1).intOrLong().unwrap().toInt()
+    val offset =
+        args
+            .removeAt(1)
+            .intOrLong()
+            .unwrap()
+            .toInt()
     val storageObj = args.removeAt(0).persistentLoad().unwrap()
     val storage = storageObj.tuple().unwrap()
-    val storageSize = storage.removeAt(4).intOrLong().unwrap().toInt()
+    val storageSize =
+        storage
+            .removeAt(4)
+            .intOrLong()
+            .unwrap()
+            .toInt()
     val path = storage.removeAt(2).unicode().unwrap()
     val classPair = storage.removeAt(1).class_().unwrap()
     val className = classPair.second
-    val dtype = when (className.asStr()) {
-        "FloatStorage" -> DType.F32
-        "DoubleStorage" -> DType.F64
-        "HalfStorage" -> DType.F16
-        "BFloat16Storage" -> DType.BF16
-        "ByteStorage" -> DType.U8
-        "LongStorage" -> DType.I64
-        else -> {
-            bail("unsupported storage type $className")
+    val dtype =
+        when (className.asStr()) {
+            "FloatStorage" -> {
+                DType.F32
+            }
+
+            "DoubleStorage" -> {
+                DType.F64
+            }
+
+            "HalfStorage" -> {
+                DType.F16
+            }
+
+            "BFloat16Storage" -> {
+                DType.BF16
+            }
+
+            "ByteStorage" -> {
+                DType.U8
+            }
+
+            "LongStorage" -> {
+                DType.I64
+            }
+
+            else -> {
+                bail("unsupported storage type $className")
+            }
         }
-    }
-    val layout = Layout.new(
-        Shape.from(size),
-        stride,
-        offset * dtype.sizeInBytes(),
-    )
+    val layout =
+        Layout.new(
+            Shape.from(size),
+            stride,
+            offset * dtype.sizeInBytes(),
+        )
     return Ok(Quadruple(layout, dtype, path, storageSize))
 }
 
@@ -659,9 +819,10 @@ public fun <P : Any> readPthTensorInfo(
     val openedFile = File.open(file).unwrap()
     val zipReader = BufReader.new(openedFile)
     val zip = ZipArchive.new(zipReader).unwrap()
-    val zipFileNames = zip
-        .fileNames()
-        .collect()
+    val zipFileNames =
+        zip
+            .fileNames()
+            .collect()
 
     val tensorInfos = Vec.new<TensorInfo>()
     for (fileName in zipFileNames.iter()) {
@@ -678,40 +839,49 @@ public fun <P : Any> readPthTensorInfo(
             println("$obj")
         }
 
-        obj = when (obj) {
-            is Object.Build -> {
-                val buildCallable = obj.callable
-                when (buildCallable) {
-                    is Object.Reduce -> {
-                        val reduceCallable = buildCallable.callable
-                        when {
-                            reduceCallable is Object.Class &&
-                                reduceCallable.moduleName == "__torch__" &&
-                                reduceCallable.className == "Module" -> obj.args
-                            else -> continue
+        obj =
+            when (obj) {
+                is Object.Build -> {
+                    val buildCallable = obj.callable
+                    when (buildCallable) {
+                        is Object.Reduce -> {
+                            val reduceCallable = buildCallable.callable
+                            when {
+                                reduceCallable is Object.Class &&
+                                    reduceCallable.moduleName == "__torch__" &&
+                                    reduceCallable.className == "Module" -> obj.args
+
+                                else -> continue
+                            }
+                        }
+
+                        else -> {
+                            continue
                         }
                     }
-                    else -> continue
+                }
+
+                else -> {
+                    obj
                 }
             }
-            else -> obj
-        }
 
         // If key is provided, then we need to extract the stateDict from the object.
-        obj = if (key != null) {
-            if (obj is Object.Dict) {
-                obj.entries
-                    .intoIter()
-                    .find { (k, _) -> k == Object.Unicode(key.toOwned()) }
-                    ?.second
-                    .okOrElse { Error.Msg(format("key $key not found")) }
-                    .unwrap()
+        obj =
+            if (key != null) {
+                if (obj is Object.Dict) {
+                    obj.entries
+                        .intoIter()
+                        .find { (k, _) -> k == Object.Unicode(key.toOwned()) }
+                        ?.second
+                        .okOrElse { Error.Msg(format("key $key not found")) }
+                        .unwrap()
+                } else {
+                    obj
+                }
             } else {
                 obj
             }
-        } else {
-            obj
-        }
 
         // If the object is a dict, then we can extract the tensor info from it.
         // NOTE: We are assuming that the `obj` is stateDict by this stage.
@@ -725,7 +895,10 @@ public fun <P : Any> readPthTensorInfo(
                             tensorInfos.push(tensorInfo)
                         }
                     }
-                    is Err -> eprintln("skipping: ${infoRes.error}")
+
+                    is Err -> {
+                        eprintln("skipping: ${infoRes.error}")
+                    }
                 }
             }
         }
@@ -746,10 +919,11 @@ public class PthTensors(
 
     public fun get(name: String): CandleResult<Tensor?> {
         val info = this.tensorInfos.get(name)
-        val tensorInfo = when (info) {
-            null -> return Ok(null)
-            else -> info
-        }
+        val tensorInfo =
+            when (info) {
+                null -> return Ok(null)
+                else -> info
+            }
         // We hope that the file has not changed since first reading it.
         val zipReader = BufReader.new(File.open(this.path).unwrap())
         val zip = ZipArchive.new(zipReader).unwrap()
@@ -771,15 +945,23 @@ public class PthTensors(
                 ioSink(),
             ).unwrap()
         }
-        val tensor = Tensor.fromReader(
-            tensorInfo.layout.shape().clone(),
-            tensorInfo.dtype,
-            reader,
-        )
+        val tensor =
+            Tensor.fromReader(
+                tensorInfo.layout.shape().clone(),
+                tensorInfo.dtype,
+                reader,
+            )
 
         return if (rank > 1 && isFortranContiguous) {
             // Reverse the shape, e.g. Shape(2, 3, 4) -> Shape(4, 3, 2)
-            val shapeReversed: List<Int> = tensorInfo.layout.dims().toList().iter().rev().cloned().collect()
+            val shapeReversed: List<Int> =
+                tensorInfo.layout
+                    .dims()
+                    .toList()
+                    .iter()
+                    .rev()
+                    .cloned()
+                    .collect()
             val reshaped = tensor.reshape(Shape.from(shapeReversed))
 
             // Permute (transpose) the dimensions, e.g. Shape(4, 3, 2) -> Shape(2, 3, 4)
@@ -792,13 +974,17 @@ public class PthTensors(
     }
 
     public companion object {
-        public fun <P : Any> new(path: P, key: String?): CandleResult<PthTensors> {
+        public fun <P : Any> new(
+            path: P,
+            key: String?,
+        ): CandleResult<PthTensors> {
             val pathStr = path.toString()
             val rawInfos = readPthTensorInfo(pathStr, false, key).unwrap()
-            val tensorInfos = rawInfos
-                .intoIter()
-                .map { ti -> Pair(ti.name, ti) }
-                .collectMap()
+            val tensorInfos =
+                rawInfos
+                    .intoIter()
+                    .map { ti -> Pair(ti.name, ti) }
+                    .collectMap()
             val ownedPath = pathStr.toOwned()
             return Ok(PthTensors(tensorInfos, ownedPath))
         }
@@ -835,7 +1021,4 @@ public fun <P : Any> readAllWithKey(
  * # Arguments
  * * `path` - Path to the pth file.
  */
-public fun <P : Any> readAll(path: P): CandleResult<List<Pair<String, Tensor>>> =
-    readAllWithKey(path, null)
-
-
+public fun <P : Any> readAll(path: P): CandleResult<List<Pair<String, Tensor>>> = readAllWithKey(path, null)

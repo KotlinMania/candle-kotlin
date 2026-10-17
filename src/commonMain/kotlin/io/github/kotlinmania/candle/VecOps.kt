@@ -12,17 +12,23 @@ private val addBf16: (Short, Short) -> Short = { a, b ->
     Float16Utils.floatToBF16Bits(Float16Utils.bf16BitsToFloat(a) + Float16Utils.bf16BitsToFloat(b))
 }
 
-public fun vecDotF32(aRow: FloatArray, bRow: FloatArray, c: FloatArray, k: Int) {
+public fun vecDotF32(
+    aRow: FloatArray,
+    bRow: FloatArray,
+    c: FloatArray,
+    k: Int,
+) {
     val sum = currentCpu.zeroArray()
 
     var i = 0
     while (i + currentCpu.step <= k) {
         for (j in 0 until currentCpu.arr) {
-            sum[j] = currentCpu.vecFma(
-                sum[j],
-                currentCpu.load(aRow, i + j * currentCpu.epr),
-                currentCpu.load(bRow, i + j * currentCpu.epr)
-            )
+            sum[j] =
+                currentCpu.vecFma(
+                    sum[j],
+                    currentCpu.load(aRow, i + j * currentCpu.epr),
+                    currentCpu.load(bRow, i + j * currentCpu.epr),
+                )
         }
         i += currentCpu.step
     }
@@ -36,13 +42,22 @@ public fun vecDotF32(aRow: FloatArray, bRow: FloatArray, c: FloatArray, k: Int) 
     }
 }
 
-public fun vecDotF32(aRow: FloatArray, bRow: FloatArray, c: FloatArray, k: UInt) {
+public fun vecDotF32(
+    aRow: FloatArray,
+    bRow: FloatArray,
+    c: FloatArray,
+    k: UInt,
+) {
     for (i in 0 until k.toInt()) {
         c[0] += aRow[i] * bRow[i]
     }
 }
 
-public fun vecSum(row: FloatArray, b: FloatArray, k: Int) {
+public fun vecSum(
+    row: FloatArray,
+    b: FloatArray,
+    k: Int,
+) {
     val np = k and (currentCpu.step - 1).inv()
 
     val sum = currentCpu.zeroArray()
@@ -63,25 +78,35 @@ public fun vecSum(row: FloatArray, b: FloatArray, k: Int) {
     }
 }
 
-public fun vecSum(row: FloatArray, b: FloatArray, k: UInt) {
+public fun vecSum(
+    row: FloatArray,
+    b: FloatArray,
+    k: UInt,
+) {
     b[0] = 0.0f
     for (i in 0 until k.toInt()) {
         b[0] += row[i]
     }
 }
 
-public fun vecDotF16(aRow: ShortArray, bRow: ShortArray, c: FloatArray, k: Int) {
+public fun vecDotF16(
+    aRow: ShortArray,
+    bRow: ShortArray,
+    c: FloatArray,
+    k: Int,
+) {
     var sumf = 0.0f
     var sum = currentCpuF16.zeroArray()
     var stepsSinceFlush = 0
     var i = 0
     while (i + currentCpuF16.step <= k) {
         for (j in 0 until currentCpuF16.arr) {
-            sum[j] = currentCpuF16.vecFma(
-                sum[j],
-                currentCpuF16.load(aRow, i + j * currentCpuF16.epr),
-                currentCpuF16.load(bRow, i + j * currentCpuF16.epr)
-            )
+            sum[j] =
+                currentCpuF16.vecFma(
+                    sum[j],
+                    currentCpuF16.load(aRow, i + j * currentCpuF16.epr),
+                    currentCpuF16.load(bRow, i + j * currentCpuF16.epr),
+                )
         }
         stepsSinceFlush += 1
         if (stepsSinceFlush == currentCpuF16.flushInterval) {
@@ -107,17 +132,23 @@ public fun vecDotF16(aRow: ShortArray, bRow: ShortArray, c: FloatArray, k: Int) 
     c[0] = sumf
 }
 
-public fun vecDotBf16(aRow: ShortArray, bRow: ShortArray, c: FloatArray, k: Int) {
+public fun vecDotBf16(
+    aRow: ShortArray,
+    bRow: ShortArray,
+    c: FloatArray,
+    k: Int,
+) {
     val sum = currentCpuBF16.zeroArray()
 
     var i = 0
     while (i + currentCpuBF16.step <= k) {
         for (j in 0 until currentCpuBF16.arr) {
-            sum[j] = currentCpuBF16.vecFma(
-                sum[j],
-                currentCpuBF16.load(aRow, i + j * currentCpuBF16.epr),
-                currentCpuBF16.load(bRow, i + j * currentCpuBF16.epr)
-            )
+            sum[j] =
+                currentCpuBF16.vecFma(
+                    sum[j],
+                    currentCpuBF16.load(aRow, i + j * currentCpuBF16.epr),
+                    currentCpuBF16.load(bRow, i + j * currentCpuBF16.epr),
+                )
         }
         i += currentCpuBF16.step
     }
@@ -131,7 +162,12 @@ public fun vecDotBf16(aRow: ShortArray, bRow: ShortArray, c: FloatArray, k: Int)
     }
 }
 
-public fun vecDotF16(aRow: ShortArray, bRow: ShortArray, c: FloatArray, k: UInt) {
+public fun vecDotF16(
+    aRow: ShortArray,
+    bRow: ShortArray,
+    c: FloatArray,
+    k: UInt,
+) {
     // leftovers
     var sum = 0.0f
     for (i in 0 until k.toInt()) {
@@ -140,7 +176,12 @@ public fun vecDotF16(aRow: ShortArray, bRow: ShortArray, c: FloatArray, k: UInt)
     c[0] = sum
 }
 
-public fun vecDotBf16(aRow: ShortArray, bRow: ShortArray, c: FloatArray, k: UInt) {
+public fun vecDotBf16(
+    aRow: ShortArray,
+    bRow: ShortArray,
+    c: FloatArray,
+    k: UInt,
+) {
     // leftovers
     var sum = 0.0f
     for (i in 0 until k.toInt()) {
@@ -149,16 +190,22 @@ public fun vecDotBf16(aRow: ShortArray, bRow: ShortArray, c: FloatArray, k: UInt
     c[0] = sum
 }
 
-public fun vecAddF16(aRow: ShortArray, bRow: ShortArray, c: ShortArray, k: Int) {
+public fun vecAddF16(
+    aRow: ShortArray,
+    bRow: ShortArray,
+    c: ShortArray,
+    k: Int,
+) {
     var i = 0
     while (i + currentCpuF16.step <= k) {
         for (j in 0 until currentCpuF16.arr) {
             currentCpuF16.vecStore(
-                c, i + j * currentCpuF16.epr,
+                c,
+                i + j * currentCpuF16.epr,
                 currentCpuF16.vecAdd(
                     currentCpuF16.load(aRow, i + j * currentCpuF16.epr),
-                    currentCpuF16.load(bRow, i + j * currentCpuF16.epr)
-                )
+                    currentCpuF16.load(bRow, i + j * currentCpuF16.epr),
+                ),
             )
         }
         i += currentCpuF16.step
@@ -170,22 +217,33 @@ public fun vecAddF16(aRow: ShortArray, bRow: ShortArray, c: ShortArray, k: Int) 
     }
 }
 
-public fun vecAddF16(aRow: ShortArray, bRow: ShortArray, c: ShortArray, k: UInt) {
+public fun vecAddF16(
+    aRow: ShortArray,
+    bRow: ShortArray,
+    c: ShortArray,
+    k: UInt,
+) {
     for (i in 0 until k.toInt()) {
         c[i] = addF16(aRow[i], bRow[i])
     }
 }
 
-public fun vecAddBf16(aRow: ShortArray, bRow: ShortArray, c: ShortArray, k: Int) {
+public fun vecAddBf16(
+    aRow: ShortArray,
+    bRow: ShortArray,
+    c: ShortArray,
+    k: Int,
+) {
     var i = 0
     while (i + currentCpuBF16.step <= k) {
         for (j in 0 until currentCpuBF16.arr) {
             currentCpuBF16.vecStore(
-                c, i + j * currentCpuBF16.epr,
+                c,
+                i + j * currentCpuBF16.epr,
                 currentCpuBF16.vecAdd(
                     currentCpuBF16.load(aRow, i + j * currentCpuBF16.epr),
-                    currentCpuBF16.load(bRow, i + j * currentCpuBF16.epr)
-                )
+                    currentCpuBF16.load(bRow, i + j * currentCpuBF16.epr),
+                ),
             )
         }
         i += currentCpuBF16.step
@@ -197,20 +255,31 @@ public fun vecAddBf16(aRow: ShortArray, bRow: ShortArray, c: ShortArray, k: Int)
     }
 }
 
-public fun vecAddBf16(aRow: ShortArray, bRow: ShortArray, c: ShortArray, k: UInt) {
+public fun vecAddBf16(
+    aRow: ShortArray,
+    bRow: ShortArray,
+    c: ShortArray,
+    k: UInt,
+) {
     for (i in 0 until k.toInt()) {
         c[i] = addBf16(aRow[i], bRow[i])
     }
 }
 
-public fun vecScalarAddF16(scalar: Short, xs: ShortArray, ys: ShortArray, k: Int) {
+public fun vecScalarAddF16(
+    scalar: Short,
+    xs: ShortArray,
+    ys: ShortArray,
+    k: Int,
+) {
     val sv = currentCpuF16.fromF32(toF32(scalar))
     var i = 0
     while (i + currentCpuF16.step <= k) {
         for (j in 0 until currentCpuF16.arr) {
             currentCpuF16.vecStore(
-                ys, i + j * currentCpuF16.epr,
-                currentCpuF16.vecAdd(currentCpuF16.load(xs, i + j * currentCpuF16.epr), sv)
+                ys,
+                i + j * currentCpuF16.epr,
+                currentCpuF16.vecAdd(currentCpuF16.load(xs, i + j * currentCpuF16.epr), sv),
             )
         }
         i += currentCpuF16.step
@@ -220,23 +289,34 @@ public fun vecScalarAddF16(scalar: Short, xs: ShortArray, ys: ShortArray, k: Int
     }
 }
 
-public fun vecScalarAddF16(scalar: Short, xs: ShortArray, ys: ShortArray, k: UInt) {
+public fun vecScalarAddF16(
+    scalar: Short,
+    xs: ShortArray,
+    ys: ShortArray,
+    k: UInt,
+) {
     for (i in 0 until k.toInt()) {
         ys[i] = addF16(xs[i], scalar)
     }
 }
 
-public fun vecScalarAddBf16(scalar: Short, xs: ShortArray, ys: ShortArray, k: Int) {
+public fun vecScalarAddBf16(
+    scalar: Short,
+    xs: ShortArray,
+    ys: ShortArray,
+    k: Int,
+) {
     val sv = currentCpuBF16.fromF32(bf16ToF32(scalar))
     var i = 0
     while (i + currentCpuBF16.step <= k) {
         for (j in 0 until currentCpuBF16.arr) {
             currentCpuBF16.vecStore(
-                ys, i + j * currentCpuBF16.epr,
+                ys,
+                i + j * currentCpuBF16.epr,
                 currentCpuBF16.vecAdd(
                     currentCpuBF16.load(xs, i + j * currentCpuBF16.epr),
-                    sv
-                )
+                    sv,
+                ),
             )
         }
         i += currentCpuBF16.step
@@ -246,7 +326,12 @@ public fun vecScalarAddBf16(scalar: Short, xs: ShortArray, ys: ShortArray, k: In
     }
 }
 
-public fun vecScalarAddBf16(scalar: Short, xs: ShortArray, ys: ShortArray, k: UInt) {
+public fun vecScalarAddBf16(
+    scalar: Short,
+    xs: ShortArray,
+    ys: ShortArray,
+    k: UInt,
+) {
     for (i in 0 until k.toInt()) {
         ys[i] = addBf16(xs[i], scalar)
     }

@@ -14,9 +14,12 @@ import io.github.kotlinmania.candle.metal.MetalStorage
 import io.github.kotlinmania.candle.metal.bufferO
 
 private fun <T> kotlin.Result<T>.unwrap(): T = getOrThrow()
+
 private fun <T> CudaSlice<T>.slice(range: IntRange): CudaSlice<T> =
     CudaSlice(data.subList(range.first, (range.last + 1).coerceAtMost(data.size)).toMutableList())
+
 private fun CudaStream.launchBuilder(func: CudaFunc): LaunchArgs = LaunchArgs(func.func)
+
 private fun callArgSort(
     device: Any?,
     commandEncoder: Any?,
@@ -77,14 +80,19 @@ internal data class ArgSort(
     val asc: Boolean,
     val lastDim: Int,
 ) : CustomOp1 {
-    internal fun <T : Comparable<T>> asort(vs: List<T>, layout: Layout, self: ArgSort = this): MutableList<UInt> {
+    internal fun <T : Comparable<T>> asort(
+        vs: List<T>,
+        layout: Layout,
+        self: ArgSort = this,
+    ): MutableList<UInt> {
         // Safety: indexes are set later in the parallelized section.
-        val sortIndexes = run {
-            val elCount = layout.shape().elemCount()
-            val v = Vec.withCapacity<UInt>(elCount)
-            v.setLen(elCount)
-            v
-        }
+        val sortIndexes =
+            run {
+                val elCount = layout.shape().elemCount()
+                val v = Vec.withCapacity<UInt>(elCount)
+                v.setLen(elCount)
+                v
+            }
         if (self.asc) {
             sortIndexes
                 .parChunksExactMut(self.lastDim)
@@ -131,117 +139,227 @@ internal data class ArgSort(
     ): CandleResult<CudaStorageSlice> {
         val self = this
         val offsets = layout.contiguousOffsets()
-        val slice = when (offsets) {
-            null -> bail("input has to be contiguous")
-            else -> src.slice(offsets.first until offsets.second)
-        }
+        val slice =
+            when (offsets) {
+                null -> bail("input has to be contiguous")
+                else -> src.slice(offsets.first until offsets.second)
+            }
         val elemCount = layout.shape().elemCount()
         val dst = dev.alloc<UInt>(elemCount).unwrap()
-        val func = if (self.asc) {
-            dev.getOrLoadFunc(kernelName("asort_asc"), kernels.SORT).unwrap()
-        } else {
-            dev.getOrLoadFunc(kernelName("asort_desc"), kernels.SORT).unwrap()
-        }
+        val func =
+            if (self.asc) {
+                dev.getOrLoadFunc(kernelName("asort_asc"), kernels.SORT).unwrap()
+            } else {
+                dev.getOrLoadFunc(kernelName("asort_desc"), kernels.SORT).unwrap()
+            }
         val ncols = self.lastDim
         val nrows = elemCount / ncols
         val ncolsPad = nextPowerOf2(ncols)
         // Limit block dim to 1024 threads, which is the maximum on modern CUDA gpus.
         val blockDim = minOf(ncolsPad, 1024)
-        val cfg = LaunchConfig(
-            gridDim = Triple(nrows.toUInt(), 1u, 1u),
-            blockDim = Triple(blockDim.toUInt(), 1u, 1u),
-            sharedMemBytes = (ncolsPad * 4).toUInt(),
-        )
+        val cfg =
+            LaunchConfig(
+                gridDim = Triple(nrows.toUInt(), 1u, 1u),
+                blockDim = Triple(blockDim.toUInt(), 1u, 1u),
+                sharedMemBytes = (ncolsPad * 4).toUInt(),
+            )
         val stream = dev.cudaStream()
         val builder = stream.launchBuilder(func)
         val ncolsI32 = ncols
         val ncolsPadI32 = ncolsPad
-        builder.arg(slice).arg(dst).arg(ncolsI32).arg(ncolsPadI32)
+        builder
+            .arg(slice)
+            .arg(dst)
+            .arg(ncolsI32)
+            .arg(ncolsPadI32)
         builder.launch(cfg).unwrap()
         return CandleResult.Ok(CudaStorageSlice.U32(dst))
     }
 
-    override fun name(): String {
-        return "argsort"
-    }
+    override fun name(): String = "argsort"
 
-    override fun cpuFwd(storage: CpuStorage, layout: Layout): Pair<CpuStorage, Shape> {
+    override fun cpuFwd(
+        storage: CpuStorage,
+        layout: Layout,
+    ): Pair<CpuStorage, Shape> {
         val self = this
-        val sortIndexes = when (storage) {
-            is CpuStorage.U8 -> self.asort(storage.data.toList(), layout)
-            is CpuStorage.U32 -> self.asort(storage.data.toList(), layout)
-            is CpuStorage.I16 -> self.asort(storage.data.toList(), layout)
-            is CpuStorage.I32 -> self.asort(storage.data.toList(), layout)
-            is CpuStorage.I64 -> self.asort(storage.data.toList(), layout)
-            is CpuStorage.BF16 -> self.asort(storage.data.map { BFloat16(it).toFloat() }, layout)
-            is CpuStorage.F16 -> self.asort(storage.data.map { Float16(it).toFloat() }, layout)
-            is CpuStorage.F32 -> self.asort(storage.data.toList(), layout)
-            is CpuStorage.F64 -> self.asort(storage.data.toList(), layout)
-            is CpuStorage.F8E4M3 -> self.asort(storage.data.map { F8E4M3(it).toFloat() }, layout)
-            // Dummy types do not support sorting
-            is CpuStorage.F6E2M3 -> {
-                throw CandleError.UnsupportedDTypeForOp(DType.F6E2M3, "argsort").bt()
+        val sortIndexes =
+            when (storage) {
+                is CpuStorage.U8 -> {
+                    self.asort(storage.data.toList(), layout)
+                }
+
+                is CpuStorage.U32 -> {
+                    self.asort(storage.data.toList(), layout)
+                }
+
+                is CpuStorage.I16 -> {
+                    self.asort(storage.data.toList(), layout)
+                }
+
+                is CpuStorage.I32 -> {
+                    self.asort(storage.data.toList(), layout)
+                }
+
+                is CpuStorage.I64 -> {
+                    self.asort(storage.data.toList(), layout)
+                }
+
+                is CpuStorage.BF16 -> {
+                    self.asort(storage.data.map { BFloat16(it).toFloat() }, layout)
+                }
+
+                is CpuStorage.F16 -> {
+                    self.asort(storage.data.map { Float16(it).toFloat() }, layout)
+                }
+
+                is CpuStorage.F32 -> {
+                    self.asort(storage.data.toList(), layout)
+                }
+
+                is CpuStorage.F64 -> {
+                    self.asort(storage.data.toList(), layout)
+                }
+
+                is CpuStorage.F8E4M3 -> {
+                    self.asort(storage.data.map { F8E4M3(it).toFloat() }, layout)
+                }
+
+                // Dummy types do not support sorting
+                is CpuStorage.F6E2M3 -> {
+                    throw CandleError.UnsupportedDTypeForOp(DType.F6E2M3, "argsort").bt()
+                }
+
+                is CpuStorage.F6E3M2 -> {
+                    throw CandleError.UnsupportedDTypeForOp(DType.F6E3M2, "argsort").bt()
+                }
+
+                is CpuStorage.F4 -> {
+                    throw CandleError.UnsupportedDTypeForOp(DType.F4, "argsort").bt()
+                }
+
+                is CpuStorage.F8E8M0 -> {
+                    throw CandleError.UnsupportedDTypeForOp(DType.F8E8M0, "argsort").bt()
+                }
             }
-            is CpuStorage.F6E3M2 -> {
-                throw CandleError.UnsupportedDTypeForOp(DType.F6E3M2, "argsort").bt()
-            }
-            is CpuStorage.F4 -> {
-                throw CandleError.UnsupportedDTypeForOp(DType.F4, "argsort").bt()
-            }
-            is CpuStorage.F8E8M0 -> {
-                throw CandleError.UnsupportedDTypeForOp(DType.F8E8M0, "argsort").bt()
-            }
-        }
         val sortIndexesStorage = CpuStorage.U32(sortIndexes.toUIntArray())
         return Pair(sortIndexesStorage, layout.shape().clone())
     }
 
-    public fun cudaFwd(storage: CudaStorage, layout: Layout): Pair<CudaStorage, Shape> {
+    public fun cudaFwd(
+        storage: CudaStorage,
+        layout: Layout,
+    ): Pair<CudaStorage, Shape> {
         val self = this
         val dev = storage.device
         val slice = self.map(storage.slice, dev, layout)
-        val dst = CudaStorage(
-            slice = slice,
-            device = dev,
-        )
+        val dst =
+            CudaStorage(
+                slice = slice,
+                device = dev,
+            )
         return Pair(dst, layout.shape().clone())
     }
 
-    public fun metalFwd(storage: MetalStorage, layout: Layout): Pair<MetalStorage, Shape> {
+    public fun metalFwd(
+        storage: MetalStorage,
+        layout: Layout,
+    ): Pair<MetalStorage, Shape> {
         val self = this
-        val name = if (self.asc) {
-            when (storage.dtype()) {
-                DType.BF16 -> "asort_asc_bf16"
-                DType.F16 -> "asort_asc_f16"
-                DType.F32 -> "asort_asc_f32"
-                DType.F64 -> "asort_asc_f64"
-                DType.U8 -> "asort_asc_u8"
-                DType.U32 -> "asort_asc_u32"
-                DType.I16 -> "asort_asc_i16"
-                DType.I32 -> "asort_asc_i32"
-                DType.I64 -> "asort_asc_i64"
-                DType.F8E4M3 -> throw CandleError.Msg("Metal device does not yet support F8E4M3.").bt()
-                DType.F6E2M3, DType.F6E3M2, DType.F4, DType.F8E8M0 -> {
-                    throw CandleError.UnsupportedDTypeForOp(storage.dtype(), "argsort").bt()
+        val name =
+            if (self.asc) {
+                when (storage.dtype()) {
+                    DType.BF16 -> {
+                        "asort_asc_bf16"
+                    }
+
+                    DType.F16 -> {
+                        "asort_asc_f16"
+                    }
+
+                    DType.F32 -> {
+                        "asort_asc_f32"
+                    }
+
+                    DType.F64 -> {
+                        "asort_asc_f64"
+                    }
+
+                    DType.U8 -> {
+                        "asort_asc_u8"
+                    }
+
+                    DType.U32 -> {
+                        "asort_asc_u32"
+                    }
+
+                    DType.I16 -> {
+                        "asort_asc_i16"
+                    }
+
+                    DType.I32 -> {
+                        "asort_asc_i32"
+                    }
+
+                    DType.I64 -> {
+                        "asort_asc_i64"
+                    }
+
+                    DType.F8E4M3 -> {
+                        throw CandleError.Msg("Metal device does not yet support F8E4M3.").bt()
+                    }
+
+                    DType.F6E2M3, DType.F6E3M2, DType.F4, DType.F8E8M0 -> {
+                        throw CandleError.UnsupportedDTypeForOp(storage.dtype(), "argsort").bt()
+                    }
+                }
+            } else {
+                when (storage.dtype()) {
+                    DType.BF16 -> {
+                        "asort_desc_bf16"
+                    }
+
+                    DType.F16 -> {
+                        "asort_desc_f16"
+                    }
+
+                    DType.F32 -> {
+                        "asort_desc_f32"
+                    }
+
+                    DType.F64 -> {
+                        "asort_desc_f64"
+                    }
+
+                    DType.U8 -> {
+                        "asort_desc_u8"
+                    }
+
+                    DType.U32 -> {
+                        "asort_desc_u32"
+                    }
+
+                    DType.I16 -> {
+                        "asort_desc_i16"
+                    }
+
+                    DType.I32 -> {
+                        "asort_desc_i32"
+                    }
+
+                    DType.I64 -> {
+                        "asort_desc_i64"
+                    }
+
+                    DType.F8E4M3 -> {
+                        throw CandleError.Msg("Metal device does not yet support F8E4M3.").bt()
+                    }
+
+                    DType.F6E2M3, DType.F6E3M2, DType.F4, DType.F8E8M0 -> {
+                        throw CandleError.UnsupportedDTypeForOp(storage.dtype(), "argsort").bt()
+                    }
                 }
             }
-        } else {
-            when (storage.dtype()) {
-                DType.BF16 -> "asort_desc_bf16"
-                DType.F16 -> "asort_desc_f16"
-                DType.F32 -> "asort_desc_f32"
-                DType.F64 -> "asort_desc_f64"
-                DType.U8 -> "asort_desc_u8"
-                DType.U32 -> "asort_desc_u32"
-                DType.I16 -> "asort_desc_i16"
-                DType.I32 -> "asort_desc_i32"
-                DType.I64 -> "asort_desc_i64"
-                DType.F8E4M3 -> throw CandleError.Msg("Metal device does not yet support F8E4M3.").bt()
-                DType.F6E2M3, DType.F6E3M2, DType.F4, DType.F8E8M0 -> {
-                    throw CandleError.UnsupportedDTypeForOp(storage.dtype(), "argsort").bt()
-                }
-            }
-        }
         val device = storage.device()
         val kernels = device.kernels()
         val commandEncoder = device.commandEncoder().unwrap()
@@ -286,7 +404,9 @@ internal data class ArgSort(
     }
 }
 
-private object kernels {
+private val kernels: KernelsMod = KernelsMod
+
+private object KernelsMod {
     val SORT: KernelModule = KernelModule(0, "sort")
 }
 
@@ -313,10 +433,11 @@ public fun Tensor.argSortLastDim(asc: Boolean): Tensor {
         throw CandleError.RequiresContiguous("arg_sort_last_dim")
     }
     val last = self.dims().lastOrNull()
-    val lastDim = when (last) {
-        null -> throw CandleError.Msg("empty last-dim in arg-sort")
-        else -> last
-    }
+    val lastDim =
+        when (last) {
+            null -> throw CandleError.Msg("empty last-dim in arg-sort")
+            else -> last
+        }
     // No need for a backward pass for arg sort.
     return self.applyOp1NoBwd(ArgSort(asc, lastDim))
 }

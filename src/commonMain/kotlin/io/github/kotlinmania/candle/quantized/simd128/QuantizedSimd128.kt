@@ -2,11 +2,11 @@
 package io.github.kotlinmania.candle.quantized.simd128
 
 import io.github.kotlinmania.candle.BlockQ2K
-import io.github.kotlinmania.candle.BlockQ4K
 import io.github.kotlinmania.candle.BlockQ40
+import io.github.kotlinmania.candle.BlockQ4K
 import io.github.kotlinmania.candle.BlockQ6K
-import io.github.kotlinmania.candle.BlockQ8K
 import io.github.kotlinmania.candle.BlockQ80
+import io.github.kotlinmania.candle.BlockQ8K
 import io.github.kotlinmania.candle.QK80
 import io.github.kotlinmania.candle.QKK
 
@@ -57,10 +57,17 @@ private val i16x8ExtendHighU8x16: (ByteArray) -> ShortArray = { a ->
 private val i16x8LoadExtendI8x8: (ByteArray, Int) -> ShortArray = { src, off ->
     ShortArray(8) { i -> src[off + i].toShort() }
 }
-private fun i16x8LoadExtendU8x8(src: UByteArray, off: Int): ShortArray =
-    ShortArray(8) { i -> (src[off + i].toInt() and 0xFF).toShort() }
-private fun i16x8LoadExtendU8x8(src: ByteArray, off: Int): ShortArray =
-    ShortArray(8) { i -> (src[off + i].toInt() and 0xFF).toShort() }
+
+private fun i16x8LoadExtendU8x8(
+    src: UByteArray,
+    off: Int,
+): ShortArray = ShortArray(8) { i -> (src[off + i].toInt() and 0xFF).toShort() }
+
+private fun i16x8LoadExtendU8x8(
+    src: ByteArray,
+    off: Int,
+): ShortArray = ShortArray(8) { i -> (src[off + i].toInt() and 0xFF).toShort() }
+
 private val i16x8LoadExtendU8x8B: (ByteArray, Int) -> ShortArray = { src, off ->
     ShortArray(8) { i -> (src[off + i].toInt() and 0xFF).toShort() }
 }
@@ -131,7 +138,11 @@ private val writeU32Into: (IntArray, Int, Int, UByteArray) -> Unit = { src, star
     }
 }
 
-internal fun vecDotQ40Q80(n: Int, xs: List<BlockQ40>, ys: List<BlockQ80>): Float {
+internal fun vecDotQ40Q80(
+    n: Int,
+    xs: List<BlockQ40>,
+    ys: List<BlockQ80>,
+): Float {
     require(n % QK80 == 0) {
         "vecDotQ40Q80: $n is not divisible by $QK80"
     }
@@ -164,14 +175,19 @@ internal fun vecDotQ40Q80(n: Int, xs: List<BlockQ40>, ys: List<BlockQ80>): Float
         val scaled = f32x4Mul(sumXyF, d)
         acc = f32x4Add(acc, scaled)
     }
-    val res = f32x4ExtractLane(acc, 0) +
-        f32x4ExtractLane(acc, 1) +
-        f32x4ExtractLane(acc, 2) +
-        f32x4ExtractLane(acc, 3)
+    val res =
+        f32x4ExtractLane(acc, 0) +
+            f32x4ExtractLane(acc, 1) +
+            f32x4ExtractLane(acc, 2) +
+            f32x4ExtractLane(acc, 3)
     return res
 }
 
-internal fun vecDotQ80Q80(n: Int, xs: List<BlockQ80>, ys: List<BlockQ80>): Float {
+internal fun vecDotQ80Q80(
+    n: Int,
+    xs: List<BlockQ80>,
+    ys: List<BlockQ80>,
+): Float {
     require(n % QK80 == 0) {
         "vecDotQ80Q80: $n is not divisible by $QK80"
     }
@@ -200,14 +216,19 @@ internal fun vecDotQ80Q80(n: Int, xs: List<BlockQ80>, ys: List<BlockQ80>): Float
         val scaled = f32x4Mul(sumXyF, d)
         acc = f32x4Add(acc, scaled)
     }
-    val res = f32x4ExtractLane(acc, 0) +
-        f32x4ExtractLane(acc, 1) +
-        f32x4ExtractLane(acc, 2) +
-        f32x4ExtractLane(acc, 3)
+    val res =
+        f32x4ExtractLane(acc, 0) +
+            f32x4ExtractLane(acc, 1) +
+            f32x4ExtractLane(acc, 2) +
+            f32x4ExtractLane(acc, 3)
     return res
 }
 
-internal fun vecDotQ2kQ8k(n: Int, xs: List<BlockQ2K>, ys: List<BlockQ8K>): Float {
+internal fun vecDotQ2kQ8k(
+    n: Int,
+    xs: List<BlockQ2K>,
+    ys: List<BlockQ8K>,
+): Float {
     require(n % QKK == 0) {
         "vecDotQ2kQ8k: $n is not divisible by $QKK"
     }
@@ -220,15 +241,16 @@ internal fun vecDotQ2kQ8k(n: Int, xs: List<BlockQ2K>, ys: List<BlockQ8K>): Float
         var summs = i32x4Splat(0)
         for (i in 0 until (QKK / 16) step 4) {
             val bsums = i32x4LoadExtendI16x4(y.bsums, i)
-            val scales = i32x4Shr(
-                i32x4Of(
-                    sc[i].toInt() and 0xFF,
-                    sc[i + 1].toInt() and 0xFF,
-                    sc[i + 2].toInt() and 0xFF,
-                    sc[i + 3].toInt() and 0xFF,
-                ),
-                4,
-            )
+            val scales =
+                i32x4Shr(
+                    i32x4Of(
+                        sc[i].toInt() and 0xFF,
+                        sc[i + 1].toInt() and 0xFF,
+                        sc[i + 2].toInt() and 0xFF,
+                        sc[i + 3].toInt() and 0xFF,
+                    ),
+                    4,
+                )
             summs = i32x4Add(summs, i32x4Mul(bsums, scales))
         }
         val summsF = f32x4ConvertI32x4(summs)
@@ -238,9 +260,9 @@ internal fun vecDotQ2kQ8k(n: Int, xs: List<BlockQ2K>, ys: List<BlockQ8K>): Float
 
         var isum = i32x4Splat(0)
         var isIdx = 0
-        for (block in 0 until (QKK / 128)) {
+        repeat(QKK / 128) {
             var shift = 0
-            for (sub in 0 until 4) {
+            repeat(4) {
                 val d0 = sc[isIdx].toInt() and 0xF
                 isIdx += 1
                 var isuml0 = i16x8Splat(0)
@@ -272,22 +294,28 @@ internal fun vecDotQ2kQ8k(n: Int, xs: List<BlockQ2K>, ys: List<BlockQ8K>): Float
             q2Off += 32
         }
         val isumF = f32x4ConvertI32x4(isum)
-        sumf = f32x4Add(
-            sumf,
-            f32x4Sub(
-                f32x4Mul(isumF, f32x4Splat(dall)),
-                f32x4Mul(summsF, f32x4Splat(dmin)),
-            ),
-        )
+        sumf =
+            f32x4Add(
+                sumf,
+                f32x4Sub(
+                    f32x4Mul(isumF, f32x4Splat(dall)),
+                    f32x4Mul(summsF, f32x4Splat(dmin)),
+                ),
+            )
     }
-    val res = f32x4ExtractLane(sumf, 0) +
-        f32x4ExtractLane(sumf, 1) +
-        f32x4ExtractLane(sumf, 2) +
-        f32x4ExtractLane(sumf, 3)
+    val res =
+        f32x4ExtractLane(sumf, 0) +
+            f32x4ExtractLane(sumf, 1) +
+            f32x4ExtractLane(sumf, 2) +
+            f32x4ExtractLane(sumf, 3)
     return res
 }
 
-internal fun vecDotQ4kQ8k(n: Int, xs: List<BlockQ4K>, ys: List<BlockQ8K>): Float {
+internal fun vecDotQ4kQ8k(
+    n: Int,
+    xs: List<BlockQ4K>,
+    ys: List<BlockQ8K>,
+): Float {
     require(n % QKK == 0) {
         "vecDotQ4kQ8k: $n is not divisible by $QKK"
     }
@@ -354,14 +382,19 @@ internal fun vecDotQ4kQ8k(n: Int, xs: List<BlockQ4K>, ys: List<BlockQ8K>): Float
         val sumiF = f32x4ConvertI32x4(sumi)
         sums = f32x4Sub(sums, f32x4Mul(sumiF, dmin))
     }
-    val res = f32x4ExtractLane(sums, 0) +
-        f32x4ExtractLane(sums, 1) +
-        f32x4ExtractLane(sums, 2) +
-        f32x4ExtractLane(sums, 3)
+    val res =
+        f32x4ExtractLane(sums, 0) +
+            f32x4ExtractLane(sums, 1) +
+            f32x4ExtractLane(sums, 2) +
+            f32x4ExtractLane(sums, 3)
     return res
 }
 
-internal fun vecDotQ6kQ8k(n: Int, xs: List<BlockQ6K>, ys: List<BlockQ8K>): Float {
+internal fun vecDotQ6kQ8k(
+    n: Int,
+    xs: List<BlockQ6K>,
+    ys: List<BlockQ8K>,
+): Float {
     require(n % QKK == 0) {
         "vecDotQ6kQ8k: $n is not divisible by $QKK"
     }
@@ -378,55 +411,59 @@ internal fun vecDotQ6kQ8k(n: Int, xs: List<BlockQ6K>, ys: List<BlockQ8K>): Float
             val q4Off = j / 2
             val qhOff = j / 4
             for (l in 0 until 32 step 16) {
-                val a80 = v128Or(
-                    v128And(v128LoadU(q4, q4Off + l), u8x16Splat(0xF)),
-                    u8x16Shl(
-                        v128And(v128LoadU(qh, qhOff + l), u8x16Splat(3)),
-                        4,
-                    ),
-                )
+                val a80 =
+                    v128Or(
+                        v128And(v128LoadU(q4, q4Off + l), u8x16Splat(0xF)),
+                        u8x16Shl(
+                            v128And(v128LoadU(qh, qhOff + l), u8x16Splat(3)),
+                            4,
+                        ),
+                    )
                 val a8Low0 = i16x8Sub(i16x8ExtendLowU8x16(a80), i16x8Splat(32))
                 val a8High0 = i16x8Sub(i16x8ExtendHighU8x16(a80), i16x8Splat(32))
                 v128Store(aux8, j + l, i8x16NarrowI16x8(a8Low0, a8High0))
 
-                val a81 = v128Or(
-                    v128And(v128LoadU(q4, q4Off + l + 32), u8x16Splat(0xF)),
-                    u8x16Shl(
-                        v128And(
-                            u8x16Shr(v128LoadU(qh, qhOff + l), 2),
-                            u8x16Splat(3),
+                val a81 =
+                    v128Or(
+                        v128And(v128LoadU(q4, q4Off + l + 32), u8x16Splat(0xF)),
+                        u8x16Shl(
+                            v128And(
+                                u8x16Shr(v128LoadU(qh, qhOff + l), 2),
+                                u8x16Splat(3),
+                            ),
+                            4,
                         ),
-                        4,
-                    ),
-                )
+                    )
                 val a8Low1 = i16x8Sub(i16x8ExtendLowU8x16(a81), i16x8Splat(32))
                 val a8High1 = i16x8Sub(i16x8ExtendHighU8x16(a81), i16x8Splat(32))
                 v128Store(aux8, j + l + 32, i8x16NarrowI16x8(a8Low1, a8High1))
 
-                val a82 = v128Or(
-                    u8x16Shr(v128LoadU(q4, q4Off + l), 4),
-                    u8x16Shl(
-                        v128And(
-                            u8x16Shr(v128LoadU(qh, qhOff + l), 4),
-                            u8x16Splat(3),
+                val a82 =
+                    v128Or(
+                        u8x16Shr(v128LoadU(q4, q4Off + l), 4),
+                        u8x16Shl(
+                            v128And(
+                                u8x16Shr(v128LoadU(qh, qhOff + l), 4),
+                                u8x16Splat(3),
+                            ),
+                            4,
                         ),
-                        4,
-                    ),
-                )
+                    )
                 val a8Low2 = i16x8Sub(i16x8ExtendLowU8x16(a82), i16x8Splat(32))
                 val a8High2 = i16x8Sub(i16x8ExtendHighU8x16(a82), i16x8Splat(32))
                 v128Store(aux8, j + l + 64, i8x16NarrowI16x8(a8Low2, a8High2))
 
-                val a83 = v128Or(
-                    u8x16Shr(v128LoadU(q4, q4Off + l + 32), 4),
-                    u8x16Shl(
-                        v128And(
-                            u8x16Shr(v128LoadU(qh, qhOff + l), 6),
-                            u8x16Splat(3),
+                val a83 =
+                    v128Or(
+                        u8x16Shr(v128LoadU(q4, q4Off + l + 32), 4),
+                        u8x16Shl(
+                            v128And(
+                                u8x16Shr(v128LoadU(qh, qhOff + l), 6),
+                                u8x16Splat(3),
+                            ),
+                            4,
                         ),
-                        4,
-                    ),
-                )
+                    )
                 val a8Low3 = i16x8Sub(i16x8ExtendLowU8x16(a83), i16x8Splat(32))
                 val a8High3 = i16x8Sub(i16x8ExtendHighU8x16(a83), i16x8Splat(32))
                 v128Store(aux8, j + l + 96, i8x16NarrowI16x8(a8Low3, a8High3))
@@ -436,32 +473,40 @@ internal fun vecDotQ6kQ8k(n: Int, xs: List<BlockQ6K>, ys: List<BlockQ8K>): Float
         for ((j, scaleByte) in x.scales.withIndex()) {
             val scale = f32x4Splat(scaleByte.toFloat())
             for (offset in intArrayOf(0, 8)) {
-                val aux16 = i16x8Mul(
-                    i16x8LoadExtendI8x8(q8, 16 * j + offset),
-                    i16x8LoadExtendI8x8(aux8, 16 * j + offset),
-                )
-                aux32 = f32x4Add(
-                    aux32,
-                    f32x4Mul(f32x4ConvertI32x4(i32x4ExtendLowI16x8(aux16)), scale),
-                )
-                aux32 = f32x4Add(
-                    aux32,
-                    f32x4Mul(f32x4ConvertI32x4(i32x4ExtendHighI16x8(aux16)), scale),
-                )
+                val aux16 =
+                    i16x8Mul(
+                        i16x8LoadExtendI8x8(q8, 16 * j + offset),
+                        i16x8LoadExtendI8x8(aux8, 16 * j + offset),
+                    )
+                aux32 =
+                    f32x4Add(
+                        aux32,
+                        f32x4Mul(f32x4ConvertI32x4(i32x4ExtendLowI16x8(aux16)), scale),
+                    )
+                aux32 =
+                    f32x4Add(
+                        aux32,
+                        f32x4Mul(f32x4ConvertI32x4(i32x4ExtendHighI16x8(aux16)), scale),
+                    )
             }
         }
 
         val d = f32x4Splat(x.d.toFloat() * y.d)
         sums = f32x4Add(sums, f32x4Mul(aux32, d))
     }
-    val res = f32x4ExtractLane(sums, 0) +
-        f32x4ExtractLane(sums, 1) +
-        f32x4ExtractLane(sums, 2) +
-        f32x4ExtractLane(sums, 3)
+    val res =
+        f32x4ExtractLane(sums, 0) +
+            f32x4ExtractLane(sums, 1) +
+            f32x4ExtractLane(sums, 2) +
+            f32x4ExtractLane(sums, 3)
     return res
 }
 
-internal fun vecDotQ8kQ8k(n: Int, xs: List<BlockQ8K>, ys: List<BlockQ8K>): Float {
+internal fun vecDotQ8kQ8k(
+    n: Int,
+    xs: List<BlockQ8K>,
+    ys: List<BlockQ8K>,
+): Float {
     require(n % QKK == 0) {
         "vecDotQ8kQ8k: $n is not divisible by $QKK"
     }
@@ -479,9 +524,10 @@ internal fun vecDotQ8kQ8k(n: Int, xs: List<BlockQ8K>, ys: List<BlockQ8K>): Float
         val d = f32x4Splat(x.d * y.d)
         acc = f32x4Add(acc, f32x4Mul(f32x4ConvertI32x4(sumi), d))
     }
-    val res = f32x4ExtractLane(acc, 0) +
-        f32x4ExtractLane(acc, 1) +
-        f32x4ExtractLane(acc, 2) +
-        f32x4ExtractLane(acc, 3)
+    val res =
+        f32x4ExtractLane(acc, 0) +
+            f32x4ExtractLane(acc, 1) +
+            f32x4ExtractLane(acc, 2) +
+            f32x4ExtractLane(acc, 3)
     return res
 }

@@ -14,71 +14,62 @@ private val Err: (CandleError) -> CandleResult<Nothing> = { CandleResult.Err(it)
 
 public class QCudaStorage(
     private val dtype: GgmlDType,
-    private val device: CudaDevice
+    private val device: CudaDevice,
 ) {
     private val self: QCudaStorage get() = this
 
-    public fun dtype(): GgmlDType {
-        return self.dtype
-    }
+    public fun dtype(): GgmlDType = self.dtype
 
-    public fun device(): CudaDevice {
-        return self.device
-    }
+    public fun device(): CudaDevice = self.device
 
-    public fun dequantize(
-        elemCount: Int
-    ): CandleResult<CudaStorage> = Err(Error.NotCompiledWithCudaSupport)
+    public fun dequantize(elemCount: Int): CandleResult<CudaStorage> = Err(Error.NotCompiledWithCudaSupport)
 
-    public fun dequantizeF16(
-        elemCount: Int
-    ): CandleResult<CudaStorage> = Err(Error.NotCompiledWithCudaSupport)
+    public fun dequantizeF16(elemCount: Int): CandleResult<CudaStorage> = Err(Error.NotCompiledWithCudaSupport)
 
-    public fun quantize(
-        src: CudaStorage
-    ): CandleResult<Unit> = Err(Error.NotCompiledWithCudaSupport)
+    public fun quantize(src: CudaStorage): CandleResult<Unit> = Err(Error.NotCompiledWithCudaSupport)
 
     public fun quantizeImatrix(
         src: CudaStorage,
         imatrixWeights: FloatArray,
-        nPerRow: Int
+        nPerRow: Int,
     ): CandleResult<Unit> =
         Err(
-            Error.NotCompiledWithCudaSupport
+            Error.NotCompiledWithCudaSupport,
         )
 
     public fun quantizeImatrixOnto(
         src: CpuStorage,
         imatrixWeights: FloatArray,
-        nPerRow: Int
+        nPerRow: Int,
     ): CandleResult<Unit> =
         Err(
-            Error.NotCompiledWithCudaSupport
+            Error.NotCompiledWithCudaSupport,
         )
 
-    public fun quantizeOnto(
-        src: CpuStorage
-    ): CandleResult<Unit> = Err(Error.NotCompiledWithCudaSupport)
+    public fun quantizeOnto(src: CpuStorage): CandleResult<Unit> = Err(Error.NotCompiledWithCudaSupport)
 
     public fun devicePtr(): CandleResult<Long> {
-        self; return Err(Error.NotCompiledWithCudaSupport)
+        self
+        return Err(Error.NotCompiledWithCudaSupport)
     }
 
     public fun storageSizeInBytes(): Int {
-        self; return 0
+        self
+        return 0
     }
 
     public fun fwd(
         selfShape: Shape,
         storage: CudaStorage,
-        layout: Layout
+        layout: Layout,
     ): CandleResult<Pair<CudaStorage, Shape>> =
         Err(
-            Error.NotCompiledWithCudaSupport
+            Error.NotCompiledWithCudaSupport,
         )
 
     public fun data(): CandleResult<ByteArray> {
-        self; return Err(Error.NotCompiledWithCudaSupport)
+        self
+        return Err(Error.NotCompiledWithCudaSupport)
     }
 
     public fun indexedMoeForward(
@@ -86,22 +77,25 @@ public class QCudaStorage(
         w: CudaStorage,
         wl: Layout,
         i: CudaStorage,
-        il: Layout
+        il: Layout,
     ): CandleResult<Pair<CudaStorage, Shape>> =
         Err(
-            Error.NotCompiledWithCudaSupport
+            Error.NotCompiledWithCudaSupport,
         )
 
     public companion object {
         public fun zeros(
-            d: CudaDevice, e: Int, dt: GgmlDType
+            d: CudaDevice,
+            e: Int,
+            dt: GgmlDType,
         ): CandleResult<QCudaStorage> = Err(Error.NotCompiledWithCudaSupport)
     }
 }
 
 public fun <T> loadQuantized(
     device: CudaDevice,
-    data: List<T>
-): CandleResult<QStorage> = Err(
-    Error.NotCompiledWithCudaSupport
-)
+    data: List<T>,
+): CandleResult<QStorage> =
+    Err(
+        Error.NotCompiledWithCudaSupport,
+    )

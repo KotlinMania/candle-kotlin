@@ -3,12 +3,12 @@ package io.github.kotlinmania.candle.quantized.neon
 
 import io.github.kotlinmania.candle.BlockQ2K
 import io.github.kotlinmania.candle.BlockQ3K
-import io.github.kotlinmania.candle.BlockQ4K
 import io.github.kotlinmania.candle.BlockQ40
+import io.github.kotlinmania.candle.BlockQ4K
 import io.github.kotlinmania.candle.BlockQ5K
 import io.github.kotlinmania.candle.BlockQ6K
-import io.github.kotlinmania.candle.BlockQ8K
 import io.github.kotlinmania.candle.BlockQ80
+import io.github.kotlinmania.candle.BlockQ8K
 import io.github.kotlinmania.candle.QK80
 import io.github.kotlinmania.candle.QKK
 
@@ -16,8 +16,12 @@ private val vdupqNF32: (Float) -> FloatArray = { v -> FloatArray(4) { v } }
 private val vdupqNS32: (Int) -> IntArray = { v -> IntArray(4) { v } }
 private val vdupqNU8: (Int) -> ByteArray = { v -> ByteArray(16) { v.toByte() } }
 private val vdupqNS8: (Int) -> ByteArray = { v -> ByteArray(16) { v.toByte() } }
-private fun vld1qU8(src: UByteArray, off: Int): ByteArray = ByteArray(16) { i -> src[off + i].toByte() }
-private fun vld1qU8(src: ByteArray, off: Int): ByteArray = ByteArray(16) { i -> src[off + i] }
+
+private fun vld1qU8(
+    src: ByteArray,
+    off: Int,
+): ByteArray = ByteArray(16) { i -> src[off + i] }
+
 private val vld1qS8: (ByteArray, Int) -> ByteArray = { src, off -> ByteArray(16) { i -> src[off + i] } }
 private val vld1qS16: (ShortArray, Int) -> ShortArray = { src, off -> ShortArray(8) { i -> src[off + i] } }
 private val vld1qS16X2: (ShortArray, Int) -> Array<ShortArray> = { src, off ->
@@ -139,13 +143,20 @@ private val utmpToI8: (IntArray) -> ByteArray = { src ->
     out
 }
 
-private fun vdotqS32(a: ByteArray, b: ByteArray): IntArray {
+private fun vdotqS32(
+    a: ByteArray,
+    b: ByteArray,
+): IntArray {
     val p0 = vmullS8(vgetLowS8(a), vgetLowS8(b))
     val p1 = vmullS8(vgetHighS8(a), vgetHighS8(b))
     return vaddqS32(vpaddlqS16(p0), vpaddlqS16(p1))
 }
 
-internal fun vecDotQ40Q80(n: Int, xs: List<BlockQ40>, ys: List<BlockQ80>): Float {
+internal fun vecDotQ40Q80(
+    n: Int,
+    xs: List<BlockQ40>,
+    ys: List<BlockQ80>,
+): Float {
     require(n % QK80 == 0) {
         "vecDotQ40Q80: $n is not divisible by $QK80"
     }
@@ -174,16 +185,21 @@ internal fun vecDotQ40Q80(n: Int, xs: List<BlockQ40>, ys: List<BlockQ80>): Float
 
         val pl0 = vdotqS32(v00ls, v10l)
         val ph0 = vdotqS32(v00hs, v10h)
-        sumv0 = vmlaqNF32(
-            sumv0,
-            vcvtqF32S32(vaddqS32(pl0, ph0)),
-            x0.d.toFloat() * y0.d.toFloat(),
-        )
+        sumv0 =
+            vmlaqNF32(
+                sumv0,
+                vcvtqF32S32(vaddqS32(pl0, ph0)),
+                x0.d.toFloat() * y0.d.toFloat(),
+            )
     }
     return vaddvqF32(sumv0)
 }
 
-internal fun vecDotQ80Q80(n: Int, xs: List<BlockQ80>, ys: List<BlockQ80>): Float {
+internal fun vecDotQ80Q80(
+    n: Int,
+    xs: List<BlockQ80>,
+    ys: List<BlockQ80>,
+): Float {
     require(n % QK80 == 0) {
         "vecDotQ80Q80: $n is not divisible by $QK80"
     }
@@ -203,16 +219,21 @@ internal fun vecDotQ80Q80(n: Int, xs: List<BlockQ80>, ys: List<BlockQ80>): Float
         val p0 = vdotqS32(x00, y00)
         val p1 = vdotqS32(x01, y01)
 
-        sumv0 = vmlaqNF32(
-            sumv0,
-            vcvtqF32S32(vaddqS32(p0, p1)),
-            x0.d.toFloat() * y0.d.toFloat(),
-        )
+        sumv0 =
+            vmlaqNF32(
+                sumv0,
+                vcvtqF32S32(vaddqS32(p0, p1)),
+                x0.d.toFloat() * y0.d.toFloat(),
+            )
     }
     return vaddvqF32(sumv0)
 }
 
-internal fun vecDotQ8kQ8k(n: Int, xs: List<BlockQ8K>, ys: List<BlockQ8K>): Float {
+internal fun vecDotQ8kQ8k(
+    n: Int,
+    xs: List<BlockQ8K>,
+    ys: List<BlockQ8K>,
+): Float {
     require(n % QKK == 0) {
         "vecDotQ8kQ8k: $n is not divisible by $QKK"
     }
@@ -233,7 +254,11 @@ internal fun vecDotQ8kQ8k(n: Int, xs: List<BlockQ8K>, ys: List<BlockQ8K>): Float
     return sumf
 }
 
-internal fun vecDotQ6kQ8k(n: Int, xs: List<BlockQ6K>, ys: List<BlockQ8K>): Float {
+internal fun vecDotQ6kQ8k(
+    n: Int,
+    xs: List<BlockQ6K>,
+    ys: List<BlockQ8K>,
+): Float {
     require(n % QKK == 0) {
         "vecDotQ6kQ8k: $n is not divisible by $QKK"
     }
@@ -251,26 +276,28 @@ internal fun vecDotQ6kQ8k(n: Int, xs: List<BlockQ6K>, ys: List<BlockQ8K>): Float
 
         val q8sums = vld1qS16X2(y.bsums, 0)
         val scales = vld1qS8(x.scales, 0)
-        val q6scales = arrayOf(
-            vmovlS8(vgetLowS8(scales)),
-            vmovlS8(vgetHighS8(scales)),
-        )
+        val q6scales =
+            arrayOf(
+                vmovlS8(vgetLowS8(scales)),
+                vmovlS8(vgetHighS8(scales)),
+            )
 
-        val prod = vaddqS32(
+        val prod =
             vaddqS32(
-                vmullS16(vgetLowS16(q8sums[0]), vgetLowS16(q6scales[0])),
-                vmullS16(vgetHighS16(q8sums[0]), vgetHighS16(q6scales[0])),
-            ),
-            vaddqS32(
-                vmullS16(vgetLowS16(q8sums[1]), vgetLowS16(q6scales[1])),
-                vmullS16(vgetHighS16(q8sums[1]), vgetHighS16(q6scales[1])),
-            ),
-        )
+                vaddqS32(
+                    vmullS16(vgetLowS16(q8sums[0]), vgetLowS16(q6scales[0])),
+                    vmullS16(vgetHighS16(q8sums[0]), vgetHighS16(q6scales[0])),
+                ),
+                vaddqS32(
+                    vmullS16(vgetLowS16(q8sums[1]), vgetLowS16(q6scales[1])),
+                    vmullS16(vgetHighS16(q8sums[1]), vgetHighS16(q6scales[1])),
+                ),
+            )
         val isumMins = vaddvqS32(prod)
 
         var isum = 0
 
-        for (j in 0 until QKK / 128) {
+        repeat(QKK / 128) {
             val qhbits = vld1qU8X2(x.qh, qh)
             qh += 32
             val q6bits = vld1qU8X4(x.ql, q6)
@@ -340,7 +367,11 @@ internal fun vecDotQ6kQ8k(n: Int, xs: List<BlockQ6K>, ys: List<BlockQ8K>): Float
     return sum
 }
 
-internal fun vecDotQ5kQ8k(n: Int, xs: List<BlockQ5K>, ys: List<BlockQ8K>): Float {
+internal fun vecDotQ5kQ8k(
+    n: Int,
+    xs: List<BlockQ5K>,
+    ys: List<BlockQ8K>,
+): Float {
     require(n % QKK == 0) {
         "vecDotQ5kQ8k: $n is not divisible by $QKK"
     }
@@ -358,10 +389,11 @@ internal fun vecDotQ5kQ8k(n: Int, xs: List<BlockQ5K>, ys: List<BlockQ8K>): Float
         val d = y.d * x.d.toFloat()
         val dmin = y.d * x.dmin.toFloat()
 
-        val q8sums = vpaddqS16(
-            vld1qS16(y.bsums, 0),
-            vld1qS16(y.bsums, 8),
-        )
+        val q8sums =
+            vpaddqS16(
+                vld1qS16(y.bsums, 0),
+                vld1qS16(y.bsums, 8),
+            )
 
         readU32Into(x.scales, utmp, 3)
 
@@ -373,10 +405,11 @@ internal fun vecDotQ5kQ8k(n: Int, xs: List<BlockQ5K>, ys: List<BlockQ8K>): Float
 
         val mins8 = vld1U8Words(utmp[2], utmp[3])
         val mins = vreinterpretqS16U16(vmovlU8(mins8))
-        val prod = vaddqS32(
-            vmullS16(vgetLowS16(q8sums), vgetLowS16(mins)),
-            vmullS16(vgetHighS16(q8sums), vgetHighS16(mins)),
-        )
+        val prod =
+            vaddqS32(
+                vmullS16(vgetLowS16(q8sums), vgetLowS16(mins)),
+                vmullS16(vgetHighS16(q8sums), vgetHighS16(mins)),
+            )
         val sumiMins = vaddvqS32(prod)
 
         val scales = vld1U8Words(utmp[0], utmp[1])
@@ -389,7 +422,7 @@ internal fun vecDotQ5kQ8k(n: Int, xs: List<BlockQ5K>, ys: List<BlockQ8K>): Float
 
         var sumi = 0
 
-        for (j in 0 until QKK / 64) {
+        repeat(QKK / 64) {
             val q5bits = vld1qU8X2(x.qs, q5)
             q5 += 32
             val q8bytes = vld1qS8X4(y.qs, q8)
@@ -422,7 +455,11 @@ internal fun vecDotQ5kQ8k(n: Int, xs: List<BlockQ5K>, ys: List<BlockQ8K>): Float
     return sumf
 }
 
-internal fun vecDotQ4kQ8k(n: Int, xs: List<BlockQ4K>, ys: List<BlockQ8K>): Float {
+internal fun vecDotQ4kQ8k(
+    n: Int,
+    xs: List<BlockQ4K>,
+    ys: List<BlockQ8K>,
+): Float {
     require(n % QKK == 0) {
         "vecDotQ4kQ8k: $n is not divisible by $QKK"
     }
@@ -439,25 +476,28 @@ internal fun vecDotQ4kQ8k(n: Int, xs: List<BlockQ4K>, ys: List<BlockQ8K>): Float
         val d = y.d * x.d.toFloat()
         val dmin = y.d * x.dmin.toFloat()
 
-        val q8sums = vpaddqS16(
-            vld1qS16(y.bsums, 0),
-            vld1qS16(y.bsums, 8),
-        )
+        val q8sums =
+            vpaddqS16(
+                vld1qS16(y.bsums, 0),
+                vld1qS16(y.bsums, 8),
+            )
 
         readU32Into(x.scales, utmp, 3)
 
-        val mins8 = vld1U8Words(
-            utmp[1] and kmask1,
-            ((utmp[2] ushr 4) and kmask2) or (((utmp[1] ushr 6) and kmask3) shl 4),
-        )
+        val mins8 =
+            vld1U8Words(
+                utmp[1] and kmask1,
+                ((utmp[2] ushr 4) and kmask2) or (((utmp[1] ushr 6) and kmask3) shl 4),
+            )
         utmp[1] = (utmp[2] and kmask2) or (((utmp[0] ushr 6) and kmask3) shl 4)
         utmp[0] = utmp[0] and kmask1
 
         val mins = vreinterpretqS16U16(vmovlU8(mins8))
-        val prod = vaddqS32(
-            vmullS16(vgetLowS16(q8sums), vgetLowS16(mins)),
-            vmullS16(vgetHighS16(q8sums), vgetHighS16(mins)),
-        )
+        val prod =
+            vaddqS32(
+                vmullS16(vgetLowS16(q8sums), vgetLowS16(mins)),
+                vmullS16(vgetHighS16(q8sums), vgetHighS16(mins)),
+            )
         sumf -= dmin * vaddvqS32(prod).toFloat()
 
         writeU32Into(utmp, scales)
@@ -473,20 +513,22 @@ internal fun vecDotQ4kQ8k(n: Int, xs: List<BlockQ4K>, ys: List<BlockQ8K>): Float
             q4 += 32
             var q8bytes = vld1qS8X2(y.qs, q8)
             q8 += 32
-            var q4bytes = arrayOf(
-                vreinterpretqS8U8(vandqU8(q4bits[0], m4b)),
-                vreinterpretqS8U8(vandqU8(q4bits[1], m4b)),
-            )
+            var q4bytes =
+                arrayOf(
+                    vreinterpretqS8U8(vandqU8(q4bits[0], m4b)),
+                    vreinterpretqS8U8(vandqU8(q4bits[1], m4b)),
+                )
             val p0 = vdotqS32(q4bytes[0], q8bytes[0])
             val p1 = vdotqS32(q4bytes[1], q8bytes[1])
             sumi1 += vaddvqS32(vaddqS32(p0, p1)) * scales[2 * j].toInt()
 
             q8bytes = vld1qS8X2(y.qs, q8)
             q8 += 32
-            q4bytes = arrayOf(
-                vreinterpretqS8U8(vshrqNU8(q4bits[0], 4)),
-                vreinterpretqS8U8(vshrqNU8(q4bits[1], 4)),
-            )
+            q4bytes =
+                arrayOf(
+                    vreinterpretqS8U8(vshrqNU8(q4bits[0], 4)),
+                    vreinterpretqS8U8(vshrqNU8(q4bits[1], 4)),
+                )
             val p2 = vdotqS32(q4bytes[0], q8bytes[0])
             val p3 = vdotqS32(q4bytes[1], q8bytes[1])
             sumi2 += vaddvqS32(vaddqS32(p2, p3)) * scales[2 * j + 1].toInt()
@@ -496,7 +538,11 @@ internal fun vecDotQ4kQ8k(n: Int, xs: List<BlockQ4K>, ys: List<BlockQ8K>): Float
     return sumf
 }
 
-internal fun vecDotQ3kQ8k(n: Int, xs: List<BlockQ3K>, ys: List<BlockQ8K>): Float {
+internal fun vecDotQ3kQ8k(
+    n: Int,
+    xs: List<BlockQ3K>,
+    ys: List<BlockQ8K>,
+): Float {
     require(n % QKK == 0) {
         "vecDotQ3kQ8k: $n is not divisible by $QKK"
     }
@@ -548,22 +594,26 @@ internal fun vecDotQ3kQ8k(n: Int, xs: List<BlockQ3K>, ys: List<BlockQ8K>): Float
             var q3h2 = vshlqNU8(vbicqU8(m1, qhbits[0]), 1)
             var q3h3 = vshlqNU8(vbicqU8(m1, qhbits[1]), 1)
 
-            var q3bytes0 = vsubqS8(
-                vreinterpretqS8U8(vandqU8(q3bits[0], m3b)),
-                vreinterpretqS8U8(q3h0),
-            )
-            var q3bytes1 = vsubqS8(
-                vreinterpretqS8U8(vandqU8(q3bits[1], m3b)),
-                vreinterpretqS8U8(q3h1),
-            )
-            var q3bytes2 = vsubqS8(
-                vreinterpretqS8U8(vandqU8(vshrqNU8(q3bits[0], 2), m3b)),
-                vreinterpretqS8U8(q3h2),
-            )
-            var q3bytes3 = vsubqS8(
-                vreinterpretqS8U8(vandqU8(vshrqNU8(q3bits[1], 2), m3b)),
-                vreinterpretqS8U8(q3h3),
-            )
+            var q3bytes0 =
+                vsubqS8(
+                    vreinterpretqS8U8(vandqU8(q3bits[0], m3b)),
+                    vreinterpretqS8U8(q3h0),
+                )
+            var q3bytes1 =
+                vsubqS8(
+                    vreinterpretqS8U8(vandqU8(q3bits[1], m3b)),
+                    vreinterpretqS8U8(q3h1),
+                )
+            var q3bytes2 =
+                vsubqS8(
+                    vreinterpretqS8U8(vandqU8(vshrqNU8(q3bits[0], 2), m3b)),
+                    vreinterpretqS8U8(q3h2),
+                )
+            var q3bytes3 =
+                vsubqS8(
+                    vreinterpretqS8U8(vandqU8(vshrqNU8(q3bits[1], 2), m3b)),
+                    vreinterpretqS8U8(q3h3),
+                )
 
             var p0 = vdotqS32(q3bytes0, q8bytes1[0])
             var p1 = vdotqS32(q3bytes1, q8bytes1[1])
@@ -580,22 +630,26 @@ internal fun vecDotQ3kQ8k(n: Int, xs: List<BlockQ3K>, ys: List<BlockQ8K>): Float
             q3h2 = vshrqNU8(vbicqU8(m3, qhbits[0]), 1)
             q3h3 = vshrqNU8(vbicqU8(m3, qhbits[1]), 1)
 
-            q3bytes0 = vsubqS8(
-                vreinterpretqS8U8(vandqU8(vshrqNU8(q3bits[0], 4), m3b)),
-                vreinterpretqS8U8(q3h0),
-            )
-            q3bytes1 = vsubqS8(
-                vreinterpretqS8U8(vandqU8(vshrqNU8(q3bits[1], 4), m3b)),
-                vreinterpretqS8U8(q3h1),
-            )
-            q3bytes2 = vsubqS8(
-                vreinterpretqS8U8(vandqU8(vshrqNU8(q3bits[0], 6), m3b)),
-                vreinterpretqS8U8(q3h2),
-            )
-            q3bytes3 = vsubqS8(
-                vreinterpretqS8U8(vandqU8(vshrqNU8(q3bits[1], 6), m3b)),
-                vreinterpretqS8U8(q3h3),
-            )
+            q3bytes0 =
+                vsubqS8(
+                    vreinterpretqS8U8(vandqU8(vshrqNU8(q3bits[0], 4), m3b)),
+                    vreinterpretqS8U8(q3h0),
+                )
+            q3bytes1 =
+                vsubqS8(
+                    vreinterpretqS8U8(vandqU8(vshrqNU8(q3bits[1], 4), m3b)),
+                    vreinterpretqS8U8(q3h1),
+                )
+            q3bytes2 =
+                vsubqS8(
+                    vreinterpretqS8U8(vandqU8(vshrqNU8(q3bits[0], 6), m3b)),
+                    vreinterpretqS8U8(q3h2),
+                )
+            q3bytes3 =
+                vsubqS8(
+                    vreinterpretqS8U8(vandqU8(vshrqNU8(q3bits[1], 6), m3b)),
+                    vreinterpretqS8U8(q3h3),
+                )
 
             p0 = vdotqS32(q3bytes0, q8bytes2[0])
             p1 = vdotqS32(q3bytes1, q8bytes2[1])
@@ -617,7 +671,11 @@ internal fun vecDotQ3kQ8k(n: Int, xs: List<BlockQ3K>, ys: List<BlockQ8K>): Float
     return sumf
 }
 
-internal fun vecDotQ2kQ8k(n: Int, xs: List<BlockQ2K>, ys: List<BlockQ8K>): Float {
+internal fun vecDotQ2kQ8k(
+    n: Int,
+    xs: List<BlockQ2K>,
+    ys: List<BlockQ8K>,
+): Float {
     require(n % QKK == 0) {
         "vecDotQ2kQ8k: $n is not divisible by $QKK"
     }
@@ -640,33 +698,37 @@ internal fun vecDotQ2kQ8k(n: Int, xs: List<BlockQ2K>, ys: List<BlockQ8K>): Float
 
         val mins = vshrqNU8(minsAndScales, 4)
         val q8sums = vld1qS16X2(y.bsums, 0)
-        val mins16 = arrayOf(
-            vreinterpretqS16U16(vmovlU8(vgetLowU8(mins))),
-            vreinterpretqS16U16(vmovlU8(vgetHighU8(mins))),
-        )
-        val s0 = vaddqS32(
-            vmullS16(vgetLowS16(mins16[0]), vgetLowS16(q8sums[0])),
-            vmullS16(vgetHighS16(mins16[0]), vgetHighS16(q8sums[0])),
-        )
-        val s1 = vaddqS32(
-            vmullS16(vgetLowS16(mins16[1]), vgetLowS16(q8sums[1])),
-            vmullS16(vgetHighS16(mins16[1]), vgetHighS16(q8sums[1])),
-        )
+        val mins16 =
+            arrayOf(
+                vreinterpretqS16U16(vmovlU8(vgetLowU8(mins))),
+                vreinterpretqS16U16(vmovlU8(vgetHighU8(mins))),
+            )
+        val s0 =
+            vaddqS32(
+                vmullS16(vgetLowS16(mins16[0]), vgetLowS16(q8sums[0])),
+                vmullS16(vgetHighS16(mins16[0]), vgetHighS16(q8sums[0])),
+            )
+        val s1 =
+            vaddqS32(
+                vmullS16(vgetLowS16(mins16[1]), vgetLowS16(q8sums[1])),
+                vmullS16(vgetHighS16(mins16[1]), vgetHighS16(q8sums[1])),
+            )
         sumf += dmin * vaddvqS32(vaddqS32(s0, s1)).toFloat()
 
         var isum = 0
         var isIdx = 0
 
-        for (j in 0 until QKK / 128) {
+        repeat(QKK / 128) {
             val q2bits = vld1qU8X2(x.qs, q2)
             q2 += 32
 
             var q8bytes = vld1qS8X2(y.qs, q8)
             q8 += 32
-            val q2bytes = arrayOf(
-                vreinterpretqS8U8(vandqU8(q2bits[0], m3)),
-                vreinterpretqS8U8(vandqU8(q2bits[1], m3)),
-            )
+            val q2bytes =
+                arrayOf(
+                    vreinterpretqS8U8(vandqU8(q2bits[0], m3)),
+                    vreinterpretqS8U8(vandqU8(q2bits[1], m3)),
+                )
             isum += multiplyAccumWithScale(aux, isIdx, 0, q2bytes, q8bytes)
 
             q8bytes = vld1qS8X2(y.qs, q8)

@@ -18,7 +18,10 @@ private val powi: (Float, Int) -> Float = { base, exp -> base.pow(exp) }
 private val f32Round: (Float) -> Float = { round(it) }
 private val Ok: (Unit) -> Unit = { }
 
-public fun assertTensorEq(t1: Tensor, t2: Tensor) {
+public fun assertTensorEq(
+    t1: Tensor,
+    t2: Tensor,
+) {
     assertEq(t1.shape(), t2.shape())
     // Default U8 may not be large enough to hold the sum (t.sumAll defaults to the dtype of t)
     val eqTensor = t1.eq(t2).toDtype(DType.U32)
@@ -27,39 +30,53 @@ public fun assertTensorEq(t1: Tensor, t2: Tensor) {
     Ok(Unit)
 }
 
-public fun toVec0Round(t: Tensor, digits: Int): Float {
+public fun toVec0Round(
+    t: Tensor,
+    digits: Int,
+): Float {
     val b = powi(10.0f, digits)
-    val t = t.toVec0<Float>()
-    return f32Round(t * b) / b
+    val v = t.toVec0<Float>()
+    return f32Round(v * b) / b
 }
 
-public fun toVec1Round(t: Tensor, digits: Int): List<Float> {
+public fun toVec1Round(
+    t: Tensor,
+    digits: Int,
+): List<Float> {
     val b = powi(10.0f, digits)
-    val t = t.toVec1<Float>()
-    val res = t.map { t -> f32Round(t * b) / b }
+    val vs = t.toVec1<Float>()
+    val res = vs.map { x -> f32Round(x * b) / b }
     return res
 }
 
-public fun toVec2Round(t: Tensor, digits: Int): List<List<Float>> {
+public fun toVec2Round(
+    t: Tensor,
+    digits: Int,
+): List<List<Float>> {
     val b = powi(10.0f, digits)
-    val t = t.toVec2<Float>()
-    val res = t
-        .asSequence()
-        .map { t -> t.map { t -> f32Round(t * b) / b } }
-        .toList()
+    val vs = t.toVec2<Float>()
+    val res =
+        vs
+            .asSequence()
+            .map { row -> row.map { x -> f32Round(x * b) / b } }
+            .toList()
     return res
 }
 
-public fun toVec3Round(t: Tensor, digits: Int): List<List<List<Float>>> {
+public fun toVec3Round(
+    t: Tensor,
+    digits: Int,
+): List<List<List<Float>>> {
     val b = powi(10.0f, digits)
-    val t = t.toVec3<Float>()
-    val res = t
-        .asSequence()
-        .map { t ->
-            t.asSequence()
-                .map { t -> t.map { t -> f32Round(t * b) / b } }
-                .toList()
-        }
-        .toList()
+    val vs = t.toVec3<Float>()
+    val res =
+        vs
+            .asSequence()
+            .map { mat ->
+                mat
+                    .asSequence()
+                    .map { row -> row.map { x -> f32Round(x * b) / b } }
+                    .toList()
+            }.toList()
     return res
 }

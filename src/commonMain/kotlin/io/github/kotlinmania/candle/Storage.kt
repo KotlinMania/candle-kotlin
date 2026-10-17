@@ -18,15 +18,24 @@ private val SentinelMetalStorage: MetalStorage = MetalStorage()
 private val SentinelCuda: Storage = Storage.Cuda(SentinelCudaStorage)
 private val SentinelMetal: Storage = Storage.Metal(SentinelMetalStorage)
 
-private data class StorageMatch(val s: Storage)
+private data class StorageMatch(
+    val s: Storage,
+)
 
-private fun Pair(a: Storage, b: Storage): StorageMatch {
+private fun Pair(
+    a: Storage,
+    b: Storage,
+): StorageMatch {
     a.p2 = b
     a.p3 = null
     return StorageMatch(a)
 }
-private fun <A, B> Pair(a: A, b: B): kotlin.Pair<A, B> = kotlin.Pair(a, b)
-private fun Triple(a: Storage, b: Storage, c: Storage): StorageMatch {
+
+private fun Triple(
+    a: Storage,
+    b: Storage,
+    c: Storage,
+): StorageMatch {
     a.p2 = b
     a.p3 = c
     return StorageMatch(a)
@@ -192,9 +201,21 @@ private val Lazy<Storage>.upsampleBilinear2d: (Layout, Int, Int, Boolean, Double
 }
 private val Lazy<Storage>.whereCond: (Layout, Storage, Layout, Storage, Layout) -> Storage get() = { l, t, lT, f, lF ->
     when (val v = value) {
-        is Storage.Cpu -> Storage.Cpu(v.storage.whereCond(l, (t as Storage.Cpu).storage, lT, (f as Storage.Cpu).storage, lF))
-        is Storage.Cuda -> Storage.Cuda(v.storage.whereCond(l, (t as Storage.Cuda).storage, lT, (f as Storage.Cuda).storage, lF) as CudaStorage)
-        is Storage.Metal -> Storage.Metal(v.storage.whereCond(l, (t as Storage.Metal).storage, lT, (f as Storage.Metal).storage, lF) as MetalStorage)
+        is Storage.Cpu -> {
+            Storage.Cpu(v.storage.whereCond(l, (t as Storage.Cpu).storage, lT, (f as Storage.Cpu).storage, lF))
+        }
+
+        is Storage.Cuda -> {
+            Storage.Cuda(
+                v.storage.whereCond(l, (t as Storage.Cuda).storage, lT, (f as Storage.Cuda).storage, lF) as CudaStorage,
+            )
+        }
+
+        is Storage.Metal -> {
+            Storage.Metal(
+                v.storage.whereCond(l, (t as Storage.Metal).storage, lT, (f as Storage.Metal).storage, lF) as MetalStorage,
+            )
+        }
     }
 }
 private val Lazy<Storage>.gather: (Layout, Storage, Layout, Int) -> Storage get() = { l, idx, idxL, d ->
@@ -220,9 +241,21 @@ private val Lazy<Storage>.scatterAddSet: (Layout, Storage, Layout, Storage, Layo
 }
 private val Lazy<Storage>.indexAdd: (Layout, Storage, Layout, Storage, Layout, Int) -> Storage get() = { l, idx, idxL, src, srcL, d ->
     when (val v = value) {
-        is Storage.Cpu -> Storage.Cpu(v.storage.indexAdd(l, (idx as Storage.Cpu).storage, idxL, (src as Storage.Cpu).storage, srcL, d))
-        is Storage.Cuda -> Storage.Cuda(v.storage.indexAdd(l, (idx as Storage.Cuda).storage, idxL, (src as Storage.Cuda).storage, srcL, d) as CudaStorage)
-        is Storage.Metal -> Storage.Metal(v.storage.indexAdd(l, (idx as Storage.Metal).storage, idxL, (src as Storage.Metal).storage, srcL, d) as MetalStorage)
+        is Storage.Cpu -> {
+            Storage.Cpu(v.storage.indexAdd(l, (idx as Storage.Cpu).storage, idxL, (src as Storage.Cpu).storage, srcL, d))
+        }
+
+        is Storage.Cuda -> {
+            Storage.Cuda(
+                v.storage.indexAdd(l, (idx as Storage.Cuda).storage, idxL, (src as Storage.Cuda).storage, srcL, d) as CudaStorage,
+            )
+        }
+
+        is Storage.Metal -> {
+            Storage.Metal(
+                v.storage.indexAdd(l, (idx as Storage.Metal).storage, idxL, (src as Storage.Metal).storage, srcL, d) as MetalStorage,
+            )
+        }
     }
 }
 private val Lazy<Storage>.indexSelect: (Storage, Layout, Layout, Int) -> Storage get() = { rhs, lhsL, rhsL, d ->
@@ -254,72 +287,198 @@ private val Lazy<Storage>.copy2d: (Storage, Int, Int, Int, Int, Int, Int) -> Uni
     }
 }
 
-private fun CustomOp1.cpuFwd(s: Lazy<Storage>, l: Layout): kotlin.Pair<Storage, Shape> {
+private fun CustomOp1.cpuFwd(
+    s: Lazy<Storage>,
+    l: Layout,
+): kotlin.Pair<Storage, Shape> {
     val (out, shape) = cpuFwd((s.value as Storage.Cpu).storage, l)
     return kotlin.Pair(Storage.Cpu(out), shape)
 }
-private fun CustomOp1.cudaFwd(s: Lazy<Storage>, l: Layout): kotlin.Pair<Storage, Shape> {
+
+private fun CustomOp1.cudaFwd(
+    s: Lazy<Storage>,
+    l: Layout,
+): kotlin.Pair<Storage, Shape> {
     val (out, shape) = cudaFwd((s.value as Storage.Cuda).storage, l)
     return kotlin.Pair(Storage.Cuda(out), shape)
 }
-private fun CustomOp1.metalFwd(s: Lazy<Storage>, l: Layout): kotlin.Pair<Storage, Shape> {
+
+private fun CustomOp1.metalFwd(
+    s: Lazy<Storage>,
+    l: Layout,
+): kotlin.Pair<Storage, Shape> {
     val (out, shape) = metalFwd((s.value as Storage.Metal).storage, l)
     return kotlin.Pair(Storage.Metal(out), shape)
 }
 
-private fun CustomOp2.cpuFwd(s1: Lazy<Storage>, l1: Layout, s2: Lazy<Storage>, l2: Layout): kotlin.Pair<Storage, Shape> {
+private fun CustomOp2.cpuFwd(
+    s1: Lazy<Storage>,
+    l1: Layout,
+    s2: Lazy<Storage>,
+    l2: Layout,
+): kotlin.Pair<Storage, Shape> {
     val (out, shape) = cpuFwd((s1.value as Storage.Cpu).storage, l1, (s2.value as Storage.Cpu).storage, l2)
     return kotlin.Pair(Storage.Cpu(out), shape)
 }
-private fun CustomOp2.cudaFwd(s1: Lazy<Storage>, l1: Layout, s2: Lazy<Storage>, l2: Layout): kotlin.Pair<Storage, Shape> {
+
+private fun CustomOp2.cudaFwd(
+    s1: Lazy<Storage>,
+    l1: Layout,
+    s2: Lazy<Storage>,
+    l2: Layout,
+): kotlin.Pair<Storage, Shape> {
     val (out, shape) = cudaFwd((s1.value as Storage.Cuda).storage, l1, (s2.value as Storage.Cuda).storage, l2)
     return kotlin.Pair(Storage.Cuda(out), shape)
 }
-private fun CustomOp2.metalFwd(s1: Lazy<Storage>, l1: Layout, s2: Lazy<Storage>, l2: Layout): kotlin.Pair<Storage, Shape> {
+
+private fun CustomOp2.metalFwd(
+    s1: Lazy<Storage>,
+    l1: Layout,
+    s2: Lazy<Storage>,
+    l2: Layout,
+): kotlin.Pair<Storage, Shape> {
     val (out, shape) = metalFwd((s1.value as Storage.Metal).storage, l1, (s2.value as Storage.Metal).storage, l2)
     return kotlin.Pair(Storage.Metal(out), shape)
 }
 
-private fun CustomOp3.cpuFwd(s1: Lazy<Storage>, l1: Layout, s2: Lazy<Storage>, l2: Layout, s3: Lazy<Storage>, l3: Layout): kotlin.Pair<Storage, Shape> {
-    val (out, shape) = cpuFwd((s1.value as Storage.Cpu).storage, l1, (s2.value as Storage.Cpu).storage, l2, (s3.value as Storage.Cpu).storage, l3)
+private fun CustomOp3.cpuFwd(
+    s1: Lazy<Storage>,
+    l1: Layout,
+    s2: Lazy<Storage>,
+    l2: Layout,
+    s3: Lazy<Storage>,
+    l3: Layout,
+): kotlin.Pair<Storage, Shape> {
+    val (out, shape) =
+        cpuFwd(
+            (s1.value as Storage.Cpu).storage,
+            l1,
+            (s2.value as Storage.Cpu).storage,
+            l2,
+            (s3.value as Storage.Cpu).storage,
+            l3,
+        )
     return kotlin.Pair(Storage.Cpu(out), shape)
 }
-private fun CustomOp3.cudaFwd(s1: Lazy<Storage>, l1: Layout, s2: Lazy<Storage>, l2: Layout, s3: Lazy<Storage>, l3: Layout): kotlin.Pair<Storage, Shape> {
-    val (out, shape) = cudaFwd((s1.value as Storage.Cuda).storage, l1, (s2.value as Storage.Cuda).storage, l2, (s3.value as Storage.Cuda).storage, l3)
+
+private fun CustomOp3.cudaFwd(
+    s1: Lazy<Storage>,
+    l1: Layout,
+    s2: Lazy<Storage>,
+    l2: Layout,
+    s3: Lazy<Storage>,
+    l3: Layout,
+): kotlin.Pair<Storage, Shape> {
+    val (out, shape) =
+        cudaFwd(
+            (s1.value as Storage.Cuda).storage,
+            l1,
+            (s2.value as Storage.Cuda).storage,
+            l2,
+            (s3.value as Storage.Cuda).storage,
+            l3,
+        )
     return kotlin.Pair(Storage.Cuda(out), shape)
 }
-private fun CustomOp3.metalFwd(s1: Lazy<Storage>, l1: Layout, s2: Lazy<Storage>, l2: Layout, s3: Lazy<Storage>, l3: Layout): kotlin.Pair<Storage, Shape> {
-    val (out, shape) = metalFwd((s1.value as Storage.Metal).storage, l1, (s2.value as Storage.Metal).storage, l2, (s3.value as Storage.Metal).storage, l3)
+
+private fun CustomOp3.metalFwd(
+    s1: Lazy<Storage>,
+    l1: Layout,
+    s2: Lazy<Storage>,
+    l2: Layout,
+    s3: Lazy<Storage>,
+    l3: Layout,
+): kotlin.Pair<Storage, Shape> {
+    val (out, shape) =
+        metalFwd(
+            (s1.value as Storage.Metal).storage,
+            l1,
+            (s2.value as Storage.Metal).storage,
+            l2,
+            (s3.value as Storage.Metal).storage,
+            l3,
+        )
     return kotlin.Pair(Storage.Metal(out), shape)
 }
 
-private fun InplaceOp1.cpuFwd(s: Lazy<Storage>, l: Layout) {
+private fun InplaceOp1.cpuFwd(
+    s: Lazy<Storage>,
+    l: Layout,
+) {
     cpuFwd((s.value as Storage.Cpu).storage, l)
 }
-private fun InplaceOp1.cudaFwd(s: Lazy<Storage>, l: Layout) {
+
+private fun InplaceOp1.cudaFwd(
+    s: Lazy<Storage>,
+    l: Layout,
+) {
     cudaFwd((s.value as Storage.Cuda).storage, l)
 }
-private fun InplaceOp1.metalFwd(s: Lazy<Storage>, l: Layout) {
+
+private fun InplaceOp1.metalFwd(
+    s: Lazy<Storage>,
+    l: Layout,
+) {
     metalFwd((s.value as Storage.Metal).storage, l)
 }
 
-private fun InplaceOp2.cpuFwd(s1: Lazy<Storage>, l1: Layout, s2: Lazy<Storage>, l2: Layout) {
+private fun InplaceOp2.cpuFwd(
+    s1: Lazy<Storage>,
+    l1: Layout,
+    s2: Lazy<Storage>,
+    l2: Layout,
+) {
     cpuFwd((s1.value as Storage.Cpu).storage, l1, (s2.value as Storage.Cpu).storage, l2)
 }
-private fun InplaceOp2.cudaFwd(s1: Lazy<Storage>, l1: Layout, s2: Lazy<Storage>, l2: Layout) {
+
+private fun InplaceOp2.cudaFwd(
+    s1: Lazy<Storage>,
+    l1: Layout,
+    s2: Lazy<Storage>,
+    l2: Layout,
+) {
     cudaFwd((s1.value as Storage.Cuda).storage, l1, (s2.value as Storage.Cuda).storage, l2)
 }
-private fun InplaceOp2.metalFwd(s1: Lazy<Storage>, l1: Layout, s2: Lazy<Storage>, l2: Layout) {
+
+private fun InplaceOp2.metalFwd(
+    s1: Lazy<Storage>,
+    l1: Layout,
+    s2: Lazy<Storage>,
+    l2: Layout,
+) {
     metalFwd((s1.value as Storage.Metal).storage, l1, (s2.value as Storage.Metal).storage, l2)
 }
 
-private fun InplaceOp3.cpuFwd(s1: Lazy<Storage>, l1: Layout, s2: Lazy<Storage>, l2: Layout, s3: Lazy<Storage>, l3: Layout) {
+private fun InplaceOp3.cpuFwd(
+    s1: Lazy<Storage>,
+    l1: Layout,
+    s2: Lazy<Storage>,
+    l2: Layout,
+    s3: Lazy<Storage>,
+    l3: Layout,
+) {
     cpuFwd((s1.value as Storage.Cpu).storage, l1, (s2.value as Storage.Cpu).storage, l2, (s3.value as Storage.Cpu).storage, l3)
 }
-private fun InplaceOp3.cudaFwd(s1: Lazy<Storage>, l1: Layout, s2: Lazy<Storage>, l2: Layout, s3: Lazy<Storage>, l3: Layout) {
+
+private fun InplaceOp3.cudaFwd(
+    s1: Lazy<Storage>,
+    l1: Layout,
+    s2: Lazy<Storage>,
+    l2: Layout,
+    s3: Lazy<Storage>,
+    l3: Layout,
+) {
     cudaFwd((s1.value as Storage.Cuda).storage, l1, (s2.value as Storage.Cuda).storage, l2, (s3.value as Storage.Cuda).storage, l3)
 }
-private fun InplaceOp3.metalFwd(s1: Lazy<Storage>, l1: Layout, s2: Lazy<Storage>, l2: Layout, s3: Lazy<Storage>, l3: Layout) {
+
+private fun InplaceOp3.metalFwd(
+    s1: Lazy<Storage>,
+    l1: Layout,
+    s2: Lazy<Storage>,
+    l2: Layout,
+    s3: Lazy<Storage>,
+    l3: Layout,
+) {
     metalFwd((s1.value as Storage.Metal).storage, l1, (s2.value as Storage.Metal).storage, l2, (s3.value as Storage.Metal).storage, l3)
 }
 
@@ -330,17 +489,39 @@ public sealed class Storage {
     internal var p3: Storage? = null
 
     private val match1: ((Storage) -> Boolean) -> Storage get() = { pred ->
-        if (pred(this@Storage)) this@Storage else if (this@Storage is Cuda) SentinelMetal else SentinelCuda
+        if (pred(this@Storage)) {
+            this@Storage
+        } else if (this@Storage is Cuda) {
+            SentinelMetal
+        } else {
+            SentinelCuda
+        }
     }
     private val StorageMatch.match2: StorageMatch get() {
         val b = this@Storage.p2
         val ok = (b is Cpu && this@Storage is Cpu) || (b is Cuda && this@Storage is Cuda) || (b is Metal && this@Storage is Metal)
-        return StorageMatch(if (this.s === this@Storage && ok) this@Storage else if (this@Storage is Cuda) SentinelMetal else SentinelCuda)
+        return StorageMatch(
+            if (this.s === this@Storage && ok) {
+                this@Storage
+            } else if (this@Storage is Cuda) {
+                SentinelMetal
+            } else {
+                SentinelCuda
+            },
+        )
     }
     private val StorageMatch.match3: StorageMatch get() {
         val c = this@Storage.p3
         val ok = (c is Cpu && this@Storage is Cpu) || (c is Cuda && this@Storage is Cuda) || (c is Metal && this@Storage is Metal)
-        return StorageMatch(if (this.s === this@Storage && ok) this@Storage else if (this@Storage is Cuda) SentinelMetal else SentinelCuda)
+        return StorageMatch(
+            if (this.s === this@Storage && ok) {
+                this@Storage
+            } else if (this@Storage is Cuda) {
+                SentinelMetal
+            } else {
+                SentinelCuda
+            },
+        )
     }
 
     private val Cpu.Companion.storage: Storage get() = match1 { it is Cpu }
@@ -357,9 +538,16 @@ public sealed class Storage {
     private val Metal.Companion.storage: Storage get() = match1 { it is Metal }
     private val Metal.Companion.inp: StorageMatch get() = StorageMatch(match1 { it is Metal })
 
-    private val ((Any?) -> Storage).storage: Storage get() = match1 {
-        if (this === Self.Cpu) it is Cpu else if (this === Self.Cuda) it is Cuda else it is Metal
-    }
+    private val ((Any?) -> Storage).storage: Storage get() =
+        match1 {
+            if (this === Self.Cpu) {
+                it is Cpu
+            } else if (this === Self.Cuda) {
+                it is Cuda
+            } else {
+                it is Metal
+            }
+        }
     private val ((Any?) -> Storage).lhs: StorageMatch get() = StorageMatch(storage)
     private val ((Any?) -> Storage).inp: StorageMatch get() = StorageMatch(storage)
     private val ((Any?) -> Storage).cond: StorageMatch get() = StorageMatch(storage)
@@ -394,6 +582,7 @@ public sealed class Storage {
                 else -> SentinelCpuStorage
             },
         )
+
         public companion object
     }
 
@@ -408,6 +597,7 @@ public sealed class Storage {
                 else -> SentinelCudaStorage
             },
         )
+
         public companion object
     }
 
@@ -422,70 +612,86 @@ public sealed class Storage {
                 else -> SentinelMetalStorage
             },
         )
+
         public companion object
     }
 
-    public fun tryClone(layout: Layout): Storage {
-        return when (self) {
-            Self.Cpu.storage -> Ok(Self.Cpu(storage.tryClone(layout)))
+    public fun tryClone(layout: Layout): Storage =
+        when (self) {
+            Self.Cpu.storage -> {
+                Ok(Self.Cpu(storage.tryClone(layout)))
+            }
+
             Self.Cuda.storage -> {
                 val storage = storage.tryClone(layout)
                 Ok(Self.Cuda(storage))
             }
+
             Self.Metal.storage -> {
                 val storage = storage.tryClone(layout)
                 Ok(Self.Metal(storage))
-            } else -> unreachable()
-        }
-    }
+            }
 
-    public fun device(): Device {
-        return when (self) {
+            else -> {
+                unreachable()
+            }
+        }
+
+    public fun device(): Device =
+        when (self) {
             Self.Cpu.storage -> Device.Cpu
             Self.Cuda.storage -> Device.Cuda(storage.device().clone())
             Self.Metal.storage -> Device.Metal(storage.device().clone()) else -> unreachable()
         }
-    }
 
-    public fun dtype(): DType {
-        return when (self) {
+    public fun dtype(): DType =
+        when (self) {
             Self.Cpu.storage -> storage.dtype()
             Self.Cuda.storage -> storage.dtype()
             Self.Metal.storage -> storage.dtype() else -> unreachable()
         }
-    }
 
-    public fun sameDevice(rhs: Storage, op: String) {
+    public fun sameDevice(
+        rhs: Storage,
+        op: String,
+    ) {
         val lhsDevice = self.device()
         val rhsDevice = rhs.device()
-        val lhs = lhsDevice.location()
-        val rhs = rhsDevice.location()
-        val sameDevice = if (self.device().isMetal()) {
-            // On metal, we require the device to be exactly the same rather than
-            // having the same location. In cuda this is not necessary as all CudaDevice on the
-            // same GPU will use the same cuda stream.
-            lhsDevice.sameDevice(rhsDevice)
-        } else {
-            lhs == rhs
-        }
+        val lhsLoc = lhsDevice.location()
+        val rhsLoc = rhsDevice.location()
+        val sameDevice =
+            if (self.device().isMetal()) {
+                // On metal, we require the device to be exactly the same rather than
+                // having the same location. In cuda this is not necessary as all CudaDevice on the
+                // same GPU will use the same cuda stream.
+                lhsDevice.sameDevice(rhsDevice)
+            } else {
+                lhsLoc == rhsLoc
+            }
         if (!sameDevice) {
-            Err(Error.DeviceMismatchBinaryOp(lhs, rhs, op).bt())
+            Err(Error.DeviceMismatchBinaryOp(lhsLoc, rhsLoc, op).bt())
         } else {
             Ok()
         }
     }
 
-    public fun sameDtype(rhs: Storage, op: String) {
-        val lhs = self.dtype()
-        val rhs = rhs.dtype()
-        if (lhs != rhs) {
-            Err(Error.DTypeMismatchBinaryOp(lhs, rhs, op).bt())
+    public fun sameDtype(
+        rhs: Storage,
+        op: String,
+    ) {
+        val lhsDtype = self.dtype()
+        val rhsDtype = rhs.dtype()
+        if (lhsDtype != rhsDtype) {
+            Err(Error.DTypeMismatchBinaryOp(lhsDtype, rhsDtype, op).bt())
         } else {
             Ok()
         }
     }
 
-    public fun constSet(v: Scalar, l: Layout) {
+    public fun constSet(
+        v: Scalar,
+        l: Layout,
+    ) {
         when (self) {
             Storage.Cpu.storage -> storage.constSet(v, l)
             Storage.Cuda.storage -> storage.constSet(v, l)
@@ -493,56 +699,81 @@ public sealed class Storage {
         }
     }
 
-    public fun affine(layout: Layout, mul: Double, add: Double): Storage {
-        return when (self) {
+    public fun affine(
+        layout: Layout,
+        mul: Double,
+        add: Double,
+    ): Storage =
+        when (self) {
             Storage.Cpu.storage -> {
                 val storage = storage.affine(layout, mul, add)
                 Ok(Self.Cpu(storage))
             }
-            Self.Cuda.storage -> {
-                val storage = storage.affine(layout, mul, add)
-                Ok(Self.Cuda(storage))
-            }
-            Self.Metal.storage -> {
-                val storage = storage.affine(layout, mul, add)
-                Ok(Self.Metal(storage))
-            } else -> unreachable()
-        }
-    }
 
-    public fun powf(layout: Layout, alpha: Double): Storage {
-        return when (self) {
-            Storage.Cpu.storage -> {
-                val storage = storage.powf(layout, alpha)
-                Ok(Self.Cpu(storage))
-            }
             Self.Cuda.storage -> {
-                val storage = storage.powf(layout, alpha)
+                val storage = storage.affine(layout, mul, add)
                 Ok(Self.Cuda(storage))
             }
-            Self.Metal.storage -> {
-                val storage = storage.powf(layout, alpha)
-                Ok(Self.Metal(storage))
-            } else -> unreachable()
-        }
-    }
 
-    public fun elu(layout: Layout, alpha: Double): Storage {
-        return when (self) {
+            Self.Metal.storage -> {
+                val storage = storage.affine(layout, mul, add)
+                Ok(Self.Metal(storage))
+            }
+
+            else -> {
+                unreachable()
+            }
+        }
+
+    public fun powf(
+        layout: Layout,
+        alpha: Double,
+    ): Storage =
+        when (self) {
+            Storage.Cpu.storage -> {
+                val storage = storage.powf(layout, alpha)
+                Ok(Self.Cpu(storage))
+            }
+
+            Self.Cuda.storage -> {
+                val storage = storage.powf(layout, alpha)
+                Ok(Self.Cuda(storage))
+            }
+
+            Self.Metal.storage -> {
+                val storage = storage.powf(layout, alpha)
+                Ok(Self.Metal(storage))
+            }
+
+            else -> {
+                unreachable()
+            }
+        }
+
+    public fun elu(
+        layout: Layout,
+        alpha: Double,
+    ): Storage =
+        when (self) {
             Storage.Cpu.storage -> {
                 val storage = storage.elu(layout, alpha)
                 Ok(Self.Cpu(storage))
             }
+
             Self.Cuda.storage -> {
                 val storage = storage.elu(layout, alpha)
                 Ok(Self.Cuda(storage))
             }
+
             Self.Metal.storage -> {
                 val storage = storage.elu(layout, alpha)
                 Ok(Self.Metal(storage))
-            } else -> unreachable()
+            }
+
+            else -> {
+                unreachable()
+            }
         }
-    }
 
     public fun cmp(
         op: CmpOp,
@@ -557,79 +788,107 @@ public sealed class Storage {
                 val storage = lhs.cmp(op, rhs, lhsLayout, rhsLayout)
                 Ok(Self.Cpu(storage))
             }
+
             Self.Cuda.lhs.Self.Cuda.rhs -> {
                 val storage = lhs.cmp(op, rhs, lhsLayout, rhsLayout)
                 Ok(Self.Cuda(storage))
             }
+
             Self.Metal.lhs.Self.Metal.rhs -> {
                 val storage = lhs.cmp(op, rhs, lhsLayout, rhsLayout)
                 Ok(Self.Metal(storage))
             }
+
             else -> {
                 // Should not happen because of the same device check above but we're defensive
                 // anyway.
                 Err(
-                    Error.DeviceMismatchBinaryOp(
-                        lhs = lhs.device().location(),
-                        rhs = rhs.device().location(),
-                        op = "cmp",
-                    )
-                        .bt(),
+                    Error
+                        .DeviceMismatchBinaryOp(
+                            lhs = lhs.device().location(),
+                            rhs = rhs.device().location(),
+                            op = "cmp",
+                        ).bt(),
                 )
             }
         }
     }
 
-    public fun reduceOp(op: ReduceOp, layout: Layout, s: List<Int>): Storage {
-        return when (self) {
+    public fun reduceOp(
+        op: ReduceOp,
+        layout: Layout,
+        s: List<Int>,
+    ): Storage =
+        when (self) {
             Storage.Cpu.storage -> {
                 val storage = storage.reduceOp(op, layout, s)
                 Ok(Self.Cpu(storage))
             }
+
             Self.Cuda.storage -> {
                 val storage = storage.reduceOp(op, layout, s)
                 Ok(Self.Cuda(storage))
             }
+
             Self.Metal.storage -> {
                 val storage = storage.reduceOp(op, layout, s)
                 Ok(Self.Metal(storage))
-            } else -> unreachable()
-        }
-    }
+            }
 
-    public fun toDtype(layout: Layout, dtype: DType): Storage {
-        return when (self) {
+            else -> {
+                unreachable()
+            }
+        }
+
+    public fun toDtype(
+        layout: Layout,
+        dtype: DType,
+    ): Storage =
+        when (self) {
             Storage.Cpu.storage -> {
                 val storage = storage.toDtype(layout, dtype)
                 Ok(Self.Cpu(storage))
             }
+
             Self.Cuda.storage -> {
                 val storage = storage.toDtype(layout, dtype)
                 Ok(Self.Cuda(storage))
             }
+
             Self.Metal.storage -> {
                 val storage = storage.toDtype(layout, dtype)
                 Ok(Self.Metal(storage))
-            } else -> unreachable()
-        }
-    }
+            }
 
-    public fun applyOp1(l: Layout, c: CustomOp1): kotlin.Pair<Storage, Shape> {
-        return when (self) {
+            else -> {
+                unreachable()
+            }
+        }
+
+    public fun applyOp1(
+        l: Layout,
+        c: CustomOp1,
+    ): kotlin.Pair<Storage, Shape> =
+        when (self) {
             Self.Cpu.storage -> {
                 val (storage, shape) = c.cpuFwd(storage, l)
                 Ok(kotlin.Pair(Self.Cpu(storage), shape))
             }
+
             Self.Cuda.storage -> {
                 val (storage, shape) = c.cudaFwd(storage, l)
                 Ok(kotlin.Pair(Self.Cuda(storage), shape))
             }
+
             Self.Metal.storage -> {
                 val (storage, shape) = c.metalFwd(storage, l)
                 Ok(kotlin.Pair(Self.Metal(storage), shape))
-            } else -> unreachable()
+            }
+
+            else -> {
+                unreachable()
+            }
         }
-    }
 
     public fun applyOp2(
         l1: Layout,
@@ -643,15 +902,20 @@ public sealed class Storage {
                 val (s, shape) = c.cpuFwd(s1, l1, s2, l2)
                 Ok(kotlin.Pair(Self.Cpu(s), shape))
             }
+
             Self.Cuda.s1.Self.Cuda.s2 -> {
                 val (s, shape) = c.cudaFwd(s1, l1, s2, l2)
                 Ok(kotlin.Pair(Self.Cuda(s), shape))
             }
+
             Self.Metal.s1.Self.Metal.s2 -> {
                 val (s, shape) = c.metalFwd(s1, l1, s2, l2)
                 Ok(kotlin.Pair(Self.Metal(s), shape))
             }
-            else -> unreachable()
+
+            else -> {
+                unreachable()
+            }
         }
     }
 
@@ -670,19 +934,27 @@ public sealed class Storage {
                 val (s, shape) = c.cpuFwd(s1, l1, s2, l2, s3, l3)
                 Ok(kotlin.Pair(Self.Cpu(s), shape))
             }
+
             Self.Cuda.s1.Self.Cuda.s2.Self.Cuda.s3 -> {
                 val (s, shape) = c.cudaFwd(s1, l1, s2, l2, s3, l3)
                 Ok(kotlin.Pair(Self.Cuda(s), shape))
             }
+
             Self.Metal.s1.Self.Metal.s2.Self.Metal.s3 -> {
                 val (s, shape) = c.metalFwd(s1, l1, s2, l2, s3, l3)
                 Ok(kotlin.Pair(Self.Metal(s), shape))
             }
-            else -> unreachable()
+
+            else -> {
+                unreachable()
+            }
         }
     }
 
-    public fun inplaceOp1(l: Layout, c: InplaceOp1) {
+    public fun inplaceOp1(
+        l: Layout,
+        c: InplaceOp1,
+    ) {
         when (self) {
             Self.Cpu.storage -> c.cpuFwd(storage, l)
             Self.Cuda.storage -> c.cudaFwd(storage, l)
@@ -717,31 +989,45 @@ public sealed class Storage {
         self.sameDevice(t2, c.name())
         self.sameDevice(t3, c.name())
         when (Triple(self, t2, t3)) {
-            Self.Cpu.s1.Self.Cpu.s2.Self.Cpu.s3 -> c.cpuFwd(s1, l1, s2, l2, s3, l3)
-            Self.Cuda.s1.Self.Cuda.s2.Self.Cuda.s3 -> c.cudaFwd(s1, l1, s2, l2, s3, l3)
+            Self.Cpu.s1.Self.Cpu.s2.Self.Cpu.s3 -> {
+                c.cpuFwd(s1, l1, s2, l2, s3, l3)
+            }
+
+            Self.Cuda.s1.Self.Cuda.s2.Self.Cuda.s3 -> {
+                c.cudaFwd(s1, l1, s2, l2, s3, l3)
+            }
+
             Self.Metal.s1.Self.Metal.s2.Self.Metal.s3 -> {
                 c.metalFwd(s1, l1, s2, l2, s3, l3)
             }
-            else -> unreachable()
+
+            else -> {
+                unreachable()
+            }
         }
     }
 
-    public fun <B : UnaryOpT> unaryImpl(layout: Layout): Storage {
-        return when (self) {
+    public fun <B : UnaryOpT> unaryImpl(layout: Layout): Storage =
+        when (self) {
             Storage.Cpu.storage -> {
                 val storage = storage.unaryImpl(layout)
                 Ok(Self.Cpu(storage))
             }
+
             Self.Cuda.storage -> {
                 val storage = storage.unaryImpl(layout)
                 Ok(Self.Cuda(storage))
             }
+
             Self.Metal.storage -> {
                 val storage = storage.unaryImpl(layout)
                 Ok(Self.Metal(storage))
-            } else -> unreachable()
+            }
+
+            else -> {
+                unreachable()
+            }
         }
-    }
 
     public fun <B : BinaryOpT> binaryImpl(
         rhs: Storage,
@@ -755,24 +1041,27 @@ public sealed class Storage {
                 val storage = lhs.binaryImpl(rhs, lhsLayout, rhsLayout)
                 Ok(Self.Cpu(storage))
             }
+
             Self.Cuda.lhs.Self.Cuda.rhs -> {
                 val storage = lhs.binaryImpl(rhs, lhsLayout, rhsLayout)
                 Ok(Self.Cuda(storage))
             }
+
             Self.Metal.lhs.Self.Metal.rhs -> {
                 val storage = lhs.binaryImpl(rhs, lhsLayout, rhsLayout)
                 Ok(Self.Metal(storage))
             }
+
             else -> {
                 // Should not happen because of the same device check above but we're defensive
                 // anyway.
                 Err(
-                    Error.DeviceMismatchBinaryOp(
-                        lhs = lhs.device().location(),
-                        rhs = rhs.device().location(),
-                        op = B.NAME,
-                    )
-                        .bt(),
+                    Error
+                        .DeviceMismatchBinaryOp(
+                            lhs = lhs.device().location(),
+                            rhs = rhs.device().location(),
+                            op = B.NAME,
+                        ).bt(),
                 )
             }
         }
@@ -791,22 +1080,27 @@ public sealed class Storage {
                 val s = inp.conv1d(l, kernel, kernelL, params)
                 Ok(Self.Cpu(s))
             }
+
             Storage.Cuda.inp.Storage.Cuda.kernel -> {
                 val s = inp.conv1d(l, kernel, kernelL, params)
                 Ok(Self.Cuda(s))
             }
+
             Storage.Metal.inp.Storage.Metal.kernel -> {
                 val s = inp.conv1d(l, kernel, kernelL, params)
                 Ok(Self.Metal(s))
             }
-            else -> Err(
-                Error.DeviceMismatchBinaryOp(
-                    lhs = lhs.device().location(),
-                    rhs = rhs.device().location(),
-                    op = "conv1d",
+
+            else -> {
+                Err(
+                    Error
+                        .DeviceMismatchBinaryOp(
+                            lhs = lhs.device().location(),
+                            rhs = rhs.device().location(),
+                            op = "conv1d",
+                        ).bt(),
                 )
-                    .bt(),
-            )
+            }
         }
     }
 
@@ -823,22 +1117,27 @@ public sealed class Storage {
                 val s = inp.convTranspose1d(l, kernel, kernelL, params)
                 Ok(Self.Cpu(s))
             }
+
             Storage.Cuda.inp.Storage.Cuda.kernel -> {
                 val s = inp.convTranspose1d(l, kernel, kernelL, params)
                 Ok(Self.Cuda(s))
             }
+
             Storage.Metal.inp.Storage.Metal.kernel -> {
                 val s = inp.convTranspose1d(l, kernel, kernelL, params)
                 Ok(Self.Metal(s))
             }
-            else -> Err(
-                Error.DeviceMismatchBinaryOp(
-                    lhs = lhs.device().location(),
-                    rhs = rhs.device().location(),
-                    op = "conv-transpose1d",
+
+            else -> {
+                Err(
+                    Error
+                        .DeviceMismatchBinaryOp(
+                            lhs = lhs.device().location(),
+                            rhs = rhs.device().location(),
+                            op = "conv-transpose1d",
+                        ).bt(),
                 )
-                    .bt(),
-            )
+            }
         }
     }
 
@@ -855,22 +1154,27 @@ public sealed class Storage {
                 val s = inp.conv2d(l, kernel, kernelL, params)
                 Ok(Self.Cpu(s))
             }
+
             Storage.Cuda.inp.Storage.Cuda.kernel -> {
                 val s = inp.conv2d(l, kernel, kernelL, params)
                 Ok(Self.Cuda(s))
             }
+
             Storage.Metal.inp.Storage.Metal.kernel -> {
                 val s = inp.conv2d(l, kernel, kernelL, params)
                 Ok(Self.Metal(s))
             }
-            else -> Err(
-                Error.DeviceMismatchBinaryOp(
-                    lhs = lhs.device().location(),
-                    rhs = rhs.device().location(),
-                    op = "conv2d",
+
+            else -> {
+                Err(
+                    Error
+                        .DeviceMismatchBinaryOp(
+                            lhs = lhs.device().location(),
+                            rhs = rhs.device().location(),
+                            op = "conv2d",
+                        ).bt(),
                 )
-                    .bt(),
-            )
+            }
         }
     }
 
@@ -887,22 +1191,27 @@ public sealed class Storage {
                 val s = inp.convTranspose2d(l, kernel, kernelL, params)
                 Ok(Self.Cpu(s))
             }
+
             Storage.Cuda.inp.Storage.Cuda.kernel -> {
                 val s = inp.convTranspose2d(l, kernel, kernelL, params)
                 Ok(Self.Cuda(s))
             }
+
             Storage.Metal.inp.Storage.Metal.kernel -> {
                 val s = inp.convTranspose2d(l, kernel, kernelL, params)
                 Ok(Self.Metal(s))
             }
-            else -> Err(
-                Error.DeviceMismatchBinaryOp(
-                    lhs = lhs.device().location(),
-                    rhs = rhs.device().location(),
-                    op = "conv_transpose2d",
+
+            else -> {
+                Err(
+                    Error
+                        .DeviceMismatchBinaryOp(
+                            lhs = lhs.device().location(),
+                            rhs = rhs.device().location(),
+                            op = "conv_transpose2d",
+                        ).bt(),
                 )
-                    .bt(),
-            )
+            }
         }
     }
 
@@ -910,77 +1219,104 @@ public sealed class Storage {
         layout: Layout,
         kernelSize: kotlin.Pair<Int, Int>,
         stride: kotlin.Pair<Int, Int>,
-    ): Storage {
-        return when (self) {
+    ): Storage =
+        when (self) {
             Storage.Cpu.storage -> {
                 val storage = storage.avgPool2d(layout, kernelSize, stride)
                 Ok(Self.Cpu(storage))
             }
+
             Self.Cuda.storage -> {
                 val storage = storage.avgPool2d(layout, kernelSize, stride)
                 Ok(Self.Cuda(storage))
             }
+
             Self.Metal.storage -> {
                 val storage = storage.avgPool2d(layout, kernelSize, stride)
                 Ok(Self.Metal(storage))
-            } else -> unreachable()
+            }
+
+            else -> {
+                unreachable()
+            }
         }
-    }
 
     public fun maxPool2d(
         layout: Layout,
         kernelSize: kotlin.Pair<Int, Int>,
         stride: kotlin.Pair<Int, Int>,
-    ): Storage {
-        return when (self) {
+    ): Storage =
+        when (self) {
             Storage.Cpu.storage -> {
                 val storage = storage.maxPool2d(layout, kernelSize, stride)
                 Ok(Self.Cpu(storage))
             }
-            Self.Cuda.storage -> {
-                val storage = storage.maxPool2d(layout, kernelSize, stride)
-                Ok(Self.Cuda(storage))
-            }
-            Self.Metal.storage -> {
-                val storage = storage.maxPool2d(layout, kernelSize, stride)
-                Ok(Self.Metal(storage))
-            } else -> unreachable()
-        }
-    }
 
-    public fun upsampleNearest1d(layout: Layout, sz: Int): Storage {
-        return when (self) {
-            Storage.Cpu.storage -> {
-                val storage = storage.upsampleNearest1d(layout, sz)
-                Ok(Self.Cpu(storage))
-            }
             Self.Cuda.storage -> {
-                val storage = storage.upsampleNearest1d(layout, sz)
+                val storage = storage.maxPool2d(layout, kernelSize, stride)
                 Ok(Self.Cuda(storage))
             }
-            Self.Metal.storage -> {
-                val storage = storage.upsampleNearest1d(layout, sz)
-                Ok(Self.Metal(storage))
-            } else -> unreachable()
-        }
-    }
 
-    public fun upsampleNearest2d(layout: Layout, h: Int, w: Int): Storage {
-        return when (self) {
+            Self.Metal.storage -> {
+                val storage = storage.maxPool2d(layout, kernelSize, stride)
+                Ok(Self.Metal(storage))
+            }
+
+            else -> {
+                unreachable()
+            }
+        }
+
+    public fun upsampleNearest1d(
+        layout: Layout,
+        sz: Int,
+    ): Storage =
+        when (self) {
+            Storage.Cpu.storage -> {
+                val storage = storage.upsampleNearest1d(layout, sz)
+                Ok(Self.Cpu(storage))
+            }
+
+            Self.Cuda.storage -> {
+                val storage = storage.upsampleNearest1d(layout, sz)
+                Ok(Self.Cuda(storage))
+            }
+
+            Self.Metal.storage -> {
+                val storage = storage.upsampleNearest1d(layout, sz)
+                Ok(Self.Metal(storage))
+            }
+
+            else -> {
+                unreachable()
+            }
+        }
+
+    public fun upsampleNearest2d(
+        layout: Layout,
+        h: Int,
+        w: Int,
+    ): Storage =
+        when (self) {
             Storage.Cpu.storage -> {
                 val storage = storage.upsampleNearest2d(layout, h, w)
                 Ok(Self.Cpu(storage))
             }
+
             Self.Cuda.storage -> {
                 val storage = storage.upsampleNearest2d(layout, h, w)
                 Ok(Self.Cuda(storage))
             }
+
             Self.Metal.storage -> {
                 val storage = storage.upsampleNearest2d(layout, h, w)
                 Ok(Self.Metal(storage))
-            } else -> unreachable()
+            }
+
+            else -> {
+                unreachable()
+            }
         }
-    }
 
     public fun upsampleBilinear2d(
         layout: Layout,
@@ -989,25 +1325,30 @@ public sealed class Storage {
         alignCorners: Boolean,
         scaleH: Double? = null,
         scaleW: Double? = null,
-    ): Storage {
-        return when (self) {
+    ): Storage =
+        when (self) {
             Storage.Cpu.storage -> {
                 val storage =
                     storage.upsampleBilinear2d(layout, h, w, alignCorners, scaleH, scaleW)
                 Ok(Self.Cpu(storage))
             }
+
             Self.Cuda.storage -> {
                 val storage =
                     storage.upsampleBilinear2d(layout, h, w, alignCorners, scaleH, scaleW)
                 Ok(Self.Cuda(storage))
             }
+
             Self.Metal.storage -> {
                 val storage =
                     storage.upsampleBilinear2d(layout, h, w, alignCorners, scaleH, scaleW)
                 Ok(Self.Metal(storage))
-            } else -> unreachable()
+            }
+
+            else -> {
+                unreachable()
+            }
         }
-    }
 
     public fun whereCond(
         layout: Layout,
@@ -1024,22 +1365,27 @@ public sealed class Storage {
                 val storage = cond.whereCond(layout, t, layoutT, f, layoutF)
                 Ok(Self.Cpu(storage))
             }
+
             Self.Cuda.cond.Self.Cuda.t.Self.Cuda.f -> {
                 val storage = cond.whereCond(layout, t, layoutT, f, layoutF)
                 Ok(Self.Cuda(storage))
             }
+
             Self.Metal.cond.Self.Metal.t.Self.Metal.f -> {
                 val storage = cond.whereCond(layout, t, layoutT, f, layoutF)
                 Ok(Self.Metal(storage))
             }
-            else -> Err(
-                Error.DeviceMismatchBinaryOp(
-                    lhs = lhs.device().location(),
-                    rhs = rhs.device().location(),
-                    op = "where",
+
+            else -> {
+                Err(
+                    Error
+                        .DeviceMismatchBinaryOp(
+                            lhs = lhs.device().location(),
+                            rhs = rhs.device().location(),
+                            op = "where",
+                        ).bt(),
                 )
-                    .bt(),
-            )
+            }
         }
     }
 
@@ -1055,15 +1401,20 @@ public sealed class Storage {
                 val storage = s.gather(l, indexes, indexesL, d)
                 Ok(Self.Cpu(storage))
             }
+
             Self.Cuda.s.Self.Cuda.indexes -> {
                 val storage = s.gather(l, indexes, indexesL, d)
                 Ok(Self.Cuda(storage))
             }
+
             Self.Metal.s.Self.Metal.indexes -> {
                 val storage = s.gather(l, indexes, indexesL, d)
                 Ok(Self.Metal(storage))
             }
-            else -> unreachable()
+
+            else -> {
+                unreachable()
+            }
         }
     }
 
@@ -1081,13 +1432,18 @@ public sealed class Storage {
             Self.Cpu.s.Self.Cpu.indexes.Self.Cpu.source -> {
                 s.scatterSet(l, indexes, indexesL, source, sourceL, d)
             }
+
             Self.Cuda.s.Self.Cuda.indexes.Self.Cuda.source -> {
                 s.scatterSet(l, indexes, indexesL, source, sourceL, d)
             }
+
             Self.Metal.s.Self.Metal.indexes.Self.Metal.source -> {
                 s.scatterSet(l, indexes, indexesL, source, sourceL, d)
             }
-            else -> unreachable()
+
+            else -> {
+                unreachable()
+            }
         }
         Ok()
     }
@@ -1106,13 +1462,18 @@ public sealed class Storage {
             Self.Cpu.s.Self.Cpu.indexes.Self.Cpu.source -> {
                 s.scatterAddSet(l, indexes, indexesL, source, sourceL, d)
             }
+
             Self.Cuda.s.Self.Cuda.indexes.Self.Cuda.source -> {
                 s.scatterAddSet(l, indexes, indexesL, source, sourceL, d)
             }
+
             Self.Metal.s.Self.Metal.indexes.Self.Metal.source -> {
                 s.scatterAddSet(l, indexes, indexesL, source, sourceL, d)
             }
-            else -> unreachable()
+
+            else -> {
+                unreachable()
+            }
         }
         Ok()
     }
@@ -1132,15 +1493,20 @@ public sealed class Storage {
                 val storage = s.indexAdd(l, indexes, indexesL, source, sourceL, d)
                 Ok(Self.Cpu(storage))
             }
+
             Self.Cuda.s.Self.Cuda.indexes.Self.Cuda.source -> {
                 val storage = s.indexAdd(l, indexes, indexesL, source, sourceL, d)
                 Ok(Self.Cuda(storage))
             }
+
             Self.Metal.s.Self.Metal.indexes.Self.Metal.source -> {
                 val storage = s.indexAdd(l, indexes, indexesL, source, sourceL, d)
                 Ok(Self.Metal(storage))
             }
-            else -> unreachable()
+
+            else -> {
+                unreachable()
+            }
         }
     }
 
@@ -1156,22 +1522,27 @@ public sealed class Storage {
                 val storage = lhs.indexSelect(rhs, lhsL, rhsL, d)
                 Ok(Self.Cpu(storage))
             }
+
             Self.Cuda.lhs.Self.Cuda.rhs -> {
                 val storage = lhs.indexSelect(rhs, lhsL, rhsL, d)
                 Ok(Self.Cuda(storage))
             }
+
             Self.Metal.lhs.Self.Metal.rhs -> {
                 val storage = lhs.indexSelect(rhs, lhsL, rhsL, d)
                 Ok(Self.Metal(storage))
             }
-            else -> Err(
-                Error.DeviceMismatchBinaryOp(
-                    lhs = lhs.device().location(),
-                    rhs = rhs.device().location(),
-                    op = "index-select",
+
+            else -> {
+                Err(
+                    Error
+                        .DeviceMismatchBinaryOp(
+                            lhs = lhs.device().location(),
+                            rhs = rhs.device().location(),
+                            op = "index-select",
+                        ).bt(),
                 )
-                    .bt(),
-            )
+            }
         }
     }
 
@@ -1188,22 +1559,27 @@ public sealed class Storage {
                 val storage = lhs.matmul(rhs, bmnk, lhsLayout, rhsLayout)
                 Ok(Self.Cpu(storage))
             }
+
             Self.Cuda.lhs.Self.Cuda.rhs -> {
                 val storage = lhs.matmul(rhs, bmnk, lhsLayout, rhsLayout)
                 Ok(Self.Cuda(storage))
             }
+
             Self.Metal.lhs.Self.Metal.rhs -> {
                 val storage = lhs.matmul(rhs, bmnk, lhsLayout, rhsLayout)
                 Ok(Self.Metal(storage))
             }
-            else -> Err(
-                Error.DeviceMismatchBinaryOp(
-                    lhs = lhs.device().location(),
-                    rhs = rhs.device().location(),
-                    op = "matmul",
+
+            else -> {
+                Err(
+                    Error
+                        .DeviceMismatchBinaryOp(
+                            lhs = lhs.device().location(),
+                            rhs = rhs.device().location(),
+                            op = "matmul",
+                        ).bt(),
                 )
-                    .bt(),
-            )
+            }
         }
     }
 
@@ -1214,19 +1590,28 @@ public sealed class Storage {
         srcL: Layout,
     ) {
         when (Pair(self, dst)) {
-            Self.Cpu.src.Self.Cpu.dst -> src.copyStridedSrc(dst, dstOffset, srcL)
-            Self.Cuda.src.Self.Cuda.dst -> Ok(src.copyStridedSrc(dst, dstOffset, srcL))
+            Self.Cpu.src.Self.Cpu.dst -> {
+                src.copyStridedSrc(dst, dstOffset, srcL)
+            }
+
+            Self.Cuda.src.Self.Cuda.dst -> {
+                Ok(src.copyStridedSrc(dst, dstOffset, srcL))
+            }
+
             Self.Metal.src.Self.Metal.dst -> {
                 Ok(src.copyStridedSrc(dst, dstOffset, srcL))
             }
-            else -> Err(
-                Error.DeviceMismatchBinaryOp(
-                    lhs = lhs.device().location(),
-                    rhs = rhs.device().location(),
-                    op = "copy",
+
+            else -> {
+                Err(
+                    Error
+                        .DeviceMismatchBinaryOp(
+                            lhs = lhs.device().location(),
+                            rhs = rhs.device().location(),
+                            op = "copy",
+                        ).bt(),
                 )
-                    .bt(),
-            )
+            }
         }
     }
 
@@ -1240,21 +1625,28 @@ public sealed class Storage {
         dstO: Int,
     ) {
         when (Pair(self, dst)) {
-            Self.Cpu.src.Self.Cpu.dst -> src.copy2d(dst, d1, d2, srcS, dstS, srcO, dstO)
+            Self.Cpu.src.Self.Cpu.dst -> {
+                src.copy2d(dst, d1, d2, srcS, dstS, srcO, dstO)
+            }
+
             Self.Cuda.src.Self.Cuda.dst -> {
                 Ok(src.copy2d(dst, d1, d2, srcS, dstS, srcO, dstO))
             }
+
             Self.Metal.src.Self.Metal.dst -> {
                 Ok(src.copy2d(dst, d1, d2, srcS, dstS, srcO, dstO))
             }
-            else -> Err(
-                Error.DeviceMismatchBinaryOp(
-                    lhs = lhs.device().location(),
-                    rhs = rhs.device().location(),
-                    op = "copy2d",
+
+            else -> {
+                Err(
+                    Error
+                        .DeviceMismatchBinaryOp(
+                            lhs = lhs.device().location(),
+                            rhs = rhs.device().location(),
+                            op = "copy2d",
+                        ).bt(),
                 )
-                    .bt(),
-            )
+            }
         }
     }
 
@@ -1270,16 +1662,28 @@ public sealed class Storage {
         sameDevice(rhs, op.name)
         sameDtype(rhs, op.name)
         when {
-            this is Cpu && rhs is Cpu -> Cpu(this.storage.binaryImpl(rhs.storage, lhsLayout, rhsLayout, op))
-            this is Cuda && rhs is Cuda -> Cuda(this.storage.binaryImpl<BinaryOpT>(rhs.storage, lhsLayout, rhsLayout))
-            this is Metal && rhs is Metal -> Metal(this.storage.binaryImpl<BinaryOpT>(rhs.storage, lhsLayout, rhsLayout))
-            else -> Err(
-                Error.DeviceMismatchBinaryOp(
-                    lhs = device().location(),
-                    rhs = rhs.device().location(),
-                    op = op.name,
-                ).bt(),
-            )
+            this is Cpu && rhs is Cpu -> {
+                Cpu(this.storage.binaryImpl(rhs.storage, lhsLayout, rhsLayout, op))
+            }
+
+            this is Cuda && rhs is Cuda -> {
+                Cuda(this.storage.binaryImpl<BinaryOpT>(rhs.storage, lhsLayout, rhsLayout))
+            }
+
+            this is Metal && rhs is Metal -> {
+                Metal(this.storage.binaryImpl<BinaryOpT>(rhs.storage, lhsLayout, rhsLayout))
+            }
+
+            else -> {
+                Err(
+                    Error
+                        .DeviceMismatchBinaryOp(
+                            lhs = device().location(),
+                            rhs = rhs.device().location(),
+                            op = op.name,
+                        ).bt(),
+                )
+            }
         }
     }
 

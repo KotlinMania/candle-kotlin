@@ -11,10 +11,11 @@ import io.github.kotlinmania.candle.bail
 public fun main(): CandleResult<Unit> {
     // This requires the code to be run with MTL_CAPTURE_ENABLED=1
     val device = Device.newMetal(0)
-    val metalDevice = when (device) {
-        is Device.Metal -> device.device
-        else -> bail("unexpected device")
-    }
+    val metalDevice =
+        when (device) {
+            is Device.Metal -> device.device
+            else -> bail("unexpected device")
+        }
     metalDevice.capture("candle.gputrace")
     // This first synchronize ensures that a new command buffer gets created after setting up the
     // capture scope.

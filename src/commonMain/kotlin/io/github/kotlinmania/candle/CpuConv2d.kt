@@ -67,20 +67,21 @@ public fun conv2d1x1(
 
     val spatialSize = outH * outW
     val dst = MutableList(p.bSize * p.cOut * spatialSize) { 0.0 }
-    val kReshaped: List<Double> = if (kS0 == p.cIn && kS1 == 1) {
-        // Already contiguous, use slice directly
-        k.subList(kStart, kStart + p.cOut * p.cIn)
-    } else {
-        // Reshape kernel to [cOut, cIn]
-        val reshaped = ArrayList<Double>(p.cOut * p.cIn)
-        for (cOutIdx in 0 until p.cOut) {
-            for (cInIdx in 0 until p.cIn) {
-                val kIdx = kStart + cOutIdx * kS0 + cInIdx * kS1
-                reshaped.add(k[kIdx])
+    val kReshaped: List<Double> =
+        if (kS0 == p.cIn && kS1 == 1) {
+            // Already contiguous, use slice directly
+            k.subList(kStart, kStart + p.cOut * p.cIn)
+        } else {
+            // Reshape kernel to [cOut, cIn]
+            val reshaped = ArrayList<Double>(p.cOut * p.cIn)
+            for (cOutIdx in 0 until p.cOut) {
+                for (cInIdx in 0 until p.cIn) {
+                    val kIdx = kStart + cOutIdx * kS0 + cInIdx * kS1
+                    reshaped.add(k[kIdx])
+                }
             }
+            reshaped
         }
-        reshaped
-    }
     val kLayout = Layout.contiguous(Shape(p.cOut, p.cIn))
 
     // Process each batch
@@ -124,9 +125,17 @@ public fun conv2dTiled(
     kL: Layout,
 ): List<Double> {
     val inpStart = inpL.startOffset()
-    val (inpS0, inpS1, inpS2, inpS3) = dims4(inpL.stride())
+    val inpStrides = dims4(inpL.stride())
+    val inpS0 = inpStrides.d0
+    val inpS1 = inpStrides.d1
+    val inpS2 = inpStrides.d2
+    val inpS3 = inpStrides.d3
     val kStart = kL.startOffset()
-    val (kS0, kS1, kS2, kS3) = dims4(kL.stride())
+    val kStrides = dims4(kL.stride())
+    val kS0 = kStrides.d0
+    val kS1 = kStrides.d1
+    val kS2 = kStrides.d2
+    val kS3 = kStrides.d3
     val outH = p.outH()
     val outW = p.outW()
 
@@ -271,9 +280,17 @@ public fun conv2dDirect(
     kL: Layout,
 ): List<Double> {
     val inpStart = inpL.startOffset()
-    val (inpS0, inpS1, inpS2, inpS3) = dims4(inpL.stride())
+    val inpStrides = dims4(inpL.stride())
+    val inpS0 = inpStrides.d0
+    val inpS1 = inpStrides.d1
+    val inpS2 = inpStrides.d2
+    val inpS3 = inpStrides.d3
     val kStart = kL.startOffset()
-    val (kS0, kS1, kS2, kS3) = dims4(kL.stride())
+    val kStrides = dims4(kL.stride())
+    val kS0 = kStrides.d0
+    val kS1 = kStrides.d1
+    val kS2 = kStrides.d2
+    val kS3 = kStrides.d3
     val outH = p.outH()
     val outW = p.outW()
 
@@ -358,7 +375,7 @@ public fun conv2dDirect(
     return dst
 }
 
-public fun allocUninitVec(size: Int): MutableList<Double> = MutableList(size) { 0.0 }
+internal fun allocUninitVec(size: Int): MutableList<Double> = MutableList(size) { 0.0 }
 
 /**
  * Full im2col + gemm convolution implementation.
@@ -372,13 +389,14 @@ public fun conv2dIm2colGemm(
     kernel: List<Double>,
     kernelL: Layout,
 ): List<Double> {
-    val op = Im2Col(
-        hK = p.kH,
-        wK = p.kW,
-        padding = p.padding,
-        stride = p.stride,
-        dilation = p.dilation,
-    )
+    val op =
+        Im2Col(
+            hK = p.kH,
+            wK = p.kW,
+            padding = p.padding,
+            stride = p.stride,
+            dilation = p.dilation,
+        )
     val col = op.f(inp, inpL)
     val b = p.bSize
     val n = p.cOut
@@ -387,23 +405,30 @@ public fun conv2dIm2colGemm(
     val k = op.hK * op.wK * p.cIn
     val m = hOut * wOut
     val colL = Layout.contiguous(Shape(b, m, k))
-    val res: List<Double> = if (kernelL.isContiguous()) {
-        val kLayout = Layout.contiguousWithOffset(Shape(1, n, k), kernelL.startOffset())
+    val res: List<Double> =
+        if (kernelL.isContiguous()) {
+            val kLayout =
+                Layout
+                    .contiguousWithOffset(Shape(1, n, k), kernelL.startOffset())
+                    .transpose(1, 2)
+                    .broadcastAs(Shape(b, k, n))
+            MatMul(Dims4(b, m, n, k)).f(col, colL, kernel, kLayout)
+        } else {
+            // Make the kernel contiguous if not already the case.
+            val kernelC = allocUninitVec(kernelL.shape().elemCount())
+            copyStridedSrc(kernel, kernelC, 0, kernelL)
+            val kLayout =
+                Layout
+                    .contiguousWithOffset(Shape(1, n, k), kernelL.startOffset())
+                    .transpose(1, 2)
+                    .broadcastAs(Shape(b, k, n))
+            MatMul(Dims4(b, m, n, k)).f(col, colL, kernelC, kLayout)
+        }
+    val resL =
+        Layout
+            .contiguous(Shape(b, hOut, wOut, p.cOut))
             .transpose(1, 2)
-            .broadcastAs(Shape(b, k, n))
-        MatMul(Dims4(b, m, n, k)).f(col, colL, kernel, kLayout)
-    } else {
-        // Make the kernel contiguous if not already the case.
-        val kernelC = allocUninitVec(kernelL.shape().elemCount())
-        copyStridedSrc(kernel, kernelC, 0, kernelL)
-        val kLayout = Layout.contiguousWithOffset(Shape(1, n, k), kernelL.startOffset())
-            .transpose(1, 2)
-            .broadcastAs(Shape(b, k, n))
-        MatMul(Dims4(b, m, n, k)).f(col, colL, kernelC, kLayout)
-    }
-    val resL = Layout.contiguous(Shape(b, hOut, wOut, p.cOut))
-        .transpose(1, 2)
-        .transpose(1, 3)
+            .transpose(1, 3)
     val resT = allocUninitVec(resL.shape().elemCount())
     copyStridedSrc(res, resT, 0, resL)
     return resT

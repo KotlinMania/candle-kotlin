@@ -4,11 +4,11 @@ package io.github.kotlinmania.candle.quantized.fastmmq
 import io.github.kotlinmania.candle.CudaDevice
 import io.github.kotlinmania.candle.CudaStorage
 import io.github.kotlinmania.candle.DType
+import io.github.kotlinmania.candle.DeviceId
+import io.github.kotlinmania.candle.GgmlDType
 import io.github.kotlinmania.candle.Layout
 import io.github.kotlinmania.candle.Result
 import io.github.kotlinmania.candle.Shape
-import io.github.kotlinmania.candle.DeviceId
-import io.github.kotlinmania.candle.GgmlDType
 import io.github.kotlinmania.candle.quantized.cuda.CudaSlice
 import io.github.kotlinmania.candle.quantized.cuda.MATRIX_ROW_PADDING
 import io.github.kotlinmania.candle.quantized.cuda.QCudaStorage
@@ -25,18 +25,37 @@ private const val BLOCK_Q8_1_MMQ_SIZE: Int = 4 * QK8_1 + 4 * 4 // 128 qs + 16 sc
 private val Int.divCeil: (Int) -> Int get() = { q -> (this + q - 1) / q }
 private val Int.max: (Int) -> Int get() = { m -> maxOf(this, m) }
 private val unreachable: () -> Nothing get() = { throw IllegalStateException("unreachable") }
+
 private fun <T> T.Some(v: T): T = v
+
 private fun <T> isSomeVal(v: T): Boolean = v != null
+
 private fun <T> Some(v: T): T = v
+
 private val None: Nothing? get() = null
+
 private fun <T> Ok(v: T): Result<T> = Result.success(v)
+
 private val matches: (Any?, Array<out Any?>) -> Boolean get() = { v, opts -> opts.any { it == v } }
-private val GgmlDType.matches: (GgmlDType, GgmlDType, GgmlDType, GgmlDType, GgmlDType, GgmlDType, GgmlDType, GgmlDType, GgmlDType, GgmlDType, GgmlDType) -> Boolean get() = { d, a, b, c, e, f, g, h, i, j, k ->
+private val GgmlDType.matches: (
+    GgmlDType,
+    GgmlDType,
+    GgmlDType,
+    GgmlDType,
+    GgmlDType,
+    GgmlDType,
+    GgmlDType,
+    GgmlDType,
+    GgmlDType,
+    GgmlDType,
+    GgmlDType,
+) -> Boolean get() = { d, a, b, c, e, f, g, h, i, j, k ->
     d == a || d == b || d == c || d == e || d == f || d == g || d == h || d == i || d == j || d == k
 }
 
 private fun pad(
-    p: Int, q: Int,
+    p: Int,
+    q: Int,
 ): Int = p.divCeil(q) * q
 
 /**
@@ -67,8 +86,14 @@ private fun qkFor(dtype: GgmlDType): Int =
         GgmlDType.Q4_0, GgmlDType.Q4_1, GgmlDType.Q5_0, GgmlDType.Q5_1, GgmlDType.Q8_0 -> {
             32
         }
-        GgmlDType.Q2K, GgmlDType.Q3K, GgmlDType.Q4K, GgmlDType.Q5K, GgmlDType.Q6K -> 256
-        else -> unreachable()
+
+        GgmlDType.Q2K, GgmlDType.Q3K, GgmlDType.Q4K, GgmlDType.Q5K, GgmlDType.Q6K -> {
+            256
+        }
+
+        else -> {
+            unreachable()
+        }
     }
 
 // Scale layout mapping: which quantized MMQ scale layout to use per weight type.
@@ -110,11 +135,13 @@ internal class QuantizeLauncher(
         ne1: Long,
         ne2: Long,
         ne3: Long,
-        stream: ULong
-    ) -> Unit
+        stream: ULong,
+    ) -> Unit,
 )
 
-private object ffi {
+private val ffi: FfiMod = FfiMod
+
+private object FfiMod {
     private val noopQuantize: (ULong, ULong, ULong, Int, Long, Long, Long, Long, Long, Long, Long, Long, ULong) -> Unit =
         { _, _, _, _, _, _, _, _, _, _, _, _, _ -> }
     private val noopMmq: (ULong, ULong, ULong, ULong, Long, Long, Long, Long, Long, Int, Int, Long, Int, ULong) -> Unit =
@@ -159,25 +186,26 @@ internal class MmqLauncher(
         nsm: Int,
         smpbo: Long,
         warpSize: Int,
-        stream: ULong
-    ) -> Unit
+        stream: ULong,
+    ) -> Unit,
 )
 
 private fun mmqLauncher(dtype: GgmlDType): MmqLauncher? {
     // Dispatches MMQ kernel via candleKernels ffi.
-    val f: MmqLauncher = when (dtype) {
-        GgmlDType.Q4_0 -> ffi.launchMmqGgufQ40
-        GgmlDType.Q4_1 -> ffi.launchMmqGgufQ41
-        GgmlDType.Q5_0 -> ffi.launchMmqGgufQ50
-        GgmlDType.Q5_1 -> ffi.launchMmqGgufQ51
-        GgmlDType.Q8_0 -> ffi.launchMmqGgufQ80
-        GgmlDType.Q2K -> ffi.launchMmqGgufQ2K
-        GgmlDType.Q3K -> ffi.launchMmqGgufQ3K
-        GgmlDType.Q4K -> ffi.launchMmqGgufQ4K
-        GgmlDType.Q5K -> ffi.launchMmqGgufQ5K
-        GgmlDType.Q6K -> ffi.launchMmqGgufQ6K
-        else -> return None
-    }
+    val f: MmqLauncher =
+        when (dtype) {
+            GgmlDType.Q4_0 -> ffi.launchMmqGgufQ40
+            GgmlDType.Q4_1 -> ffi.launchMmqGgufQ41
+            GgmlDType.Q5_0 -> ffi.launchMmqGgufQ50
+            GgmlDType.Q5_1 -> ffi.launchMmqGgufQ51
+            GgmlDType.Q8_0 -> ffi.launchMmqGgufQ80
+            GgmlDType.Q2K -> ffi.launchMmqGgufQ2K
+            GgmlDType.Q3K -> ffi.launchMmqGgufQ3K
+            GgmlDType.Q4K -> ffi.launchMmqGgufQ4K
+            GgmlDType.Q5K -> ffi.launchMmqGgufQ5K
+            GgmlDType.Q6K -> ffi.launchMmqGgufQ6K
+            else -> return None
+        }
     return f.Some(f)
 }
 
@@ -187,23 +215,36 @@ private fun mmqLauncher(dtype: GgmlDType): MmqLauncher? {
 
 internal class WorkspaceSlot(
     var slice: CudaSlice,
-    var cap: Int
+    var cap: Int,
 )
 
-private class MmqMutex<T>(private val value: T) {
+private class MmqMutex<T>(
+    private val value: T,
+) {
     val lock: () -> MmqGuard<T> get() = { MmqGuard(value) }
+
     companion object {
         val new: (Any?) -> Any? get() = { v -> v }
     }
 }
 
-private class MmqGuard<T>(val v: T) {
+private class MmqGuard<T>(
+    val v: T,
+) {
     val unwrap: () -> T get() = { v }
 }
 
 private fun <K, V> MutableMap<K, V>.lock(): MmqGuard<MutableMap<K, V>> = MmqGuard(this)
-private fun <K, V> MutableMap<K, V>.insert(k: K, v: V): Unit { this[k] = v }
+
+private fun <K, V> MutableMap<K, V>.insert(
+    k: K,
+    v: V,
+) {
+    this[k] = v
+}
+
 private fun <T> T?.copied(): T? = this
+
 private val CudaDevice.id: () -> DeviceId get() = { DeviceId(this.ordinal) }
 private val CudaDevice.alloc: (Int) -> Result<CudaSlice> get() = { n -> Result.success(CudaSlice(ByteArray(n))) }
 private val CudaSlice.stream: () -> ULong get() = { 0uL }
@@ -226,17 +267,23 @@ private fun workspaceEnsure(
     val deviceKey = dev.id()
     val guard = map.lock().unwrap()
     val mtx = guard[deviceKey].copied()
-    val deviceMtx: WorkspaceSlot = if (isSomeVal(mtx)) {
-        mtx!!
-    } else {
-        val slice = dev.alloc(bytes.max(1)).getOrElse { return Result.failure(it) }
-        val leaked = leak(newSlot(
-            sliceKey, slice,
-            capKey, bytes.max(1),
-        ))
-        guard.insert(deviceKey, leaked)
-        leaked
-    }
+    val deviceMtx: WorkspaceSlot =
+        if (isSomeVal(mtx)) {
+            mtx!!
+        } else {
+            val slice = dev.alloc(bytes.max(1)).getOrElse { return Result.failure(it) }
+            val leaked =
+                leak(
+                    newSlot(
+                        sliceKey,
+                        slice,
+                        capKey,
+                        bytes.max(1),
+                    ),
+                )
+            guard.insert(deviceKey, leaked)
+            leaked
+        }
     val slot = MmqMutex(deviceMtx).lock().unwrap()
     if (slot.cap < bytes) {
         slot.slice = dev.alloc(bytes).getOrElse { return Result.failure(it) }
@@ -254,10 +301,10 @@ internal data class DeviceInfo(
     val cc: Int,
     val nsm: Int,
     val smpbo: Long,
-    val warpSize: Int
+    val warpSize: Int,
 )
 
-private object sys {
+private object Sys {
     enum class CUdeviceAttribute {
         CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MAJOR,
         CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MINOR,
@@ -267,22 +314,29 @@ private object sys {
     }
 }
 
-private object result {
-    object device {
-        val getAttribute: (Int, sys.CUdeviceAttribute) -> Result<Int> get() = { _, attr ->
-            val v = when (attr) {
-                sys.CUdeviceAttribute.CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MAJOR -> 8
-                sys.CUdeviceAttribute.CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MINOR -> 0
-                sys.CUdeviceAttribute.CU_DEVICE_ATTRIBUTE_MULTIPROCESSOR_COUNT -> 1
-                sys.CUdeviceAttribute.CU_DEVICE_ATTRIBUTE_MAX_SHARED_MEMORY_PER_BLOCK_OPTIN -> 49152
-                sys.CUdeviceAttribute.CU_DEVICE_ATTRIBUTE_WARP_SIZE -> 32
-            }
+private val result: ResultMod = ResultMod
+
+private object ResultMod {
+    val device: DeviceMod = DeviceMod
+
+    object DeviceMod {
+        val getAttribute: (Int, Sys.CUdeviceAttribute) -> Result<Int> get() = { _, attr ->
+            val v =
+                when (attr) {
+                    Sys.CUdeviceAttribute.CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MAJOR -> 8
+                    Sys.CUdeviceAttribute.CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MINOR -> 0
+                    Sys.CUdeviceAttribute.CU_DEVICE_ATTRIBUTE_MULTIPROCESSOR_COUNT -> 1
+                    Sys.CUdeviceAttribute.CU_DEVICE_ATTRIBUTE_MAX_SHARED_MEMORY_PER_BLOCK_OPTIN -> 49152
+                    Sys.CUdeviceAttribute.CU_DEVICE_ATTRIBUTE_WARP_SIZE -> 32
+                }
             Result.success(v)
         }
     }
 }
 
-private class CuStreamStub(val ordinal: Int) {
+private class CuStreamStub(
+    val ordinal: Int,
+) {
     val context: () -> CuStreamStub get() = { this }
     val cuDevice: () -> Int get() = { ordinal }
     val cuStream: () -> ULong get() = { ordinal.toULong() }
@@ -290,7 +344,9 @@ private class CuStreamStub(val ordinal: Int) {
 
 private val CudaDevice.cudaStream: () -> CuStreamStub get() = { CuStreamStub(this.ordinal) }
 private val CudaStorage.asCudaSliceF32: () -> Result<CudaSlice> get() = { Result.success(CudaSlice(ByteArray(0))) }
+
 private fun <T> Result<T>.unwrapOr(def: T): T = this.getOrDefault(def)
+
 private val ccKey: Int get() = 0
 private val smpboKey: Int get() = 0
 private val newDeviceInfo: (Int, Int, Int, Long, Int) -> DeviceInfo get() = { _, cc, nsm, smpbo, warpSize ->
@@ -310,45 +366,56 @@ private fun getDeviceInfo(dev: CudaDevice): DeviceInfo {
     }
     val cuDevice = dev.cudaStream().context().cuDevice()
     // Compute capability major version.
-    val major = result.device.getAttribute(
-        cuDevice,
-        sys.CUdeviceAttribute.CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MAJOR,
-    )
-        // Default to SM 8.x if attribute query fails.
-        .unwrapOr(8)
+    val major =
+        result.device
+            .getAttribute(
+                cuDevice,
+                Sys.CUdeviceAttribute.CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MAJOR,
+            )
+            // Default to SM 8.x if attribute query fails.
+            .unwrapOr(8)
     // Compute capability minor version.
-    val minor = result.device.getAttribute(
-        cuDevice,
-        sys.CUdeviceAttribute.CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MINOR,
-    )
-        // Default minor capability to 0.
-        .unwrapOr(0)
+    val minor =
+        result.device
+            .getAttribute(
+                cuDevice,
+                Sys.CUdeviceAttribute.CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MINOR,
+            )
+            // Default minor capability to 0.
+            .unwrapOr(0)
     // Streaming multiprocessor count.
-    val nsm = result.device.getAttribute(
-        cuDevice,
-        sys.CUdeviceAttribute.CU_DEVICE_ATTRIBUTE_MULTIPROCESSOR_COUNT,
-    )
-        // Default SM count to 1.
-        .unwrapOr(1)
+    val nsm =
+        result.device
+            .getAttribute(
+                cuDevice,
+                Sys.CUdeviceAttribute.CU_DEVICE_ATTRIBUTE_MULTIPROCESSOR_COUNT,
+            )
+            // Default SM count to 1.
+            .unwrapOr(1)
     // Max shared memory per block opt-in.
-    val smpbo = result.device.getAttribute(
-        cuDevice,
-        sys.CUdeviceAttribute.CU_DEVICE_ATTRIBUTE_MAX_SHARED_MEMORY_PER_BLOCK_OPTIN,
-    )
-        // Default shared memory opt-in to 49152 bytes.
-        .unwrapOr(49152)
+    val smpbo =
+        result.device
+            .getAttribute(
+                cuDevice,
+                Sys.CUdeviceAttribute.CU_DEVICE_ATTRIBUTE_MAX_SHARED_MEMORY_PER_BLOCK_OPTIN,
+            )
+            // Default shared memory opt-in to 49152 bytes.
+            .unwrapOr(49152)
     // Device warp size.
-    val warpSize = result.device.getAttribute(
-        cuDevice,
-        sys.CUdeviceAttribute.CU_DEVICE_ATTRIBUTE_WARP_SIZE,
-    )
-        .unwrapOr(32)
-    val newInfo = newDeviceInfo(
-        ccKey, major * 100 + minor * 10,
-        nsm,
-        smpbo.toLong(),
-        warpSize,
-    )
+    val warpSize =
+        result.device
+            .getAttribute(
+                cuDevice,
+                Sys.CUdeviceAttribute.CU_DEVICE_ATTRIBUTE_WARP_SIZE,
+            ).unwrapOr(32)
+    val newInfo =
+        newDeviceInfo(
+            ccKey,
+            major * 100 + minor * 10,
+            nsm,
+            smpbo.toLong(),
+            warpSize,
+        )
     guard.insert(key, newInfo)
     return newInfo
 }
@@ -357,23 +424,39 @@ private fun getDeviceInfo(dev: CudaDevice): DeviceInfo {
 // Public entry point
 // ---------------------------------------------------------------------------
 
-private object std {
-    object ptr {
+private val std: StdMod = StdMod
+
+private object StdMod {
+    val ptr: PtrMod = PtrMod
+
+    object PtrMod {
         val nullPtr: () -> ULong get() = { 0uL }
     }
-    object mem {
+
+    val mem: MemMod = MemMod
+
+    object MemMod {
         val sizeOf: () -> Int get() = { Float.SIZE_BYTES }
     }
 }
 
 private fun <T> T?.expect(msg: String): T = this ?: throw IllegalStateException(msg)
+
 private fun <T> T?.isSome(): Boolean = this != null
+
 private fun <T> T?.asRef(): T? = this
+
 private val List<Int>.toVec: () -> MutableList<Int> get() = { this.toMutableList() }
+
 private fun <T> MutableList<T>.pop(): T = this.removeAt(this.size - 1)
-private fun <T> MutableList<T>.push(v: T): Unit { this.add(v) }
+
+private fun <T> MutableList<T>.push(v: T) {
+    this.add(v)
+}
+
 private val MutableList<Int>.into: () -> Shape get() = { Shape(this) }
 private val MutableList<Int>.clone: () -> MutableList<Int> get() = { this.toMutableList() }
+
 private fun Shape.dims2(): Result<Pair<Int, Int>> = Result.success(Pair(dims[0], dims[1]))
 
 /**
@@ -401,11 +484,12 @@ fun tryFwd(
     val (nrows, ncols) = selfShape.dims2().getOrElse { return Result.failure(it) }
 
     val rhsDims = rhsL.shape().dims()
-    val (bSize, k) = when (rhsDims.size) {
-        3 -> Pair(rhsDims[0] * rhsDims[1], rhsDims[2])
-        2 -> Pair(rhsDims[0], rhsDims[1])
-        else -> return Ok(None)
-    }
+    val (bSize, k) =
+        when (rhsDims.size) {
+            3 -> Pair(rhsDims[0] * rhsDims[1], rhsDims[2])
+            2 -> Pair(rhsDims[0], rhsDims[1])
+            else -> return Ok(None)
+        }
     if (ncols != k) {
         return Ok(None)
     }
@@ -418,34 +502,37 @@ fun tryFwd(
         return Ok(None)
     }
 
-    val (o1, o2) = when (val offsets = rhsL.contiguousOffsets()) {
-        null -> return Ok(None)
-        else -> offsets
-    }
+    val (o1, o2) =
+        when (val offsets = rhsL.contiguousOffsets()) {
+            null -> return Ok(None)
+            else -> offsets
+        }
 
     val dev = qstorage.device()
     val stream = dev.cudaStream()
     val streamPtr = stream.cuStream()
 
     // MMQ quantize expects f32 input. Convert if needed.
-    val rhsF32Storage: CudaStorage? = if (inputDtype != DType.F32) {
-        val layoutForCast =
-            Layout.contiguousWithOffset(rhsL.shape(), rhsL.startOffset())
-        Some(rhs.toDtype(layoutForCast, DType.F32) as CudaStorage)
-    } else {
-        None
-    }
+    val rhsF32Storage: CudaStorage? =
+        if (inputDtype != DType.F32) {
+            val layoutForCast =
+                Layout.contiguousWithOffset(rhsL.shape(), rhsL.startOffset())
+            Some(rhs.toDtype(layoutForCast, DType.F32) as CudaStorage)
+        } else {
+            None
+        }
 
     // Get the f32 slice (either original or converted)
     val rhsF32Ref = rhsF32Storage.asRef() ?: rhs
     val rhsF32SliceBase = rhsF32Ref.asCudaSliceF32().getOrElse { return Result.failure(it) }
     // For the converted case, offset is 0 (toDtype returns contiguous from 0).
     // For the original f32 case, apply the original offsets.
-    val rhsF32Slice = if (rhsF32Storage.isSome()) {
-        rhsF32SliceBase.slice(0 until bSize * k)
-    } else {
-        rhsF32SliceBase.slice(o1 until o2)
-    }
+    val rhsF32Slice =
+        if (rhsF32Storage.isSome()) {
+            rhsF32SliceBase.slice(0 until bSize * k)
+        } else {
+            rhsF32SliceBase.slice(o1 until o2)
+        }
     val rhsPtr = rhsF32Slice.devicePtr(stream.cuStream()).first
 
     // Compute padded dimensions
@@ -460,14 +547,14 @@ fun tryFwd(
     val workspaceExtra = 128 * BLOCK_Q8_1_MMQ_SIZE
     val workspaceBytes = workspaceMain + workspaceExtra
 
-    val (scratchPtr, _workspaceGuard) = workspaceEnsure(MMQ_WORKSPACE, dev, workspaceBytes).getOrElse { return Result.failure(it) }
+    val (scratchPtr, _) = workspaceEnsure(MMQ_WORKSPACE, dev, workspaceBytes).getOrElse { return Result.failure(it) }
 
     // Stream-k fixup workspace
     val mmqXMax = 128
     val mmqYMax = 128
     val maxSms = 256
     val fixupBytes = maxSms * mmqXMax * mmqYMax * std.mem.sizeOf()
-    val (fixupPtr, _fixupGuard) = workspaceEnsure(FIXUP_WORKSPACE, dev, fixupBytes).getOrElse { return Result.failure(it) }
+    val (fixupPtr, _) = workspaceEnsure(FIXUP_WORKSPACE, dev, fixupBytes).getOrElse { return Result.failure(it) }
 
     val weightPtr = qstorage.devicePtr().toULong()
     val strideRowX = (k / qk).toLong()

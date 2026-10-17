@@ -27,9 +27,13 @@ private fun <T> List<T>.copied(): List<T> = this
 
 private fun <T> List<T>.toCpuStorage(): CpuStorage = NdArray.S.toCpuStorage(this)
 
-private fun <T> MutableList<T>.extend(arr: Array<T>): Unit { this.addAll(arr.asList()) }
+private fun <T> MutableList<T>.extend(arr: Array<T>) {
+    this.addAll(arr.asList())
+}
 
-private fun <T> MutableList<T>.extendList(list: List<T>): Unit { this.addAll(list) }
+private fun <T> MutableList<T>.extendList(list: List<T>) {
+    this.addAll(list)
+}
 
 private val IntArray.asSlice: () -> List<Int>
     get() = { this.toList() }
@@ -99,37 +103,25 @@ public interface NdArray {
     public class Scalar<T>(
         public val value: T,
     ) : NdArray {
-        override fun shape(): Shape {
-            return Shape.from()
-        }
+        override fun shape(): Shape = Shape.from()
 
-        override fun toCpuStorage(): CpuStorage {
-            return S.toCpuStorage(listOf(value))
-        }
+        override fun toCpuStorage(): CpuStorage = S.toCpuStorage(listOf(value))
     }
 
     public class Array1<T>(
         public val value: Array<T>,
     ) : NdArray {
-        override fun shape(): Shape {
-            return Shape.from(value.len())
-        }
+        override fun shape(): Shape = Shape.from(value.len())
 
-        override fun toCpuStorage(): CpuStorage {
-            return S.toCpuStorage(value.asSlice())
-        }
+        override fun toCpuStorage(): CpuStorage = S.toCpuStorage(value.asSlice())
     }
 
     public class Slice1<T>(
         public val value: List<T>,
     ) : NdArray {
-        override fun shape(): Shape {
-            return Shape.from(value.len())
-        }
+        override fun shape(): Shape = Shape.from(value.len())
 
-        override fun toCpuStorage(): CpuStorage {
-            return S.toCpuStorage(value)
-        }
+        override fun toCpuStorage(): CpuStorage = S.toCpuStorage(value)
     }
 
     public class Array2<T> internal constructor(
@@ -137,13 +129,9 @@ public interface NdArray {
         public val m: Int = value.size,
         public val n: Int = if (value.isEmpty()) 0 else value[0].size,
     ) : NdArray {
-        override fun shape(): Shape {
-            return Shape.from(m, n)
-        }
+        override fun shape(): Shape = Shape.from(m, n)
 
-        override fun toCpuStorage(): CpuStorage {
-            return S.toCpuStorageOwned(value.concat())
-        }
+        override fun toCpuStorage(): CpuStorage = S.toCpuStorageOwned(value.concat())
     }
 
     public class Array3<T> internal constructor(
@@ -152,9 +140,7 @@ public interface NdArray {
         public val n2: Int = if (value.isEmpty()) 0 else value[0].size,
         public val n3: Int = if (value.isEmpty() || value[0].isEmpty()) 0 else value[0][0].size,
     ) : NdArray {
-        override fun shape(): Shape {
-            return Shape.from(n1, n2, n3)
-        }
+        override fun shape(): Shape = Shape.from(n1, n2, n3)
 
         override fun toCpuStorage(): CpuStorage {
             val vec = Vec.withCapacity<T>(n1 * n2 * n3)
@@ -174,9 +160,7 @@ public interface NdArray {
         public val n3: Int = if (value.isEmpty() || value[0].isEmpty()) 0 else value[0][0].size,
         public val n4: Int = if (value.isEmpty() || value[0].isEmpty() || value[0][0].isEmpty()) 0 else value[0][0][0].size,
     ) : NdArray {
-        override fun shape(): Shape {
-            return Shape.from(n1, n2, n3, n4)
-        }
+        override fun shape(): Shape = Shape.from(n1, n2, n3, n4)
 
         override fun toCpuStorage(): CpuStorage {
             val vec = Vec.withCapacity<T>(n1 * n2 * n3 * n4)
@@ -194,13 +178,9 @@ public interface NdArray {
     public class Vec1<T>(
         public val value: List<T>,
     ) : NdArray {
-        override fun shape(): Shape {
-            return Shape.from(value.len())
-        }
+        override fun shape(): Shape = Shape.from(value.len())
 
-        override fun toCpuStorage(): CpuStorage {
-            return S.toCpuStorage(value.asSlice())
-        }
+        override fun toCpuStorage(): CpuStorage = S.toCpuStorage(value.asSlice())
     }
 
     public class VecSlice<T>(
@@ -221,7 +201,13 @@ public interface NdArray {
         }
 
         override fun toCpuStorage(): CpuStorage {
-            val data = value.iter().copied().flatten().copied().collect()
+            val data =
+                value
+                    .iter()
+                    .copied()
+                    .flatten()
+                    .copied()
+                    .collect()
             return S.toCpuStorageOwned(data)
         }
     }
@@ -275,10 +261,11 @@ public interface NdArray {
             if (value.isEmpty()) {
                 return S.toCpuStorageOwned(emptyList<T>())
             }
-            val len = value
-                .iter()
-                .map { v -> v.iter().map { v2 -> v2.len() }.sum() }
-                .sum()
+            val len =
+                value
+                    .iter()
+                    .map { v -> v.iter().map { v2 -> v2.len() }.sum() }
+                    .sum()
             val dst = Vec.withCapacity<T>(len)
             for (v1 in value.iter()) {
                 for (v2 in v1.iter()) {
@@ -308,14 +295,15 @@ public interface NdArray {
         }
 
         override fun toCpuStorage(): CpuStorage {
-            val len = value
-                .iter()
-                .map { v ->
-                    v.iter()
-                        .map { v2 -> v2.iter().map { v3 -> v3.len() }.sum() }
-                        .sum()
-                }
-                .sum()
+            val len =
+                value
+                    .iter()
+                    .map { v ->
+                        v
+                            .iter()
+                            .map { v2 -> v2.iter().map { v3 -> v3.len() }.sum() }
+                            .sum()
+                    }.sum()
             val dst = Vec.withCapacity<T>(len)
             for (v1 in value.iter()) {
                 for (v2 in v1.iter()) {
@@ -345,21 +333,19 @@ public sealed class Device {
         val device: MetalDevice,
     ) : Device()
 
-    public fun asCudaDevice(): CudaDevice {
-        return when (self) {
+    public fun asCudaDevice(): CudaDevice =
+        when (self) {
             is Cuda -> self.device
             is Cpu -> bail("expected a cuda device, got cpu")
             is Metal -> bail("expected a cuda device, got Metal")
         }
-    }
 
-    public fun asMetalDevice(): MetalDevice {
-        return when (self) {
+    public fun asMetalDevice(): MetalDevice =
+        when (self) {
             is Cuda -> bail("expected a metal device, got cuda")
             is Cpu -> bail("expected a metal device, got cpu")
             is Metal -> self.device
         }
-    }
 
     /**
      * Run `f` with device specific context.
@@ -368,16 +354,16 @@ public sealed class Device {
      * duration of `f`, keeping worker threads warm across the many short
      * parallel sections in a model forward pass. Currently noop for other backends.
      */
-    public fun <R> withContext(
-        f: () -> R,
-    ): R {
-        return when (self) {
+    public fun <R> withContext(f: () -> R): R =
+        when (self) {
             is Cpu -> {
                 withThreadpool(f)
             }
-            else -> f()
+
+            else -> {
+                f()
+            }
         }
-    }
 
     public fun setSeed(seed: Long) {
         when (self) {
@@ -387,72 +373,62 @@ public sealed class Device {
         }
     }
 
-    public fun getCurrentSeed(): Long {
-        return when (self) {
+    public fun getCurrentSeed(): Long =
+        when (self) {
             is Cpu -> CpuDevice.getCurrentSeed()
             is Cuda -> self.device.getCurrentSeed()
             is Metal -> self.device.getCurrentSeed()
         }
-    }
 
-    public fun sameDevice(rhs: Device): Boolean {
-        return when {
+    public fun sameDevice(rhs: Device): Boolean =
+        when {
             self is Cpu && rhs is Cpu -> true
             self is Cuda && rhs is Cuda -> self.device.sameDevice(rhs.device)
             self is Metal && rhs is Metal -> self.device.sameDevice(rhs.device)
             else -> false
         }
-    }
 
-    public fun location(): DeviceLocation {
-        return when (self) {
+    public fun location(): DeviceLocation =
+        when (self) {
             is Cpu -> DeviceLocation.Cpu
             is Cuda -> self.device.location()
             is Metal -> self.device.location()
         }
-    }
 
-    public fun isCpu(): Boolean {
-        return matches(self, Cpu::class)
-    }
+    public fun isCpu(): Boolean = matches(self, Cpu::class)
 
-    public fun isCuda(): Boolean {
-        return matches(self, Cuda::class)
-    }
+    public fun isCuda(): Boolean = matches(self, Cuda::class)
 
-    public fun isMetal(): Boolean {
-        return matches(self, Metal::class)
-    }
+    public fun isMetal(): Boolean = matches(self, Metal::class)
 
-    public fun supportsBf16(): Boolean {
-        return when (self) {
+    public fun supportsBf16(): Boolean =
+        when (self) {
             is Cuda, is Metal -> true
             is Cpu -> false
         }
-    }
 
     /**
      * Return `BF16` for devices that support it, otherwise default to `F32`.
      */
-    public fun bf16DefaultToF32(): DType {
-        return if (self.supportsBf16()) {
+    public fun bf16DefaultToF32(): DType =
+        if (self.supportsBf16()) {
             DType.BF16
         } else {
             DType.F32
         }
-    }
 
     public fun randUniformF64(
         lo: Double,
         up: Double,
         shape: Shape,
         dtype: DType,
-    ): Storage {
-        return when (self) {
+    ): Storage =
+        when (self) {
             is Cpu -> {
                 val storage = CpuDevice.randUniform(shape, dtype, lo, up)
                 Storage.Cpu(storage)
             }
+
             is Cuda -> {
                 // Convert generated f32 samples
                 // when generating f16 or bf16 on CUDA.
@@ -464,33 +440,32 @@ public sealed class Device {
                     Storage.Cuda(storage)
                 }
             }
+
             is Metal -> {
                 val storage = self.device.randUniform(shape, dtype, lo, up) as MetalStorage
                 Storage.Metal(storage)
             }
         }
-    }
 
     public fun randUniform(
         lo: Double,
         up: Double,
         shape: Shape,
         dtype: DType = DType.F32,
-    ): Storage {
-        return self.randUniformF64(lo, up, shape, dtype)
-    }
+    ): Storage = self.randUniformF64(lo, up, shape, dtype)
 
     public fun randNormalF64(
         mean: Double,
         std: Double,
         shape: Shape,
         dtype: DType,
-    ): Storage {
-        return when (self) {
+    ): Storage =
+        when (self) {
             is Cpu -> {
                 val storage = CpuDevice.randNormal(shape, dtype, mean, std)
                 Storage.Cpu(storage)
             }
+
             is Cuda -> {
                 // Convert generated f32 samples
                 // when generating f16 or bf16 on CUDA.
@@ -502,101 +477,116 @@ public sealed class Device {
                     Storage.Cuda(storage)
                 }
             }
+
             is Metal -> {
                 val storage = self.device.randNormal(shape, dtype, mean, std) as MetalStorage
                 Storage.Metal(storage)
             }
         }
-    }
 
     public fun randNormal(
         mean: Double,
         std: Double,
         shape: Shape,
         dtype: DType = DType.F32,
-    ): Storage {
-        return self.randNormalF64(mean, std, shape, dtype)
-    }
+    ): Storage = self.randNormalF64(mean, std, shape, dtype)
 
-    public fun zeros(shape: Shape, dtype: DType): Storage {
-        return when (self) {
+    public fun zeros(
+        shape: Shape,
+        dtype: DType,
+    ): Storage =
+        when (self) {
             is Cpu -> {
                 val storage = CpuDevice.zerosImpl(shape, dtype)
                 Storage.Cpu(storage)
             }
+
             is Cuda -> {
                 val storage = self.device.zerosImpl(shape, dtype) as CudaStorage
                 Storage.Cuda(storage)
             }
+
             is Metal -> {
                 val storage = self.device.zerosImpl(shape, dtype) as MetalStorage
                 Storage.Metal(storage)
             }
         }
-    }
 
-    public fun allocUninit(shape: Shape, dtype: DType): Storage {
-        return when (self) {
+    public fun allocUninit(
+        shape: Shape,
+        dtype: DType,
+    ): Storage =
+        when (self) {
             is Cpu -> {
                 val storage = CpuDevice.allocUninit(shape, dtype)
                 Storage.Cpu(storage)
             }
+
             is Cuda -> {
                 val storage = self.device.allocUninit(shape, dtype) as CudaStorage
                 Storage.Cuda(storage)
             }
+
             is Metal -> {
                 val storage = self.device.allocUninit(shape, dtype) as MetalStorage
                 Storage.Metal(storage)
             }
         }
-    }
 
-    public fun <D> storageFromSlice(data: List<D>): Storage {
-        return when (self) {
-            is Cpu -> Storage.Cpu(data.toCpuStorage())
+    public fun <D> storageFromSlice(data: List<D>): Storage =
+        when (self) {
+            is Cpu -> {
+                Storage.Cpu(data.toCpuStorage())
+            }
+
             is Cuda -> {
                 val storage = self.device.storageFromSlice(data)
                 Storage.Cuda(storage)
             }
+
             is Metal -> {
                 val storage = self.device.storageFromSlice(data)
                 Storage.Metal(storage)
             }
         }
-    }
 
-    public fun storage(array: NdArray): Storage {
-        return when (self) {
-            is Cpu -> Storage.Cpu(array.toCpuStorage())
+    public fun storage(array: NdArray): Storage =
+        when (self) {
+            is Cpu -> {
+                Storage.Cpu(array.toCpuStorage())
+            }
+
             is Cuda -> {
                 val storage = array.toCpuStorage()
                 val cudaStorage = self.device.storageFromCpuStorageOwned(storage) as CudaStorage
                 Storage.Cuda(cudaStorage)
             }
+
             is Metal -> {
                 val storage = array.toCpuStorage()
                 val metalStorage = self.device.storageFromCpuStorageOwned(storage) as MetalStorage
                 Storage.Metal(metalStorage)
             }
         }
-    }
 
-    public fun <S> storageOwned(data: List<S>): Storage {
-        return when (self) {
-            is Cpu -> Storage.Cpu(NdArray.S.toCpuStorageOwned(data))
+    public fun <S> storageOwned(data: List<S>): Storage =
+        when (self) {
+            is Cpu -> {
+                Storage.Cpu(NdArray.S.toCpuStorageOwned(data))
+            }
+
             is Cuda -> {
                 val storage = NdArray.S.toCpuStorageOwned(data)
                 val cudaStorage = self.device.storageFromCpuStorageOwned(storage) as CudaStorage
                 Storage.Cuda(cudaStorage)
             }
+
             is Metal -> {
                 val storage = NdArray.S.toCpuStorageOwned(data)
                 val metalStorage = self.device.storageFromCpuStorageOwned(storage) as MetalStorage
                 Storage.Metal(metalStorage)
             }
         }
-    }
 
     public fun synchronize() {
         when (self) {
@@ -609,32 +599,24 @@ public sealed class Device {
     public companion object {
         public val matches: (Device, kotlin.reflect.KClass<out Device>) -> Boolean = { d, k -> k.isInstance(d) }
 
-        public fun newCuda(ordinal: Int): Device {
-            return Cuda(CudaDevice(ordinal))
-        }
+        public fun newCuda(ordinal: Int): Device = Cuda(CudaDevice(ordinal))
 
-        public fun newCudaWithStream(ordinal: Int): Device {
-            return Cuda(CudaDevice.newWithStream(ordinal))
-        }
+        public fun newCudaWithStream(ordinal: Int): Device = Cuda(CudaDevice.newWithStream(ordinal))
 
-        public fun newMetal(ordinal: Int): Device {
-            return Metal(MetalDevice(ordinal))
-        }
+        public fun newMetal(ordinal: Int): Device = Metal(MetalDevice(ordinal))
 
-        public fun cudaIfAvailable(ordinal: Int): Device {
-            return if (cudaIsAvailable()) {
+        public fun cudaIfAvailable(ordinal: Int): Device =
+            if (cudaIsAvailable()) {
                 newCuda(ordinal)
             } else {
                 Cpu
             }
-        }
 
-        public fun metalIfAvailable(ordinal: Int): Device {
-            return if (metalIsAvailable()) {
+        public fun metalIfAvailable(ordinal: Int): Device =
+            if (metalIsAvailable()) {
                 newMetal(ordinal)
             } else {
                 Cpu
             }
-        }
     }
 }

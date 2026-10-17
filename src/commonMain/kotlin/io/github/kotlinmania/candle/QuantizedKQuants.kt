@@ -38,25 +38,37 @@ interface GgmlType<T, V> {
 
     fun zeros(): T = createZero()
 
-    fun fromBytes(data: ByteArray, offset: Int): T = if (data.isEmpty() && offset == 0) zeros() else zeros()
+    fun fromBytes(
+        data: ByteArray,
+        offset: Int,
+    ): T = if (data.isEmpty() && offset == 0) zeros() else zeros()
 
     fun toBytes(xs: List<T>): ByteArray = if (xs.isEmpty()) ByteArray(0) else ByteArray(xs.size * 4)
 
-    fun toFloat(xs: List<T>, ys: FloatArray)
+    fun toFloat(
+        xs: List<T>,
+        ys: FloatArray,
+    )
 
-    fun fromFloat(xs: FloatArray, ys: MutableList<T>)
+    fun fromFloat(
+        xs: FloatArray,
+        ys: MutableList<T>,
+    )
 
     fun fromFloatImatrix(
         xs: FloatArray,
         ys: MutableList<T>,
         imatrixWeights: FloatArray,
-        nPerRow: Int
+        nPerRow: Int,
     ) {
         if (xs.isEmpty() && ys.isEmpty() && imatrixWeights.isEmpty() && nPerRow == 0) return
         throw IllegalStateException("fromFloatImatrix is unsupported for $DTYPE")
     }
 
-    fun directCopy(xs: FloatArray, ys: MutableList<T>) {
+    fun directCopy(
+        xs: FloatArray,
+        ys: MutableList<T>,
+    ) {
         if (xs.isEmpty() && ys.isEmpty()) return
     }
 
@@ -64,17 +76,25 @@ interface GgmlType<T, V> {
      * Dot product used as a building block for quantized mat-mul.
      * n is the number of elements to be considered.
      */
-    fun vecDot(n: Int, xs: List<T>, ys: List<V>): Float
+    fun vecDot(
+        n: Int,
+        xs: List<T>,
+        ys: List<V>,
+    ): Float
 
     /**
      * Generic implementation of the dot product without simd optimizations.
      */
-    fun vecDotUnopt(n: Int, xs: List<T>, ys: List<V>): Float
+    fun vecDotUnopt(
+        n: Int,
+        xs: List<T>,
+        ys: List<V>,
+    ): Float
 }
 
 class BlockQ40(
     var d: F16 = F16.ZERO,
-    val qs: ByteArray = ByteArray(QK40 / 2)
+    val qs: ByteArray = ByteArray(QK40 / 2),
 ) {
     companion object : GgmlType<BlockQ40, BlockQ80> {
         override val DTYPE: GgmlDType = GgmlDType.Q40
@@ -83,7 +103,10 @@ class BlockQ40(
             get() = BlockQ80
         override val createZero: () -> BlockQ40 = { BlockQ40() }
 
-        override fun toFloat(xs: List<BlockQ40>, ys: FloatArray) {
+        override fun toFloat(
+            xs: List<BlockQ40>,
+            ys: FloatArray,
+        ) {
             val k = ys.size
             val qk = BLCK_SIZE
             require(k % qk == 0) {
@@ -104,7 +127,10 @@ class BlockQ40(
             }
         }
 
-        override fun fromFloat(xs: FloatArray, ys: MutableList<BlockQ40>) {
+        override fun fromFloat(
+            xs: FloatArray,
+            ys: MutableList<BlockQ40>,
+        ) {
             val qk = BLCK_SIZE
             val k = xs.size
             require(k % qk == 0) { "$k is not divisible by $qk" }
@@ -138,11 +164,17 @@ class BlockQ40(
             }
         }
 
-        override fun vecDot(n: Int, xs: List<BlockQ40>, ys: List<BlockQ80>): Float {
-            return vecDotUnopt(n, xs, ys)
-        }
+        override fun vecDot(
+            n: Int,
+            xs: List<BlockQ40>,
+            ys: List<BlockQ80>,
+        ): Float = vecDotUnopt(n, xs, ys)
 
-        override fun vecDotUnopt(n: Int, xs: List<BlockQ40>, ys: List<BlockQ80>): Float {
+        override fun vecDotUnopt(
+            n: Int,
+            xs: List<BlockQ40>,
+            ys: List<BlockQ80>,
+        ): Float {
             require(n % QK80 == 0) {
                 "vecDotQ40Q80: $n is not divisible by $QK80"
             }
@@ -168,7 +200,7 @@ class BlockQ40(
 class BlockQ41(
     var d: F16 = F16.ZERO,
     var m: F16 = F16.ZERO,
-    val qs: ByteArray = ByteArray(QK41 / 2)
+    val qs: ByteArray = ByteArray(QK41 / 2),
 ) {
     companion object : GgmlType<BlockQ41, BlockQ81> {
         override val DTYPE: GgmlDType = GgmlDType.Q41
@@ -177,11 +209,17 @@ class BlockQ41(
             get() = BlockQ81
         override val createZero: () -> BlockQ41 = { BlockQ41() }
 
-        override fun vecDot(n: Int, xs: List<BlockQ41>, ys: List<BlockQ81>): Float {
-            return vecDotUnopt(n, xs, ys)
-        }
+        override fun vecDot(
+            n: Int,
+            xs: List<BlockQ41>,
+            ys: List<BlockQ81>,
+        ): Float = vecDotUnopt(n, xs, ys)
 
-        override fun vecDotUnopt(n: Int, xs: List<BlockQ41>, ys: List<BlockQ81>): Float {
+        override fun vecDotUnopt(
+            n: Int,
+            xs: List<BlockQ41>,
+            ys: List<BlockQ81>,
+        ): Float {
             val qk = QK81
             require(n % qk == 0) {
                 "vecDotQ41Q81: $n is not divisible by $qk"
@@ -207,7 +245,10 @@ class BlockQ41(
             return sumf
         }
 
-        override fun fromFloat(xs: FloatArray, ys: MutableList<BlockQ41>) {
+        override fun fromFloat(
+            xs: FloatArray,
+            ys: MutableList<BlockQ41>,
+        ) {
             val qk = BLCK_SIZE
             require(ys.size * qk == xs.size) {
                 "size mismatch ${xs.size} ${ys.size} $qk"
@@ -237,7 +278,10 @@ class BlockQ41(
             }
         }
 
-        override fun toFloat(xs: List<BlockQ41>, ys: FloatArray) {
+        override fun toFloat(
+            xs: List<BlockQ41>,
+            ys: FloatArray,
+        ) {
             val k = ys.size
             require(k % QK41 == 0) {
                 "dequantizeRowQ41: $k is not divisible by $QK41"
@@ -263,7 +307,7 @@ class BlockQ41(
 class BlockQ50(
     var d: F16 = F16.ZERO,
     val qh: ByteArray = ByteArray(4),
-    val qs: ByteArray = ByteArray(QK50 / 2)
+    val qs: ByteArray = ByteArray(QK50 / 2),
 ) {
     companion object : GgmlType<BlockQ50, BlockQ80> {
         override val DTYPE: GgmlDType = GgmlDType.Q50
@@ -272,7 +316,11 @@ class BlockQ50(
             get() = BlockQ80
         override val createZero: () -> BlockQ50 = { BlockQ50() }
 
-        override fun vecDot(n: Int, xs: List<BlockQ50>, ys: List<BlockQ80>): Float {
+        override fun vecDot(
+            n: Int,
+            xs: List<BlockQ50>,
+            ys: List<BlockQ80>,
+        ): Float {
             val qk = BLCK_SIZE
             require(n % qk == 0) {
                 "vecDotQ50Q80: $n is not divisible by $qk"
@@ -283,16 +331,21 @@ class BlockQ50(
             return vecDotUnopt(n, xs, ys)
         }
 
-        override fun vecDotUnopt(n: Int, xs: List<BlockQ50>, ys: List<BlockQ80>): Float {
+        override fun vecDotUnopt(
+            n: Int,
+            xs: List<BlockQ50>,
+            ys: List<BlockQ80>,
+        ): Float {
             var sumf = 0.0f
             val count = min(n / BLCK_SIZE, min(xs.size, ys.size))
             for (idx in 0 until count) {
                 val x = xs[idx]
                 val y = ys[idx]
-                val qhWord = (x.qh[0].toInt() and 0xFF) or
-                    ((x.qh[1].toInt() and 0xFF) shl 8) or
-                    ((x.qh[2].toInt() and 0xFF) shl 16) or
-                    ((x.qh[3].toInt() and 0xFF) shl 24)
+                val qhWord =
+                    (x.qh[0].toInt() and 0xFF) or
+                        ((x.qh[1].toInt() and 0xFF) shl 8) or
+                        ((x.qh[2].toInt() and 0xFF) shl 16) or
+                        ((x.qh[3].toInt() and 0xFF) shl 24)
                 var sumi = 0
 
                 for (j in 0 until BLCK_SIZE / 2) {
@@ -311,7 +364,10 @@ class BlockQ50(
             return sumf
         }
 
-        override fun fromFloat(xs: FloatArray, ys: MutableList<BlockQ50>) {
+        override fun fromFloat(
+            xs: FloatArray,
+            ys: MutableList<BlockQ50>,
+        ) {
             require(ys.size * BLCK_SIZE == xs.size) {
                 "size mismatch ${xs.size} ${ys.size} $BLCK_SIZE"
             }
@@ -348,7 +404,10 @@ class BlockQ50(
             }
         }
 
-        override fun toFloat(xs: List<BlockQ50>, ys: FloatArray) {
+        override fun toFloat(
+            xs: List<BlockQ50>,
+            ys: FloatArray,
+        ) {
             val k = ys.size
             require(k % QK50 == 0) {
                 "dequantizeRowQ50: $k is not divisible by $QK50"
@@ -357,10 +416,11 @@ class BlockQ50(
             for (i in 0 until nb) {
                 val x = xs[i]
                 val dVal = x.d.toFloat()
-                val qhWord = (x.qh[0].toInt() and 0xFF) or
-                    ((x.qh[1].toInt() and 0xFF) shl 8) or
-                    ((x.qh[2].toInt() and 0xFF) shl 16) or
-                    ((x.qh[3].toInt() and 0xFF) shl 24)
+                val qhWord =
+                    (x.qh[0].toInt() and 0xFF) or
+                        ((x.qh[1].toInt() and 0xFF) shl 8) or
+                        ((x.qh[2].toInt() and 0xFF) shl 16) or
+                        ((x.qh[3].toInt() and 0xFF) shl 24)
 
                 for (j in 0 until (QK50 / 2)) {
                     val xh0 = ((qhWord ushr j) shl 4) and 0x10
@@ -382,7 +442,7 @@ class BlockQ51(
     var d: F16 = F16.ZERO,
     var m: F16 = F16.ZERO,
     val qh: ByteArray = ByteArray(4),
-    val qs: ByteArray = ByteArray(QK51 / 2)
+    val qs: ByteArray = ByteArray(QK51 / 2),
 ) {
     companion object : GgmlType<BlockQ51, BlockQ81> {
         override val DTYPE: GgmlDType = GgmlDType.Q51
@@ -391,11 +451,17 @@ class BlockQ51(
             get() = BlockQ81
         override val createZero: () -> BlockQ51 = { BlockQ51() }
 
-        override fun vecDot(n: Int, xs: List<BlockQ51>, ys: List<BlockQ81>): Float {
-            return vecDotUnopt(n, xs, ys)
-        }
+        override fun vecDot(
+            n: Int,
+            xs: List<BlockQ51>,
+            ys: List<BlockQ81>,
+        ): Float = vecDotUnopt(n, xs, ys)
 
-        override fun vecDotUnopt(n: Int, xs: List<BlockQ51>, ys: List<BlockQ81>): Float {
+        override fun vecDotUnopt(
+            n: Int,
+            xs: List<BlockQ51>,
+            ys: List<BlockQ81>,
+        ): Float {
             val qk = BLCK_SIZE
             require(n % qk == 0) {
                 "vecDotQ51Q81: $n is not divisible by $qk"
@@ -409,10 +475,11 @@ class BlockQ51(
             for (idx in 0 until count) {
                 val x = xs[idx]
                 val y = ys[idx]
-                val qhWord = (x.qh[0].toInt() and 0xFF) or
-                    ((x.qh[1].toInt() and 0xFF) shl 8) or
-                    ((x.qh[2].toInt() and 0xFF) shl 16) or
-                    ((x.qh[3].toInt() and 0xFF) shl 24)
+                val qhWord =
+                    (x.qh[0].toInt() and 0xFF) or
+                        ((x.qh[1].toInt() and 0xFF) shl 8) or
+                        ((x.qh[2].toInt() and 0xFF) shl 16) or
+                        ((x.qh[3].toInt() and 0xFF) shl 24)
                 var sumi = 0
 
                 for (j in 0 until BLCK_SIZE / 2) {
@@ -431,7 +498,10 @@ class BlockQ51(
             return sumf
         }
 
-        override fun fromFloat(xs: FloatArray, ys: MutableList<BlockQ51>) {
+        override fun fromFloat(
+            xs: FloatArray,
+            ys: MutableList<BlockQ51>,
+        ) {
             val qk = BLCK_SIZE
             require(ys.size * qk == xs.size) {
                 "size mismatch ${xs.size} ${ys.size} $qk"
@@ -470,7 +540,10 @@ class BlockQ51(
             }
         }
 
-        override fun toFloat(xs: List<BlockQ51>, ys: FloatArray) {
+        override fun toFloat(
+            xs: List<BlockQ51>,
+            ys: FloatArray,
+        ) {
             val k = ys.size
             require(k % QK51 == 0) {
                 "dequantizeRowQ51: $k is not divisible by $QK51"
@@ -481,10 +554,11 @@ class BlockQ51(
                 val x = xs[i]
                 val dVal = x.d.toFloat()
                 val mVal = x.m.toFloat()
-                val qhWord = (x.qh[0].toInt() and 0xFF) or
-                    ((x.qh[1].toInt() and 0xFF) shl 8) or
-                    ((x.qh[2].toInt() and 0xFF) shl 16) or
-                    ((x.qh[3].toInt() and 0xFF) shl 24)
+                val qhWord =
+                    (x.qh[0].toInt() and 0xFF) or
+                        ((x.qh[1].toInt() and 0xFF) shl 8) or
+                        ((x.qh[2].toInt() and 0xFF) shl 16) or
+                        ((x.qh[3].toInt() and 0xFF) shl 24)
 
                 for (j in 0 until (QK51 / 2)) {
                     val xh0 = ((qhWord ushr j) shl 4) and 0x10
@@ -504,7 +578,7 @@ class BlockQ51(
 
 class BlockQ80(
     var d: F16 = F16.ZERO,
-    val qs: ByteArray = ByteArray(QK80)
+    val qs: ByteArray = ByteArray(QK80),
 ) {
     companion object : GgmlType<BlockQ80, BlockQ80> {
         override val DTYPE: GgmlDType = GgmlDType.Q80
@@ -513,7 +587,10 @@ class BlockQ80(
             get() = BlockQ80
         override val createZero: () -> BlockQ80 = { BlockQ80() }
 
-        override fun toFloat(xs: List<BlockQ80>, ys: FloatArray) {
+        override fun toFloat(
+            xs: List<BlockQ80>,
+            ys: FloatArray,
+        ) {
             val k = ys.size
             require(k % QK80 == 0) {
                 "dequantizeRowQ80: $k is not divisible by $QK80"
@@ -528,7 +605,10 @@ class BlockQ80(
             }
         }
 
-        override fun fromFloat(xs: FloatArray, ys: MutableList<BlockQ80>) {
+        override fun fromFloat(
+            xs: FloatArray,
+            ys: MutableList<BlockQ80>,
+        ) {
             val k = xs.size
             require(k % BLCK_SIZE == 0) {
                 "$k is not divisible by $BLCK_SIZE"
@@ -552,11 +632,17 @@ class BlockQ80(
             }
         }
 
-        override fun vecDot(n: Int, xs: List<BlockQ80>, ys: List<BlockQ80>): Float {
-            return vecDotUnopt(n, xs, ys)
-        }
+        override fun vecDot(
+            n: Int,
+            xs: List<BlockQ80>,
+            ys: List<BlockQ80>,
+        ): Float = vecDotUnopt(n, xs, ys)
 
-        override fun vecDotUnopt(n: Int, xs: List<BlockQ80>, ys: List<BlockQ80>): Float {
+        override fun vecDotUnopt(
+            n: Int,
+            xs: List<BlockQ80>,
+            ys: List<BlockQ80>,
+        ): Float {
             require(n % QK80 == 0) {
                 "vecDotQ80Q80: $n is not divisible by $QK80"
             }
@@ -580,7 +666,7 @@ class BlockQ80(
 class BlockQ81(
     var d: F16 = F16.ZERO,
     var s: F16 = F16.ZERO,
-    val qs: ByteArray = ByteArray(QK81)
+    val qs: ByteArray = ByteArray(QK81),
 ) {
     companion object : GgmlType<BlockQ81, BlockQ81> {
         override val DTYPE: GgmlDType = GgmlDType.Q81
@@ -589,11 +675,17 @@ class BlockQ81(
             get() = BlockQ81
         override val createZero: () -> BlockQ81 = { BlockQ81() }
 
-        override fun vecDot(n: Int, xs: List<BlockQ81>, ys: List<BlockQ81>): Float {
-            return vecDotUnopt(n, xs, ys)
-        }
+        override fun vecDot(
+            n: Int,
+            xs: List<BlockQ81>,
+            ys: List<BlockQ81>,
+        ): Float = vecDotUnopt(n, xs, ys)
 
-        override fun vecDotUnopt(n: Int, xs: List<BlockQ81>, ys: List<BlockQ81>): Float {
+        override fun vecDotUnopt(
+            n: Int,
+            xs: List<BlockQ81>,
+            ys: List<BlockQ81>,
+        ): Float {
             require(n % QK81 == 0) {
                 "vecDotQ81Q81: $n is not divisible by $QK81"
             }
@@ -612,7 +704,10 @@ class BlockQ81(
             return sumf
         }
 
-        override fun fromFloat(xs: FloatArray, ys: MutableList<BlockQ81>) {
+        override fun fromFloat(
+            xs: FloatArray,
+            ys: MutableList<BlockQ81>,
+        ) {
             require(ys.size * BLCK_SIZE == xs.size) {
                 "size mismatch ${xs.size} ${ys.size} $BLCK_SIZE"
             }
@@ -640,7 +735,10 @@ class BlockQ81(
             }
         }
 
-        override fun toFloat(xs: List<BlockQ81>, ys: FloatArray) {
+        override fun toFloat(
+            xs: List<BlockQ81>,
+            ys: FloatArray,
+        ) {
             if (xs.isEmpty() && ys.isEmpty()) return
             throw IllegalStateException("no support for vec-dot on Q81")
         }
@@ -651,7 +749,7 @@ class BlockQ2K(
     val scales: ByteArray = ByteArray(QKK / 16),
     val qs: ByteArray = ByteArray(QKK / 4),
     var d: F16 = F16.ZERO,
-    var dmin: F16 = F16.ZERO
+    var dmin: F16 = F16.ZERO,
 ) {
     companion object : GgmlType<BlockQ2K, BlockQ8K> {
         override val DTYPE: GgmlDType = GgmlDType.Q2K
@@ -660,11 +758,17 @@ class BlockQ2K(
             get() = BlockQ8K
         override val createZero: () -> BlockQ2K = { BlockQ2K() }
 
-        override fun vecDot(n: Int, xs: List<BlockQ2K>, ys: List<BlockQ8K>): Float {
-            return vecDotUnopt(n, xs, ys)
-        }
+        override fun vecDot(
+            n: Int,
+            xs: List<BlockQ2K>,
+            ys: List<BlockQ8K>,
+        ): Float = vecDotUnopt(n, xs, ys)
 
-        override fun vecDotUnopt(n: Int, xs: List<BlockQ2K>, ys: List<BlockQ8K>): Float {
+        override fun vecDotUnopt(
+            n: Int,
+            xs: List<BlockQ2K>,
+            ys: List<BlockQ8K>,
+        ): Float {
             require(n % QKK == 0) {
                 "vecDotQ2kQ8k: $n is not divisible by $QKK"
             }
@@ -688,9 +792,9 @@ class BlockQ2K(
 
                 var isum = 0
                 var isIdx = 0
-                for (blockIdx in 0 until (QKK / 128)) {
+                repeat(QKK / 128) {
                     var shift = 0
-                    for (sub in 0 until 4) {
+                    repeat(4) {
                         val d0 = sc[isIdx].toInt() and 0xF
                         isIdx += 1
                         var isuml = 0
@@ -718,7 +822,10 @@ class BlockQ2K(
             return sumf
         }
 
-        override fun fromFloat(xs: FloatArray, ys: MutableList<BlockQ2K>) {
+        override fun fromFloat(
+            xs: FloatArray,
+            ys: MutableList<BlockQ2K>,
+        ) {
             val q4scale = 15.0f
             for ((block, x) in groupForQuantization(xs, ys, QKK)) {
                 val mins = FloatArray(QKK / 16)
@@ -772,11 +879,12 @@ class BlockQ2K(
 
                 for (j in 0 until QKK step 128) {
                     for (ll in 0 until 32) {
-                        block.qs[j / 4 + ll] = (
-                            bigL[j + ll] or
-                                (bigL[j + ll + 32] shl 2) or
-                                (bigL[j + ll + 64] shl 4) or
-                                (bigL[j + ll + 96] shl 6)
+                        block.qs[j / 4 + ll] =
+                            (
+                                bigL[j + ll] or
+                                    (bigL[j + ll + 32] shl 2) or
+                                    (bigL[j + ll + 64] shl 4) or
+                                    (bigL[j + ll + 96] shl 6)
                             ).toByte()
                     }
                 }
@@ -787,7 +895,7 @@ class BlockQ2K(
             xs: FloatArray,
             ys: MutableList<BlockQ2K>,
             imatrixWeights: FloatArray,
-            nPerRow: Int
+            nPerRow: Int,
         ) {
             val groups = groupForQuantization(xs, ys, QKK)
             for (sblkIdx in 0 until groups.size) {
@@ -843,18 +951,22 @@ class BlockQ2K(
 
                 for (j in 0 until QKK step 128) {
                     for (ll in 0 until 32) {
-                        block.qs[j / 4 + ll] = (
-                            bigL[j + ll] or
-                                (bigL[j + ll + 32] shl 2) or
-                                (bigL[j + ll + 64] shl 4) or
-                                (bigL[j + ll + 96] shl 6)
+                        block.qs[j / 4 + ll] =
+                            (
+                                bigL[j + ll] or
+                                    (bigL[j + ll + 32] shl 2) or
+                                    (bigL[j + ll + 64] shl 4) or
+                                    (bigL[j + ll + 96] shl 6)
                             ).toByte()
                     }
                 }
             }
         }
 
-        override fun toFloat(xs: List<BlockQ2K>, ys: FloatArray) {
+        override fun toFloat(
+            xs: List<BlockQ2K>,
+            ys: FloatArray,
+        ) {
             for (idx in 0 until xs.size) {
                 val block = xs[idx]
                 val yBase = idx * QKK
@@ -866,7 +978,7 @@ class BlockQ2K(
                     val qBase = chunk * 32
                     var shift = 0
                     var yBlockIndex = yBase + chunk * 128
-                    for (j in 0 until 4) {
+                    repeat(4) {
                         val sc0 = block.scales[isIdx].toInt() and 0xFF
                         isIdx += 1
                         val dl0 = dVal * (sc0 and 0xF).toFloat()
@@ -899,7 +1011,7 @@ class BlockQ3K(
     val hmask: ByteArray = ByteArray(QKK / 8),
     val qs: ByteArray = ByteArray(QKK / 4),
     val scales: ByteArray = ByteArray(12),
-    var d: F16 = F16.ZERO
+    var d: F16 = F16.ZERO,
 ) {
     companion object : GgmlType<BlockQ3K, BlockQ8K> {
         override val DTYPE: GgmlDType = GgmlDType.Q3K
@@ -908,11 +1020,17 @@ class BlockQ3K(
             get() = BlockQ8K
         override val createZero: () -> BlockQ3K = { BlockQ3K() }
 
-        override fun vecDot(n: Int, xs: List<BlockQ3K>, ys: List<BlockQ8K>): Float {
-            return vecDotUnopt(n, xs, ys)
-        }
+        override fun vecDot(
+            n: Int,
+            xs: List<BlockQ3K>,
+            ys: List<BlockQ8K>,
+        ): Float = vecDotUnopt(n, xs, ys)
 
-        override fun vecDotUnopt(n: Int, xs: List<BlockQ3K>, ys: List<BlockQ8K>): Float {
+        override fun vecDotUnopt(
+            n: Int,
+            xs: List<BlockQ3K>,
+            ys: List<BlockQ8K>,
+        ): Float {
             require(n % QKK == 0) {
                 "vecDotQ3kQ8k: $n is not divisible by $QKK"
             }
@@ -938,7 +1056,7 @@ class BlockQ3K(
                 var aOffset = 0
                 var m = 1
 
-                for (chunk in 0 until QKK / 128) {
+                repeat(QKK / 128) {
                     for (shift in intArrayOf(0, 2, 4, 6)) {
                         for (i in 0 until 32) {
                             val q3Val = ((x.qs[q3Offset + i].toInt() and 0xFF) ushr shift) and 3
@@ -1000,7 +1118,10 @@ class BlockQ3K(
             return total
         }
 
-        override fun fromFloat(xs: FloatArray, ys: MutableList<BlockQ3K>) {
+        override fun fromFloat(
+            xs: FloatArray,
+            ys: MutableList<BlockQ3K>,
+        ) {
             for ((block, x) in groupForQuantization(xs, ys, QKK)) {
                 val scales = FloatArray(QKK / 16)
                 for (j in 0 until QKK / 16) {
@@ -1038,11 +1159,12 @@ class BlockQ3K(
 
                 val l = ByteArray(QKK)
                 for (j in 0 until QKK / 16) {
-                    val scLow = if (j < 8) {
-                        block.scales[j].toInt() and 0xF
-                    } else {
-                        (block.scales[j - 8].toInt() and 0xFF) ushr 4
-                    }
+                    val scLow =
+                        if (j < 8) {
+                            block.scales[j].toInt() and 0xF
+                        } else {
+                            (block.scales[j - 8].toInt() and 0xFF) ushr 4
+                        }
                     val scHigh = (((block.scales[8 + j % 4].toInt() and 0xFF) ushr (2 * (j / 4))) and 3) shl 4
                     val sc = (scLow or scHigh) - 32
                     val dVal = block.d.toFloat() * sc.toFloat()
@@ -1071,11 +1193,12 @@ class BlockQ3K(
 
                 for (j in 0 until QKK step 128) {
                     for (lVal in 0 until 32) {
-                        block.qs[j / 4 + lVal] = (
-                            (l[j + lVal].toInt() and 0xFF) or
-                                ((l[j + lVal + 32].toInt() and 0xFF) shl 2) or
-                                ((l[j + lVal + 64].toInt() and 0xFF) shl 4) or
-                                ((l[j + lVal + 96].toInt() and 0xFF) shl 6)
+                        block.qs[j / 4 + lVal] =
+                            (
+                                (l[j + lVal].toInt() and 0xFF) or
+                                    ((l[j + lVal + 32].toInt() and 0xFF) shl 2) or
+                                    ((l[j + lVal + 64].toInt() and 0xFF) shl 4) or
+                                    ((l[j + lVal + 96].toInt() and 0xFF) shl 6)
                             ).toByte()
                     }
                 }
@@ -1086,7 +1209,7 @@ class BlockQ3K(
             xs: FloatArray,
             ys: MutableList<BlockQ3K>,
             imatrixWeights: FloatArray,
-            nPerRow: Int
+            nPerRow: Int,
         ) {
             val groups = groupForQuantization(xs, ys, QKK)
             for (sblkIdx in 0 until groups.size) {
@@ -1134,11 +1257,12 @@ class BlockQ3K(
                 }
 
                 for (j in 0 until QKK / 16) {
-                    val scLow = if (j < 8) {
-                        block.scales[j].toInt() and 0xF
-                    } else {
-                        (block.scales[j - 8].toInt() and 0xFF) ushr 4
-                    }
+                    val scLow =
+                        if (j < 8) {
+                            block.scales[j].toInt() and 0xF
+                        } else {
+                            (block.scales[j - 8].toInt() and 0xFF) ushr 4
+                        }
                     val scHigh = (((block.scales[8 + j % 4].toInt() and 0xFF) ushr (2 * (j / 4))) and 3) shl 4
                     val sc = (scLow or scHigh) - 32
                     val dVal = block.d.toFloat() * sc.toFloat()
@@ -1167,18 +1291,22 @@ class BlockQ3K(
 
                 for (j in 0 until QKK step 128) {
                     for (lVal in 0 until 32) {
-                        block.qs[j / 4 + lVal] = (
-                            (l[j + lVal].toInt() and 0xFF) or
-                                ((l[j + lVal + 32].toInt() and 0xFF) shl 2) or
-                                ((l[j + lVal + 64].toInt() and 0xFF) shl 4) or
-                                ((l[j + lVal + 96].toInt() and 0xFF) shl 6)
+                        block.qs[j / 4 + lVal] =
+                            (
+                                (l[j + lVal].toInt() and 0xFF) or
+                                    ((l[j + lVal + 32].toInt() and 0xFF) shl 2) or
+                                    ((l[j + lVal + 64].toInt() and 0xFF) shl 4) or
+                                    ((l[j + lVal + 96].toInt() and 0xFF) shl 6)
                             ).toByte()
                     }
                 }
             }
         }
 
-        override fun toFloat(xs: List<BlockQ3K>, ys: FloatArray) {
+        override fun toFloat(
+            xs: List<BlockQ3K>,
+            ys: FloatArray,
+        ) {
             val kmask1 = 0x03030303
             val kmask2 = 0x0f0f0f0f
 
@@ -1238,7 +1366,7 @@ class BlockQ4K(
     var d: F16 = F16.ZERO,
     var dmin: F16 = F16.ZERO,
     val scales: ByteArray = ByteArray(K_SCALE_SIZE),
-    val qs: ByteArray = ByteArray(QKK / 2)
+    val qs: ByteArray = ByteArray(QKK / 2),
 ) {
     companion object : GgmlType<BlockQ4K, BlockQ8K> {
         override val DTYPE: GgmlDType = GgmlDType.Q4K
@@ -1247,11 +1375,17 @@ class BlockQ4K(
             get() = BlockQ8K
         override val createZero: () -> BlockQ4K = { BlockQ4K() }
 
-        override fun vecDot(n: Int, xs: List<BlockQ4K>, ys: List<BlockQ8K>): Float {
-            return vecDotUnopt(n, xs, ys)
-        }
+        override fun vecDot(
+            n: Int,
+            xs: List<BlockQ4K>,
+            ys: List<BlockQ8K>,
+        ): Float = vecDotUnopt(n, xs, ys)
 
-        override fun vecDotUnopt(n: Int, xs: List<BlockQ4K>, ys: List<BlockQ8K>): Float {
+        override fun vecDotUnopt(
+            n: Int,
+            xs: List<BlockQ4K>,
+            ys: List<BlockQ8K>,
+        ): Float {
             require(n % QKK == 0) {
                 "vecDotQ4kQ8k: $n is not divisible by $QKK"
             }
@@ -1278,7 +1412,7 @@ class BlockQ4K(
 
                 var aOffset = 0
                 var q4Offset = 0
-                for (block in 0 until QKK / 64) {
+                repeat(QKK / 64) {
                     for (l in 0 until 32) {
                         aux8[aOffset + l] = (x.qs[q4Offset + l].toInt() and 0xF).toByte()
                     }
@@ -1320,7 +1454,7 @@ class BlockQ4K(
                 var q8Offset = 0
                 for (sc in scales) {
                     val scale = sc.toInt()
-                    for (step in 0 until 4) {
+                    repeat(4) {
                         for (l in 0 until 8) {
                             aux16[l] = (y.qs[q8Offset + l].toInt() * aux8[aOffset + l].toInt()).toShort()
                         }
@@ -1344,7 +1478,10 @@ class BlockQ4K(
             return sumf
         }
 
-        override fun fromFloat(xs: FloatArray, ys: MutableList<BlockQ4K>) {
+        override fun fromFloat(
+            xs: FloatArray,
+            ys: MutableList<BlockQ4K>,
+        ) {
             for ((block, x) in groupForQuantization(xs, ys, QKK)) {
                 val mins = FloatArray(QKK / 32)
                 val scales = FloatArray(QKK / 32)
@@ -1407,7 +1544,7 @@ class BlockQ4K(
             xs: FloatArray,
             ys: MutableList<BlockQ4K>,
             imatrixWeights: FloatArray,
-            nPerRow: Int
+            nPerRow: Int,
         ) {
             val groups = groupForQuantization(xs, ys, QKK)
             for (sblkIdx in 0 until groups.size) {
@@ -1481,7 +1618,10 @@ class BlockQ4K(
             }
         }
 
-        override fun toFloat(xs: List<BlockQ4K>, ys: FloatArray) {
+        override fun toFloat(
+            xs: List<BlockQ4K>,
+            ys: FloatArray,
+        ) {
             for (idx in 0 until xs.size) {
                 val block = xs[idx]
                 val dVal = block.d.toFloat()
@@ -1521,7 +1661,7 @@ class BlockQ5K(
     var dmin: F16 = F16.ZERO,
     val scales: ByteArray = ByteArray(K_SCALE_SIZE),
     val qh: ByteArray = ByteArray(QKK / 8),
-    val qs: ByteArray = ByteArray(QKK / 2)
+    val qs: ByteArray = ByteArray(QKK / 2),
 ) {
     companion object : GgmlType<BlockQ5K, BlockQ8K> {
         override val DTYPE: GgmlDType = GgmlDType.Q5K
@@ -1530,11 +1670,17 @@ class BlockQ5K(
             get() = BlockQ8K
         override val createZero: () -> BlockQ5K = { BlockQ5K() }
 
-        override fun vecDot(n: Int, xs: List<BlockQ5K>, ys: List<BlockQ8K>): Float {
-            return vecDotUnopt(n, xs, ys)
-        }
+        override fun vecDot(
+            n: Int,
+            xs: List<BlockQ5K>,
+            ys: List<BlockQ8K>,
+        ): Float = vecDotUnopt(n, xs, ys)
 
-        override fun vecDotUnopt(n: Int, xs: List<BlockQ5K>, ys: List<BlockQ8K>): Float {
+        override fun vecDotUnopt(
+            n: Int,
+            xs: List<BlockQ5K>,
+            ys: List<BlockQ8K>,
+        ): Float {
             require(n % QKK == 0) {
                 "vecDotQ5kQ8k: $n is not divisible by $QKK"
             }
@@ -1563,7 +1709,7 @@ class BlockQ5K(
                 var q5Offset = 0
                 var m = 1
 
-                for (block in 0 until QKK / 64) {
+                repeat(QKK / 64) {
                     for (l in 0 until 32) {
                         val high = if (((x.qh[l].toInt() and 0xFF) and m) != 0) 16 else 0
                         aux8[aOffset + l] = ((x.qs[q5Offset + l].toInt() and 0xF) + high).toByte()
@@ -1609,7 +1755,7 @@ class BlockQ5K(
                 var q8Offset = 0
                 for (sc in scales) {
                     val scale = sc.toInt()
-                    for (step in 0 until 4) {
+                    repeat(4) {
                         for (l in 0 until 8) {
                             aux16[l] = (y.qs[q8Offset + l].toInt() * aux8[aOffset + l].toInt()).toShort()
                         }
@@ -1633,7 +1779,10 @@ class BlockQ5K(
             return sumf
         }
 
-        override fun fromFloat(xs: FloatArray, ys: MutableList<BlockQ5K>) {
+        override fun fromFloat(
+            xs: FloatArray,
+            ys: MutableList<BlockQ5K>,
+        ) {
             for ((block, x) in groupForQuantization(xs, ys, QKK)) {
                 val mins = FloatArray(QKK / 32)
                 val scales = FloatArray(QKK / 32)
@@ -1709,7 +1858,7 @@ class BlockQ5K(
             xs: FloatArray,
             ys: MutableList<BlockQ5K>,
             imatrixWeights: FloatArray,
-            nPerRow: Int
+            nPerRow: Int,
         ) {
             val groups = groupForQuantization(xs, ys, QKK)
             for (sblkIdx in 0 until groups.size) {
@@ -1798,7 +1947,10 @@ class BlockQ5K(
             }
         }
 
-        override fun toFloat(xs: List<BlockQ5K>, ys: FloatArray) {
+        override fun toFloat(
+            xs: List<BlockQ5K>,
+            ys: FloatArray,
+        ) {
             for (idx in 0 until xs.size) {
                 val block = xs[idx]
                 val dVal = block.d.toFloat()
@@ -1845,7 +1997,7 @@ class BlockQ6K(
     val ql: ByteArray = ByteArray(QKK / 2),
     val qh: ByteArray = ByteArray(QKK / 4),
     val scales: ByteArray = ByteArray(QKK / 16),
-    var d: F16 = F16.ZERO
+    var d: F16 = F16.ZERO,
 ) {
     companion object : GgmlType<BlockQ6K, BlockQ8K> {
         override val DTYPE: GgmlDType = GgmlDType.Q6K
@@ -1854,11 +2006,17 @@ class BlockQ6K(
             get() = BlockQ8K
         override val createZero: () -> BlockQ6K = { BlockQ6K() }
 
-        override fun vecDot(n: Int, xs: List<BlockQ6K>, ys: List<BlockQ8K>): Float {
-            return vecDotUnopt(n, xs, ys)
-        }
+        override fun vecDot(
+            n: Int,
+            xs: List<BlockQ6K>,
+            ys: List<BlockQ8K>,
+        ): Float = vecDotUnopt(n, xs, ys)
 
-        override fun vecDotUnopt(n: Int, xs: List<BlockQ6K>, ys: List<BlockQ8K>): Float {
+        override fun vecDotUnopt(
+            n: Int,
+            xs: List<BlockQ6K>,
+            ys: List<BlockQ8K>,
+        ): Float {
             require(n % QKK == 0) {
                 "vecDotQ6kQ8k: $n is not divisible by $QKK"
             }
@@ -1917,7 +2075,10 @@ class BlockQ6K(
             return total
         }
 
-        override fun fromFloat(xs: FloatArray, ys: MutableList<BlockQ6K>) {
+        override fun fromFloat(
+            xs: FloatArray,
+            ys: MutableList<BlockQ6K>,
+        ) {
             require(xs.size == ys.size * BLCK_SIZE) {
                 "quantizeRowQ6k: size mismatch ${xs.size} ${ys.size} $BLCK_SIZE"
             }
@@ -1974,11 +2135,12 @@ class BlockQ6K(
                         val q4 = v4 and 0xF
                         y.ql[qlOffset + lIdx] = (q1 or (q3 shl 4)).toByte()
                         y.ql[qlOffset + lIdx + 32] = (q2 or (q4 shl 4)).toByte()
-                        y.qh[qhOffset + lIdx] = (
-                            (v1 ushr 4) or
-                                ((v2 ushr 4) shl 2) or
-                                ((v3 ushr 4) shl 4) or
-                                ((v4 ushr 4) shl 6)
+                        y.qh[qhOffset + lIdx] =
+                            (
+                                (v1 ushr 4) or
+                                    ((v2 ushr 4) shl 2) or
+                                    ((v3 ushr 4) shl 4) or
+                                    ((v4 ushr 4) shl 6)
                             ).toByte()
                     }
                     qlOffset += 64
@@ -1991,7 +2153,7 @@ class BlockQ6K(
             xs: FloatArray,
             ys: MutableList<BlockQ6K>,
             imatrixWeights: FloatArray,
-            nPerRow: Int
+            nPerRow: Int,
         ) {
             require(xs.size == ys.size * BLCK_SIZE) {
                 "quantizeRowQ6k imatrix: size mismatch ${xs.size} ${ys.size} $BLCK_SIZE"
@@ -2008,10 +2170,11 @@ class BlockQ6K(
                 for (ib in 0 until scales.size) {
                     val imatrixRow = sblkIdx % (nPerRow / QKK)
                     val xSlice = xs.copyOfRange(xBase + 16 * ib, xBase + 16 * (ib + 1))
-                    val wSlice = imatrixWeights.copyOfRange(
-                        QKK * imatrixRow + 16 * ib,
-                        QKK * imatrixRow + 16 * (ib + 1)
-                    )
+                    val wSlice =
+                        imatrixWeights.copyOfRange(
+                            QKK * imatrixRow + 16 * ib,
+                            QKK * imatrixRow + 16 * (ib + 1),
+                        )
                     val lSlice = ByteArray(16)
                     val scale = makeQxQuants(16, 32, xSlice, lSlice, 1, wSlice)
                     lSlice.copyInto(l, 16 * ib)
@@ -2053,11 +2216,12 @@ class BlockQ6K(
                         val q4 = v4 and 0xF
                         y.ql[qlOffset + lIdx] = (q1 or (q3 shl 4)).toByte()
                         y.ql[qlOffset + lIdx + 32] = (q2 or (q4 shl 4)).toByte()
-                        y.qh[qhOffset + lIdx] = (
-                            (v1 ushr 4) or
-                                ((v2 ushr 4) shl 2) or
-                                ((v3 ushr 4) shl 4) or
-                                ((v4 ushr 4) shl 6)
+                        y.qh[qhOffset + lIdx] =
+                            (
+                                (v1 ushr 4) or
+                                    ((v2 ushr 4) shl 2) or
+                                    ((v3 ushr 4) shl 4) or
+                                    ((v4 ushr 4) shl 6)
                             ).toByte()
                     }
                     qlOffset += 64
@@ -2066,7 +2230,10 @@ class BlockQ6K(
             }
         }
 
-        override fun toFloat(xs: List<BlockQ6K>, ys: FloatArray) {
+        override fun toFloat(
+            xs: List<BlockQ6K>,
+            ys: FloatArray,
+        ) {
             val k = ys.size
             require(k % QKK == 0) {
                 "dequantizeRowQ6k: $k is not divisible by $QKK"
@@ -2109,7 +2276,7 @@ class BlockQ6K(
 class BlockQ8K(
     var d: Float = 0.0f,
     val qs: ByteArray = ByteArray(QKK),
-    val bsums: ShortArray = ShortArray(QKK / 16)
+    val bsums: ShortArray = ShortArray(QKK / 16),
 ) {
     companion object : GgmlType<BlockQ8K, BlockQ8K> {
         override val DTYPE: GgmlDType = GgmlDType.Q8K
@@ -2118,11 +2285,17 @@ class BlockQ8K(
             get() = BlockQ8K
         override val createZero: () -> BlockQ8K = { BlockQ8K() }
 
-        override fun vecDot(n: Int, xs: List<BlockQ8K>, ys: List<BlockQ8K>): Float {
-            return vecDotUnopt(n, xs, ys)
-        }
+        override fun vecDot(
+            n: Int,
+            xs: List<BlockQ8K>,
+            ys: List<BlockQ8K>,
+        ): Float = vecDotUnopt(n, xs, ys)
 
-        override fun vecDotUnopt(n: Int, xs: List<BlockQ8K>, ys: List<BlockQ8K>): Float {
+        override fun vecDotUnopt(
+            n: Int,
+            xs: List<BlockQ8K>,
+            ys: List<BlockQ8K>,
+        ): Float {
             require(n % QKK == 0) {
                 "vecDotQ8kQ8k: $n is not divisible by $QKK"
             }
@@ -2140,7 +2313,10 @@ class BlockQ8K(
             return sumf
         }
 
-        override fun fromFloat(xs: FloatArray, ys: MutableList<BlockQ8K>) {
+        override fun fromFloat(
+            xs: FloatArray,
+            ys: MutableList<BlockQ8K>,
+        ) {
             val k = xs.size
             require(k % QKK == 0) {
                 "quantizeRowQ8k: $k is not divisible by $QKK"
@@ -2179,7 +2355,10 @@ class BlockQ8K(
             }
         }
 
-        override fun toFloat(xs: List<BlockQ8K>, ys: FloatArray) {
+        override fun toFloat(
+            xs: List<BlockQ8K>,
+            ys: FloatArray,
+        ) {
             val k = ys.size
             require(k % QKK == 0) {
                 "dequantizeRowQ8k: $k is not divisible by $QKK"
@@ -2199,7 +2378,7 @@ fun <T, V> matmul(
     lhs: FloatArray,
     rhsT: List<T>,
     dst: FloatArray,
-    companion: GgmlType<T, V>
+    companion: GgmlType<T, V>,
 ): CandleResult<Unit> {
     val (m, k, n) = mkn
     val vecDotComp = companion.vecDotCompanion
@@ -2238,7 +2417,7 @@ fun <T, V> matmulF16(
     lhs: Array<F16>,
     rhsT: List<T>,
     dst: Array<F16>,
-    companion: GgmlType<T, V>
+    companion: GgmlType<T, V>,
 ): CandleResult<Unit> {
     val (m, k, n) = mkn
     if (m * k != lhs.size) {
@@ -2276,7 +2455,12 @@ public typealias F32Scalar = Float
 public typealias F64Scalar = Double
 
 internal fun Float.Companion.zeros(): Float = F32GgmlType.zeros()
-internal fun Float.Companion.fromBytes(data: ByteArray, offset: Int): Float = F32GgmlType.fromBytes(data, offset)
+
+internal fun Float.Companion.fromBytes(
+    data: ByteArray,
+    offset: Int,
+): Float = F32GgmlType.fromBytes(data, offset)
+
 internal fun Float.Companion.toBytes(list: List<Float>): ByteArray = F32GgmlType.toBytes(list)
 
 object F32GgmlType : GgmlType<Float, Float> {
@@ -2287,11 +2471,17 @@ object F32GgmlType : GgmlType<Float, Float> {
         get() = F32GgmlType
     override val createZero: () -> Float = { 0.0f }
 
-    override fun vecDot(n: Int, xs: List<Float>, ys: List<Float>): Float {
-        return vecDotUnopt(n, xs, ys)
-    }
+    override fun vecDot(
+        n: Int,
+        xs: List<Float>,
+        ys: List<Float>,
+    ): Float = vecDotUnopt(n, xs, ys)
 
-    override fun vecDotUnopt(n: Int, xs: List<Float>, ys: List<Float>): Float {
+    override fun vecDotUnopt(
+        n: Int,
+        xs: List<Float>,
+        ys: List<Float>,
+    ): Float {
         require(xs.size >= n) { "size mismatch xs ${xs.size} < $n" }
         require(ys.size >= n) { "size mismatch ys ${ys.size} < $n" }
         var res = 0.0f
@@ -2301,7 +2491,10 @@ object F32GgmlType : GgmlType<Float, Float> {
         return res
     }
 
-    override fun fromFloat(xs: FloatArray, ys: MutableList<Float>) {
+    override fun fromFloat(
+        xs: FloatArray,
+        ys: MutableList<Float>,
+    ) {
         require(xs.size == ys.size) {
             "size mismatch xs ${xs.size} != ys ${ys.size}"
         }
@@ -2310,7 +2503,10 @@ object F32GgmlType : GgmlType<Float, Float> {
         }
     }
 
-    override fun toFloat(xs: List<Float>, ys: FloatArray) {
+    override fun toFloat(
+        xs: List<Float>,
+        ys: FloatArray,
+    ) {
         require(xs.size == ys.size) {
             "size mismatch xs ${xs.size} != ys ${ys.size}"
         }
@@ -2319,7 +2515,10 @@ object F32GgmlType : GgmlType<Float, Float> {
         }
     }
 
-    override fun directCopy(xs: FloatArray, ys: MutableList<Float>) {
+    override fun directCopy(
+        xs: FloatArray,
+        ys: MutableList<Float>,
+    ) {
         fromFloat(xs, ys)
     }
 }
@@ -2332,11 +2531,17 @@ object F16GgmlType : GgmlType<F16, F16> {
         get() = F16GgmlType
     override val createZero: () -> F16 = { F16.ZERO }
 
-    override fun vecDot(n: Int, xs: List<F16>, ys: List<F16>): Float {
-        return vecDotUnopt(n, xs, ys)
-    }
+    override fun vecDot(
+        n: Int,
+        xs: List<F16>,
+        ys: List<F16>,
+    ): Float = vecDotUnopt(n, xs, ys)
 
-    override fun vecDotUnopt(n: Int, xs: List<F16>, ys: List<F16>): Float {
+    override fun vecDotUnopt(
+        n: Int,
+        xs: List<F16>,
+        ys: List<F16>,
+    ): Float {
         require(xs.size >= n) { "size mismatch xs ${xs.size} < $n" }
         require(ys.size >= n) { "size mismatch ys ${ys.size} < $n" }
         var res = 0.0f
@@ -2346,7 +2551,10 @@ object F16GgmlType : GgmlType<F16, F16> {
         return res
     }
 
-    override fun fromFloat(xs: FloatArray, ys: MutableList<F16>) {
+    override fun fromFloat(
+        xs: FloatArray,
+        ys: MutableList<F16>,
+    ) {
         require(xs.size == ys.size) {
             "size mismatch xs ${xs.size} != ys ${ys.size}"
         }
@@ -2355,7 +2563,10 @@ object F16GgmlType : GgmlType<F16, F16> {
         }
     }
 
-    override fun toFloat(xs: List<F16>, ys: FloatArray) {
+    override fun toFloat(
+        xs: List<F16>,
+        ys: FloatArray,
+    ) {
         require(xs.size == ys.size) {
             "size mismatch xs ${xs.size} != ys ${ys.size}"
         }
@@ -2364,7 +2575,10 @@ object F16GgmlType : GgmlType<F16, F16> {
         }
     }
 
-    override fun directCopy(xs: FloatArray, ys: MutableList<F16>) {
+    override fun directCopy(
+        xs: FloatArray,
+        ys: MutableList<F16>,
+    ) {
         fromFloat(xs, ys)
     }
 }
@@ -2377,11 +2591,17 @@ object BF16GgmlType : GgmlType<BF16, BF16> {
         get() = BF16GgmlType
     override val createZero: () -> BF16 = { BF16.ZERO }
 
-    override fun vecDot(n: Int, xs: List<BF16>, ys: List<BF16>): Float {
-        return vecDotUnopt(n, xs, ys)
-    }
+    override fun vecDot(
+        n: Int,
+        xs: List<BF16>,
+        ys: List<BF16>,
+    ): Float = vecDotUnopt(n, xs, ys)
 
-    override fun vecDotUnopt(n: Int, xs: List<BF16>, ys: List<BF16>): Float {
+    override fun vecDotUnopt(
+        n: Int,
+        xs: List<BF16>,
+        ys: List<BF16>,
+    ): Float {
         require(xs.size >= n) { "size mismatch xs ${xs.size} < $n" }
         require(ys.size >= n) { "size mismatch ys ${ys.size} < $n" }
         var res = 0.0f
@@ -2391,7 +2611,10 @@ object BF16GgmlType : GgmlType<BF16, BF16> {
         return res
     }
 
-    override fun fromFloat(xs: FloatArray, ys: MutableList<BF16>) {
+    override fun fromFloat(
+        xs: FloatArray,
+        ys: MutableList<BF16>,
+    ) {
         require(xs.size == ys.size) {
             "size mismatch xs ${xs.size} != ys ${ys.size}"
         }
@@ -2400,7 +2623,10 @@ object BF16GgmlType : GgmlType<BF16, BF16> {
         }
     }
 
-    override fun toFloat(xs: List<BF16>, ys: FloatArray) {
+    override fun toFloat(
+        xs: List<BF16>,
+        ys: FloatArray,
+    ) {
         require(xs.size == ys.size) {
             "size mismatch xs ${xs.size} != ys ${ys.size}"
         }
@@ -2409,7 +2635,10 @@ object BF16GgmlType : GgmlType<BF16, BF16> {
         }
     }
 
-    override fun directCopy(xs: FloatArray, ys: MutableList<BF16>) {
+    override fun directCopy(
+        xs: FloatArray,
+        ys: MutableList<BF16>,
+    ) {
         fromFloat(xs, ys)
     }
 }

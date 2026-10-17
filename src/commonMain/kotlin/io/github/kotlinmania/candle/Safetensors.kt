@@ -16,7 +16,10 @@ package io.github.kotlinmania.candle
 /**
  * Supported element data types in the `safetensors` wire format.
  */
-enum class SafeTensorDtype(val wireName: String, val byteSize: Int) {
+enum class SafeTensorDtype(
+    val wireName: String,
+    val byteSize: Int,
+) {
     U8("U8", 1),
     U16("U16", 2),
     U32("U32", 4),
@@ -31,7 +34,8 @@ enum class SafeTensorDtype(val wireName: String, val byteSize: Int) {
     F6E2M3("F6_E2M3", 1),
     F6E3M2("F6_E3M2", 1),
     F4("F4", 1),
-    F8E8M0("F8_E8M0", 1);
+    F8E8M0("F8_E8M0", 1),
+    ;
 
     interface Error
 }
@@ -58,13 +62,11 @@ class SafeTensorView(
     /**
      * Loads this tensor view onto the specified [device].
      */
-    override fun load(device: Device): CandleResult<Tensor> {
-        return convert(self, device)
-    }
+    override fun load(device: Device): CandleResult<Tensor> = convert(self, device)
 }
 
-fun from(value: DType): SafeTensorDtype {
-    return when (value) {
+fun from(value: DType): SafeTensorDtype =
+    when (value) {
         DType.U8 -> SafeTensorDtype.U8
         DType.U32 -> SafeTensorDtype.U32
         DType.I16 -> SafeTensorDtype.I16
@@ -80,10 +82,9 @@ fun from(value: DType): SafeTensorDtype {
         DType.F4 -> SafeTensorDtype.F4
         DType.F8E8M0 -> SafeTensorDtype.F8E8M0
     }
-}
 
-fun tryFrom(value: SafeTensorDtype): CandleResult<DType> {
-    return when (value) {
+fun tryFrom(value: SafeTensorDtype): CandleResult<DType> =
+    when (value) {
         SafeTensorDtype.U8 -> CandleResult.Ok(DType.U8)
         SafeTensorDtype.U32 -> CandleResult.Ok(DType.U32)
         SafeTensorDtype.I16 -> CandleResult.Ok(DType.I16)
@@ -100,7 +101,6 @@ fun tryFrom(value: SafeTensorDtype): CandleResult<DType> {
         SafeTensorDtype.F8E8M0 -> CandleResult.Ok(DType.F8E8M0)
         else -> CandleResult.Err(CandleError.UnsupportedSafeTensorDtype(value.wireName))
     }
-}
 
 private val DType.into: () -> SafeTensorDtype
     get() = { from(this) }
@@ -148,14 +148,14 @@ private val List<CandleResult<kotlin.Pair<String, Tensor>>>.collectMap: () -> Ca
         CandleResult.Ok(out)
     }
 
-class TensorSafeView(private val self: Tensor) {
-    fun dtype(): SafeTensorDtype {
-        return self.dtype().into()
-    }
+class TensorSafeView(
+    private val tensor: Tensor,
+) {
+    private val self: Tensor get() = tensor
 
-    fun shape(): IntArray {
-        return self.shape().dims().toIntArray()
-    }
+    fun dtype(): SafeTensorDtype = self.dtype().into()
+
+    fun shape(): IntArray = self.shape().dims().toIntArray()
 
     fun data(): ByteArray {
         // This copies data from GPU to CPU.
@@ -170,14 +170,14 @@ class TensorSafeView(private val self: Tensor) {
     }
 }
 
-class TensorRefSafeView(private val self: Tensor) {
-    fun dtype(): SafeTensorDtype {
-        return self.dtype().into()
-    }
+class TensorRefSafeView(
+    private val tensor: Tensor,
+) {
+    private val self: Tensor get() = tensor
 
-    fun shape(): IntArray {
-        return self.dims().toIntArray()
-    }
+    fun dtype(): SafeTensorDtype = self.dtype().into()
+
+    fun shape(): IntArray = self.dims().toIntArray()
 
     fun data(): ByteArray {
         // This copies data from GPU to CPU.
@@ -186,18 +186,31 @@ class TensorRefSafeView(private val self: Tensor) {
     }
 
     fun dataLen(): Int {
-        val n = self.dims().toIntArray().iter().product()
+        val n =
+            self
+                .dims()
+                .toIntArray()
+                .iter()
+                .product()
         val bytesPerElement = self.dtype().sizeInBytes()
         return n * bytesPerElement
     }
 }
 
-fun Tensor.saveSafetensors(name: String, filename: String): CandleResult<Unit> {
+fun Tensor.saveSafetensors(
+    name: String,
+    filename: String,
+): CandleResult<Unit> {
     val data = linkedMapOf(name to this.clone())
     return SafeTensors.serializeToFile(data, null, filename.asRef())
 }
 
-private fun <T> convertSlice(data: ByteArray, shape: IntArray, device: Device, dtype: DType = DType.F32): CandleResult<Tensor> {
+private fun <T> convertSlice(
+    data: ByteArray,
+    shape: IntArray,
+    device: Device,
+    dtype: DType = DType.F32,
+): CandleResult<Tensor> {
     val sizeInBytes = dtype.sizeInBytes()
     val elemCount = data.len() / sizeInBytes
     return if (data.asPtr().isMultipleOf(sizeInBytes)) {
@@ -235,7 +248,12 @@ private fun <T, U> convertSliceWithCast(
         // was correctly aligned.
         val slice =
             SafeTensors.fromRawPartsU16(data.asPtr(), elemCount, data)
-        val mapped = slice.iter().map { t -> conv(t) }.collect().unwrapOrElse { return CandleResult.Err(it) }
+        val mapped =
+            slice
+                .iter()
+                .map { t -> conv(t) }
+                .collect()
+                .unwrapOrElse { return CandleResult.Err(it) }
         SafeTensors.fromVec(mapped, shape, device)
     } else {
         // Specify the target element type explicitly so the compiler does not infer bytes
@@ -258,13 +276,13 @@ private fun <T, U> convertWithCast(
     view: SafeTensorView,
     device: Device,
     conv: (UShort) -> CandleResult<UInt>,
-): CandleResult<Tensor> {
-    return convertSliceWithCast<T, U>(view.data(), view.shape(), device, conv)
-}
+): CandleResult<Tensor> = convertSliceWithCast<T, U>(view.data(), view.shape(), device, conv)
 
-private fun <T> convert(view: SafeTensorView, device: Device, dtype: DType = DType.F32): CandleResult<Tensor> {
-    return convertSlice<T>(view.data(), view.shape(), device, dtype)
-}
+private fun <T> convert(
+    view: SafeTensorView,
+    device: Device,
+    dtype: DType = DType.F32,
+): CandleResult<Tensor> = convertSlice<T>(view.data(), view.shape(), device, dtype)
 
 private fun <T> convertBack(vs: CpuStorage): ByteArray {
     val sizeInBytes = vs.dtype().sizeInBytes()
@@ -291,70 +309,109 @@ fun fromRawBuffer(
     device: Device,
 ): CandleResult<Tensor> {
     return when (dtype) {
-        DType.U8 -> convertSlice<UByte>(data, shape, device, DType.U8)
-        DType.U32 -> convertSlice<UInt>(data, shape, device, DType.U32)
-        DType.I16 -> convertSlice<Short>(data, shape, device, DType.I16)
-        DType.I32 -> convertSlice<Int>(data, shape, device, DType.I32)
-        DType.I64 -> convertSlice<Long>(data, shape, device, DType.I64)
-        DType.BF16 -> convertSlice<BFloat16>(data, shape, device, DType.BF16)
-        DType.F16 -> convertSlice<Float16>(data, shape, device, DType.F16)
-        DType.F32 -> convertSlice<Float>(data, shape, device, DType.F32)
-        DType.F64 -> convertSlice<Double>(data, shape, device, DType.F64)
-        DType.F8E4M3 -> convertSlice<F8E4M3>(data, shape, device, DType.F8E4M3)
+        DType.U8 -> {
+            convertSlice<UByte>(data, shape, device, DType.U8)
+        }
+
+        DType.U32 -> {
+            convertSlice<UInt>(data, shape, device, DType.U32)
+        }
+
+        DType.I16 -> {
+            convertSlice<Short>(data, shape, device, DType.I16)
+        }
+
+        DType.I32 -> {
+            convertSlice<Int>(data, shape, device, DType.I32)
+        }
+
+        DType.I64 -> {
+            convertSlice<Long>(data, shape, device, DType.I64)
+        }
+
+        DType.BF16 -> {
+            convertSlice<BFloat16>(data, shape, device, DType.BF16)
+        }
+
+        DType.F16 -> {
+            convertSlice<Float16>(data, shape, device, DType.F16)
+        }
+
+        DType.F32 -> {
+            convertSlice<Float>(data, shape, device, DType.F32)
+        }
+
+        DType.F64 -> {
+            convertSlice<Double>(data, shape, device, DType.F64)
+        }
+
+        DType.F8E4M3 -> {
+            convertSlice<F8E4M3>(data, shape, device, DType.F8E4M3)
+        }
+
         DType.F6E2M3, DType.F6E3M2, DType.F4, DType.F8E8M0 -> {
             // For dummy types, create storage with raw bytes
-            val storage = when (device) {
-                is Device.Cpu -> {
-                    val cpuStorage = when (dtype) {
-                        DType.F6E2M3 -> CpuStorage.F6E2M3(data)
-                        DType.F6E3M2 -> CpuStorage.F6E3M2(data)
-                        DType.F4 -> CpuStorage.F4(data)
-                        else -> CpuStorage.F8E8M0(data)
+            val storage =
+                when (device) {
+                    is Device.Cpu -> {
+                        val cpuStorage =
+                            when (dtype) {
+                                DType.F6E2M3 -> CpuStorage.F6E2M3(data)
+                                DType.F6E3M2 -> CpuStorage.F6E3M2(data)
+                                DType.F4 -> CpuStorage.F4(data)
+                                else -> CpuStorage.F8E8M0(data)
+                            }
+                        Storage.Cpu(cpuStorage)
                     }
-                    Storage.Cpu(cpuStorage)
-                }
-                // Allocate device slice and copy host buffer on CUDA
-                is Device.Cuda -> {
-                    val dev = device.device
-                    val slice = SafeTensors.cudaAlloc(dev, data.len()).unwrapOrElse { return CandleResult.Err(it) }
-                    SafeTensors.cudaMemcpyHtod(dev, data, slice).unwrapOrElse { return CandleResult.Err(it) }
 
-                    val cudaSlice = when (dtype) {
-                        DType.F6E2M3 -> SafeTensors.cudaSliceF6E2M3(slice)
-                        DType.F6E3M2 -> SafeTensors.cudaSliceF6E3M2(slice)
-                        DType.F4 -> SafeTensors.cudaSliceF4(slice)
-                        else -> SafeTensors.cudaSliceF8E8M0(slice)
+                    // Allocate device slice and copy host buffer on CUDA
+                    is Device.Cuda -> {
+                        val dev = device.device
+                        val slice = SafeTensors.cudaAlloc(dev, data.len()).unwrapOrElse { return CandleResult.Err(it) }
+                        SafeTensors.cudaMemcpyHtod(dev, data, slice).unwrapOrElse { return CandleResult.Err(it) }
+
+                        val cudaSlice =
+                            when (dtype) {
+                                DType.F6E2M3 -> SafeTensors.cudaSliceF6E2M3(slice)
+                                DType.F6E3M2 -> SafeTensors.cudaSliceF6E3M2(slice)
+                                DType.F4 -> SafeTensors.cudaSliceF4(slice)
+                                else -> SafeTensors.cudaSliceF8E8M0(slice)
+                            }
+                        val cudaStorage =
+                            SafeTensors.cudaStorage(
+                                cudaSlice,
+                                dev,
+                            )
+                        // Return error when CUDA backend is not compiled
+                        // in this target build configuration
+                        // or wrap the allocated CUDA storage
+                        SafeTensors.storageCuda(cudaStorage).unwrapOrElse { return CandleResult.Err(it) }
                     }
-                    val cudaStorage = SafeTensors.cudaStorage(
-                        cudaSlice,
-                        dev,
-                    )
-                    // Return error when CUDA backend is not compiled
-                    // in this target build configuration
-                    // or wrap the allocated CUDA storage
-                    SafeTensors.storageCuda(cudaStorage).unwrapOrElse { return CandleResult.Err(it) }
-                }
-                // Build Metal buffer and wrap in MetalStorage
-                is Device.Metal -> {
-                    val dev = device.device
-                    val buffer = SafeTensors.newBufferBuilder(dev)
-                        .withData(data)
-                        .withLabel("safetensors_view")
-                        .build()
-                        .unwrapOrElse { return CandleResult.Err(it) }
 
-                    val metalStorage = SafeTensors.metalStorageNew(
-                        buffer,
-                        dev,
-                        data.len(),
-                        dtype,
-                    )
-                    // Return error when Metal backend is not compiled
-                    // in this target build configuration
-                    // or wrap the allocated Metal storage
-                    SafeTensors.storageMetal(metalStorage).unwrapOrElse { return CandleResult.Err(it) }
+                    // Build Metal buffer and wrap in MetalStorage
+                    is Device.Metal -> {
+                        val dev = device.device
+                        val buffer =
+                            SafeTensors
+                                .newBufferBuilder(dev)
+                                .withData(data)
+                                .withLabel("safetensors_view")
+                                .build()
+                                .unwrapOrElse { return CandleResult.Err(it) }
+
+                        val metalStorage =
+                            SafeTensors.metalStorageNew(
+                                buffer,
+                                dev,
+                                data.len(),
+                                dtype,
+                            )
+                        // Return error when Metal backend is not compiled
+                        // in this target build configuration
+                        // or wrap the allocated Metal storage
+                        SafeTensors.storageMetal(metalStorage).unwrapOrElse { return CandleResult.Err(it) }
+                    }
                 }
-            }
 
             val op = BackpropOp.none()
             CandleResult.Ok(fromStorage(storage, Shape.fromDims(shape), op, false))
@@ -362,22 +419,56 @@ fun fromRawBuffer(
     }
 }
 
-private fun convert(view: SafeTensorView, device: Device): CandleResult<Tensor> {
-    return when (view.dtype()) {
-        SafeTensorDtype.U8 -> convert<UByte>(view, device, DType.U8)
+private fun convert(
+    view: SafeTensorView,
+    device: Device,
+): CandleResult<Tensor> =
+    when (view.dtype()) {
+        SafeTensorDtype.U8 -> {
+            convert<UByte>(view, device, DType.U8)
+        }
+
         SafeTensorDtype.U16 -> {
             val conv = { x: UShort -> CandleResult.Ok(x.toUInt()) }
             convertWithCast<UShort, UInt>(view, device, conv)
         }
-        SafeTensorDtype.U32 -> convert<UInt>(view, device, DType.U32)
-        SafeTensorDtype.I16 -> convert<Short>(view, device, DType.I16)
-        SafeTensorDtype.I32 -> convert<Int>(view, device, DType.I32)
-        SafeTensorDtype.I64 -> convert<Long>(view, device, DType.I64)
-        SafeTensorDtype.BF16 -> convert<BFloat16>(view, device, DType.BF16)
-        SafeTensorDtype.F16 -> convert<Float16>(view, device, DType.F16)
-        SafeTensorDtype.F32 -> convert<Float>(view, device, DType.F32)
-        SafeTensorDtype.F64 -> convert<Double>(view, device, DType.F64)
-        SafeTensorDtype.F8E4M3 -> convert<F8E4M3>(view, device, DType.F8E4M3)
+
+        SafeTensorDtype.U32 -> {
+            convert<UInt>(view, device, DType.U32)
+        }
+
+        SafeTensorDtype.I16 -> {
+            convert<Short>(view, device, DType.I16)
+        }
+
+        SafeTensorDtype.I32 -> {
+            convert<Int>(view, device, DType.I32)
+        }
+
+        SafeTensorDtype.I64 -> {
+            convert<Long>(view, device, DType.I64)
+        }
+
+        SafeTensorDtype.BF16 -> {
+            convert<BFloat16>(view, device, DType.BF16)
+        }
+
+        SafeTensorDtype.F16 -> {
+            convert<Float16>(view, device, DType.F16)
+        }
+
+        SafeTensorDtype.F32 -> {
+            convert<Float>(view, device, DType.F32)
+        }
+
+        SafeTensorDtype.F64 -> {
+            convert<Double>(view, device, DType.F64)
+        }
+
+        SafeTensorDtype.F8E4M3 -> {
+            convert<F8E4M3>(view, device, DType.F8E4M3)
+        }
+
         SafeTensorDtype.F6E2M3, SafeTensorDtype.F6E3M2, SafeTensorDtype.F4, SafeTensorDtype.F8E8M0 -> {
             // For dummy types, we need to handle loading by creating a dummy tensor
             // Since these types do not have actual data representation, we will create
@@ -386,18 +477,21 @@ private fun convert(view: SafeTensorView, device: Device): CandleResult<Tensor> 
         }
         // Any remaining wire dtype is rejected as unsupported
     }
-}
 
-private fun convertDummy(view: SafeTensorView, device: Device): CandleResult<Tensor> {
+private fun convertDummy(
+    view: SafeTensorView,
+    device: Device,
+): CandleResult<Tensor> {
     // For dummy types, we will create the appropriate storage variant that preserves
     // both the raw data and the correct dtype
-    val dtypePair = when (view.dtype()) {
-        SafeTensorDtype.F6E2M3 -> kotlin.Pair(DType.F6E2M3, "F6_E2M3 (MX6)")
-        SafeTensorDtype.F6E3M2 -> kotlin.Pair(DType.F6E3M2, "F6_E3M2 (MX6)")
-        SafeTensorDtype.F4 -> kotlin.Pair(DType.F4, "F4 (MX4)")
-        SafeTensorDtype.F8E8M0 -> kotlin.Pair(DType.F8E8M0, "F8_E8M0")
-        else -> return CandleResult.Err(CandleError.Msg("convertDummy called with non-dummy dtype"))
-    }
+    val dtypePair =
+        when (view.dtype()) {
+            SafeTensorDtype.F6E2M3 -> kotlin.Pair(DType.F6E2M3, "F6_E2M3 (MX6)")
+            SafeTensorDtype.F6E3M2 -> kotlin.Pair(DType.F6E3M2, "F6_E3M2 (MX6)")
+            SafeTensorDtype.F4 -> kotlin.Pair(DType.F4, "F4 (MX4)")
+            SafeTensorDtype.F8E8M0 -> kotlin.Pair(DType.F8E8M0, "F8_E8M0")
+            else -> return CandleResult.Err(CandleError.Msg("convertDummy called with non-dummy dtype"))
+        }
     val dtype = dtypePair.first
 
     // Load the raw bytes
@@ -405,55 +499,63 @@ private fun convertDummy(view: SafeTensorView, device: Device): CandleResult<Ten
     val shape = view.shape()
 
     // Create storage with the appropriate dummy type variant
-    val storage = when (device) {
-        is Device.Cpu -> {
-            val cpuStorage = when (dtype) {
-                DType.F6E2M3 -> CpuStorage.F6E2M3(data)
-                DType.F6E3M2 -> CpuStorage.F6E3M2(data)
-                DType.F4 -> CpuStorage.F4(data)
-                DType.F8E8M0 -> CpuStorage.F8E8M0(data)
-                else -> return CandleResult.Err(CandleError.Msg("unreachable dummy dtype"))
+    val storage =
+        when (device) {
+            is Device.Cpu -> {
+                val cpuStorage =
+                    when (dtype) {
+                        DType.F6E2M3 -> CpuStorage.F6E2M3(data)
+                        DType.F6E3M2 -> CpuStorage.F6E3M2(data)
+                        DType.F4 -> CpuStorage.F4(data)
+                        DType.F8E8M0 -> CpuStorage.F8E8M0(data)
+                        else -> return CandleResult.Err(CandleError.Msg("unreachable dummy dtype"))
+                    }
+                Storage.Cpu(cpuStorage)
             }
-            Storage.Cpu(cpuStorage)
-        }
-        // Allocate device slice and copy host buffer on CUDA
-        is Device.Cuda -> {
-            val dev = device.device
-            val slice = SafeTensors.cudaAlloc(dev, data.len()).unwrapOrElse { return CandleResult.Err(it) }
-            SafeTensors.cudaMemcpyHtod(dev, data, slice).unwrapOrElse { return CandleResult.Err(it) }
 
-            val cudaSlice = when (dtype) {
-                DType.F6E2M3 -> SafeTensors.cudaSliceF6E2M3(slice)
-                DType.F6E3M2 -> SafeTensors.cudaSliceF6E3M2(slice)
-                DType.F4 -> SafeTensors.cudaSliceF4(slice)
-                DType.F8E8M0 -> SafeTensors.cudaSliceF8E8M0(slice)
-                else -> return CandleResult.Err(CandleError.Msg("unreachable dummy dtype"))
+            // Allocate device slice and copy host buffer on CUDA
+            is Device.Cuda -> {
+                val dev = device.device
+                val slice = SafeTensors.cudaAlloc(dev, data.len()).unwrapOrElse { return CandleResult.Err(it) }
+                SafeTensors.cudaMemcpyHtod(dev, data, slice).unwrapOrElse { return CandleResult.Err(it) }
+
+                val cudaSlice =
+                    when (dtype) {
+                        DType.F6E2M3 -> SafeTensors.cudaSliceF6E2M3(slice)
+                        DType.F6E3M2 -> SafeTensors.cudaSliceF6E3M2(slice)
+                        DType.F4 -> SafeTensors.cudaSliceF4(slice)
+                        DType.F8E8M0 -> SafeTensors.cudaSliceF8E8M0(slice)
+                        else -> return CandleResult.Err(CandleError.Msg("unreachable dummy dtype"))
+                    }
+                val cudaStorage =
+                    SafeTensors.cudaStorage(
+                        cudaSlice,
+                        dev,
+                    )
+                // Return error when CUDA backend is not compiled
+                // in this target build configuration
+                SafeTensors.storageCuda(cudaStorage).unwrapOrElse { return CandleResult.Err(it) }
             }
-            val cudaStorage = SafeTensors.cudaStorage(
-                cudaSlice,
-                dev,
-            )
-            // Return error when CUDA backend is not compiled
-            // in this target build configuration
-            SafeTensors.storageCuda(cudaStorage).unwrapOrElse { return CandleResult.Err(it) }
-        }
-        // Build Metal buffer and wrap in MetalStorage
-        is Device.Metal -> {
-            val dev = device.device
-            val buffer = SafeTensors.newBufferBuilder(dev)
-                .withData(data)
-                .withLabel("safetensors_load")
-                .build()
-                .unwrapOrElse { return CandleResult.Err(it) }
 
-            val metalStorage =
-                SafeTensors.metalStorageNew(buffer, dev, data.len(), dtype)
-            // Return error when Metal backend is not compiled
-            // in this target build configuration
-            // or wrap the allocated Metal storage
-            SafeTensors.storageMetal(metalStorage).unwrapOrElse { return CandleResult.Err(it) }
+            // Build Metal buffer and wrap in MetalStorage
+            is Device.Metal -> {
+                val dev = device.device
+                val buffer =
+                    SafeTensors
+                        .newBufferBuilder(dev)
+                        .withData(data)
+                        .withLabel("safetensors_load")
+                        .build()
+                        .unwrapOrElse { return CandleResult.Err(it) }
+
+                val metalStorage =
+                    SafeTensors.metalStorageNew(buffer, dev, data.len(), dtype)
+                // Return error when Metal backend is not compiled
+                // in this target build configuration
+                // or wrap the allocated Metal storage
+                SafeTensors.storageMetal(metalStorage).unwrapOrElse { return CandleResult.Err(it) }
+            }
         }
-    }
 
     // Create tensor with correct dtype
     val op = BackpropOp.none()
@@ -464,16 +566,46 @@ private fun convertBack(tensor: Tensor): CandleResult<ByteArray> {
     // Copy flattened tensor storage back into little-endian bytes on CPU.
     val flattened = tensor.flattenAll()
     return when (flattened.dtype()) {
-        DType.U8 -> CandleResult.Ok(convertBack<UByte>(flattened.toVec1Storage()))
-        DType.U32 -> CandleResult.Ok(convertBack<UInt>(flattened.toVec1Storage()))
-        DType.I16 -> CandleResult.Ok(convertBack<Short>(flattened.toVec1Storage()))
-        DType.I32 -> CandleResult.Ok(convertBack<Int>(flattened.toVec1Storage()))
-        DType.I64 -> CandleResult.Ok(convertBack<Long>(flattened.toVec1Storage()))
-        DType.F16 -> CandleResult.Ok(convertBack<Float16>(flattened.toVec1Storage()))
-        DType.BF16 -> CandleResult.Ok(convertBack<BFloat16>(flattened.toVec1Storage()))
-        DType.F32 -> CandleResult.Ok(convertBack<Float>(flattened.toVec1Storage()))
-        DType.F64 -> CandleResult.Ok(convertBack<Double>(flattened.toVec1Storage()))
-        DType.F8E4M3 -> CandleResult.Ok(convertBack<F8E4M3>(flattened.toVec1Storage()))
+        DType.U8 -> {
+            CandleResult.Ok(convertBack<UByte>(flattened.toVec1Storage()))
+        }
+
+        DType.U32 -> {
+            CandleResult.Ok(convertBack<UInt>(flattened.toVec1Storage()))
+        }
+
+        DType.I16 -> {
+            CandleResult.Ok(convertBack<Short>(flattened.toVec1Storage()))
+        }
+
+        DType.I32 -> {
+            CandleResult.Ok(convertBack<Int>(flattened.toVec1Storage()))
+        }
+
+        DType.I64 -> {
+            CandleResult.Ok(convertBack<Long>(flattened.toVec1Storage()))
+        }
+
+        DType.F16 -> {
+            CandleResult.Ok(convertBack<Float16>(flattened.toVec1Storage()))
+        }
+
+        DType.BF16 -> {
+            CandleResult.Ok(convertBack<BFloat16>(flattened.toVec1Storage()))
+        }
+
+        DType.F32 -> {
+            CandleResult.Ok(convertBack<Float>(flattened.toVec1Storage()))
+        }
+
+        DType.F64 -> {
+            CandleResult.Ok(convertBack<Double>(flattened.toVec1Storage()))
+        }
+
+        DType.F8E4M3 -> {
+            CandleResult.Ok(convertBack<F8E4M3>(flattened.toVec1Storage()))
+        }
+
         DType.F6E2M3, DType.F6E3M2, DType.F4, DType.F8E8M0 -> {
             CandleResult.Err(CandleError.Msg("Internal error: dtype mismatch in storage").bt())
         }
@@ -482,14 +614,21 @@ private fun convertBack(tensor: Tensor): CandleResult<ByteArray> {
 
 private val inMemorySafetensorFiles: MutableMap<String, ByteArray> = LinkedHashMap()
 
-fun load(filename: String, device: Device): CandleResult<Map<String, Tensor>> {
+fun load(
+    filename: String,
+    device: Device,
+): CandleResult<Map<String, Tensor>> {
     val data = SafeTensors.fsRead(filename.asRef()).unwrapOrElse { return CandleResult.Err(it) }
     return loadBuffer(data, device)
 }
 
-fun loadBuffer(data: ByteArray, device: Device): CandleResult<Map<String, Tensor>> {
+fun loadBuffer(
+    data: ByteArray,
+    device: Device,
+): CandleResult<Map<String, Tensor>> {
     val st = SafeTensors.deserialize(data).unwrapOrElse { return CandleResult.Err(it) }
-    return st.tensors()
+    return st
+        .tensors()
         .map { entry -> CandleResult.Ok(kotlin.Pair(entry.first, entry.second.load(device).unwrapOrElse { return CandleResult.Err(it) })) }
         .collectMap()
 }
@@ -497,9 +636,7 @@ fun loadBuffer(data: ByteArray, device: Device): CandleResult<Map<String, Tensor
 fun save(
     tensors: Map<String, Tensor>,
     filename: String,
-): CandleResult<Unit> {
-    return SafeTensors.serializeToFile(tensors, null, filename.asRef())
-}
+): CandleResult<Unit> = SafeTensors.serializeToFile(tensors, null, filename.asRef())
 
 class SafeTensors internal constructor(
     internal val entries: LinkedHashMap<String, SafeTensorView>,
@@ -527,7 +664,9 @@ class SafeTensors internal constructor(
         }
     }
 
-    class BufferBuilder(val device: MetalDevice) {
+    class BufferBuilder(
+        val device: MetalDevice,
+    ) {
         var bytes: ByteArray = ByteArray(0)
         var label: String = ""
         val withData: (ByteArray) -> BufferBuilder = { d ->
@@ -694,34 +833,37 @@ class SafeTensors internal constructor(
             if (dev is Device.Cpu) CandleResult.Ok(tensor) else CandleResult.Ok(tensor.toDevice(dev))
         }
 
-        val sampleU8SafetensorsBytes: ByteArray = run {
-            val header = "{\"x\":{\"dtype\":\"U8\",\"shape\":[2],\"data_offsets\":[0,2]}}   "
-            val headerBytes = header.encodeToByteArray()
-            val bytes = ByteArray(8 + headerBytes.size + 2)
-            bytes[0] = 56
-            headerBytes.copyInto(bytes, destinationOffset = 8)
-            bytes[8 + headerBytes.size] = 1
-            bytes[8 + headerBytes.size + 1] = 3
-            bytes
-        }
+        val sampleU8SafetensorsBytes: ByteArray =
+            run {
+                val header = "{\"x\":{\"dtype\":\"U8\",\"shape\":[2],\"data_offsets\":[0,2]}}   "
+                val headerBytes = header.encodeToByteArray()
+                val bytes = ByteArray(8 + headerBytes.size + 2)
+                bytes[0] = 56
+                headerBytes.copyInto(bytes, destinationOffset = 8)
+                bytes[8 + headerBytes.size] = 1
+                bytes[8 + headerBytes.size + 1] = 3
+                bytes
+            }
 
-        val expectedSingleTensorBytes: ByteArray = run {
-            val header = "{\"t\":{\"dtype\":\"F32\",\"shape\":[2,2],\"data_offsets\":[0,16]}}       "
-            val headerBytes = header.encodeToByteArray()
-            val bytes = ByteArray(8 + headerBytes.size + 16)
-            bytes[0] = 64
-            headerBytes.copyInto(bytes, destinationOffset = 8)
-            bytes
-        }
+        val expectedSingleTensorBytes: ByteArray =
+            run {
+                val header = "{\"t\":{\"dtype\":\"F32\",\"shape\":[2,2],\"data_offsets\":[0,16]}}       "
+                val headerBytes = header.encodeToByteArray()
+                val bytes = ByteArray(8 + headerBytes.size + 16)
+                bytes[0] = 64
+                headerBytes.copyInto(bytes, destinationOffset = 8)
+                bytes
+            }
 
-        val expectedMultiTensorBytes: ByteArray = run {
-            val header = "{\"t\":{\"dtype\":\"F32\",\"shape\":[2,2],\"data_offsets\":[0,16]},\"u\":{\"dtype\":\"F32\",\"shape\":[1,2],\"data_offsets\":[16,24]}}      "
-            val headerBytes = header.encodeToByteArray()
-            val bytes = ByteArray(8 + headerBytes.size + 24)
-            bytes[0] = 120
-            headerBytes.copyInto(bytes, destinationOffset = 8)
-            bytes
-        }
+        val expectedMultiTensorBytes: ByteArray =
+            run {
+                val header = "{\"t\":{\"dtype\":\"F32\",\"shape\":[2,2],\"data_offsets\":[0,16]},\"u\":{\"dtype\":\"F32\",\"shape\":[1,2],\"data_offsets\":[16,24]}}      "
+                val headerBytes = header.encodeToByteArray()
+                val bytes = ByteArray(8 + headerBytes.size + 24)
+                bytes[0] = 120
+                headerBytes.copyInto(bytes, destinationOffset = 8)
+                bytes
+            }
 
         val storageLen: (CpuStorage) -> Int = { vs ->
             when (vs) {
@@ -746,7 +888,10 @@ class SafeTensors internal constructor(
 
         val encodeStorageBytes: (CpuStorage) -> ByteArray = { vs ->
             when (vs) {
-                is CpuStorage.U8 -> ByteArray(vs.data.size) { i -> vs.data[i].toByte() }
+                is CpuStorage.U8 -> {
+                    ByteArray(vs.data.size) { i -> vs.data[i].toByte() }
+                }
+
                 is CpuStorage.U32 -> {
                     val out = ByteArray(vs.data.size * 4)
                     for (i in vs.data.indices) {
@@ -759,6 +904,7 @@ class SafeTensors internal constructor(
                     }
                     out
                 }
+
                 is CpuStorage.I16 -> {
                     val out = ByteArray(vs.data.size * 2)
                     for (i in vs.data.indices) {
@@ -769,6 +915,7 @@ class SafeTensors internal constructor(
                     }
                     out
                 }
+
                 is CpuStorage.I32 -> {
                     val out = ByteArray(vs.data.size * 4)
                     for (i in vs.data.indices) {
@@ -781,6 +928,7 @@ class SafeTensors internal constructor(
                     }
                     out
                 }
+
                 is CpuStorage.I64 -> {
                     val out = ByteArray(vs.data.size * 8)
                     for (i in vs.data.indices) {
@@ -792,6 +940,7 @@ class SafeTensors internal constructor(
                     }
                     out
                 }
+
                 is CpuStorage.F16 -> {
                     val out = ByteArray(vs.data.size * 2)
                     for (i in vs.data.indices) {
@@ -802,6 +951,7 @@ class SafeTensors internal constructor(
                     }
                     out
                 }
+
                 is CpuStorage.BF16 -> {
                     val out = ByteArray(vs.data.size * 2)
                     for (i in vs.data.indices) {
@@ -812,6 +962,7 @@ class SafeTensors internal constructor(
                     }
                     out
                 }
+
                 is CpuStorage.F32 -> {
                     val out = ByteArray(vs.data.size * 4)
                     for (i in vs.data.indices) {
@@ -824,6 +975,7 @@ class SafeTensors internal constructor(
                     }
                     out
                 }
+
                 is CpuStorage.F64 -> {
                     val out = ByteArray(vs.data.size * 8)
                     for (i in vs.data.indices) {
@@ -835,15 +987,34 @@ class SafeTensors internal constructor(
                     }
                     out
                 }
-                is CpuStorage.F8E4M3 -> vs.data.copyOf()
-                is CpuStorage.F6E2M3 -> vs.data.copyOf()
-                is CpuStorage.F6E3M2 -> vs.data.copyOf()
-                is CpuStorage.F4 -> vs.data.copyOf()
-                is CpuStorage.F8E8M0 -> vs.data.copyOf()
+
+                is CpuStorage.F8E4M3 -> {
+                    vs.data.copyOf()
+                }
+
+                is CpuStorage.F6E2M3 -> {
+                    vs.data.copyOf()
+                }
+
+                is CpuStorage.F6E3M2 -> {
+                    vs.data.copyOf()
+                }
+
+                is CpuStorage.F4 -> {
+                    vs.data.copyOf()
+                }
+
+                is CpuStorage.F8E8M0 -> {
+                    vs.data.copyOf()
+                }
             }
         }
 
-        val serializeToFile: (Map<String, Tensor>, Map<String, String>?, String) -> CandleResult<Unit> = serializeLambda@{ tensors, _, filename ->
+        val serializeToFile: (Map<String, Tensor>, Map<String, String>?, String) -> CandleResult<Unit> = serializeLambda@{
+            tensors,
+            _,
+            filename,
+            ->
             val dataBuffers = ArrayList<ByteArray>(tensors.size)
             val jsonEntries = ArrayList<String>(tensors.size)
             var currentOffset = 0
@@ -851,14 +1022,21 @@ class SafeTensors internal constructor(
                 val name = entry.key
                 val tensor = entry.value
                 val res = convertBack(tensor)
-                val raw = if (res is CandleResult.Ok) res.value else return@serializeLambda CandleResult.Err((res as CandleResult.Err).error)
+                val raw =
+                    if (res is CandleResult.Ok) {
+                        res.value
+                    } else {
+                        return@serializeLambda CandleResult.Err(
+                            (res as CandleResult.Err).error,
+                        )
+                    }
                 val startOffset = currentOffset
                 val endOffset = startOffset + raw.size
                 currentOffset = endOffset
                 val dtypeName = from(tensor.dtype()).wireName
                 val shapeStr = tensor.dims().joinToString(",")
                 jsonEntries.add(
-                    "\"$name\":{\"dtype\":\"$dtypeName\",\"shape\":[$shapeStr],\"data_offsets\":[$startOffset,$endOffset]}"
+                    "\"$name\":{\"dtype\":\"$dtypeName\",\"shape\":[$shapeStr],\"data_offsets\":[$startOffset,$endOffset]}",
                 )
                 dataBuffers.add(raw)
             }
@@ -921,8 +1099,11 @@ class SafeTensors internal constructor(
                     var braceDepth = 1
                     var scan = objStart + 1
                     while (scan < body.length && braceDepth > 0) {
-                        if (body[scan] == '{') braceDepth++
-                        else if (body[scan] == '}') braceDepth--
+                        if (body[scan] == '{') {
+                            braceDepth++
+                        } else if (body[scan] == '}') {
+                            braceDepth--
+                        }
                         scan++
                     }
                     val objContent = body.substring(objStart + 1, scan - 1)
@@ -937,18 +1118,20 @@ class SafeTensors internal constructor(
                         val dtypeQuote1 = objContent.indexOf('"', dtypeKeyIdx + 7)
                         val dtypeQuote2 = objContent.indexOf('"', dtypeQuote1 + 1)
                         val dtypeStr = objContent.substring(dtypeQuote1 + 1, dtypeQuote2)
-                        val stDtype = SafeTensorDtype.entries.firstOrNull { it.wireName == dtypeStr }
-                            ?: return@deserializeLambda CandleResult.Err(CandleError.UnsupportedSafeTensorDtype(dtypeStr))
+                        val stDtype =
+                            SafeTensorDtype.entries.firstOrNull { it.wireName == dtypeStr }
+                                ?: return@deserializeLambda CandleResult.Err(CandleError.UnsupportedSafeTensorDtype(dtypeStr))
 
                         val shapeBrack1 = objContent.indexOf('[', shapeKeyIdx + 7)
                         val shapeBrack2 = objContent.indexOf(']', shapeBrack1 + 1)
                         val shapeBody = objContent.substring(shapeBrack1 + 1, shapeBrack2).trim()
-                        val shapeDims = if (shapeBody.isEmpty()) {
-                            IntArray(0)
-                        } else {
-                            val parts = shapeBody.split(',')
-                            IntArray(parts.size) { idx -> parts[idx].trim().toInt() }
-                        }
+                        val shapeDims =
+                            if (shapeBody.isEmpty()) {
+                                IntArray(0)
+                            } else {
+                                val parts = shapeBody.split(',')
+                                IntArray(parts.size) { idx -> parts[idx].trim().toInt() }
+                            }
 
                         val offBrack1 = objContent.indexOf('[', offsetsKeyIdx + 14)
                         val offBrack2 = objContent.indexOf(']', offBrack1 + 1)
@@ -995,7 +1178,10 @@ class MmapedSafetensors private constructor(
 ) {
     private val self: MmapedSafetensors get() = this
 
-    fun load(name: String, dev: Device): CandleResult<Tensor> {
+    fun load(
+        name: String,
+        dev: Device,
+    ): CandleResult<Tensor> {
         return self.get(name).unwrapOrElse { return CandleResult.Err(it) }.load(dev)
     }
 
@@ -1008,18 +1194,23 @@ class MmapedSafetensors private constructor(
     }
 
     fun get(name: String): CandleResult<SafeTensorView> {
-        val index = when (val routing = self.routing) {
-            null -> 0
-            else -> {
-                val index = routing[name] ?: return CandleResult.Err(
-                    CandleError.CannotFindTensor(
-                        path = name,
-                    )
-                        .bt()
-                )
-                index
+        val index =
+            when (val routing = self.routing) {
+                null -> {
+                    0
+                }
+
+                else -> {
+                    val index =
+                        routing[name] ?: return CandleResult.Err(
+                            CandleError
+                                .CannotFindTensor(
+                                    path = name,
+                                ).bt(),
+                        )
+                    index
+                }
             }
-        }
         return self.safetensors[index].get().tensor(name)
     }
 
@@ -1032,23 +1223,31 @@ class MmapedSafetensors private constructor(
          * The safety invariant is inherited from memory mapped file options.
          */
         fun new(p: String): CandleResult<MmapedSafetensors> {
-            val p = p.asRef()
-            val file = SafeTensors.fileOpen(p).mapErr { e -> e.withPath(p) }.unwrapOrElse { return CandleResult.Err(it) }
-            val mapped = SafeTensors.mmapOptionsNew()
-                .map(file)
-                .mapErr { e -> e.withPath(p) }
-                .unwrapOrElse { return CandleResult.Err(it) }
-            val safetensors = SafeTensors.tryAttachToCart(
-                mapped,
-            ) { data: ByteArray ->
-                val st = SafeTensors.deserialize(data)
-                    .mapErr { e -> e.withPath(p) }
-                st
-            }.unwrapOrElse { return CandleResult.Err(it) }
-            return CandleResult.Ok(MmapedSafetensors(
-                safetensors = listOf(safetensors),
-                routing = null,
-            ))
+            val pathRef = p.asRef()
+            val file = SafeTensors.fileOpen(pathRef).mapErr { e -> e.withPath(pathRef) }.unwrapOrElse { return CandleResult.Err(it) }
+            val mapped =
+                SafeTensors
+                    .mmapOptionsNew()
+                    .map(file)
+                    .mapErr { e -> e.withPath(pathRef) }
+                    .unwrapOrElse { return CandleResult.Err(it) }
+            val safetensors =
+                SafeTensors
+                    .tryAttachToCart(
+                        mapped,
+                    ) { data: ByteArray ->
+                        val st =
+                            SafeTensors
+                                .deserialize(data)
+                                .mapErr { e -> e.withPath(pathRef) }
+                        st
+                    }.unwrapOrElse { return CandleResult.Err(it) }
+            return CandleResult.Ok(
+                MmapedSafetensors(
+                    safetensors = listOf(safetensors),
+                    routing = null,
+                ),
+            )
         }
 
         /**
@@ -1067,25 +1266,32 @@ class MmapedSafetensors private constructor(
                 val index = indexed.index
                 val p = indexed.value.asRef()
                 val file = SafeTensors.fileOpen(p).mapErr { e -> e.withPath(p) }.unwrapOrElse { return CandleResult.Err(it) }
-                val mapped = SafeTensors.mmapOptionsNew()
-                    .map(file)
-                    .mapErr { e -> e.withPath(p) }
-                    .unwrapOrElse { return CandleResult.Err(it) }
-                val data = SafeTensors.tryAttachToCart(
-                    mapped,
-                ) { bytes: ByteArray ->
-                    SafeTensors.deserialize(bytes)
+                val mapped =
+                    SafeTensors
+                        .mmapOptionsNew()
+                        .map(file)
                         .mapErr { e -> e.withPath(p) }
-                }.unwrapOrElse { return CandleResult.Err(it) }
+                        .unwrapOrElse { return CandleResult.Err(it) }
+                val data =
+                    SafeTensors
+                        .tryAttachToCart(
+                            mapped,
+                        ) { bytes: ByteArray ->
+                            SafeTensors
+                                .deserialize(bytes)
+                                .mapErr { e -> e.withPath(p) }
+                        }.unwrapOrElse { return CandleResult.Err(it) }
                 for (k in data.get().names()) {
                     routing[k] = index
                 }
                 safetensors.add(data)
             }
-            return CandleResult.Ok(MmapedSafetensors(
-                safetensors = safetensors,
-                routing = routing,
-            ))
+            return CandleResult.Ok(
+                MmapedSafetensors(
+                    safetensors = safetensors,
+                    routing = routing,
+                ),
+            )
         }
     }
 }
@@ -1095,17 +1301,19 @@ class SliceSafetensors private constructor(
 ) {
     private val self: SliceSafetensors get() = this
 
-    fun load(name: String, dev: Device): CandleResult<Tensor> {
-        return self.safetensors.tensor(name).unwrapOrElse { return CandleResult.Err(it) }.load(dev)
+    fun load(
+        name: String,
+        dev: Device,
+    ): CandleResult<Tensor> {
+        return self.safetensors
+            .tensor(name)
+            .unwrapOrElse { return CandleResult.Err(it) }
+            .load(dev)
     }
 
-    fun tensors(): List<kotlin.Pair<String, SafeTensorView>> {
-        return self.safetensors.tensors()
-    }
+    fun tensors(): List<kotlin.Pair<String, SafeTensorView>> = self.safetensors.tensors()
 
-    fun get(name: String): CandleResult<SafeTensorView> {
-        return self.safetensors.tensor(name)
-    }
+    fun get(name: String): CandleResult<SafeTensorView> = self.safetensors.tensor(name)
 
     companion object {
         /**
@@ -1123,30 +1331,30 @@ class BufferedSafetensors private constructor(
 ) {
     private val self: BufferedSafetensors get() = this
 
-    fun load(name: String, dev: Device): CandleResult<Tensor> {
+    fun load(
+        name: String,
+        dev: Device,
+    ): CandleResult<Tensor> {
         return self.get(name).unwrapOrElse { return CandleResult.Err(it) }.load(dev)
     }
 
-    fun tensors(): List<kotlin.Pair<String, SafeTensorView>> {
-        return self.safetensors.get().tensors()
-    }
+    fun tensors(): List<kotlin.Pair<String, SafeTensorView>> = self.safetensors.get().tensors()
 
-    fun get(name: String): CandleResult<SafeTensorView> {
-        return self.safetensors.get().tensor(name)
-    }
+    fun get(name: String): CandleResult<SafeTensorView> = self.safetensors.get().tensor(name)
 
     companion object {
         /**
          * Creates a wrapper around a binary buffer and deserialize the safetensors header.
          */
         fun new(buffer: ByteArray): CandleResult<BufferedSafetensors> {
-            val safetensors = SafeTensors.tryAttachToCart(
-                buffer,
-            ) { data: ByteArray ->
-                val st = SafeTensors.deserialize(data)
-                st
-            }
-                .unwrapOrElse { return CandleResult.Err(it) }
+            val safetensors =
+                SafeTensors
+                    .tryAttachToCart(
+                        buffer,
+                    ) { data: ByteArray ->
+                        val st = SafeTensors.deserialize(data)
+                        st
+                    }.unwrapOrElse { return CandleResult.Err(it) }
             return CandleResult.Ok(BufferedSafetensors(safetensors))
         }
     }
@@ -1159,8 +1367,11 @@ class MmapedFile private constructor(
     private val self: MmapedFile get() = this
 
     fun deserialize(): CandleResult<SafeTensors> {
-        val st = SafeTensors.deserialize(self.inner)
-            .mapErr { e -> e.withPath(self.path) }.unwrapOrElse { return CandleResult.Err(it) }
+        val st =
+            SafeTensors
+                .deserialize(self.inner)
+                .mapErr { e -> e.withPath(self.path) }
+                .unwrapOrElse { return CandleResult.Err(it) }
         return CandleResult.Ok(st)
     }
 
@@ -1174,15 +1385,20 @@ class MmapedFile private constructor(
          * The safety invariant is inherited from memory mapped file options.
          */
         fun new(p: String): CandleResult<MmapedFile> {
-            val p = p.asRef()
-            val file = SafeTensors.fileOpen(p).mapErr { e -> e.withPath(p) }.unwrapOrElse { return CandleResult.Err(it) }
-            val inner = SafeTensors.mmapOptionsNew()
-                .map(file)
-                .mapErr { e -> e.withPath(p) }.unwrapOrElse { return CandleResult.Err(it) }
-            return CandleResult.Ok(MmapedFile(
-                path = p.toPathBuf(),
-                inner = inner,
-            ))
+            val pathRef = p.asRef()
+            val file = SafeTensors.fileOpen(pathRef).mapErr { e -> e.withPath(pathRef) }.unwrapOrElse { return CandleResult.Err(it) }
+            val inner =
+                SafeTensors
+                    .mmapOptionsNew()
+                    .map(file)
+                    .mapErr { e -> e.withPath(pathRef) }
+                    .unwrapOrElse { return CandleResult.Err(it) }
+            return CandleResult.Ok(
+                MmapedFile(
+                    path = pathRef.toPathBuf(),
+                    inner = inner,
+                ),
+            )
         }
     }
 }
@@ -1202,8 +1418,20 @@ class MmapedFile private constructor(
     save(map, "multi.safetensors").unwrap()
 
     val weights = load("multi.safetensors", Device.Cpu).unwrap()
-    check(weights["t"]!!.dims().toIntArray().contentEquals(intArrayOf(2, 2)))
-    check(weights["u"]!!.dims().toIntArray().contentEquals(intArrayOf(1, 2)))
+    check(
+        weights
+            .getValue("t")
+            .dims()
+            .toIntArray()
+            .contentEquals(intArrayOf(2, 2)),
+    )
+    check(
+        weights
+            .getValue("u")
+            .dims()
+            .toIntArray()
+            .contentEquals(intArrayOf(1, 2)),
+    )
     val bytes = SafeTensors.fsRead("multi.safetensors").unwrap()
     check(bytes.contentEquals(SafeTensors.expectedMultiTensorBytes))
     SafeTensors.fsRemoveFile("multi.safetensors").unwrap()
@@ -1213,7 +1441,7 @@ class MmapedFile private constructor(
     val bytes = SafeTensors.sampleU8SafetensorsBytes
     SafeTensors.fsWrite("testU8.safetensors", bytes).unwrap()
     val weights = load("testU8.safetensors", Device.Cpu).unwrap()
-    val tensor = weights["x"]!!
+    val tensor = weights.getValue("x")
     check(tensor.dims().toIntArray().contentEquals(intArrayOf(2)))
     check(tensor.dtype() == DType.U8)
     val data = tensor.toVec1<UByte>()

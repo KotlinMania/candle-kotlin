@@ -4,37 +4,82 @@
  */
 package io.github.kotlinmania.candle.ggml
 
-import io.github.kotlinmania.candle.*
+import io.github.kotlinmania.candle.BF16
+import io.github.kotlinmania.candle.BlockQ2K
+import io.github.kotlinmania.candle.BlockQ3K
+import io.github.kotlinmania.candle.BlockQ40
+import io.github.kotlinmania.candle.BlockQ41
+import io.github.kotlinmania.candle.BlockQ4K
+import io.github.kotlinmania.candle.BlockQ50
+import io.github.kotlinmania.candle.BlockQ51
+import io.github.kotlinmania.candle.BlockQ5K
+import io.github.kotlinmania.candle.BlockQ6K
+import io.github.kotlinmania.candle.BlockQ80
+import io.github.kotlinmania.candle.BlockQ81
+import io.github.kotlinmania.candle.BlockQ8K
+import io.github.kotlinmania.candle.CandleResult
 import io.github.kotlinmania.candle.CandleResult.Err
 import io.github.kotlinmania.candle.CandleResult.Ok
+import io.github.kotlinmania.candle.Device
+import io.github.kotlinmania.candle.F16
+import io.github.kotlinmania.candle.F32GgmlType
+import io.github.kotlinmania.candle.F32Scalar
+import io.github.kotlinmania.candle.GgmlDType
+import io.github.kotlinmania.candle.HashMap
+import io.github.kotlinmania.candle.LittleEndian
+import io.github.kotlinmania.candle.NpyByteReader
+import io.github.kotlinmania.candle.QStorage
+import io.github.kotlinmania.candle.QTensor
+import io.github.kotlinmania.candle.QuantizedHelper
+import io.github.kotlinmania.candle.QuantizedType
+import io.github.kotlinmania.candle.SeekFrom
+import io.github.kotlinmania.candle.Tensor
+import io.github.kotlinmania.candle.Vec
+import io.github.kotlinmania.candle.bail
+import io.github.kotlinmania.candle.fromUtf8Lossy
+import io.github.kotlinmania.candle.insert
+import io.github.kotlinmania.candle.intoOwned
+import io.github.kotlinmania.candle.iter
+import io.github.kotlinmania.candle.loadQuantized
+import io.github.kotlinmania.candle.product
+import io.github.kotlinmania.candle.push
 
-private inline fun <reified T : Any> companionOf(): Any = when (T::class) {
-    F32Scalar::class -> F32GgmlType
-    F16::class -> F16
-    BF16::class -> BF16
-    BlockQ40::class -> BlockQ40
-    BlockQ41::class -> BlockQ41
-    BlockQ50::class -> BlockQ50
-    BlockQ51::class -> BlockQ51
-    BlockQ80::class -> BlockQ80
-    BlockQ81::class -> BlockQ81
-    BlockQ2K::class -> BlockQ2K
-    BlockQ3K::class -> BlockQ3K
-    BlockQ4K::class -> BlockQ4K
-    BlockQ5K::class -> BlockQ5K
-    BlockQ6K::class -> BlockQ6K
-    BlockQ8K::class -> BlockQ8K
-    else -> F32GgmlType
-}
+private inline fun <reified T : Any> companionOf(): Any =
+    when (T::class) {
+        F32Scalar::class -> F32GgmlType
+        F16::class -> F16
+        BF16::class -> BF16
+        BlockQ40::class -> BlockQ40
+        BlockQ41::class -> BlockQ41
+        BlockQ50::class -> BlockQ50
+        BlockQ51::class -> BlockQ51
+        BlockQ80::class -> BlockQ80
+        BlockQ81::class -> BlockQ81
+        BlockQ2K::class -> BlockQ2K
+        BlockQ3K::class -> BlockQ3K
+        BlockQ4K::class -> BlockQ4K
+        BlockQ5K::class -> BlockQ5K
+        BlockQ6K::class -> BlockQ6K
+        BlockQ8K::class -> BlockQ8K
+        else -> F32GgmlType
+    }
 
 private fun ByteArray.asPtr(): ByteArray = this
+
 private inline fun <reified T : Any> sizeOf(): Int = QuantizedHelper.sizeOf(companionOf<T>())
-private inline fun <reified T : Any> sliceFromRawParts(rawDataPtr: ByteArray, nBlocks: Int): List<Any> =
-    QuantizedHelper.fromRawParts(0, nBlocks, rawDataPtr, companionOf<T>())
+
+private inline fun <reified T : Any> sliceFromRawParts(
+    rawDataPtr: ByteArray,
+    nBlocks: Int,
+): List<Any> = QuantizedHelper.fromRawParts(0, nBlocks, rawDataPtr, companionOf<T>())
+
 private inline fun <reified T : Any> List<Any>.toVec(): QuantizedType =
     QuantizedHelper.createQuantizedVec(this.toMutableList(), companionOf<T>())
+
 private fun Device.clone(): Device = this
+
 private fun UIntArray.iter(): List<UInt> = this.toList()
+
 private fun <T> List<T>.collect(): List<T> = this
 
 // https://github.com/ggerganov/llama.cpp/blob/468ea24fb4633a0d681f7ac84089566c1c6190cb/llama.h#L37
@@ -50,14 +95,15 @@ private enum class Magic {
 
     companion object {
         fun tryFrom(value: UInt): CandleResult<Magic> {
-            val magic = when (value) {
-                0x67676a74u -> Ggjt
-                0x67676c61u -> Ggla
-                0x67676d66u -> Ggmf
-                0x67676d6cu -> Ggml
-                0x6767736eu -> Ggsn
-                else -> bail("unknown magic ${value.toString(16)}")
-            }
+            val magic =
+                when (value) {
+                    0x67676a74u -> Ggjt
+                    0x67676c61u -> Ggla
+                    0x67676d66u -> Ggmf
+                    0x67676d6cu -> Ggml
+                    0x6767736eu -> Ggsn
+                    else -> bail("unknown magic ${value.toString(16)}")
+                }
             return Ok(magic)
         }
     }
@@ -71,10 +117,11 @@ public enum class VersionedMagic {
     GgjtV3,
     ;
 
-    internal fun align32(): Boolean = when (this) {
-        GgmlUnversioned, GgmfV1 -> false
-        GgjtV1, GgjtV2, GgjtV3 -> true
-    }
+    internal fun align32(): Boolean =
+        when (this) {
+            GgmlUnversioned, GgmfV1 -> false
+            GgjtV1, GgjtV2, GgjtV3 -> true
+        }
 
     public companion object {
         internal fun <R : NpyByteReader> read(reader: R): CandleResult<VersionedMagic> {
@@ -84,13 +131,14 @@ public enum class VersionedMagic {
                 return Ok(GgmlUnversioned)
             }
             val version = reader.readU32<LittleEndian>().unwrap()
-            val versionedMagic = when (Pair(magic, version)) {
-                Pair(Magic.Ggmf, 1u) -> GgmfV1
-                Pair(Magic.Ggjt, 1u) -> GgjtV1
-                Pair(Magic.Ggjt, 2u) -> GgjtV2
-                Pair(Magic.Ggjt, 3u) -> GgjtV3
-                else -> bail("ggml: unsupported magic/version $magic/$version")
-            }
+            val versionedMagic =
+                when (Pair(magic, version)) {
+                    Pair(Magic.Ggmf, 1u) -> GgmfV1
+                    Pair(Magic.Ggjt, 1u) -> GgjtV1
+                    Pair(Magic.Ggjt, 2u) -> GgjtV2
+                    Pair(Magic.Ggjt, 3u) -> GgjtV3
+                    else -> bail("ggml: unsupported magic/version $magic/$version")
+                }
             return Ok(versionedMagic)
         }
     }
@@ -129,14 +177,18 @@ public data class HParams(
     }
 }
 
-public data class Vocab(
+@ConsistentCopyVisibility
+public data class Vocab internal constructor(
     public val tokenScorePairs: List<Pair<ByteArray, Float>>,
 ) {
     public companion object {
-        internal fun <R : NpyByteReader> read(reader: R, nVocab: Int): CandleResult<Vocab> {
+        internal fun <R : NpyByteReader> read(
+            reader: R,
+            nVocab: Int,
+        ): CandleResult<Vocab> {
             // https://github.com/ggerganov/llama.cpp/blob/468ea24fb4633a0d681f7ac84089566c1c6190cb/llama.cpp#L556
             val tokenScorePairs = Vec.withCapacity<Pair<ByteArray, Float>>(nVocab)
-            for (index in 0 until nVocab) {
+            repeat(nVocab) {
                 val len = reader.readU32<LittleEndian>().unwrap().toInt()
                 val word = ByteArray(len)
                 reader.readExact(word).unwrap()
@@ -157,11 +209,12 @@ private inline fun <reified T : Any> fromRawData(
     val rawDataPtr = rawData.asPtr()
     val nBlocks = sizeInBytes / sizeOf<T>()
     val data = sliceFromRawParts<T>(rawDataPtr, nBlocks)
-    val qStorage: QStorage = when (device) {
-        is Device.Cpu -> QStorage.Cpu(data.toVec<T>())
-        is Device.Metal -> loadQuantized(device.device, data).unwrap()
-        is Device.Cuda -> loadQuantized(device.device, data).unwrap()
-    }
+    val qStorage: QStorage =
+        when (device) {
+            is Device.Cpu -> QStorage.Cpu(data.toVec<T>())
+            is Device.Metal -> loadQuantized(device.device, data).unwrap()
+            is Device.Cuda -> loadQuantized(device.device, data).unwrap()
+        }
     return QTensor.new(qStorage, dims)
 }
 
@@ -184,40 +237,61 @@ public fun qtensorFromGgml(
     val sizeInBytes = tensorElems / blockSize * ggmlDtype.typeSize()
 
     return when (ggmlDtype) {
-        GgmlDType.F32 -> fromRawData<F32Scalar>(rawData, sizeInBytes, dims, device)
-        GgmlDType.F16 -> fromRawData<F16>(rawData, sizeInBytes, dims, device)
-        GgmlDType.BF16 -> fromRawData<BF16>(rawData, sizeInBytes, dims, device)
+        GgmlDType.F32 -> {
+            fromRawData<F32Scalar>(rawData, sizeInBytes, dims, device)
+        }
+
+        GgmlDType.F16 -> {
+            fromRawData<F16>(rawData, sizeInBytes, dims, device)
+        }
+
+        GgmlDType.BF16 -> {
+            fromRawData<BF16>(rawData, sizeInBytes, dims, device)
+        }
+
         GgmlDType.Q4_0 -> {
             fromRawData<BlockQ40>(rawData, sizeInBytes, dims, device)
         }
+
         GgmlDType.Q4_1 -> {
             fromRawData<BlockQ41>(rawData, sizeInBytes, dims, device)
         }
+
         GgmlDType.Q5_0 -> {
             fromRawData<BlockQ50>(rawData, sizeInBytes, dims, device)
         }
+
         GgmlDType.Q5_1 -> {
             fromRawData<BlockQ51>(rawData, sizeInBytes, dims, device)
         }
+
         GgmlDType.Q8_0 -> {
             fromRawData<BlockQ80>(rawData, sizeInBytes, dims, device)
         }
+
         GgmlDType.Q2K -> {
             fromRawData<BlockQ2K>(rawData, sizeInBytes, dims, device)
         }
+
         GgmlDType.Q3K -> {
             fromRawData<BlockQ3K>(rawData, sizeInBytes, dims, device)
         }
+
         GgmlDType.Q4K -> {
             fromRawData<BlockQ4K>(rawData, sizeInBytes, dims, device)
         }
+
         GgmlDType.Q5K -> {
             fromRawData<BlockQ5K>(rawData, sizeInBytes, dims, device)
         }
+
         GgmlDType.Q6K -> {
             fromRawData<BlockQ6K>(rawData, sizeInBytes, dims, device)
         }
-        else -> bail("quantized type $ggmlDtype is not supported yet")
+
+        else -> {
+            bail("quantized type $ggmlDtype is not supported yet")
+        }
     }
 }
 
@@ -256,11 +330,11 @@ private fun <R : NpyByteReader> readOneTensor(
     }
 }
 
-public class Content(
+public class Content internal constructor(
     public val magic: VersionedMagic,
     public val hparams: HParams,
     public val vocab: Vocab,
-    public val tensors: MutableMap<String, QTensor>,
+    internal val tensors: MutableMap<String, QTensor>,
     public val device: Device,
 ) {
     public fun remove(name: String): CandleResult<QTensor> {
@@ -303,4 +377,3 @@ public class Content(
         }
     }
 }
-

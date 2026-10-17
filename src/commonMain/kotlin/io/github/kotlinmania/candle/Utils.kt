@@ -1,7 +1,6 @@
 // port-lint: source utils.rs
 package io.github.kotlinmania.candle
 
-import io.github.kotlinmania.envie.getenv
 import io.github.kotlinmania.libc.new.apple.libpthread.pthread.pthreadSetQosClassSelfNp
 import io.github.kotlinmania.libc.new.apple.libpthread.sys.QosClassT
 import io.github.kotlinmania.libc.unix.bsd.apple.sysctlbyname
@@ -41,19 +40,30 @@ private val String.asPtr: () -> String get() = { this }
 private val String.cast: () -> String get() = { this }
 private val libc: CandlePool = CandlePool()
 private val CandlePool.pthreadSetQosClassSelfNp: (QosClassT, Int) -> Int
-    get() = { qos, rel -> io.github.kotlinmania.libc.new.apple.libpthread.pthread.pthreadSetQosClassSelfNp(qos, rel) }
+    get() = { qos, rel ->
+        io.github.kotlinmania.libc.new.apple.libpthread.pthread
+            .pthreadSetQosClassSelfNp(qos, rel)
+    }
 private val CandlePool.qosClassT: QosClassT get() = QosClassT.QOS_CLASS_USER_INTERACTIVE
 private val CandlePool.sysctlbyname: (String, Any?, ULong, Any?, ULong) -> Int
     get() = { name, oldp, oldlenp, newp, newlen ->
-        io.github.kotlinmania.libc.unix.bsd.apple.sysctlbyname(name, null, oldlenp, null, newlen)
+        io.github.kotlinmania.libc.unix.bsd.apple
+            .sysctlbyname(name, null, oldlenp, null, newlen)
     }
 private val rayon: CandlePool = CandlePool()
 private val CandlePool.ThreadPoolBuilder: CandlePool get() = this
 private val CandlePool.new: () -> CandlePool get() = { CandlePool() }
-private val CandlePool.startHandler: ((Int) -> Unit) -> CandlePool get() = { h -> h(0); this }
+private val CandlePool.startHandler: ((Int) -> Unit) -> CandlePool get() = { h ->
+    h(0)
+    this
+}
 private val CandlePool.build: () -> CandlePool get() = { this }
 private val CandlePool.expect: (String) -> CandlePool get() = { _ -> this }
-private fun <R> CandlePool.install(f: () -> R): R { setThreadAffinity(); return f() }
+
+private fun <R> CandlePool.install(f: () -> R): R {
+    setThreadAffinity()
+    return f()
+}
 
 private val POOL: OnceCell<CandlePool> = OnceCell.new()
 
@@ -64,7 +74,8 @@ private var x: Int = 0
 public fun getNumThreads(): Int =
     // Respond to the same environment variable as rayon.
     when (
-        std.env.`var`("RAYON_NUM_THREADS")
+        std.env
+            .`var`("RAYON_NUM_THREADS")
             .ok()
             .andThen { s -> Int.fromStr(s).ok()?.also { x = it } }
     ) {
@@ -73,14 +84,15 @@ public fun getNumThreads(): Int =
     }
 
 internal fun defaultNumThreads(): Int {
-    var physical = run {
-        if (cfg(targetOs == "macos")) {
-            perfCoreCount().unwrapOrElse(numCpus.getPhysical)
-        } else {
-            cfg(not(targetOs == "macos"))
-            numCpus.getPhysical()
+    var physical =
+        run {
+            if (cfg(targetOs == "macos")) {
+                perfCoreCount().unwrapOrElse(numCpus.getPhysical)
+            } else {
+                cfg(not(targetOs == "macos"))
+                numCpus.getPhysical()
+            }
         }
-    }
     physical = physical.max(1) // safeguard against bad number
     return if (physical <= 4) {
         physical
@@ -99,37 +111,41 @@ internal fun defaultNumThreads(): Int {
  */
 internal fun perfCoreCount(): Int? {
     val cVoid = std.os.raw.cVoid
-    var count: UInt = 0u
-    var size = std.mem.sizeOf()
-    val ret = run {
-        libc.sysctlbyname(
-            "hw.perflevel0.logicalcpu".asPtr().cast(),
-            count + cVoid.toUInt(),
-            size,
-            std.ptr.nullMut(),
-            0uL,
-        )
-    }
+    val count: UInt = 0u
+    val size = std.mem.sizeOf()
+    val ret =
+        run {
+            libc.sysctlbyname(
+                "hw.perflevel0.logicalcpu".asPtr().cast(),
+                count + cVoid.toUInt(),
+                size,
+                std.ptr.nullMut(),
+                0uL,
+            )
+        }
     return (ret == 0 && count > 0u).thenSome(count.toInt())
 }
 
-internal fun candlePool(): CandlePool {
-    return POOL.getOrInit {
-        rayon.ThreadPoolBuilder.new()
+internal fun candlePool(): CandlePool =
+    POOL.getOrInit {
+        rayon.ThreadPoolBuilder
+            .new()
             .numThreads(getNumThreads())
             .startHandler { _ -> setThreadAffinity() }
             .build()
             .expect("failed to build candle rayon threadpool")
     }
-}
 
 /**
  * Elevate the thread QoS so macOS prefers running on Performance (P) cores.
  */
 internal fun setThreadAffinity() {
-    libc; qosClassT; qosClassUserInteractive
+    libc
+    qosClassT
+    qosClassUserInteractive
     pthreadSetQosClassSelfNp(
-        qosClassUserInteractive, 0
+        qosClassUserInteractive,
+        0,
     )
 }
 

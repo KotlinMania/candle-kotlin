@@ -12,14 +12,21 @@ public object CpuDevice {
     public fun location(): DeviceLocation = DeviceLocation.Cpu
 
     public fun sameDevice(other: CpuDevice): Boolean = true
+
     public fun sameDevice(other: BackendDevice): Boolean = false
 
     public fun storageFromSlice(s: FloatArray): CpuStorage = CpuStorage.F32(s.copyOf())
+
     public fun storageFromSlice(s: DoubleArray): CpuStorage = CpuStorage.F64(s.copyOf())
+
     public fun storageFromSlice(s: IntArray): CpuStorage = CpuStorage.I32(s.copyOf())
+
     public fun storageFromSlice(s: LongArray): CpuStorage = CpuStorage.I64(s.copyOf())
+
     public fun storageFromSlice(s: ShortArray): CpuStorage = CpuStorage.I16(s.copyOf())
+
     public fun storageFromSlice(s: UIntArray): CpuStorage = CpuStorage.U32(s.copyOf())
+
     public fun storageFromSlice(s: UByteArray): CpuStorage = CpuStorage.U8(s.copyOf())
 
     public fun storageFromCpuStorage(storage: CpuStorage): CpuStorage = storage
@@ -36,52 +43,74 @@ public object CpuDevice {
         bail("cannot get the CPU rng seed with get_current_seed")
     }
 
-    public fun randUniform(shape: Shape, dtype: DType, min: Double, max: Double): CpuStorage {
+    public fun randUniform(
+        shape: Shape,
+        dtype: DType,
+        min: Double,
+        max: Double,
+    ): CpuStorage {
         val elemCount = shape.elemCount()
-        var rng = rng()
+        val rng = rng()
         return when (dtype) {
             DType.BF16 -> {
                 val uniform = Uniform.new(min.toFloat(), max.toFloat()).map { it }.unwrap()
-                val data = ShortArray(elemCount) {
-                    Float16Utils.floatToBF16Bits(uniform.sample(rng))
-                }
+                val data =
+                    ShortArray(elemCount) {
+                        Float16Utils.floatToBF16Bits(uniform.sample(rng))
+                    }
                 CpuStorage.BF16(data)
             }
+
             DType.F16 -> {
                 val uniform = Uniform.new(min.toFloat(), max.toFloat()).map { it }.unwrap()
-                val data = ShortArray(elemCount) {
-                    Float16Utils.floatToF16Bits(uniform.sample(rng))
-                }
+                val data =
+                    ShortArray(elemCount) {
+                        Float16Utils.floatToF16Bits(uniform.sample(rng))
+                    }
                 CpuStorage.F16(data)
             }
+
             DType.F32 -> {
                 val uniform = Uniform.new(min.toFloat(), max.toFloat()).map { it }.unwrap()
-                val data = FloatArray(elemCount) {
-                    uniform.sample(rng)
-                }
+                val data =
+                    FloatArray(elemCount) {
+                        uniform.sample(rng)
+                    }
                 CpuStorage.F32(data)
             }
+
             DType.F64 -> {
                 val uniform = Uniform.new(min, max).map { it }.unwrap()
-                val data = DoubleArray(elemCount) {
-                    uniform.sample(rng)
-                }
+                val data =
+                    DoubleArray(elemCount) {
+                        uniform.sample(rng)
+                    }
                 CpuStorage.F64(data)
             }
+
             DType.F8E4M3 -> {
                 val uniform = Uniform.new(min, max).map { it }.unwrap()
-                val data = ByteArray(elemCount) {
-                    uniform.sample(rng).toInt().toByte()
-                }
+                val data =
+                    ByteArray(elemCount) {
+                        uniform.sample(rng).toInt().toByte()
+                    }
                 CpuStorage.F8E4M3(data)
             }
-            else -> bail("Unsupported dtype for randUniform $dtype")
+
+            else -> {
+                bail("Unsupported dtype for randUniform $dtype")
+            }
         }
     }
 
-    public fun randNormal(shape: Shape, dtype: DType, mean: Double, std: Double): CpuStorage {
+    public fun randNormal(
+        shape: Shape,
+        dtype: DType,
+        mean: Double,
+        std: Double,
+    ): CpuStorage {
         val elemCount = shape.elemCount()
-        var rng = rng()
+        val rng = rng()
         val normalValues = DoubleArray(elemCount)
         var i = 0
         while (i < elemCount) {
@@ -99,28 +128,41 @@ public object CpuDevice {
                 val data = ShortArray(elemCount) { Float16Utils.floatToBF16Bits(normalValues[it].toFloat()) }
                 CpuStorage.BF16(data)
             }
+
             DType.F16 -> {
                 val data = ShortArray(elemCount) { Float16Utils.floatToF16Bits(normalValues[it].toFloat()) }
                 CpuStorage.F16(data)
             }
+
             DType.F32 -> {
                 val data = FloatArray(elemCount) { normalValues[it].toFloat() }
                 CpuStorage.F32(data)
             }
+
             DType.F64 -> {
                 CpuStorage.F64(normalValues)
             }
+
             DType.F8E4M3 -> {
                 val data = ByteArray(elemCount) { normalValues[it].toInt().toByte() }
                 CpuStorage.F8E4M3(data)
             }
-            else -> bail("Unsupported dtype for randNormal $dtype")
+
+            else -> {
+                bail("Unsupported dtype for randNormal $dtype")
+            }
         }
     }
 
-    public fun allocUninit(shape: Shape, dtype: DType): CpuStorage = zerosImpl(shape, dtype)
+    public fun allocUninit(
+        shape: Shape,
+        dtype: DType,
+    ): CpuStorage = zerosImpl(shape, dtype)
 
-    public fun zerosImpl(shape: Shape, dtype: DType): CpuStorage {
+    public fun zerosImpl(
+        shape: Shape,
+        dtype: DType,
+    ): CpuStorage {
         val elemCount = shape.elemCount()
         return when (dtype) {
             DType.U8 -> CpuStorage.U8(UByteArray(elemCount))

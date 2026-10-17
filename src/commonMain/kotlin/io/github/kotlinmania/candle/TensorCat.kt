@@ -16,7 +16,10 @@ package io.github.kotlinmania.candle
  * val c1 = Tensor.cat(listOf(a, b), 1)
  * ```
  */
-public fun Tensor.Companion.cat(args: List<Tensor>, dim: Int): Tensor {
+public fun Tensor.Companion.cat(
+    args: List<Tensor>,
+    dim: Int,
+): Tensor {
     if (args.isEmpty()) {
         throw CandleException.OpRequiresAtLeastOneTensor("cat")
     }
@@ -49,9 +52,10 @@ public fun Tensor.Companion.cat(args: List<Tensor>, dim: Int): Tensor {
             }
         }
     }
-    val allCopy2dCompat = args.all { v ->
-        v.isContiguous() || v.layout().outerStrideForDim(dimIdx) != null
-    }
+    val allCopy2dCompat =
+        args.all { v ->
+            v.isContiguous() || v.layout().outerStrideForDim(dimIdx) != null
+        }
     return if (allCopy2dCompat) {
         catContiguous(args, dimIdx)
     } else if (dimIdx == 0) {
@@ -80,7 +84,10 @@ public fun Tensor.Companion.cat(args: List<Tensor>, dim: Int): Tensor {
  * check(c1.shape().dims() == listOf(2, 6))
  * ```
  */
-public fun Tensor.Companion.cat(args: List<Tensor>, dim: ShapeDim): Tensor {
+public fun Tensor.Companion.cat(
+    args: List<Tensor>,
+    dim: ShapeDim,
+): Tensor {
     if (args.isEmpty()) {
         throw CandleException.OpRequiresAtLeastOneTensor("cat")
     }
@@ -153,7 +160,10 @@ internal fun Tensor.Companion.cat0(args: List<Tensor>): Tensor {
     return fromStorage(storage, shape, op, false)
 }
 
-internal fun Tensor.Companion.catContiguous(args: List<Tensor>, dim: Int): Tensor {
+internal fun Tensor.Companion.catContiguous(
+    args: List<Tensor>,
+    dim: Int,
+): Tensor {
     if (args.isEmpty()) {
         throw CandleException.OpRequiresAtLeastOneTensor("cat")
     }
@@ -223,11 +233,12 @@ internal fun Tensor.Companion.catContiguous(args: List<Tensor>, dim: Int): Tenso
         val d2 = blockSize * argDims[dim]
         val dstS = blockSize * catTargetDimLen
         val srcO = arg.layout().startOffset
-        val srcS = if (arg.isContiguous()) {
-            d2
-        } else {
-            arg.layout().outerStrideForDim(dim) ?: d2
-        }
+        val srcS =
+            if (arg.isContiguous()) {
+                d2
+            } else {
+                arg.layout().outerStrideForDim(dim) ?: d2
+            }
         arg.storage().copy2d(storage, d1, d2, srcS, dstS, srcO, dstO)
         dstO += d2
     }
@@ -243,7 +254,11 @@ internal fun Tensor.Companion.catContiguous(args: List<Tensor>, dim: Int): Tenso
  * Note that this modifies `this` in place and as such is not compatible with
  * back-propagation.
  */
-public fun Tensor.sliceSet(src: Tensor, dim: Int, offset: Int) {
+public fun Tensor.sliceSet(
+    src: Tensor,
+    dim: Int,
+    offset: Int,
+) {
     val dimIdx = Shape.toIndex(dim, shape(), "slice-set")
     if (!isContiguous() || !src.isContiguous()) {
         throw CandleException.RequiresContiguous("slice-set")
@@ -313,7 +328,11 @@ public fun Tensor.sliceSet(src: Tensor, dim: Int, offset: Int) {
  * Note that this modifies `this` in place and as such is not compatible with
  * back-propagation.
  */
-public fun Tensor.sliceSet(src: Tensor, dim: ShapeDim, offset: Int) {
+public fun Tensor.sliceSet(
+    src: Tensor,
+    dim: ShapeDim,
+    offset: Int,
+) {
     val dimIdx = dim.toIndex(shape(), "slice-set")
     sliceSet(src, dimIdx, offset)
 }
