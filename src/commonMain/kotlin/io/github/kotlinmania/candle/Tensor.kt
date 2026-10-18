@@ -2,7 +2,6 @@
 package io.github.kotlinmania.candle
 
 import io.github.kotlinmania.byteorder.BigEndian
-import io.github.kotlinmania.float8.F8E4M3
 import io.github.kotlinmania.half.BF16
 import io.github.kotlinmania.half.F16
 import kotlin.math.floor
@@ -2700,57 +2699,7 @@ public class Tensor internal constructor(
             dtype: DType,
             device: Device,
             isVariable: Boolean,
-        ): Tensor {
-            device.hashCode()
-            val count = shape.elemCount()
-            val cpuStorage =
-                when (dtype) {
-                    DType.U8 -> {
-                        CpuStorage.U8(UByteArray(count))
-                    }
-
-                    DType.U32 -> {
-                        CpuStorage.U32(UIntArray(count))
-                    }
-
-                    DType.I16 -> {
-                        CpuStorage.I16(ShortArray(count))
-                    }
-
-                    DType.I32 -> {
-                        CpuStorage.I32(IntArray(count))
-                    }
-
-                    DType.I64 -> {
-                        CpuStorage.I64(LongArray(count))
-                    }
-
-                    DType.BF16 -> {
-                        CpuStorage.BF16(ShortArray(count))
-                    }
-
-                    DType.F16 -> {
-                        CpuStorage.F16(ShortArray(count))
-                    }
-
-                    DType.F32 -> {
-                        CpuStorage.F32(FloatArray(count))
-                    }
-
-                    DType.F64 -> {
-                        CpuStorage.F64(DoubleArray(count))
-                    }
-
-                    DType.F8E4M3 -> {
-                        CpuStorage.F8E4M3(ByteArray(count))
-                    }
-
-                    DType.F6E2M3, DType.F6E3M2, DType.F4, DType.F8E8M0 -> {
-                        throw CandleException.UnsupportedDTypeForOp(dtype, "zeros")
-                    }
-                }
-            return fromStorage(Storage.Cpu(cpuStorage), shape, BackpropOp.None, isVariable)
-        }
+        ): Tensor = fromStorage(device.zeros(shape, dtype), shape, BackpropOp.None, isVariable)
 
         /**
          * Creates a new tensor filled with zeros.
@@ -2860,11 +2809,10 @@ public class Tensor internal constructor(
             device: Device,
             isVariable: Boolean,
         ): Tensor {
-            device.hashCode()
             if (data.size != shape.elemCount()) {
                 throw CandleException.ShapeMismatch(data.size, shape)
             }
-            return fromStorage(Storage.Cpu(CpuStorage.F32(data.copyOf())), shape, BackpropOp.None, isVariable)
+            return fromStorage(device.storageFromCpuStorageOwned(CpuStorage.F32(data.copyOf())), shape, BackpropOp.None, isVariable)
         }
 
         internal fun newImpl(
@@ -2912,7 +2860,7 @@ public class Tensor internal constructor(
             if (data.size != shape.elemCount()) {
                 throw CandleException.ShapeMismatch(data.size, shape)
             }
-            return fromStorage(Storage.Cpu(CpuStorage.F64(data.copyOf())), shape, BackpropOp.None, false)
+            return fromStorage(device.storageFromCpuStorageOwned(CpuStorage.F64(data.copyOf())), shape, BackpropOp.None, false)
         }
 
         /**
@@ -2926,7 +2874,7 @@ public class Tensor internal constructor(
             if (data.size != shape.elemCount()) {
                 throw CandleException.ShapeMismatch(data.size, shape)
             }
-            return fromStorage(Storage.Cpu(CpuStorage.I32(data.copyOf())), shape, BackpropOp.None, false)
+            return fromStorage(device.storageFromCpuStorageOwned(CpuStorage.I32(data.copyOf())), shape, BackpropOp.None, false)
         }
 
         /**
@@ -2940,7 +2888,7 @@ public class Tensor internal constructor(
             if (data.size != shape.elemCount()) {
                 throw CandleException.ShapeMismatch(data.size, shape)
             }
-            return fromStorage(Storage.Cpu(CpuStorage.I64(data.copyOf())), shape, BackpropOp.None, false)
+            return fromStorage(device.storageFromCpuStorageOwned(CpuStorage.I64(data.copyOf())), shape, BackpropOp.None, false)
         }
 
         /**
@@ -2954,7 +2902,7 @@ public class Tensor internal constructor(
             if (data.size != shape.elemCount()) {
                 throw CandleException.ShapeMismatch(data.size, shape)
             }
-            return fromStorage(Storage.Cpu(CpuStorage.U32(data.copyOf())), shape, BackpropOp.None, false)
+            return fromStorage(device.storageFromCpuStorageOwned(CpuStorage.U32(data.copyOf())), shape, BackpropOp.None, false)
         }
 
         /**
@@ -2968,7 +2916,7 @@ public class Tensor internal constructor(
             if (data.size != shape.elemCount()) {
                 throw CandleException.ShapeMismatch(data.size, shape)
             }
-            return fromStorage(Storage.Cpu(CpuStorage.U8(data.copyOf())), shape, BackpropOp.None, false)
+            return fromStorage(device.storageFromCpuStorageOwned(CpuStorage.U8(data.copyOf())), shape, BackpropOp.None, false)
         }
 
         /**

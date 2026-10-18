@@ -554,42 +554,15 @@ public sealed class Device {
             }
         }
 
-    public fun storage(array: NdArray): Storage =
+    public fun storage(array: NdArray): Storage = storageFromCpuStorageOwned(array.toCpuStorage())
+
+    public fun <S> storageOwned(data: List<S>): Storage = storageFromCpuStorageOwned(NdArray.S.toCpuStorageOwned(data))
+
+    internal fun storageFromCpuStorageOwned(storage: CpuStorage): Storage =
         when (self) {
-            is Cpu -> {
-                Storage.Cpu(array.toCpuStorage())
-            }
-
-            is Cuda -> {
-                val storage = array.toCpuStorage()
-                val cudaStorage = self.device.storageFromCpuStorageOwned(storage) as CudaStorage
-                Storage.Cuda(cudaStorage)
-            }
-
-            is Metal -> {
-                val storage = array.toCpuStorage()
-                val metalStorage = self.device.storageFromCpuStorageOwned(storage) as MetalStorage
-                Storage.Metal(metalStorage)
-            }
-        }
-
-    public fun <S> storageOwned(data: List<S>): Storage =
-        when (self) {
-            is Cpu -> {
-                Storage.Cpu(NdArray.S.toCpuStorageOwned(data))
-            }
-
-            is Cuda -> {
-                val storage = NdArray.S.toCpuStorageOwned(data)
-                val cudaStorage = self.device.storageFromCpuStorageOwned(storage) as CudaStorage
-                Storage.Cuda(cudaStorage)
-            }
-
-            is Metal -> {
-                val storage = NdArray.S.toCpuStorageOwned(data)
-                val metalStorage = self.device.storageFromCpuStorageOwned(storage) as MetalStorage
-                Storage.Metal(metalStorage)
-            }
+            is Cpu -> Storage.Cpu(storage)
+            is Cuda -> Storage.Cuda(self.device.storageFromCpuStorageOwned(storage) as CudaStorage)
+            is Metal -> Storage.Metal(self.device.storageFromCpuStorageOwned(storage) as MetalStorage)
         }
 
     public fun synchronize() {
