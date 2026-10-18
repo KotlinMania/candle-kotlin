@@ -1,8 +1,12 @@
 // port-lint: source convert.rs
 package io.github.kotlinmania.candle
 
+import io.github.kotlinmania.byteorder.LittleEndian
 import io.github.kotlinmania.candle.CandleResult.Err
 import io.github.kotlinmania.candle.CandleResult.Ok
+import io.github.kotlinmania.float8.F8E4M3
+import io.github.kotlinmania.half.BF16
+import io.github.kotlinmania.half.F16
 
 /**
  * Implement conversion traits for tensors
@@ -152,7 +156,11 @@ public fun Tensor.writeBytes(f: NpyByteWriter): CandleResult<Unit> {
         }
 
         DType.F6E2M3, DType.F6E3M2, DType.F4, DType.F8E8M0 -> {
-            return Err(CandleError.UnsupportedDTypeForOp(self.dtype(), "write_bytes").bt())
+            return Err(
+                CandleException
+                    .UnsupportedDTypeForOp(self.dtype(), "write_bytes")
+                    .bt(),
+            )
         }
     }
     return Ok(Unit)

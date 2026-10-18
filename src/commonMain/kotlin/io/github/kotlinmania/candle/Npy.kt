@@ -1,7 +1,10 @@
 // port-lint: source npy.rs
 package io.github.kotlinmania.candle
 
-import io.github.kotlinmania.candle.CandleException as Error
+import io.github.kotlinmania.candle.CandleException
+import io.github.kotlinmania.float8.F8E4M3
+import io.github.kotlinmania.half.BF16
+import io.github.kotlinmania.half.F16
 
 private val NPY_MAGIC_STRING: ByteArray =
     byteArrayOf(
@@ -14,7 +17,7 @@ private val NPY_MAGIC_STRING: ByteArray =
     )
 private const val NPY_SUFFIX: String = ".npy"
 
-private fun Err(e: Error): Nothing = throw e
+private fun Err(e: CandleException): Nothing = throw e
 
 private val String.into: () -> String get() = { this }
 private val String.asRef: () -> String get() = { this }
@@ -25,7 +28,10 @@ private val String.stripSuffix: (String) -> String? get() = { s -> if (endsWith(
 private val String?.unwrapOr: (String) -> String get() = { def -> this ?: def }
 private val String.charIndices: () -> Iterable<IndexedValue<Char>> get() = { withIndex() }
 private val String.trimMatches: ((Char) -> Boolean) -> String get() = { pred -> trim(pred) }
-private val String.parse: () -> Int get() = { toIntOrNull() ?: throw CandleError.ParseInt("invalid int: $this") }
+private val String.parse: () -> Int get() = {
+    toIntOrNull() ?: throw CandleException
+        .ParseInt("invalid int: $this")
+}
 private val ByteArray.len: () -> Int get() = { size }
 private val ByteArray.iter: () -> List<Byte> get() = { toList() }
 private val ByteArray.intoIter: () -> Sequence<UByte> get() = { asSequence().map { it.toUByte() } }
@@ -107,7 +113,7 @@ public fun <R : Read> readHeader(reader: R): String {
     val magicString = ByteArray(NPY_MAGIC_STRING.len())
     reader.readExact(magicString).unwrap()
     if (!magicString.contentEquals(NPY_MAGIC_STRING)) {
-        Err(Error.Npy("magic string mismatch"))
+        Err(CandleException.Npy("magic string mismatch"))
     }
     val version = ByteArray(2)
     reader.readExact(version).unwrap()
@@ -115,7 +121,7 @@ public fun <R : Read> readHeader(reader: R): String {
         when (val otherwise = version[0].toInt() and 0xFF) {
             1 -> 2
             2 -> 4
-            else -> Err(Error.Npy("unsupported version $otherwise"))
+            else -> Err(CandleException.Npy("unsupported version $otherwise"))
         }
     val headerLenBytes = ByteArray(headerLenLen)
     reader.readExact(headerLenBytes).unwrap()
@@ -158,7 +164,7 @@ public class Header(
                 .join(",")
         val descr =
             when (self.descr) {
-                DType.BF16 -> Err(Error.Npy("bf16 is not supported".into()))
+                DType.BF16 -> Err(CandleException.Npy("bf16 is not supported".into()))
                 DType.F16 -> "f2"
                 DType.F32 -> "f4"
                 DType.F64 -> "f8"
@@ -167,11 +173,11 @@ public class Header(
                 DType.I64 -> "i8"
                 DType.U32 -> "u4"
                 DType.U8 -> "u1"
-                DType.F8E4M3 -> Err(Error.Npy("f8e4m3 is not supported".into()))
-                DType.F6E2M3 -> Err(Error.Npy("f6e2m3 is not supported".into()))
-                DType.F6E3M2 -> Err(Error.Npy("f6e3m2 is not supported".into()))
-                DType.F4 -> Err(Error.Npy("f4 is not supported".into()))
-                DType.F8E8M0 -> Err(Error.Npy("f8e8m0 is not supported".into()))
+                DType.F8E4M3 -> Err(CandleException.Npy("f8e4m3 is not supported".into()))
+                DType.F6E2M3 -> Err(CandleException.Npy("f6e2m3 is not supported".into()))
+                DType.F6E3M2 -> Err(CandleException.Npy("f6e3m2 is not supported".into()))
+                DType.F4 -> Err(CandleException.Npy("f4 is not supported".into()))
+                DType.F8E8M0 -> Err(CandleException.Npy("f8e8m0 is not supported".into()))
             }
         if (shape.isNotEmpty()) {
             shape += ','
@@ -222,7 +228,7 @@ public class Header(
                         val valTrim = split[1].trimMatches { c: Char -> c == '\'' || c.isWhitespace() }
                         partMap[keyTrim.toOwned()] = valTrim.toOwned()
                     } else {
-                        Err(Error.Npy("unable to parse header $trimmedHeader"))
+                        Err(CandleException.Npy("unable to parse header $trimmedHeader"))
                     }
                 }
             }
@@ -236,22 +242,22 @@ public class Header(
                         when (fortranOrderVal.asRef()) {
                             "False" -> false
                             "True" -> true
-                            else -> Err(Error.Npy("unknown fortran_order $fortranOrderVal"))
+                            else -> Err(CandleException.Npy("unknown fortran_order $fortranOrderVal"))
                         }
                     }
                 }
             val descr =
                 when (val descrVal = partMap["descr"]) {
                     null -> {
-                        Err(Error.Npy("no descr in header"))
+                        Err(CandleException.Npy("no descr in header"))
                     }
 
                     else -> {
                         if (descrVal.isEmpty()) {
-                            Err(Error.Npy("empty descr"))
+                            Err(CandleException.Npy("empty descr"))
                         }
                         if (descrVal.startsWith('>')) {
-                            Err(Error.Npy("little-endian descr $descrVal"))
+                            Err(CandleException.Npy("little-endian descr $descrVal"))
                         }
                         // the only supported types in tensor are:
                         //     float64, float32, float16,
@@ -280,14 +286,14 @@ public class Header(
 
                             // "F" | "F4" -> DType.C64,
                             // "D" | "F8" -> DType.C128,
-                            else -> Err(Error.Npy("unrecognized descr $trimmedDescr"))
+                            else -> Err(CandleException.Npy("unrecognized descr $trimmedDescr"))
                         }
                     }
                 }
             val shape =
                 when (val shapeVal = partMap["shape"]) {
                     null -> {
-                        Err(Error.Npy("no shape in header"))
+                        Err(CandleException.Npy("no shape in header"))
                     }
 
                     else -> {
@@ -383,7 +389,7 @@ public fun <R : Read> Tensor.Companion.fromReader(
         }
 
         DType.F6E2M3, DType.F6E3M2, DType.F4, DType.F8E8M0 -> {
-            Err(Error.UnsupportedDTypeForOp(dtype, "from_reader").bt())
+            Err(CandleException.UnsupportedDTypeForOp(dtype, "from_reader").bt())
         }
     }
 }
@@ -394,7 +400,7 @@ public fun readNpy(path: String): Tensor {
     val rawHeader = readHeader(reader)
     val header = Header.parse(rawHeader)
     if (header.fortranOrder) {
-        Err(Error.Npy("fortran order not supported"))
+        Err(CandleException.Npy("fortran order not supported"))
     }
     return Self.fromReader(header.shape(), header.descr, reader)
 }
@@ -414,7 +420,7 @@ public fun readNpz(path: String): List<Pair<String, Tensor>> {
         val rawHeader = readHeader(reader)
         val header = Header.parse(rawHeader)
         if (header.fortranOrder) {
-            Err(Error.Npy("fortran order not supported"))
+            Err(CandleException.Npy("fortran order not supported"))
         }
         val s = Self.fromReader(header.shape(), header.descr, reader)
         result.push(Pair(name, s))
@@ -439,7 +445,7 @@ public fun readNpzByName(
 
                 is CandleResult.Err -> {
                     Err(
-                        Error.Npy(
+                        CandleException.Npy(
                             "no array for $name in " +
                                 path.asRef(),
                         ),
@@ -449,7 +455,7 @@ public fun readNpzByName(
         val rawHeader = readHeader(reader)
         val header = Header.parse(rawHeader)
         if (header.fortranOrder) {
-            Err(Error.Npy("fortran order not supported"))
+            Err(CandleException.Npy("fortran order not supported"))
         }
         val s = Self.fromReader(header.shape(), header.descr, reader)
         result.push(s)
@@ -539,7 +545,7 @@ public class NpzTensors private constructor(
         val rawHeader = readHeader(reader)
         val header = Header.parse(rawHeader)
         if (header.fortranOrder) {
-            Err(Error.Npy("fortran order not supported"))
+            Err(CandleException.Npy("fortran order not supported"))
         }
         val tensor = Tensor.fromReader(header.shape(), header.descr, reader)
         return Ok(tensor)

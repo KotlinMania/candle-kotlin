@@ -1,6 +1,9 @@
 // port-lint: source cpu/kernels.rs
 package io.github.kotlinmania.candle
 
+import io.github.kotlinmania.half.BF16
+import io.github.kotlinmania.half.F16
+
 /**
  * Vectorized and scalar CPU kernel operations over contiguous slices.
  */
@@ -172,46 +175,57 @@ public object F32VecOps : VecOps<Float> {
     }
 }
 
-public object F16VecOps : VecOps<Float16> {
-    override val zero: () -> Float16 = { Float16.fromFloat(0.0f) }
-    override val add: (Float16, Float16) -> Float16 = { a, b -> Float16.fromFloat(a.toFloat() + b.toFloat()) }
-    override val mul: (Float16, Float16) -> Float16 = { a, b -> Float16.fromFloat(a.toFloat() * b.toFloat()) }
+public object F16VecOps : VecOps<io.github.kotlinmania.half.F16> {
+    override val zero: () -> io.github.kotlinmania.half.F16 = {
+        io.github.kotlinmania.half.F16
+            .fromFloat(0.0f)
+    }
+    override val add: (io.github.kotlinmania.half.F16, io.github.kotlinmania.half.F16) -> io.github.kotlinmania.half.F16 = { a, b ->
+        io.github.kotlinmania.half.F16
+            .fromFloat(a.toFloat() + b.toFloat())
+    }
+    override val mul: (io.github.kotlinmania.half.F16, io.github.kotlinmania.half.F16) -> io.github.kotlinmania.half.F16 = { a, b ->
+        io.github.kotlinmania.half.F16
+            .fromFloat(a.toFloat() * b.toFloat())
+    }
 
     override fun min(
-        lhs: Float16,
-        rhs: Float16,
-    ): Float16 = Self.min(lhs, rhs)
+        lhs: io.github.kotlinmania.half.F16,
+        rhs: io.github.kotlinmania.half.F16,
+    ): io.github.kotlinmania.half.F16 = Self.min(lhs, rhs)
 
     override fun max(
-        lhs: Float16,
-        rhs: Float16,
-    ): Float16 = Self.max(lhs, rhs)
+        lhs: io.github.kotlinmania.half.F16,
+        rhs: io.github.kotlinmania.half.F16,
+    ): io.github.kotlinmania.half.F16 = Self.max(lhs, rhs)
 
     override fun vecAdd(
-        lhs: List<Float16>,
-        rhs: List<Float16>,
-        res: MutableList<Float16>,
+        lhs: List<io.github.kotlinmania.half.F16>,
+        rhs: List<io.github.kotlinmania.half.F16>,
+        res: MutableList<io.github.kotlinmania.half.F16>,
     ) {
         vecAddF16(lhs.asPtr(), rhs.asPtr(), res.asMutPtr(), lhs.len())
     }
 
     override fun scalarAdd(
-        scalar: Float16,
-        xs: List<Float16>,
-        ys: MutableList<Float16>,
+        scalar: io.github.kotlinmania.half.F16,
+        xs: List<io.github.kotlinmania.half.F16>,
+        ys: MutableList<io.github.kotlinmania.half.F16>,
     ) {
         vecScalarAddF16(scalar, xs.asPtr(), ys.asMutPtr(), xs.len())
     }
 
     override fun vecDot(
-        lhs: List<Float16>,
-        rhs: List<Float16>,
-        res: MutableList<Float16>,
+        lhs: List<io.github.kotlinmania.half.F16>,
+        rhs: List<io.github.kotlinmania.half.F16>,
+        res: MutableList<io.github.kotlinmania.half.F16>,
         len: Int,
     ) {
         val resF32 = FloatArray(1) { 0f }
         vecDotF16(lhs, rhs, resF32, len)
-        res[0] = Float16.fromF32(resF32[0])
+        res[0] =
+            io.github.kotlinmania.half.F16
+                .fromF32(resF32[0])
     }
 }
 
@@ -247,46 +261,57 @@ public object F64VecOps : VecOps<Double> {
     }
 }
 
-public object BF16VecOps : VecOps<BFloat16> {
-    override val zero: () -> BFloat16 = { BFloat16.fromFloat(0.0f) }
-    override val add: (BFloat16, BFloat16) -> BFloat16 = { a, b -> BFloat16.fromFloat(a.toFloat() + b.toFloat()) }
-    override val mul: (BFloat16, BFloat16) -> BFloat16 = { a, b -> BFloat16.fromFloat(a.toFloat() * b.toFloat()) }
+public object BF16VecOps : VecOps<io.github.kotlinmania.half.BF16> {
+    override val zero: () -> io.github.kotlinmania.half.BF16 = {
+        io.github.kotlinmania.half.BF16
+            .fromFloat(0.0f)
+    }
+    override val add: (io.github.kotlinmania.half.BF16, io.github.kotlinmania.half.BF16) -> io.github.kotlinmania.half.BF16 = { a, b ->
+        io.github.kotlinmania.half.BF16
+            .fromFloat(a.toFloat() + b.toFloat())
+    }
+    override val mul: (io.github.kotlinmania.half.BF16, io.github.kotlinmania.half.BF16) -> io.github.kotlinmania.half.BF16 = { a, b ->
+        io.github.kotlinmania.half.BF16
+            .fromFloat(a.toFloat() * b.toFloat())
+    }
 
     override fun min(
-        lhs: BFloat16,
-        rhs: BFloat16,
-    ): BFloat16 = Self.min(lhs, rhs)
+        lhs: io.github.kotlinmania.half.BF16,
+        rhs: io.github.kotlinmania.half.BF16,
+    ): io.github.kotlinmania.half.BF16 = Self.min(lhs, rhs)
 
     override fun max(
-        lhs: BFloat16,
-        rhs: BFloat16,
-    ): BFloat16 = Self.max(lhs, rhs)
+        lhs: io.github.kotlinmania.half.BF16,
+        rhs: io.github.kotlinmania.half.BF16,
+    ): io.github.kotlinmania.half.BF16 = Self.max(lhs, rhs)
 
     override fun vecAdd(
-        lhs: List<BFloat16>,
-        rhs: List<BFloat16>,
-        res: MutableList<BFloat16>,
+        lhs: List<io.github.kotlinmania.half.BF16>,
+        rhs: List<io.github.kotlinmania.half.BF16>,
+        res: MutableList<io.github.kotlinmania.half.BF16>,
     ) {
         vecAddBf16(lhs.asPtr(), rhs.asPtr(), res.asMutPtr(), lhs.len())
     }
 
     override fun scalarAdd(
-        scalar: BFloat16,
-        xs: List<BFloat16>,
-        ys: MutableList<BFloat16>,
+        scalar: io.github.kotlinmania.half.BF16,
+        xs: List<io.github.kotlinmania.half.BF16>,
+        ys: MutableList<io.github.kotlinmania.half.BF16>,
     ) {
         vecScalarAddBf16(scalar, xs.asPtr(), ys.asMutPtr(), xs.len())
     }
 
     override fun vecDot(
-        lhs: List<BFloat16>,
-        rhs: List<BFloat16>,
-        res: MutableList<BFloat16>,
+        lhs: List<io.github.kotlinmania.half.BF16>,
+        rhs: List<io.github.kotlinmania.half.BF16>,
+        res: MutableList<io.github.kotlinmania.half.BF16>,
         len: Int,
     ) {
         val resF32 = FloatArray(1) { 0f }
         vecDotBf16(lhs, rhs, resF32, len)
-        res[0] = BFloat16.fromF32(resF32[0])
+        res[0] =
+            io.github.kotlinmania.half.BF16
+                .fromF32(resF32[0])
     }
 }
 
@@ -461,24 +486,40 @@ private val vecSum: (List<Float>, MutableList<Float>, Int) -> Unit = { xs, res, 
         .vecSum(xs.toFloatArray(), out, len)
     res[0] = out[0]
 }
-private val vecAddF16: (List<Float16>, List<Float16>, MutableList<Float16>, Int) -> Unit = { lhs, rhs, res, len ->
-    for (i in 0 until len) res[i] = Float16.fromFloat(lhs[i].toFloat() + rhs[i].toFloat())
+private val vecAddF16: (List<io.github.kotlinmania.half.F16>, List<io.github.kotlinmania.half.F16>, MutableList<io.github.kotlinmania.half.F16>, Int) -> Unit = { lhs, rhs, res, len ->
+    for (i in 0 until len) {
+        res[i] =
+            io.github.kotlinmania.half.F16
+                .fromFloat(lhs[i].toFloat() + rhs[i].toFloat())
+    }
 }
-private val vecScalarAddF16: (Float16, List<Float16>, MutableList<Float16>, Int) -> Unit = { scalar, xs, ys, len ->
-    for (i in 0 until len) ys[i] = Float16.fromFloat(xs[i].toFloat() + scalar.toFloat())
+private val vecScalarAddF16: (io.github.kotlinmania.half.F16, List<io.github.kotlinmania.half.F16>, MutableList<io.github.kotlinmania.half.F16>, Int) -> Unit = { scalar, xs, ys, len ->
+    for (i in 0 until len) {
+        ys[i] =
+            io.github.kotlinmania.half.F16
+                .fromFloat(xs[i].toFloat() + scalar.toFloat())
+    }
 }
-private val vecDotF16: (List<Float16>, List<Float16>, FloatArray, Int) -> Unit = { lhs, rhs, res, len ->
+private val vecDotF16: (List<io.github.kotlinmania.half.F16>, List<io.github.kotlinmania.half.F16>, FloatArray, Int) -> Unit = { lhs, rhs, res, len ->
     var acc = 0f
     for (i in 0 until len) acc += lhs[i].toFloat() * rhs[i].toFloat()
     res[0] = acc
 }
-private val vecAddBf16: (List<BFloat16>, List<BFloat16>, MutableList<BFloat16>, Int) -> Unit = { lhs, rhs, res, len ->
-    for (i in 0 until len) res[i] = BFloat16.fromFloat(lhs[i].toFloat() + rhs[i].toFloat())
+private val vecAddBf16: (List<io.github.kotlinmania.half.BF16>, List<io.github.kotlinmania.half.BF16>, MutableList<io.github.kotlinmania.half.BF16>, Int) -> Unit = { lhs, rhs, res, len ->
+    for (i in 0 until len) {
+        res[i] =
+            io.github.kotlinmania.half.BF16
+                .fromFloat(lhs[i].toFloat() + rhs[i].toFloat())
+    }
 }
-private val vecScalarAddBf16: (BFloat16, List<BFloat16>, MutableList<BFloat16>, Int) -> Unit = { scalar, xs, ys, len ->
-    for (i in 0 until len) ys[i] = BFloat16.fromFloat(xs[i].toFloat() + scalar.toFloat())
+private val vecScalarAddBf16: (io.github.kotlinmania.half.BF16, List<io.github.kotlinmania.half.BF16>, MutableList<io.github.kotlinmania.half.BF16>, Int) -> Unit = { scalar, xs, ys, len ->
+    for (i in 0 until len) {
+        ys[i] =
+            io.github.kotlinmania.half.BF16
+                .fromFloat(xs[i].toFloat() + scalar.toFloat())
+    }
 }
-private val vecDotBf16: (List<BFloat16>, List<BFloat16>, FloatArray, Int) -> Unit = { lhs, rhs, res, len ->
+private val vecDotBf16: (List<io.github.kotlinmania.half.BF16>, List<io.github.kotlinmania.half.BF16>, FloatArray, Int) -> Unit = { lhs, rhs, res, len ->
     var acc = 0f
     for (i in 0 until len) acc += lhs[i].toFloat() * rhs[i].toFloat()
     res[0] = acc

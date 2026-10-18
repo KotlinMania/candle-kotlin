@@ -724,8 +724,6 @@ public data class ShapeWithOneHole5Hole4(
     }
 }
 
-public typealias ShapeDim = Dim
-
 public data class MatmulBroadcastShapes(
     val lhs: Shape,
     val rhs: Shape,
@@ -733,7 +731,7 @@ public data class MatmulBroadcastShapes(
     public val first: Shape get() = lhs
     public val second: Shape get() = rhs
 
-    public inline fun unwrapOrElse(f: (CandleError) -> MatmulBroadcastShapes): MatmulBroadcastShapes = this
+    public inline fun unwrapOrElse(f: (CandleException) -> MatmulBroadcastShapes): MatmulBroadcastShapes = this
 
     public fun getOrThrow(): MatmulBroadcastShapes = this
 }
@@ -745,9 +743,9 @@ public data class Dims2(
     public val first: Int get() = d0
     public val second: Int get() = d1
 
-    public inline fun unwrapOrElse(f: (CandleError) -> Dims2): Dims2 = this
+    public inline fun unwrapOrElse(f: (CandleException) -> Dims2): Dims2 = this
 
-    public inline fun getOrElse(f: (CandleError) -> Dims2): Dims2 = this
+    public inline fun getOrElse(f: (CandleException) -> Dims2): Dims2 = this
 
     public fun getOrThrow(): Dims2 = this
 }
@@ -761,9 +759,9 @@ public data class Dims3(
     public val second: Int get() = d1
     public val third: Int get() = d2
 
-    public inline fun unwrapOrElse(f: (CandleError) -> Dims3): Dims3 = this
+    public inline fun unwrapOrElse(f: (CandleException) -> Dims3): Dims3 = this
 
-    public inline fun getOrElse(f: (CandleError) -> Dims3): Dims3 = this
+    public inline fun getOrElse(f: (CandleException) -> Dims3): Dims3 = this
 
     public fun getOrThrow(): Dims3 = this
 }
@@ -774,9 +772,9 @@ public data class Dims4(
     val d2: Int,
     val d3: Int,
 ) {
-    public inline fun unwrapOrElse(f: (CandleError) -> Dims4): Dims4 = this
+    public inline fun unwrapOrElse(f: (CandleException) -> Dims4): Dims4 = this
 
-    public inline fun getOrElse(f: (CandleError) -> Dims4): Dims4 = this
+    public inline fun getOrElse(f: (CandleException) -> Dims4): Dims4 = this
 
     public fun getOrThrow(): Dims4 = this
 }
@@ -788,9 +786,9 @@ public data class Dims5(
     val d3: Int,
     val d4: Int,
 ) {
-    public inline fun unwrapOrElse(f: (CandleError) -> Dims5): Dims5 = this
+    public inline fun unwrapOrElse(f: (CandleException) -> Dims5): Dims5 = this
 
-    public inline fun getOrElse(f: (CandleError) -> Dims5): Dims5 = this
+    public inline fun getOrElse(f: (CandleException) -> Dims5): Dims5 = this
 
     public fun getOrThrow(): Dims5 = this
 }

@@ -1,8 +1,6 @@
 // port-lint: source nditer.rs
 package io.github.kotlinmania.candle
 
-public typealias Item = IntArray
-
 /**
  * Maximum tensor rank supported by [NdIter].
  */

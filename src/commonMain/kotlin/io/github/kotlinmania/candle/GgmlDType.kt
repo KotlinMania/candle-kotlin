@@ -1,5 +1,8 @@
 package io.github.kotlinmania.candle
 
+import io.github.kotlinmania.half.BF16
+import io.github.kotlinmania.half.F16
+
 private fun <T> MutableList<T>.asPtr(): ByteArray = ByteArray(0)
 
 private fun GgmlDType.zeros(): Any =
@@ -64,7 +67,7 @@ enum class GgmlDType {
      */
     fun cpuZeros(elemCount: Int): QuantizedType =
         when (self) {
-            F32 -> QuantizedVec.new(MutableList(elemCount) { F32Scalar.zeros() }, F32GgmlType)
+            F32 -> QuantizedVec.new(MutableList(elemCount) { Float.zeros() }, F32GgmlType)
             F16 -> QuantizedVec.new(MutableList(elemCount) { F16.zeros() }, F16)
             Q4_0 -> QuantizedVec.new(MutableList(elemCount / BlockQ40.BLCK_SIZE) { BlockQ40.zeros() }, BlockQ40)
             Q4_1 -> QuantizedVec.new(MutableList(elemCount / BlockQ41.BLCK_SIZE) { BlockQ41.zeros() }, BlockQ41)
@@ -197,7 +200,11 @@ enum class GgmlDType {
                     // https://github.com/ggerganov/ggml/blob/29d87fc6676e7ed0cdfdec0804b06001d9c2bb44/include/ggml.h#L389
                     30u -> BF16
 
-                    else -> return CandleResult.Err(CandleError.Msg("unknown dtype for tensor $u").bt())
+                    else -> return CandleResult.Err(
+                        CandleException
+                            .Msg("unknown dtype for tensor $u")
+                            .bt(),
+                    )
                 }
             return CandleResult.Ok(dtype)
         }
@@ -241,7 +248,7 @@ interface QuantizedType {
 
 internal class QuantizedVec<E : Any> internal constructor(
     internal val blocks: MutableList<E>,
-    private val T: GgmlTypeCompanion<E, *>,
+    private val T: GgmlType<E, *>,
 ) : QuantizedType {
     private val self: MutableList<E> get() = blocks
 

@@ -1,5 +1,7 @@
 package io.github.kotlinmania.candle
 
+import io.github.kotlinmania.half.F16
+
 private val FloatArray.len: () -> Int get() = { this.size }
 private val Int.isMultipleOf: (Int) -> Boolean get() = { d -> d > 0 && this % d == 0 }
 
@@ -14,12 +16,14 @@ private fun checkShape(
     val dims = shape.dims()
     if (dims.isEmpty()) {
         return CandleResult.Err(
-            CandleError.Msg("scalar tensor cannot be quantized $shape").bt(),
+            CandleException
+                .Msg("scalar tensor cannot be quantized $shape")
+                .bt(),
         )
     }
     if (!dims[dims.size - 1].isMultipleOf(blockSize)) {
         return CandleResult.Err(
-            CandleError
+            CandleException
                 .Msg(
                     "quantized tensor must have their last dim divisible by block size $shape $blockSize",
                 ).bt(),
@@ -118,7 +122,11 @@ class QTensor(
             }
 
             is QStorage.Metal, is QStorage.Cpu -> {
-                CandleResult.Err(CandleError.Msg("not implemented").bt())
+                CandleResult.Err(
+                    CandleException
+                        .Msg("not implemented")
+                        .bt(),
+                )
             }
         }
 
@@ -137,7 +145,9 @@ class QTensor(
         layout: Layout,
     ): Pair<CpuStorage, Shape> {
         if (!layout.isContiguous()) {
-            throw CandleError.Msg("input tensor is not contiguous $layout").bt()
+            throw CandleException
+                .Msg("input tensor is not contiguous $layout")
+                .bt()
         }
         val srcShape = layout.shape()
         // self is transposed so n is first then k.
@@ -145,19 +155,30 @@ class QTensor(
         val n = nk.first
         val k = nk.second
         if (srcShape.rank() < 2) {
-            throw CandleError.Msg("input tensor has only one dimension $layout").bt()
+            throw CandleException
+                .Msg("input tensor has only one dimension $layout")
+                .bt()
         }
         val dstShapeDims = srcShape.dims().toList().toVec()
         val lastK = dstShapeDims.pop()!!
         if (lastK != k) {
-            throw CandleError.Msg("input tensor $layout incompatible with ${self.shape}").bt()
+            throw CandleException
+                .Msg("input tensor $layout incompatible with ${self.shape}")
+                .bt()
         }
         dstShapeDims.push(n)
         val dstShape = Shape.fromDims(dstShapeDims.toIntArray())
         val selfStorage =
             when (val st = self.storage) {
-                is QStorage.Cpu -> st.storage
-                is QStorage.Metal, is QStorage.Cuda -> throw CandleError.Msg("Invalid storage").bt()
+                is QStorage.Cpu -> {
+                    st.storage
+                }
+
+                is QStorage.Metal, is QStorage.Cuda -> {
+                    throw CandleException
+                        .Msg("Invalid storage")
+                        .bt()
+                }
             }
         return when (storage.dtype()) {
             DType.F32 -> {
@@ -189,7 +210,9 @@ class QTensor(
             }
 
             else -> {
-                throw CandleError.Msg("Expected f32/f16").bt()
+                throw CandleException
+                    .Msg("Expected f32/f16")
+                    .bt()
             }
         }
     }
@@ -259,7 +282,7 @@ class QTensor(
             val elemCount = shape.elemCount()
             if (!elemCount.isMultipleOf(blockSize)) {
                 return CandleResult.Err(
-                    CandleError
+                    CandleException
                         .Msg(
                             "tensor size ($shape) is not divisible by block size $blockSize",
                         ).bt(),
@@ -285,7 +308,7 @@ class QTensor(
             val nPerRow = src.dim(D.Minus1).unwrapOrElse { return CandleResult.Err(it) }
             if (imatrixWeights.len() != nPerRow) {
                 return CandleResult.Err(
-                    CandleError
+                    CandleException
                         .Msg(
                             "imatrix weights must have the same length ${imatrixWeights.len()} as the last dim of src $nPerRow",
                         ).bt(),
@@ -304,7 +327,7 @@ class QTensor(
             val elemCount = shape.elemCount()
             if (!elemCount.isMultipleOf(blockSize)) {
                 return CandleResult.Err(
-                    CandleError
+                    CandleException
                         .Msg(
                             "tensor size ($shape) is not divisible by block size $blockSize",
                         ).bt(),
@@ -331,7 +354,7 @@ class QTensor(
         ): CandleResult<QTensor> {
             if (!src.device().isCpu()) {
                 return CandleResult.Err(
-                    CandleError
+                    CandleException
                         .Msg(
                             "`quantizeOnto` expects a `src` to be on the cpu, got ${src.device()}.",
                         ).bt(),
@@ -342,7 +365,7 @@ class QTensor(
             val nPerRow = src.dim(D.Minus1).unwrapOrElse { return CandleResult.Err(it) }
             if (imatrixWeights.len() != nPerRow) {
                 return CandleResult.Err(
-                    CandleError
+                    CandleException
                         .Msg(
                             "imatrix weights must have the same length ${imatrixWeights.len()} as the last dim of src $nPerRow",
                         ).bt(),
@@ -360,7 +383,7 @@ class QTensor(
             val elemCount = shape.elemCount()
             if (!elemCount.isMultipleOf(blockSize)) {
                 return CandleResult.Err(
-                    CandleError
+                    CandleException
                         .Msg(
                             "tensor size ($shape) is not divisible by block size $blockSize",
                         ).bt(),
@@ -389,7 +412,7 @@ class QTensor(
         ): CandleResult<QTensor> {
             if (!src.device().isCpu()) {
                 return CandleResult.Err(
-                    CandleError
+                    CandleException
                         .Msg(
                             "`quantizeOnto` expects a `src` to be on the cpu, got ${src.device()}.",
                         ).bt(),
@@ -407,7 +430,7 @@ class QTensor(
             val elemCount = shape.elemCount()
             if (!elemCount.isMultipleOf(blockSize)) {
                 return CandleResult.Err(
-                    CandleError
+                    CandleException
                         .Msg(
                             "tensor size ($shape) is not divisible by block size $blockSize",
                         ).bt(),

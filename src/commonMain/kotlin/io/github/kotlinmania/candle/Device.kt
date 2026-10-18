@@ -1,6 +1,10 @@
 // port-lint: source device.rs
 package io.github.kotlinmania.candle
 
+import io.github.kotlinmania.float8.F8E4M3
+import io.github.kotlinmania.half.BF16
+import io.github.kotlinmania.half.F16
+
 /**
  * A `DeviceLocation` represents a physical device whereas multiple `Device`
  * can live on the same location (typically for cuda devices).
@@ -63,8 +67,8 @@ public interface NdArray {
                 is Short -> CpuStorage.I16(shortArrayOf(value))
                 is Int -> CpuStorage.I32(intArrayOf(value))
                 is Long -> CpuStorage.I64(longArrayOf(value))
-                is BFloat16 -> CpuStorage.BF16(shortArrayOf(value.bits))
-                is Float16 -> CpuStorage.F16(shortArrayOf(value.bits))
+                is io.github.kotlinmania.half.BF16 -> CpuStorage.BF16(shortArrayOf(value.bits))
+                is io.github.kotlinmania.half.F16 -> CpuStorage.F16(shortArrayOf(value.bits))
                 is Float -> CpuStorage.F32(floatArrayOf(value))
                 is Double -> CpuStorage.F64(doubleArrayOf(value))
                 is F8E4M3 -> CpuStorage.F8E4M3(byteArrayOf(value.bits))
@@ -86,8 +90,8 @@ public interface NdArray {
                 is Short -> CpuStorage.I16(ShortArray(values.size) { values[it] as Short })
                 is Int -> CpuStorage.I32(IntArray(values.size) { values[it] as Int })
                 is Long -> CpuStorage.I64(LongArray(values.size) { values[it] as Long })
-                is BFloat16 -> CpuStorage.BF16(ShortArray(values.size) { (values[it] as BFloat16).bits })
-                is Float16 -> CpuStorage.F16(ShortArray(values.size) { (values[it] as Float16).bits })
+                is io.github.kotlinmania.half.BF16 -> CpuStorage.BF16(ShortArray(values.size) { (values[it] as io.github.kotlinmania.half.BF16).bits })
+                is io.github.kotlinmania.half.F16 -> CpuStorage.F16(ShortArray(values.size) { (values[it] as io.github.kotlinmania.half.F16).bits })
                 is Float -> CpuStorage.F32(FloatArray(values.size) { values[it] as Float })
                 is Double -> CpuStorage.F64(DoubleArray(values.size) { values[it] as Double })
                 is F8E4M3 -> CpuStorage.F8E4M3(ByteArray(values.size) { (values[it] as F8E4M3).bits })

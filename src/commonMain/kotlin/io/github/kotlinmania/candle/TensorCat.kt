@@ -86,7 +86,7 @@ public fun Tensor.Companion.cat(
  */
 public fun Tensor.Companion.cat(
     args: List<Tensor>,
-    dim: ShapeDim,
+    dim: Dim,
 ): Tensor {
     if (args.isEmpty()) {
         throw CandleException.OpRequiresAtLeastOneTensor("cat")
@@ -330,7 +330,7 @@ public fun Tensor.sliceSet(
  */
 public fun Tensor.sliceSet(
     src: Tensor,
-    dim: ShapeDim,
+    dim: Dim,
     offset: Int,
 ) {
     val dimIdx = dim.toIndex(shape(), "slice-set")

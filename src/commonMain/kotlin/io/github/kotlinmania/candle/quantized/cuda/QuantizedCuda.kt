@@ -21,7 +21,6 @@ import io.github.kotlinmania.candle.Device
 import io.github.kotlinmania.candle.F16GgmlType
 import io.github.kotlinmania.candle.F32GgmlType
 import io.github.kotlinmania.candle.GgmlDType
-import io.github.kotlinmania.candle.GgmlTypeCompanion
 import io.github.kotlinmania.candle.Layout
 import io.github.kotlinmania.candle.QStorage
 import io.github.kotlinmania.candle.Shape
@@ -29,9 +28,8 @@ import io.github.kotlinmania.candle.Storage
 import io.github.kotlinmania.candle.Test
 import io.github.kotlinmania.candle.bail
 import io.github.kotlinmania.candle.cuda.CudaStorageSlice
-import io.github.kotlinmania.candle.BFloat16 as BF16
-import io.github.kotlinmania.candle.CandleError as Error
-import io.github.kotlinmania.candle.Float16 as F16
+import io.github.kotlinmania.half.BF16
+import io.github.kotlinmania.half.F16
 
 internal class CudaSlice(
     val bytes: ByteArray,
@@ -108,7 +106,7 @@ private val CudaDevice.storageFromCpuStorage: (CpuStorage) -> CudaStorage get() 
 private val String.builder: () -> MutableList<Any?> get() = { mutableListOf(this) }
 private val MutableList<Any?>.arg: (Any?) -> Unit get() = { add(it) }
 private val MutableList<Any?>.launch: (Any?) -> MutableList<Any?> get() = {
-    throw Error.NotCompiledWithCudaSupport
+    throw io.github.kotlinmania.candle.CandleException.NotCompiledWithCudaSupport
 }
 private val MutableList<Any?>.w: () -> Unit get() = { }
 private val barg: (MutableList<Any?>, Any?, Any?, Any?, Any?, Any?, Any?) -> Unit get() = { b, a1, a2, a3, a4, a5, a6 ->
@@ -177,7 +175,7 @@ class QCudaStorage internal constructor(
             buffer: ByteArray,
             n: Int,
             dst: FloatArray,
-            companion: GgmlTypeCompanion<T, *>,
+            companion: io.github.kotlinmania.candle.GgmlType<T, *>,
         ) {
             val slice = buffer.slice(0 until minOf(buffer.size, n))
             val vec = slice.toList()
@@ -422,7 +420,11 @@ class QCudaStorage internal constructor(
         val rhsSlice0 = rhs.asCudaSlice<Float>()
         val offsets =
             rhsL.contiguousOffsets()
-                ?: Err(Error.RequiresContiguous(op = "dmmv").bt())
+                ?: Err(
+                    io.github.kotlinmania.candle.CandleException
+                        .RequiresContiguous(op = "dmmv")
+                        .bt(),
+                )
         val rhsSlice = rhsSlice0.subList(offsets.first, minOf(offsets.second, rhsSlice0.size)).toFloatArray()
         val dims = rhsL.shape().dims()
         val (bSize, k) =
@@ -482,7 +484,7 @@ class QCudaStorage internal constructor(
                 val offsets =
                     layout.contiguousOffsets()
                         ?: Err(
-                            Error
+                            io.github.kotlinmania.candle.CandleException
                                 .RequiresContiguous(
                                     op = "quantized-matmul",
                                 ).bt(),
@@ -1094,7 +1096,7 @@ private fun indexedMoeForwardFusedQ81Input(
 fun <T> loadQuantized(
     device: CudaDevice,
     data: List<T>,
-    companion: GgmlTypeCompanion<T, *>? = null,
+    companion: io.github.kotlinmania.candle.GgmlType<T, *>? = null,
 ): QStorage {
     val dtype =
         companion?.DTYPE ?: when (data.firstOrNull()) {

@@ -3,6 +3,9 @@ package io.github.kotlinmania.candle
 
 import io.github.kotlinmania.candle.CandleResult.Err
 import io.github.kotlinmania.candle.CandleResult.Ok
+import io.github.kotlinmania.float8.F8E4M3
+import io.github.kotlinmania.half.BF16
+import io.github.kotlinmania.half.F16
 
 /**
  * Types for elements that can be stored and manipulated using tensors.
@@ -245,13 +248,6 @@ public object IntDTypeI32 : IntDType<Int> {
 }
 
 public interface FloatDType<T> : WithDType<T>
-
-public typealias Float16 = io.github.kotlinmania.half.F16
-public typealias BFloat16 = io.github.kotlinmania.half.BF16
-public typealias F16 = io.github.kotlinmania.half.F16
-public typealias BF16 = io.github.kotlinmania.half.BF16
-public typealias F8E4M3 = io.github.kotlinmania.float8.F8E4M3
-public typealias F8E5M2 = io.github.kotlinmania.float8.F8E5M2
 
 public object Float16Utils {
     public val floatToF16Bits: (Float) -> Short = { value ->

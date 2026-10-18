@@ -1,6 +1,8 @@
 // port-lint: source quantized/k_quants.rs
 package io.github.kotlinmania.candle
 
+import io.github.kotlinmania.half.BF16
+import io.github.kotlinmania.half.F16
 import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
@@ -23,8 +25,6 @@ const val QK5_0: Int = QK50
 const val QK5_1: Int = QK51
 const val QK8_0: Int = QK80
 const val QK8_1: Int = QK81
-
-typealias GgmlTypeCompanion<T, V> = GgmlType<T, V>
 
 interface GgmlType<T, V> {
     interface VecDotType
@@ -2445,14 +2445,6 @@ fun <T, V> matmulF16(
     }
     return CandleResult.Ok(Unit)
 }
-
-public typealias U8Scalar = UByte
-public typealias U32Scalar = UInt
-public typealias I16Scalar = Short
-public typealias I32Scalar = Int
-public typealias I64Scalar = Long
-public typealias F32Scalar = Float
-public typealias F64Scalar = Double
 
 internal fun Float.Companion.zeros(): Float = F32GgmlType.zeros()
 

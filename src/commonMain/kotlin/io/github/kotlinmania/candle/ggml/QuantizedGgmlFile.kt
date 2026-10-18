@@ -4,7 +4,7 @@
  */
 package io.github.kotlinmania.candle.ggml
 
-import io.github.kotlinmania.candle.BF16
+import io.github.kotlinmania.byteorder.LittleEndian
 import io.github.kotlinmania.candle.BlockQ2K
 import io.github.kotlinmania.candle.BlockQ3K
 import io.github.kotlinmania.candle.BlockQ40
@@ -21,12 +21,9 @@ import io.github.kotlinmania.candle.CandleResult
 import io.github.kotlinmania.candle.CandleResult.Err
 import io.github.kotlinmania.candle.CandleResult.Ok
 import io.github.kotlinmania.candle.Device
-import io.github.kotlinmania.candle.F16
 import io.github.kotlinmania.candle.F32GgmlType
-import io.github.kotlinmania.candle.F32Scalar
 import io.github.kotlinmania.candle.GgmlDType
 import io.github.kotlinmania.candle.HashMap
-import io.github.kotlinmania.candle.LittleEndian
 import io.github.kotlinmania.candle.NpyByteReader
 import io.github.kotlinmania.candle.QStorage
 import io.github.kotlinmania.candle.QTensor
@@ -43,10 +40,12 @@ import io.github.kotlinmania.candle.iter
 import io.github.kotlinmania.candle.loadQuantized
 import io.github.kotlinmania.candle.product
 import io.github.kotlinmania.candle.push
+import io.github.kotlinmania.half.BF16
+import io.github.kotlinmania.half.F16
 
 private inline fun <reified T : Any> companionOf(): Any =
     when (T::class) {
-        F32Scalar::class -> F32GgmlType
+        Float::class -> F32GgmlType
         F16::class -> F16
         BF16::class -> BF16
         BlockQ40::class -> BlockQ40
@@ -238,7 +237,7 @@ public fun qtensorFromGgml(
 
     return when (ggmlDtype) {
         GgmlDType.F32 -> {
-            fromRawData<F32Scalar>(rawData, sizeInBytes, dims, device)
+            fromRawData<Float>(rawData, sizeInBytes, dims, device)
         }
 
         GgmlDType.F16 -> {

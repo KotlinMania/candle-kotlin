@@ -1,6 +1,8 @@
 package io.github.kotlinmania.candle
 
 import io.github.kotlinmania.envie.getenv
+import io.github.kotlinmania.half.BF16
+import io.github.kotlinmania.half.F16
 import io.github.kotlinmania.threadlocal.ThreadLocal
 
 private val ByteArray.len: () -> Int get() = { this.size }
@@ -105,7 +107,11 @@ sealed class QStorage {
             }
 
             else -> {
-                return CandleResult.Err(CandleError.Msg("Invalid quantize storage locations do not match").bt())
+                return CandleResult.Err(
+                    CandleException
+                        .Msg("Invalid quantize storage locations do not match")
+                        .bt(),
+                )
             }
         }
         return CandleResult.Ok(Unit)
@@ -134,7 +140,11 @@ sealed class QStorage {
             }
 
             else -> {
-                return CandleResult.Err(CandleError.Msg("Invalid quantize storage locations do not match").bt())
+                return CandleResult.Err(
+                    CandleException
+                        .Msg("Invalid quantize storage locations do not match")
+                        .bt(),
+                )
             }
         }
         return CandleResult.Ok(Unit)
@@ -155,7 +165,11 @@ sealed class QStorage {
             }
 
             else -> {
-                return CandleResult.Err(CandleError.Msg("Invalid quantize source storage locations: not on cpu").bt())
+                return CandleResult.Err(
+                    CandleException
+                        .Msg("Invalid quantize source storage locations: not on cpu")
+                        .bt(),
+                )
             }
         }
         return CandleResult.Ok(Unit)
@@ -196,7 +210,11 @@ sealed class QStorage {
             }
 
             else -> {
-                return CandleResult.Err(CandleError.Msg("Invalid quantize storage locations do not match").bt())
+                return CandleResult.Err(
+                    CandleException
+                        .Msg("Invalid quantize storage locations do not match")
+                        .bt(),
+                )
             }
         }
         return CandleResult.Ok(Unit)
@@ -249,7 +267,11 @@ sealed class QStorage {
             }
 
             is Metal, is Cpu -> {
-                CandleResult.Err(CandleError.Msg("not implemented").bt())
+                CandleResult.Err(
+                    CandleException
+                        .Msg("not implemented")
+                        .bt(),
+                )
             }
         }
 
@@ -265,7 +287,11 @@ sealed class QStorage {
             }
 
             is Metal, is Cpu -> {
-                CandleResult.Err(CandleError.Msg("not implemented").bt())
+                CandleResult.Err(
+                    CandleException
+                        .Msg("not implemented")
+                        .bt(),
+                )
             }
         }
 
@@ -390,7 +416,7 @@ internal object QuantizedHelper {
 
     val asPtrBytes: (ByteArray, MutableList<out Any>, Any) -> ByteArray = { _, list, comp ->
         when (comp) {
-            F32GgmlType, GgmlDType.F32, Float -> F32GgmlType.toBytes(list.map { it as F32Scalar })
+            F32GgmlType, GgmlDType.F32, Float -> F32GgmlType.toBytes(list.map { it as Float })
             F16GgmlType, GgmlDType.F16, F16 -> F16GgmlType.toBytes(list.map { it as F16 })
             BF16GgmlType, GgmlDType.BF16, BF16 -> BF16GgmlType.toBytes(list.map { it as BF16 })
             BlockQ40 -> BlockQ40.toBytes(list.map { it as BlockQ40 })
@@ -421,15 +447,33 @@ internal object QuantizedHelper {
 
     val asSliceF32: (CpuStorage) -> CandleResult<FloatArray> = { s ->
         when (s) {
-            is CpuStorage.F32 -> CandleResult.Ok(s.data)
-            else -> CandleResult.Err(CandleError.Msg("expected f32 storage").bt())
+            is CpuStorage.F32 -> {
+                CandleResult.Ok(s.data)
+            }
+
+            else -> {
+                CandleResult.Err(
+                    CandleException
+                        .Msg("expected f32 storage")
+                        .bt(),
+                )
+            }
         }
     }
 
     val asSliceF16: (CpuStorage) -> CandleResult<Array<F16>> = { s ->
         when (s) {
-            is CpuStorage.F16 -> CandleResult.Ok(Array(s.data.size) { F16(s.data[it].toUShort()) })
-            else -> CandleResult.Err(CandleError.Msg("expected f16 storage").bt())
+            is CpuStorage.F16 -> {
+                CandleResult.Ok(Array(s.data.size) { F16(s.data[it].toUShort()) })
+            }
+
+            else -> {
+                CandleResult.Err(
+                    CandleException
+                        .Msg("expected f16 storage")
+                        .bt(),
+                )
+            }
         }
     }
 
@@ -473,7 +517,7 @@ internal object QuantizedHelper {
 
     val createQuantizedVec: (MutableList<out Any>, Any) -> QuantizedType = { list, comp ->
         when (comp) {
-            F32GgmlType, GgmlDType.F32, Float -> QuantizedVec(list.map { it as F32Scalar }.toMutableList(), F32GgmlType)
+            F32GgmlType, GgmlDType.F32, Float -> QuantizedVec(list.map { it as Float }.toMutableList(), F32GgmlType)
             F16GgmlType, GgmlDType.F16, F16 -> QuantizedVec(list.map { it as F16 }.toMutableList(), F16GgmlType)
             BF16GgmlType, GgmlDType.BF16, BF16 -> QuantizedVec(list.map { it as BF16 }.toMutableList(), BF16GgmlType)
             BlockQ40 -> QuantizedVec(list.map { it as BlockQ40 }.toMutableList(), BlockQ40)

@@ -1,6 +1,10 @@
 // port-lint: source tensor.rs
 package io.github.kotlinmania.candle
 
+import io.github.kotlinmania.byteorder.BigEndian
+import io.github.kotlinmania.float8.F8E4M3
+import io.github.kotlinmania.half.BF16
+import io.github.kotlinmania.half.F16
 import kotlin.math.floor
 import kotlin.math.pow
 
@@ -118,7 +122,7 @@ public class Tensor internal constructor(
     /**
      * The dimension size for a specified dimension index.
      */
-    public fun dim(d: ShapeDim): Int = layout.dim(d.toIndex(shape(), "dim"))
+    public fun dim(d: Dim): Int = layout.dim(d.toIndex(shape(), "dim"))
 
     /**
      * Returns a new tensor that is a narrowed version of the input, the dimension `dim`
@@ -131,7 +135,7 @@ public class Tensor internal constructor(
      * ```
      */
     public fun narrow(
-        dim: ShapeDim,
+        dim: Dim,
         start: Int,
         len: Int,
     ): Tensor = narrow(dim.toIndex(shape(), "narrow"), start, len)
@@ -554,7 +558,7 @@ public class Tensor internal constructor(
      */
     public fun chunk(
         chunks: Int,
-        dim: ShapeDim,
+        dim: Dim,
     ): List<Tensor> = chunk(chunks, dim.toIndex(shape(), "chunk"))
 
     internal fun squeezeDims(dims: List<Int>): Tensor =
@@ -643,7 +647,7 @@ public class Tensor internal constructor(
      */
     public fun roll(
         shift: Int,
-        dim: ShapeDim,
+        dim: Dim,
     ): Tensor = roll(shift, dim.toIndex(shape(), "roll"))
 
     // --- Binary Ops ---
@@ -943,7 +947,7 @@ public class Tensor internal constructor(
     /**
      * Returns the unbiased variance over the selected dimension.
      */
-    public fun var_(dim: ShapeDim): Tensor = `var`(dim.toIndex(shape(), "var"))
+    public fun var_(dim: Dim): Tensor = `var`(dim.toIndex(shape(), "var"))
 
     // --- Comparisons ---
 
@@ -1465,7 +1469,7 @@ public class Tensor internal constructor(
     public fun scatter(
         indexes: Tensor,
         source: Tensor,
-        dim: ShapeDim,
+        dim: Dim,
     ): Tensor = scatter(indexes, source, dim.toIndex(shape(), "scatter"))
 
     /**
@@ -1490,7 +1494,7 @@ public class Tensor internal constructor(
     public fun scatterSet(
         indexes: Tensor,
         source: Tensor,
-        dim: ShapeDim,
+        dim: Dim,
     ) = scatterSet(indexes, source, dim.toIndex(shape(), "scatter-set"))
 
     /**
@@ -1517,7 +1521,7 @@ public class Tensor internal constructor(
     public fun scatterAdd(
         indexes: Tensor,
         source: Tensor,
-        dim: ShapeDim,
+        dim: Dim,
     ): Tensor = scatterAdd(indexes, source, dim.toIndex(shape(), "scatter-add"))
 
     /**
@@ -1542,7 +1546,7 @@ public class Tensor internal constructor(
     public fun scatterAddSet(
         indexes: Tensor,
         source: Tensor,
-        dim: ShapeDim,
+        dim: Dim,
     ) = scatterAddSet(indexes, source, dim.toIndex(shape(), "scatter-add-set"))
 
     /**
@@ -1602,7 +1606,7 @@ public class Tensor internal constructor(
      */
     public fun sliceScatter(
         src: Tensor,
-        dim: ShapeDim,
+        dim: Dim,
         start: Int,
     ): Tensor = sliceScatter(src, dim.toIndex(shape(), "slice-scatter"), start)
 
@@ -1652,7 +1656,7 @@ public class Tensor internal constructor(
     public fun indexAdd(
         indexes: Tensor,
         source: Tensor,
-        dim: ShapeDim,
+        dim: Dim,
     ): Tensor = indexAdd(indexes, source, dim.toIndex(shape(), "index-add"))
 
     // --- Indexing ---
@@ -1706,7 +1710,7 @@ public class Tensor internal constructor(
      */
     public fun gather(
         indexes: Tensor,
-        dim: ShapeDim,
+        dim: Dim,
     ): Tensor {
         val normalizedDim = dim.toIndex(shape(), "gather")
         return gather(indexes, normalizedDim)
@@ -1745,7 +1749,7 @@ public class Tensor internal constructor(
      */
     public fun indexSelect(
         indexes: Tensor,
-        dim: ShapeDim,
+        dim: Dim,
     ): Tensor = indexSelect(indexes, dim.toIndex(shape(), "index-select"))
 
     /**
@@ -2012,7 +2016,7 @@ public class Tensor internal constructor(
     /**
      * Flattens the input tensor on dimension indexes from `dim` (inclusive) to the last dimension.
      */
-    public fun flattenFrom(dim: ShapeDim): Tensor = flattenFrom(dim.toIndex(shape(), "flatten_from"))
+    public fun flattenFrom(dim: Dim): Tensor = flattenFrom(dim.toIndex(shape(), "flatten_from"))
 
     /**
      * Flattens the input tensor on dimension indexes from `0` to `endDim` (inclusive).
@@ -2028,7 +2032,7 @@ public class Tensor internal constructor(
     /**
      * Flattens the input tensor on dimension indexes from `0` to `dim` (inclusive).
      */
-    public fun flattenTo(dim: ShapeDim): Tensor = flattenTo(dim.toIndex(shape(), "flatten_to"))
+    public fun flattenTo(dim: Dim): Tensor = flattenTo(dim.toIndex(shape(), "flatten_to"))
 
     /**
      * Flattens the input tensor on dimension indexes from `startDim` to `endDim` (both
@@ -2049,8 +2053,8 @@ public class Tensor internal constructor(
      * Flattens the input tensor on dimension indexes from `startDim` to `endDim` (both inclusive).
      */
     public fun flatten(
-        startDim: ShapeDim,
-        endDim: ShapeDim,
+        startDim: Dim,
+        endDim: Dim,
     ): Tensor = flatten(startDim.toIndex(shape(), "flatten"), endDim.toIndex(shape(), "flatten"))
 
     /**
@@ -2076,7 +2080,7 @@ public class Tensor internal constructor(
     /**
      * Creates a new tensor with the specified dimension removed if its size was one.
      */
-    public fun squeeze(dim: ShapeDim): Tensor = squeeze(dim.toIndex(shape(), "squeeze"))
+    public fun squeeze(dim: Dim): Tensor = squeeze(dim.toIndex(shape(), "squeeze"))
 
     /**
      * Creates a new tensor with a dimension of size one inserted at the specified position.
@@ -2101,7 +2105,7 @@ public class Tensor internal constructor(
     /**
      * Creates a new tensor with a dimension of size one inserted at the specified position.
      */
-    public fun unsqueeze(dim: ShapeDim): Tensor = unsqueeze(dim.toIndexPlusOne(shape(), "unsqueeze"))
+    public fun unsqueeze(dim: Dim): Tensor = unsqueeze(dim.toIndexPlusOne(shape(), "unsqueeze"))
 
     /**
      * Returns a tensor that is a transposed version of the input, the given dimensions are
@@ -2127,8 +2131,8 @@ public class Tensor internal constructor(
      * Returns a tensor that is a transposed version of the input, the given dimensions are swapped.
      */
     public fun transpose(
-        dim1: ShapeDim,
-        dim2: ShapeDim,
+        dim1: Dim,
+        dim2: Dim,
     ): Tensor = transpose(dim1.toIndex(shape(), "transpose"), dim2.toIndex(shape(), "transpose"))
 
     /**
@@ -2383,7 +2387,7 @@ public class Tensor internal constructor(
      * Returns the sub-tensor fixing the index at `index` on the dimension `dim`.
      */
     public fun getOnDim(
-        dim: ShapeDim,
+        dim: Dim,
         index: Int,
     ): Tensor = getOnDim(dim.toIndex(shape(), "get_on_dim"), index)
 
@@ -2423,7 +2427,7 @@ public class Tensor internal constructor(
      * Pad the input tensor using 0s along dimension `dim`.
      */
     public fun padWithZeros(
-        dim: ShapeDim,
+        dim: Dim,
         left: Int,
         right: Int,
     ): Tensor = padWithZeros(dim.toIndex(shape(), "pad_with_zeros"), left, right)
@@ -2468,7 +2472,7 @@ public class Tensor internal constructor(
      * Pad the input tensor using same values along dimension `dim`.
      */
     public fun padWithSame(
-        dim: ShapeDim,
+        dim: Dim,
         left: Int,
         right: Int,
     ): Tensor = padWithSame(dim.toIndex(shape(), "pad_with_same"), left, right)
@@ -2519,7 +2523,7 @@ public class Tensor internal constructor(
     /**
      * Returns the cumulative sum of elements along the specified dimension.
      */
-    public fun cumsum(dim: ShapeDim): Tensor = cumsum(dim.toIndex(shape(), "cumsum"))
+    public fun cumsum(dim: Dim): Tensor = cumsum(dim.toIndex(shape(), "cumsum"))
 
     /**
      * Returns a copy of `self` where the values within `ranges` have been replaced with the
@@ -2636,7 +2640,7 @@ public class Tensor internal constructor(
      * Returns all slices of size `size` from `self` in dimension `dim` stepped by `step`.
      */
     public fun unfold(
-        dim: ShapeDim,
+        dim: Dim,
         size: Int,
         step: Int,
     ): Tensor = unfold(dim.toIndex(shape(), "unfold"), size, step)
@@ -3237,7 +3241,7 @@ public class Tensor internal constructor(
          */
         public fun stack(
             tensors: List<Tensor>,
-            dim: ShapeDim,
+            dim: Dim,
         ): Tensor = stack(tensors, dim.toIndexPlusOne(tensors[0].shape(), "stack"))
 
         /**
@@ -3307,9 +3311,6 @@ public interface Write {
     public val writeF64: (Double) -> CandleResult<Unit>
 }
 
-internal typealias LittleEndian = io.github.kotlinmania.byteorder.LittleEndian
-internal typealias BigEndian = io.github.kotlinmania.byteorder.BigEndian
-
 public sealed class SeekFrom {
     public data class Start(
         public val pos: ULong,
@@ -3370,7 +3371,7 @@ public open class NpyByteReader(
                 is SeekFrom.Current -> (pos.toLong() + seekFrom.offset).toInt()
             }
         if (next < 0 || next > data.size) {
-            return CandleResult.Err(CandleError.Io("invalid seek position: $next"))
+            return CandleResult.Err(CandleException.Io("invalid seek position: $next"))
         }
         pos = next
         return CandleResult.Ok(pos.toULong())
@@ -3458,7 +3459,7 @@ public open class NpyByteReader(
 
     override val readExact: (ByteArray) -> CandleResult<Unit> = { buf ->
         if (pos + buf.size > data.size) {
-            CandleResult.Err(CandleError.Io("unexpected EOF"))
+            CandleResult.Err(CandleException.Io("unexpected EOF"))
         } else {
             data.copyInto(buf, 0, pos, pos + buf.size)
             pos += buf.size
@@ -3984,7 +3985,7 @@ internal object Zip {
             if (found != null) {
                 CandleResult.Ok(ZipEntryReader(found.first, found.second))
             } else {
-                CandleResult.Err(CandleError.Zip("entry not found: $target"))
+                CandleResult.Err(CandleException.Zip("entry not found: $target"))
             }
         }
 

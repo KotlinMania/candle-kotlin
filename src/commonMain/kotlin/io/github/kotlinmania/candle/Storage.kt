@@ -1,7 +1,7 @@
 // port-lint: source storage.rs
 package io.github.kotlinmania.candle
 
-import io.github.kotlinmania.candle.CandleException as Error
+import io.github.kotlinmania.candle.CandleException
 
 private val <T> T.self: T get() = this
 private val Err: (Throwable) -> Nothing get() = { throw it }
@@ -669,7 +669,7 @@ public sealed class Storage {
                 lhsLoc == rhsLoc
             }
         if (!sameDevice) {
-            Err(Error.DeviceMismatchBinaryOp(lhsLoc, rhsLoc, op).bt())
+            Err(CandleException.DeviceMismatchBinaryOp(lhsLoc, rhsLoc, op).bt())
         } else {
             Ok()
         }
@@ -682,7 +682,7 @@ public sealed class Storage {
         val lhsDtype = self.dtype()
         val rhsDtype = rhs.dtype()
         if (lhsDtype != rhsDtype) {
-            Err(Error.DTypeMismatchBinaryOp(lhsDtype, rhsDtype, op).bt())
+            Err(CandleException.DTypeMismatchBinaryOp(lhsDtype, rhsDtype, op).bt())
         } else {
             Ok()
         }
@@ -803,7 +803,7 @@ public sealed class Storage {
                 // Should not happen because of the same device check above but we're defensive
                 // anyway.
                 Err(
-                    Error
+                    CandleException
                         .DeviceMismatchBinaryOp(
                             lhs = lhs.device().location(),
                             rhs = rhs.device().location(),
@@ -1056,7 +1056,7 @@ public sealed class Storage {
                 // Should not happen because of the same device check above but we're defensive
                 // anyway.
                 Err(
-                    Error
+                    CandleException
                         .DeviceMismatchBinaryOp(
                             lhs = lhs.device().location(),
                             rhs = rhs.device().location(),
@@ -1093,7 +1093,7 @@ public sealed class Storage {
 
             else -> {
                 Err(
-                    Error
+                    CandleException
                         .DeviceMismatchBinaryOp(
                             lhs = lhs.device().location(),
                             rhs = rhs.device().location(),
@@ -1130,7 +1130,7 @@ public sealed class Storage {
 
             else -> {
                 Err(
-                    Error
+                    CandleException
                         .DeviceMismatchBinaryOp(
                             lhs = lhs.device().location(),
                             rhs = rhs.device().location(),
@@ -1167,7 +1167,7 @@ public sealed class Storage {
 
             else -> {
                 Err(
-                    Error
+                    CandleException
                         .DeviceMismatchBinaryOp(
                             lhs = lhs.device().location(),
                             rhs = rhs.device().location(),
@@ -1204,7 +1204,7 @@ public sealed class Storage {
 
             else -> {
                 Err(
-                    Error
+                    CandleException
                         .DeviceMismatchBinaryOp(
                             lhs = lhs.device().location(),
                             rhs = rhs.device().location(),
@@ -1378,7 +1378,7 @@ public sealed class Storage {
 
             else -> {
                 Err(
-                    Error
+                    CandleException
                         .DeviceMismatchBinaryOp(
                             lhs = lhs.device().location(),
                             rhs = rhs.device().location(),
@@ -1535,7 +1535,7 @@ public sealed class Storage {
 
             else -> {
                 Err(
-                    Error
+                    CandleException
                         .DeviceMismatchBinaryOp(
                             lhs = lhs.device().location(),
                             rhs = rhs.device().location(),
@@ -1572,7 +1572,7 @@ public sealed class Storage {
 
             else -> {
                 Err(
-                    Error
+                    CandleException
                         .DeviceMismatchBinaryOp(
                             lhs = lhs.device().location(),
                             rhs = rhs.device().location(),
@@ -1604,7 +1604,7 @@ public sealed class Storage {
 
             else -> {
                 Err(
-                    Error
+                    CandleException
                         .DeviceMismatchBinaryOp(
                             lhs = lhs.device().location(),
                             rhs = rhs.device().location(),
@@ -1639,7 +1639,7 @@ public sealed class Storage {
 
             else -> {
                 Err(
-                    Error
+                    CandleException
                         .DeviceMismatchBinaryOp(
                             lhs = lhs.device().location(),
                             rhs = rhs.device().location(),
@@ -1676,7 +1676,7 @@ public sealed class Storage {
 
             else -> {
                 Err(
-                    Error
+                    CandleException
                         .DeviceMismatchBinaryOp(
                             lhs = device().location(),
                             rhs = rhs.device().location(),

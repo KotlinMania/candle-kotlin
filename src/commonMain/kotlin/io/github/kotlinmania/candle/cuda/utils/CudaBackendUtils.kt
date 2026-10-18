@@ -1,18 +1,17 @@
 // port-lint: source cuda_backend/utils.rs
 package io.github.kotlinmania.candle.cuda.utils
 
-import io.github.kotlinmania.candle.BF16
-import io.github.kotlinmania.candle.F16
-import io.github.kotlinmania.candle.F8E4M3
 import io.github.kotlinmania.candle.Layout
 import io.github.kotlinmania.candle.bail
 import io.github.kotlinmania.candle.cuda.CudaStorageSlice
 import io.github.kotlinmania.candle.cuda.device.CudaDevice
 import io.github.kotlinmania.candle.cuda.device.CudaSlice
 import io.github.kotlinmania.candle.cuda.error.CudaError
+import io.github.kotlinmania.float8.F8E4M3
+import io.github.kotlinmania.half.BF16
+import io.github.kotlinmania.half.F16
 
 /** Helper functions to plug cuda kernels in candle. */
-public typealias S = CudaStorageSlice
 
 private fun <T> Ok(v: T): T = v
 
@@ -92,10 +91,10 @@ public interface Map1 {
     ): CudaSlice<T>
 
     public fun map(
-        s: S,
+        s: io.github.kotlinmania.candle.cuda.CudaStorageSlice,
         d: CudaDevice,
         l: Layout,
-    ): S {
+    ): io.github.kotlinmania.candle.cuda.CudaStorageSlice {
         val self = this
         val out =
             when (s) {
@@ -157,12 +156,12 @@ public interface Map2 {
     ): CudaSlice<T>
 
     public fun map(
-        s1: S,
+        s1: io.github.kotlinmania.candle.cuda.CudaStorageSlice,
         l1: Layout,
-        s2: S,
+        s2: io.github.kotlinmania.candle.cuda.CudaStorageSlice,
         l2: Layout,
         d: CudaDevice,
-    ): S {
+    ): io.github.kotlinmania.candle.cuda.CudaStorageSlice {
         val self = this
         val out =
             when {
@@ -194,14 +193,14 @@ public interface Map3 {
     ): CudaSlice<T>
 
     public fun map(
-        s1: S,
+        s1: io.github.kotlinmania.candle.cuda.CudaStorageSlice,
         l1: Layout,
-        s2: S,
+        s2: io.github.kotlinmania.candle.cuda.CudaStorageSlice,
         l2: Layout,
-        s3: S,
+        s3: io.github.kotlinmania.candle.cuda.CudaStorageSlice,
         l3: Layout,
         d: CudaDevice,
-    ): S {
+    ): io.github.kotlinmania.candle.cuda.CudaStorageSlice {
         val self = this
         val out =
             when {
@@ -255,9 +254,9 @@ public interface Map2InPlace {
     )
 
     public fun map(
-        dst: S,
+        dst: io.github.kotlinmania.candle.cuda.CudaStorageSlice,
         dstL: Layout,
-        src: S,
+        src: io.github.kotlinmania.candle.cuda.CudaStorageSlice,
         srcL: Layout,
         d: CudaDevice,
     ) {
@@ -283,14 +282,14 @@ public interface Map1Any {
         src: CudaSlice<T>,
         dev: CudaDevice,
         layout: Layout,
-        wrap: (CudaSlice<T>) -> S,
-    ): S
+        wrap: (CudaSlice<T>) -> io.github.kotlinmania.candle.cuda.CudaStorageSlice,
+    ): io.github.kotlinmania.candle.cuda.CudaStorageSlice
 
     public fun map(
-        s: S,
+        s: io.github.kotlinmania.candle.cuda.CudaStorageSlice,
         d: CudaDevice,
         l: Layout,
-    ): S {
+    ): io.github.kotlinmania.candle.cuda.CudaStorageSlice {
         val self = this
         val out =
             when (s) {
@@ -349,15 +348,15 @@ public interface Map2Any {
         src2: CudaSlice<T>,
         layout2: Layout,
         dev: CudaDevice,
-    ): S
+    ): io.github.kotlinmania.candle.cuda.CudaStorageSlice
 
     public fun map(
-        s1: S,
+        s1: io.github.kotlinmania.candle.cuda.CudaStorageSlice,
         l1: Layout,
-        s2: S,
+        s2: io.github.kotlinmania.candle.cuda.CudaStorageSlice,
         l2: Layout,
         d: CudaDevice,
-    ): S {
+    ): io.github.kotlinmania.candle.cuda.CudaStorageSlice {
         val self = this
         val out =
             when {
