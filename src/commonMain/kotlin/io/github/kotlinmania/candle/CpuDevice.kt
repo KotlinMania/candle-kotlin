@@ -1,7 +1,7 @@
 package io.github.kotlinmania.candle
 
 import io.github.kotlinmania.rand.distr.Uniform
-import io.github.kotlinmania.rand.rng
+import io.github.kotlinmania.rand.rngs.rng
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.ln
