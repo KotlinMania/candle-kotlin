@@ -1,7 +1,9 @@
 // port-lint: source cpu_backend/utils.rs
 package io.github.kotlinmania.candle
 
-import io.github.kotlinmania.candle.CandleException as Error
+import io.github.kotlinmania.float8.F8E4M3
+import io.github.kotlinmania.half.BF16
+import io.github.kotlinmania.half.F16
 
 // Helper functions to write CPU kernels.
 
@@ -37,13 +39,13 @@ public interface Map1 {
             is CpuStorage.F8E4M3 -> Ok(CpuStorage.F8E4M3(self.f(vs, layout)))
 
             // Dummy types don't support Map1 operations
-            is CpuStorage.F6E2M3 -> Err(Error.UnsupportedDTypeForOp(vs.dtype(), "map1").bt())
+            is CpuStorage.F6E2M3 -> Err(CandleException.UnsupportedDTypeForOp(vs.dtype(), "map1").bt())
 
-            is CpuStorage.F6E3M2 -> Err(Error.UnsupportedDTypeForOp(vs.dtype(), "map1").bt())
+            is CpuStorage.F6E3M2 -> Err(CandleException.UnsupportedDTypeForOp(vs.dtype(), "map1").bt())
 
-            is CpuStorage.F4 -> Err(Error.UnsupportedDTypeForOp(vs.dtype(), "map1").bt())
+            is CpuStorage.F4 -> Err(CandleException.UnsupportedDTypeForOp(vs.dtype(), "map1").bt())
 
-            is CpuStorage.F8E8M0 -> Err(Error.UnsupportedDTypeForOp(vs.dtype(), "map1").bt())
+            is CpuStorage.F8E8M0 -> Err(CandleException.UnsupportedDTypeForOp(vs.dtype(), "map1").bt())
         }
 }
 
@@ -80,13 +82,13 @@ public interface Map1Any {
             is CpuStorage.F8E4M3 -> Ok(self.f(vs, layout, CpuStorage::F8E4M3))
 
             // Dummy types don't support Map1Any operations
-            is CpuStorage.F6E2M3 -> Err(Error.UnsupportedDTypeForOp(vs.dtype(), "map1any").bt())
+            is CpuStorage.F6E2M3 -> Err(CandleException.UnsupportedDTypeForOp(vs.dtype(), "map1any").bt())
 
-            is CpuStorage.F6E3M2 -> Err(Error.UnsupportedDTypeForOp(vs.dtype(), "map1any").bt())
+            is CpuStorage.F6E3M2 -> Err(CandleException.UnsupportedDTypeForOp(vs.dtype(), "map1any").bt())
 
-            is CpuStorage.F4 -> Err(Error.UnsupportedDTypeForOp(vs.dtype(), "map1any").bt())
+            is CpuStorage.F4 -> Err(CandleException.UnsupportedDTypeForOp(vs.dtype(), "map1any").bt())
 
-            is CpuStorage.F8E8M0 -> Err(Error.UnsupportedDTypeForOp(vs.dtype(), "map1any").bt())
+            is CpuStorage.F8E8M0 -> Err(CandleException.UnsupportedDTypeForOp(vs.dtype(), "map1any").bt())
         }
 }
 
@@ -149,7 +151,7 @@ public interface Map2 {
 
             else -> {
                 Err(
-                    Error
+                    CandleException
                         .DTypeMismatchBinaryOp(
                             v1.dtype(),
                             v2.dtype(),
@@ -219,7 +221,7 @@ public interface Map2InPlace {
 
             else -> {
                 Err(
-                    Error
+                    CandleException
                         .DTypeMismatchBinaryOp(
                             v1.dtype(),
                             v2.dtype(),
@@ -291,7 +293,7 @@ public interface Map2U8 {
 
             else -> {
                 Err(
-                    Error
+                    CandleException
                         .DTypeMismatchBinaryOp(
                             v1.dtype(),
                             v2.dtype(),

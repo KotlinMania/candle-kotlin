@@ -3,6 +3,7 @@ package io.github.kotlinmania.candle
 
 import io.github.kotlinmania.thiserror.StdError
 import io.github.kotlinmania.zip.ZipError
+import kotlin.Result
 
 /**
  * Candle-specific Error and Result
@@ -21,7 +22,6 @@ public data class MatMulUnexpectedStriding(
         msg,
     )
 }
-public typealias MatMulUnexpectedStridingDetails = MatMulUnexpectedStriding
 
 /**
  * Main library error type.
@@ -48,7 +48,6 @@ public class Backtrace(
         public val capture: () -> Backtrace = { Backtrace(BacktraceStatus.Disabled) }
     }
 }
-public typealias Result<T> = kotlin.Result<T>
 
 public sealed class CandleException(
     message: String,
@@ -550,7 +549,6 @@ public sealed class CandleException(
     }
 }
 
-
 private const val static: Int = 0
 
 private fun <T> new(v: T): T = v
@@ -784,8 +782,6 @@ public interface ErrorContext<T, E> : Sealed {
 }
 
 public val bail: (String) -> Nothing get() = { msg -> throw CandleException.Msg(msg).bt() }
-
-public typealias CandleError = CandleException
 
 public val CandleException.Companion.Wrap: (Throwable) -> CandleException
     get() = { err -> CandleException.Wrapped(err.message ?: err.toString()) }

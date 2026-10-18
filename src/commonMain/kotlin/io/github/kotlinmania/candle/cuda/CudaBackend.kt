@@ -1,20 +1,15 @@
 package io.github.kotlinmania.candle.cuda
 
-import io.github.kotlinmania.candle.BFloat16
 import io.github.kotlinmania.candle.BinaryOpT
-import io.github.kotlinmania.candle.CandleError
 import io.github.kotlinmania.candle.CmpOp
 import io.github.kotlinmania.candle.CpuStorage
 import io.github.kotlinmania.candle.DType
-import io.github.kotlinmania.candle.F8E4M3
-import io.github.kotlinmania.candle.Float16
 import io.github.kotlinmania.candle.Layout
 import io.github.kotlinmania.candle.ParamsConv1D
 import io.github.kotlinmania.candle.ParamsConv2D
 import io.github.kotlinmania.candle.ParamsConvTranspose1D
 import io.github.kotlinmania.candle.ParamsConvTranspose2D
 import io.github.kotlinmania.candle.ReduceOp
-import io.github.kotlinmania.candle.Result
 import io.github.kotlinmania.candle.Scalar
 import io.github.kotlinmania.candle.Shape
 import io.github.kotlinmania.candle.UnaryOpT
@@ -25,6 +20,8 @@ import io.github.kotlinmania.candle.cuda.device.KernelModule
 import io.github.kotlinmania.candle.cuda.device.LaunchArgs
 import io.github.kotlinmania.candle.cuda.error.CudaError
 import io.github.kotlinmania.candle.cuda.error.w
+import io.github.kotlinmania.float8.F8E4M3
+import kotlin.Result
 
 sealed class SlicePtrOrNull<out T> {
     interface Clone
@@ -107,12 +104,12 @@ sealed class CudaStorageSlice {
 
     @ConsistentCopyVisibility
     data class BF16 internal constructor(
-        val data: CudaSlice<BFloat16>,
+        val data: CudaSlice<io.github.kotlinmania.half.BF16>,
     ) : CudaStorageSlice()
 
     @ConsistentCopyVisibility
     data class F16 internal constructor(
-        val data: CudaSlice<Float16>,
+        val data: CudaSlice<io.github.kotlinmania.half.F16>,
     ) : CudaStorageSlice()
 
     @ConsistentCopyVisibility
@@ -127,9 +124,8 @@ sealed class CudaStorageSlice {
 
     @ConsistentCopyVisibility
     data class F8E4M3 internal constructor(
-        val data: CudaSlice<io.github.kotlinmania.candle.F8E4M3>,
+        val data: CudaSlice<io.github.kotlinmania.float8.F8E4M3>,
     ) : CudaStorageSlice()
-    typealias F8E4M3Slice = F8E4M3
 
     // Dummy types that store raw bytes
     @ConsistentCopyVisibility
@@ -405,7 +401,9 @@ internal class FastReduce(
                     ReduceOp.ArgMax -> Triple("fast_argmax", true, true)
                 }
             if (checkEmpty && layout.shape().elemCount() == 0) {
-                throw CandleError.EmptyTensor(op = "reduce").bt()
+                throw io.github.kotlinmania.candle.CandleException
+                    .EmptyTensor(op = "reduce")
+                    .bt()
             }
             val func = dev.getOrLoadFunc(kernelName(name), Kernels.REDUCE).getOrThrow()
             if (returnIndex) {
@@ -493,7 +491,9 @@ internal class IndexSelect(
             val ds = dev.cloneHtod(idsDims + idsL.stride()).getOrThrow()
             val offsets =
                 srcL.contiguousOffsets()
-                    ?: throw CandleError.RequiresContiguous(op = "index-select").bt()
+                    ?: throw io.github.kotlinmania.candle.CandleException
+                        .RequiresContiguous(op = "index-select")
+                        .bt()
             val (o1, o2) = offsets
             val srcSub = src.data.subList(o1, minOf(o2, src.data.size))
             val leftSize = srcL.dims().subList(0, dim).fold(1) { a, b -> a * b }
@@ -528,7 +528,9 @@ internal class Gather(
         runCatching {
             val (idsO1, _) =
                 idsL.contiguousOffsets()
-                    ?: throw CandleError.RequiresContiguous(op = "gather").bt()
+                    ?: throw io.github.kotlinmania.candle.CandleException
+                        .RequiresContiguous(op = "gather")
+                        .bt()
             val (name, ptrAndGuard) =
                 when (val s = ids.slice) {
                     is CudaStorageSlice.U32 -> Pair("gather_u32", slicePtr(s.data, idsO1))
@@ -548,7 +550,9 @@ internal class Gather(
             val cfg = LaunchConfig.forNumElems(el.toUInt())
             val (o1, o2) =
                 srcL.contiguousOffsets()
-                    ?: throw CandleError.RequiresContiguous(op = "gather").bt()
+                    ?: throw io.github.kotlinmania.candle.CandleException
+                        .RequiresContiguous(op = "gather")
+                        .bt()
             val srcSub = src.data.subList(o1, minOf(o2, src.data.size))
             val leftSz = srcL.dims().subList(0, dim).fold(1) { a, b -> a * b }
             val rightSz = srcL.dims().subList(dim + 1, srcL.dims().size).fold(1) { a, b -> a * b }
@@ -584,7 +588,9 @@ internal class IndexAdd(
         runCatching {
             val (idsO1, _) =
                 idsL.contiguousOffsets()
-                    ?: throw CandleError.RequiresContiguous(op = "index-add").bt()
+                    ?: throw io.github.kotlinmania.candle.CandleException
+                        .RequiresContiguous(op = "index-add")
+                        .bt()
             val (name, ptrAndGuard) =
                 when (val s = ids.slice) {
                     is CudaStorageSlice.U32 -> Pair("ia_u32", slicePtr(s.data, idsO1))
@@ -602,10 +608,14 @@ internal class IndexAdd(
             val (idsPtr, _) = ptrAndGuard
             val (dstO1, dstO2) =
                 dstL.contiguousOffsets()
-                    ?: throw CandleError.RequiresContiguous(op = "index-add").bt()
+                    ?: throw io.github.kotlinmania.candle.CandleException
+                        .RequiresContiguous(op = "index-add")
+                        .bt()
             val (srcO1, srcO2) =
                 srcL.contiguousOffsets()
-                    ?: throw CandleError.RequiresContiguous(op = "index-add").bt()
+                    ?: throw io.github.kotlinmania.candle.CandleException
+                        .RequiresContiguous(op = "index-add")
+                        .bt()
             val leftSz = srcL.dims().subList(0, dim).fold(1) { a, b -> a * b }
             val rightSz = srcL.dims().subList(dim + 1, srcL.dims().size).fold(1) { a, b -> a * b }
             val srcDimSz = srcL.dims()[dim]
@@ -644,7 +654,9 @@ internal class Scatter(
         runCatching {
             val (idsO1, _) =
                 idsL.contiguousOffsets()
-                    ?: throw CandleError.RequiresContiguous(op = "scatter").bt()
+                    ?: throw io.github.kotlinmania.candle.CandleException
+                        .RequiresContiguous(op = "scatter")
+                        .bt()
             val (name, ptrAndGuard) =
                 when (val s = ids.slice) {
                     is CudaStorageSlice.U32 -> Pair("s_u32", slicePtr(s.data, idsO1))
@@ -662,10 +674,14 @@ internal class Scatter(
             val (idsPtr, _) = ptrAndGuard
             val (dstO1, dstO2) =
                 dstL.contiguousOffsets()
-                    ?: throw CandleError.RequiresContiguous(op = "scatter").bt()
+                    ?: throw io.github.kotlinmania.candle.CandleException
+                        .RequiresContiguous(op = "scatter")
+                        .bt()
             val (srcO1, srcO2) =
                 srcL.contiguousOffsets()
-                    ?: throw CandleError.RequiresContiguous(op = "scatter").bt()
+                    ?: throw io.github.kotlinmania.candle.CandleException
+                        .RequiresContiguous(op = "scatter")
+                        .bt()
             val leftSz = srcL.dims().subList(0, dim).fold(1) { a, b -> a * b }
             val rightSz = srcL.dims().subList(dim + 1, srcL.dims().size).fold(1) { a, b -> a * b }
             val srcDimSz = srcL.dims()[dim]
@@ -702,7 +718,9 @@ internal class ScatterAdd(
         runCatching {
             val (idsO1, _) =
                 idsL.contiguousOffsets()
-                    ?: throw CandleError.RequiresContiguous(op = "scatter-add").bt()
+                    ?: throw io.github.kotlinmania.candle.CandleException
+                        .RequiresContiguous(op = "scatter-add")
+                        .bt()
             val (name, ptrAndGuard) =
                 when (val s = ids.slice) {
                     is CudaStorageSlice.U32 -> Pair("sa_u32", slicePtr(s.data, idsO1))
@@ -720,10 +738,14 @@ internal class ScatterAdd(
             val (idsPtr, _) = ptrAndGuard
             val (dstO1, dstO2) =
                 dstL.contiguousOffsets()
-                    ?: throw CandleError.RequiresContiguous(op = "scatter-add").bt()
+                    ?: throw io.github.kotlinmania.candle.CandleException
+                        .RequiresContiguous(op = "scatter-add")
+                        .bt()
             val (srcO1, srcO2) =
                 srcL.contiguousOffsets()
-                    ?: throw CandleError.RequiresContiguous(op = "scatter-add").bt()
+                    ?: throw io.github.kotlinmania.candle.CandleException
+                        .RequiresContiguous(op = "scatter-add")
+                        .bt()
             val leftSz = srcL.dims().subList(0, dim).fold(1) { a, b -> a * b }
             val rightSz = srcL.dims().subList(dim + 1, srcL.dims().size).fold(1) { a, b -> a * b }
             val srcDimSz = srcL.dims()[dim]
@@ -1237,7 +1259,7 @@ class CudaStorage(
                     is CudaStorageSlice.F16 -> CudaStorageSlice.F16(CudaSlice(s.data.data.toMutableList()))
                     is CudaStorageSlice.F32 -> CudaStorageSlice.F32(CudaSlice(s.data.data.toMutableList()))
                     is CudaStorageSlice.F64 -> CudaStorageSlice.F64(CudaSlice(s.data.data.toMutableList()))
-                    is CudaStorageSlice.F8E4M3Slice -> CudaStorageSlice.F8E4M3Slice(CudaSlice(s.data.data.toMutableList()))
+                    is CudaStorageSlice.F8E4M3 -> CudaStorageSlice.F8E4M3(CudaSlice(s.data.data.toMutableList()))
                     is CudaStorageSlice.F6E2M3 -> CudaStorageSlice.F6E2M3(CudaSlice(s.data.data.toMutableList()))
                     is CudaStorageSlice.F6E3M2 -> CudaStorageSlice.F6E3M2(CudaSlice(s.data.data.toMutableList()))
                     is CudaStorageSlice.F4 -> CudaStorageSlice.F4(CudaSlice(s.data.data.toMutableList()))
@@ -1263,7 +1285,7 @@ class CudaStorage(
                     is CudaStorageSlice.F16 -> CudaStorageSlice.F16(cloneOp.f(s.data, device, layout).getOrThrow())
                     is CudaStorageSlice.F32 -> CudaStorageSlice.F32(cloneOp.f(s.data, device, layout).getOrThrow())
                     is CudaStorageSlice.F64 -> CudaStorageSlice.F64(cloneOp.f(s.data, device, layout).getOrThrow())
-                    is CudaStorageSlice.F8E4M3Slice -> CudaStorageSlice.F8E4M3Slice(cloneOp.f(s.data, device, layout).getOrThrow())
+                    is CudaStorageSlice.F8E4M3 -> CudaStorageSlice.F8E4M3(cloneOp.f(s.data, device, layout).getOrThrow())
                     is CudaStorageSlice.F6E2M3 -> CudaStorageSlice.F6E2M3(cloneOp.f(s.data, device, layout).getOrThrow())
                     is CudaStorageSlice.F6E3M2 -> CudaStorageSlice.F6E3M2(cloneOp.f(s.data, device, layout).getOrThrow())
                     is CudaStorageSlice.F4 -> CudaStorageSlice.F4(cloneOp.f(s.data, device, layout).getOrThrow())
@@ -1283,7 +1305,7 @@ class CudaStorage(
             is CudaStorageSlice.F16 -> DType.F16
             is CudaStorageSlice.F32 -> DType.F32
             is CudaStorageSlice.F64 -> DType.F64
-            is CudaStorageSlice.F8E4M3Slice -> DType.F8E4M3
+            is CudaStorageSlice.F8E4M3 -> DType.F8E4M3
             is CudaStorageSlice.F6E2M3 -> DType.F6E2M3
             is CudaStorageSlice.F6E3M2 -> DType.F6E3M2
             is CudaStorageSlice.F4 -> DType.F4
@@ -1342,7 +1364,7 @@ class CudaStorage(
                         Pair(slicePtr(sl.data, srcO), "const_set_f64")
                     }
 
-                    is CudaStorageSlice.F8E4M3Slice -> {
+                    is CudaStorageSlice.F8E4M3 -> {
                         Pair(slicePtr(sl.data, srcO), "const_set_f8_e4m3")
                     }
 
@@ -1417,7 +1439,7 @@ class CudaStorage(
                         slicePtr(sl.data, startO)
                     }
 
-                    is CudaStorageSlice.F8E4M3Slice -> {
+                    is CudaStorageSlice.F8E4M3 -> {
                         slicePtr(sl.data, startO)
                     }
 
@@ -1454,11 +1476,11 @@ class CudaStorage(
                     }
 
                     DType.BF16 -> {
-                        CudaStorageSlice.BF16(dev.alloc<BFloat16>(el).getOrThrow())
+                        CudaStorageSlice.BF16(dev.alloc<io.github.kotlinmania.half.BF16>(el).getOrThrow())
                     }
 
                     DType.F16 -> {
-                        CudaStorageSlice.F16(dev.alloc<Float16>(el).getOrThrow())
+                        CudaStorageSlice.F16(dev.alloc<io.github.kotlinmania.half.F16>(el).getOrThrow())
                     }
 
                     DType.F32 -> {
@@ -1470,7 +1492,7 @@ class CudaStorage(
                     }
 
                     DType.F8E4M3 -> {
-                        CudaStorageSlice.F8E4M3Slice(dev.alloc<F8E4M3>(el).getOrThrow())
+                        CudaStorageSlice.F8E4M3(dev.alloc<F8E4M3>(el).getOrThrow())
                     }
 
                     DType.I16, DType.I32 -> {
@@ -1674,7 +1696,7 @@ class CudaStorage(
                     CpuStorage.F64(sl.data.data.toDoubleArray())
                 }
 
-                is CudaStorageSlice.F8E4M3Slice -> {
+                is CudaStorageSlice.F8E4M3 -> {
                     CpuStorage.F8E4M3(ByteArray(sl.data.data.size) { sl.data.data[it].bits })
                 }
 
@@ -1794,15 +1816,15 @@ class CudaStorage(
             val newSlice =
                 when (slice) {
                     is CudaStorageSlice.U8 -> CudaStorageSlice.U8(device.alloc<UByte>(dstEl).getOrThrow())
-                    is CudaStorageSlice.BF16 -> CudaStorageSlice.BF16(device.alloc<BFloat16>(dstEl).getOrThrow())
-                    is CudaStorageSlice.F16 -> CudaStorageSlice.F16(device.alloc<Float16>(dstEl).getOrThrow())
+                    is CudaStorageSlice.BF16 -> CudaStorageSlice.BF16(device.alloc<io.github.kotlinmania.half.BF16>(dstEl).getOrThrow())
+                    is CudaStorageSlice.F16 -> CudaStorageSlice.F16(device.alloc<io.github.kotlinmania.half.F16>(dstEl).getOrThrow())
                     is CudaStorageSlice.F32 -> CudaStorageSlice.F32(device.alloc<Float>(dstEl).getOrThrow())
                     is CudaStorageSlice.F64 -> CudaStorageSlice.F64(device.alloc<Double>(dstEl).getOrThrow())
                     is CudaStorageSlice.U32 -> throw CudaError.InternalError("conv1d does not support u32")
                     is CudaStorageSlice.I16 -> throw CudaError.InternalError("conv1d does not support i16")
                     is CudaStorageSlice.I32 -> throw CudaError.InternalError("conv1d does not support i32")
                     is CudaStorageSlice.I64 -> throw CudaError.InternalError("conv1d does not support i64")
-                    is CudaStorageSlice.F8E4M3Slice -> throw CudaError.InternalError("conv1d does not support f8e4m3")
+                    is CudaStorageSlice.F8E4M3 -> throw CudaError.InternalError("conv1d does not support f8e4m3")
                     else -> throw CudaError.InternalError("dtype mismatch in conv1d")
                 }
             CudaStorage(newSlice, device)
@@ -1944,15 +1966,15 @@ class CudaStorage(
             val newSlice =
                 when (slice) {
                     is CudaStorageSlice.U8 -> CudaStorageSlice.U8(device.alloc<UByte>(dstEl).getOrThrow())
-                    is CudaStorageSlice.BF16 -> CudaStorageSlice.BF16(device.alloc<BFloat16>(dstEl).getOrThrow())
-                    is CudaStorageSlice.F16 -> CudaStorageSlice.F16(device.alloc<Float16>(dstEl).getOrThrow())
+                    is CudaStorageSlice.BF16 -> CudaStorageSlice.BF16(device.alloc<io.github.kotlinmania.half.BF16>(dstEl).getOrThrow())
+                    is CudaStorageSlice.F16 -> CudaStorageSlice.F16(device.alloc<io.github.kotlinmania.half.F16>(dstEl).getOrThrow())
                     is CudaStorageSlice.F32 -> CudaStorageSlice.F32(device.alloc<Float>(dstEl).getOrThrow())
                     is CudaStorageSlice.F64 -> CudaStorageSlice.F64(device.alloc<Double>(dstEl).getOrThrow())
                     is CudaStorageSlice.U32 -> throw CudaError.InternalError("conv2d does not support u32")
                     is CudaStorageSlice.I16 -> throw CudaError.InternalError("conv2d does not support i16")
                     is CudaStorageSlice.I32 -> throw CudaError.InternalError("conv2d does not support i32")
                     is CudaStorageSlice.I64 -> throw CudaError.InternalError("conv2d does not support i64")
-                    is CudaStorageSlice.F8E4M3Slice -> throw CudaError.InternalError("conv2d does not support f8e4m3")
+                    is CudaStorageSlice.F8E4M3 -> throw CudaError.InternalError("conv2d does not support f8e4m3")
                     else -> throw CudaError.InternalError("dtype mismatch in conv2d")
                 }
             CudaStorage(newSlice, device)
@@ -2173,16 +2195,16 @@ class CudaStorage(
                 when (val lSl = slice) {
                     is CudaStorageSlice.BF16 -> {
                         val rSl = rhs.slice as CudaStorageSlice.BF16
-                        val cfg = gemmConfig(BFloat16.ONE, BFloat16.ZERO, bmnk, lhsL, rhsL).getOrThrow()
-                        val out = dev.alloc<BFloat16>(elemCount).getOrThrow()
+                        val cfg = gemmConfig(io.github.kotlinmania.half.BF16.ONE, io.github.kotlinmania.half.BF16.ZERO, bmnk, lhsL, rhsL).getOrThrow()
+                        val out = dev.alloc<io.github.kotlinmania.half.BF16>(elemCount).getOrThrow()
                         gemmStridedBatchedBf16(dev.blas, cfg, rSl.data, lSl.data, out).getOrThrow()
                         CudaStorageSlice.BF16(out)
                     }
 
                     is CudaStorageSlice.F16 -> {
                         val rSl = rhs.slice as CudaStorageSlice.F16
-                        val cfg = gemmConfig(Float16.ONE, Float16.ZERO, bmnk, lhsL, rhsL).getOrThrow()
-                        val out = dev.alloc<Float16>(elemCount).getOrThrow()
+                        val cfg = gemmConfig(io.github.kotlinmania.half.F16.ONE, io.github.kotlinmania.half.F16.ZERO, bmnk, lhsL, rhsL).getOrThrow()
+                        val out = dev.alloc<io.github.kotlinmania.half.F16>(elemCount).getOrThrow()
                         gemmStridedBatchedF16(dev.blas, cfg, rSl.data, lSl.data, out).getOrThrow()
                         CudaStorageSlice.F16(out)
                     }
@@ -2235,7 +2257,7 @@ class CudaStorage(
                     is CudaStorageSlice.F16 -> "copy2d_f16"
                     is CudaStorageSlice.F32 -> "copy2d_f32"
                     is CudaStorageSlice.F64 -> "copy2d_f64"
-                    is CudaStorageSlice.F8E4M3Slice -> "copy2d_u8"
+                    is CudaStorageSlice.F8E4M3 -> "copy2d_u8"
                     is CudaStorageSlice.F8E8M0 -> "copy2d_u8"
                     else -> throw CudaError.InternalError("dtype mismatch in copy2d")
                 }
@@ -2377,8 +2399,8 @@ class CudaStorage(
                     }
                 }
 
-                is CudaStorageSlice.F8E4M3Slice -> {
-                    val dSl = dst.slice as CudaStorageSlice.F8E4M3Slice
+                is CudaStorageSlice.F8E4M3 -> {
+                    val dSl = dst.slice as CudaStorageSlice.F8E4M3
                     val (srcView, dstView) = sliceSrcAndDst(sSl.data, srcL, dSl.data, dstOffset)
                     if (srcL.isContiguous()) {
                         dev.memcpyDtod(srcView, dstView).getOrThrow()
@@ -2600,10 +2622,10 @@ private fun gemmStridedBatchedF32(
 
 private fun gemmStridedBatchedF16(
     cublas: CudaBlas,
-    cfg: StridedBatchedConfig<Float16>,
-    a: CudaSlice<Float16>,
-    b: CudaSlice<Float16>,
-    c: CudaSlice<Float16>,
+    cfg: StridedBatchedConfig<io.github.kotlinmania.half.F16>,
+    a: CudaSlice<io.github.kotlinmania.half.F16>,
+    b: CudaSlice<io.github.kotlinmania.half.F16>,
+    c: CudaSlice<io.github.kotlinmania.half.F16>,
 ): Result<Unit> =
     runCatching {
         val alphaF32 = cfg.gemm.alpha.toFloat()
@@ -2620,10 +2642,10 @@ private fun gemmStridedBatchedF16(
 
 private fun gemmStridedBatchedBf16(
     cublas: CudaBlas,
-    cfg: StridedBatchedConfig<BFloat16>,
-    a: CudaSlice<BFloat16>,
-    b: CudaSlice<BFloat16>,
-    c: CudaSlice<BFloat16>,
+    cfg: StridedBatchedConfig<io.github.kotlinmania.half.BF16>,
+    a: CudaSlice<io.github.kotlinmania.half.BF16>,
+    b: CudaSlice<io.github.kotlinmania.half.BF16>,
+    c: CudaSlice<io.github.kotlinmania.half.BF16>,
 ): Result<Unit> =
     runCatching {
         val alphaF32 = cfg.gemm.alpha.toFloat()

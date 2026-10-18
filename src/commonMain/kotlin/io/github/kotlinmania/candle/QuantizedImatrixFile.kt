@@ -1,8 +1,8 @@
 // port-lint: source quantized/imatrix_file.rs
 package io.github.kotlinmania.candle
 
+import io.github.kotlinmania.byteorder.LittleEndian
 import io.github.kotlinmania.candle.CandleResult.Ok
-import io.github.kotlinmania.candle.CandleException as Error
 
 private fun Any.asRef(): String = toString()
 
@@ -13,7 +13,7 @@ public fun <P : Any> loadImatrix(fname: P): CandleResult<kotlin.collections.Hash
         File
             .open(fname)
             .mapErr { e ->
-                Error.msg(
+                CandleException.msg(
                     format(
                         "Failed to open {}: {}",
                         fname.asRef().display(),
@@ -25,7 +25,7 @@ public fun <P : Any> loadImatrix(fname: P): CandleResult<kotlin.collections.Hash
     file
         .readToEnd(buffer)
         .mapErr { e ->
-            Error.msg(
+            CandleException.msg(
                 format(
                     "Failed to read file {}: {}",
                     fname.asRef().display(),
@@ -39,7 +39,7 @@ public fun <P : Any> loadImatrix(fname: P): CandleResult<kotlin.collections.Hash
     val nEntries =
         cursor
             .readI32<LittleEndian>()
-            .mapErr { e -> Error.msg(format("Failed to read number of entries: $e")) }
+            .mapErr { e -> CandleException.msg(format("Failed to read number of entries: $e")) }
             .unwrap()
 
     if (nEntries < 1) {
@@ -52,7 +52,7 @@ public fun <P : Any> loadImatrix(fname: P): CandleResult<kotlin.collections.Hash
             cursor
                 .readI32<LittleEndian>()
                 .mapErr { e ->
-                    Error.msg(
+                    CandleException.msg(
                         format(
                             "Failed to read name length for entry {}: {}",
                             i + 1,
@@ -66,13 +66,13 @@ public fun <P : Any> loadImatrix(fname: P): CandleResult<kotlin.collections.Hash
         cursor
             .readExact(nameBuf)
             .mapErr { e ->
-                Error.msg(format("Failed to read name for entry {}: {}", i + 1, e))
+                CandleException.msg(format("Failed to read name for entry {}: {}", i + 1, e))
             }.unwrap()
         val name =
             String
                 .fromUtf8(nameBuf)
                 .mapErr { e ->
-                    Error.msg(format("Invalid UTF-8 name for entry {}: {}", i + 1, e))
+                    CandleException.msg(format("Invalid UTF-8 name for entry {}: {}", i + 1, e))
                 }.unwrap()
 
         // Read ncall and nval
@@ -80,14 +80,14 @@ public fun <P : Any> loadImatrix(fname: P): CandleResult<kotlin.collections.Hash
             cursor
                 .readI32<LittleEndian>()
                 .mapErr { e ->
-                    Error.msg(format("Failed to read ncall for entry {}: {}", i + 1, e))
+                    CandleException.msg(format("Failed to read ncall for entry {}: {}", i + 1, e))
                 }.unwrap()
 
         val nval =
             cursor
                 .readI32<LittleEndian>()
                 .mapErr { e ->
-                    Error.msg(format("Failed to read nval for entry {}: {}", i + 1, e))
+                    CandleException.msg(format("Failed to read nval for entry {}: {}", i + 1, e))
                 }.unwrap()
 
         if (nval < 1) {

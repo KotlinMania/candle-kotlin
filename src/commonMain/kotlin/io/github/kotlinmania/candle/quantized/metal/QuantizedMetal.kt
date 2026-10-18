@@ -1,7 +1,6 @@
 // port-lint: source quantized/metal.rs
 package io.github.kotlinmania.candle.quantized.metal
 
-import io.github.kotlinmania.candle.BF16
 import io.github.kotlinmania.candle.BF16GgmlType
 import io.github.kotlinmania.candle.BlockQ2K
 import io.github.kotlinmania.candle.BlockQ3K
@@ -21,11 +20,9 @@ import io.github.kotlinmania.candle.CpuStorage
 import io.github.kotlinmania.candle.D
 import io.github.kotlinmania.candle.DType
 import io.github.kotlinmania.candle.Device
-import io.github.kotlinmania.candle.F16
 import io.github.kotlinmania.candle.F16GgmlType
 import io.github.kotlinmania.candle.F32GgmlType
 import io.github.kotlinmania.candle.GgmlDType
-import io.github.kotlinmania.candle.GgmlTypeCompanion
 import io.github.kotlinmania.candle.Layout
 import io.github.kotlinmania.candle.MetalDevice
 import io.github.kotlinmania.candle.MetalStorage
@@ -33,6 +30,8 @@ import io.github.kotlinmania.candle.QStorage
 import io.github.kotlinmania.candle.Shape
 import io.github.kotlinmania.candle.Storage
 import io.github.kotlinmania.candle.bail
+import io.github.kotlinmania.half.BF16
+import io.github.kotlinmania.half.F16
 
 public class Buffer(
     public var bytes: ByteArray = ByteArray(0),
@@ -626,7 +625,7 @@ private fun Shape.dims2(): Pair<Int, Int> = Pair(dims[0], dims[1])
 public fun <T> loadQuantized(
     device: MetalDevice,
     data: List<T>,
-    companion: GgmlTypeCompanion<T, *>? = null,
+    companion: io.github.kotlinmania.candle.GgmlType<T, *>? = null,
 ): CandleResult<QStorage> {
     val dtype =
         companion?.DTYPE ?: when (data.firstOrNull()) {

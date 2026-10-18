@@ -2,7 +2,6 @@
 package io.github.kotlinmania.candle
 
 import io.github.kotlinmania.candle.Tensor.Companion.fromStorage
-import io.github.kotlinmania.candle.CandleException as Error
 
 private val <T> T.self: T get() = this
 
@@ -43,7 +42,7 @@ public interface CustomOp1 {
         layout: Layout,
     ): Pair<CudaStorage, Shape> =
         Err(
-            Error.Cuda(
+            CandleException.Cuda(
                 format("no cuda implementation for {}", self.name()).into(),
             ),
         )
@@ -57,7 +56,7 @@ public interface CustomOp1 {
         layout: Layout,
     ): Pair<MetalStorage, Shape> =
         Err(
-            Error.Metal(
+            CandleException.Metal(
                 format("no metal implementation for {}", self.name()).into(),
             ),
         )
@@ -71,7 +70,7 @@ public interface CustomOp1 {
         arg: Tensor,
         res: Tensor,
         gradRes: Tensor,
-    ): Tensor? = Err(Error.BackwardNotSupported(op = self.name()))
+    ): Tensor? = Err(CandleException.BackwardNotSupported(op = self.name()))
 }
 
 public interface CustomOp2 {
@@ -99,7 +98,7 @@ public interface CustomOp2 {
         l2: Layout,
     ): Pair<CudaStorage, Shape> =
         Err(
-            Error.Cuda(
+            CandleException.Cuda(
                 format("no cuda implementation for {}", self.name()).into(),
             ),
         )
@@ -115,7 +114,7 @@ public interface CustomOp2 {
         l2: Layout,
     ): Pair<MetalStorage, Shape> =
         Err(
-            Error.Metal(
+            CandleException.Metal(
                 format("no metal implementation for {}", self.name()).into(),
             ),
         )
@@ -127,7 +126,7 @@ public interface CustomOp2 {
         gradRes: Tensor,
     ): Pair<Tensor?, Tensor?> =
         Err(
-            Error.BackwardNotSupported(op = self.name()),
+            CandleException.BackwardNotSupported(op = self.name()),
         )
 }
 
@@ -160,7 +159,7 @@ public interface CustomOp3 {
         l3: Layout,
     ): Pair<CudaStorage, Shape> =
         Err(
-            Error.Cuda(
+            CandleException.Cuda(
                 format("no cuda implementation for {}", self.name()).into(),
             ),
         )
@@ -178,7 +177,7 @@ public interface CustomOp3 {
         l3: Layout,
     ): Pair<MetalStorage, Shape> =
         Err(
-            Error.Metal(
+            CandleException.Metal(
                 format("no metal implementation for {}", self.name()).into(),
             ),
         )
@@ -191,7 +190,7 @@ public interface CustomOp3 {
         gradRes: Tensor,
     ): Triple<Tensor?, Tensor?, Tensor?> =
         Err(
-            Error.BackwardNotSupported(op = self.name()),
+            CandleException.BackwardNotSupported(op = self.name()),
         )
 }
 
@@ -335,7 +334,7 @@ public interface InplaceOp1 {
         layout: Layout,
     ): Unit =
         Err(
-            Error.Cuda(
+            CandleException.Cuda(
                 format("no cuda implementation for {}", self.name()).into(),
             ),
         )
@@ -349,7 +348,7 @@ public interface InplaceOp1 {
         layout: Layout,
     ): Unit =
         Err(
-            Error.Metal(
+            CandleException.Metal(
                 format("no metal implementation for {}", self.name()).into(),
             ),
         )
@@ -380,7 +379,7 @@ public interface InplaceOp2 {
         l2: Layout,
     ): Unit =
         Err(
-            Error.Cuda(
+            CandleException.Cuda(
                 format("no cuda implementation for {}", self.name()).into(),
             ),
         )
@@ -396,7 +395,7 @@ public interface InplaceOp2 {
         l2: Layout,
     ): Unit =
         Err(
-            Error.Metal(
+            CandleException.Metal(
                 format("no metal implementation for {}", self.name()).into(),
             ),
         )
@@ -431,7 +430,7 @@ public interface InplaceOp3 {
         l3: Layout,
     ): Unit =
         Err(
-            Error.Cuda(
+            CandleException.Cuda(
                 format("no cuda implementation for {}", self.name()).into(),
             ),
         )
@@ -449,7 +448,7 @@ public interface InplaceOp3 {
         l3: Layout,
     ): Unit =
         Err(
-            Error.Metal(
+            CandleException.Metal(
                 format("no metal implementation for {}", self.name()).into(),
             ),
         )

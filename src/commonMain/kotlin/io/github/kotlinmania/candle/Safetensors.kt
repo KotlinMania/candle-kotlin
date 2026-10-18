@@ -13,6 +13,10 @@
  */
 package io.github.kotlinmania.candle
 
+import io.github.kotlinmania.float8.F8E4M3
+import io.github.kotlinmania.half.BF16
+import io.github.kotlinmania.half.F16
+
 /**
  * Supported element data types in the `safetensors` wire format.
  */
@@ -85,21 +89,68 @@ fun from(value: DType): SafeTensorDtype =
 
 fun tryFrom(value: SafeTensorDtype): CandleResult<DType> =
     when (value) {
-        SafeTensorDtype.U8 -> CandleResult.Ok(DType.U8)
-        SafeTensorDtype.U32 -> CandleResult.Ok(DType.U32)
-        SafeTensorDtype.I16 -> CandleResult.Ok(DType.I16)
-        SafeTensorDtype.I32 -> CandleResult.Ok(DType.I32)
-        SafeTensorDtype.I64 -> CandleResult.Ok(DType.I64)
-        SafeTensorDtype.BF16 -> CandleResult.Ok(DType.BF16)
-        SafeTensorDtype.F16 -> CandleResult.Ok(DType.F16)
-        SafeTensorDtype.F32 -> CandleResult.Ok(DType.F32)
-        SafeTensorDtype.F64 -> CandleResult.Ok(DType.F64)
-        SafeTensorDtype.F8E4M3 -> CandleResult.Ok(DType.F8E4M3)
-        SafeTensorDtype.F6E2M3 -> CandleResult.Ok(DType.F6E2M3)
-        SafeTensorDtype.F6E3M2 -> CandleResult.Ok(DType.F6E3M2)
-        SafeTensorDtype.F4 -> CandleResult.Ok(DType.F4)
-        SafeTensorDtype.F8E8M0 -> CandleResult.Ok(DType.F8E8M0)
-        else -> CandleResult.Err(CandleError.UnsupportedSafeTensorDtype(value.wireName))
+        SafeTensorDtype.U8 -> {
+            CandleResult.Ok(DType.U8)
+        }
+
+        SafeTensorDtype.U32 -> {
+            CandleResult.Ok(DType.U32)
+        }
+
+        SafeTensorDtype.I16 -> {
+            CandleResult.Ok(DType.I16)
+        }
+
+        SafeTensorDtype.I32 -> {
+            CandleResult.Ok(DType.I32)
+        }
+
+        SafeTensorDtype.I64 -> {
+            CandleResult.Ok(DType.I64)
+        }
+
+        SafeTensorDtype.BF16 -> {
+            CandleResult.Ok(DType.BF16)
+        }
+
+        SafeTensorDtype.F16 -> {
+            CandleResult.Ok(DType.F16)
+        }
+
+        SafeTensorDtype.F32 -> {
+            CandleResult.Ok(DType.F32)
+        }
+
+        SafeTensorDtype.F64 -> {
+            CandleResult.Ok(DType.F64)
+        }
+
+        SafeTensorDtype.F8E4M3 -> {
+            CandleResult.Ok(DType.F8E4M3)
+        }
+
+        SafeTensorDtype.F6E2M3 -> {
+            CandleResult.Ok(DType.F6E2M3)
+        }
+
+        SafeTensorDtype.F6E3M2 -> {
+            CandleResult.Ok(DType.F6E3M2)
+        }
+
+        SafeTensorDtype.F4 -> {
+            CandleResult.Ok(DType.F4)
+        }
+
+        SafeTensorDtype.F8E8M0 -> {
+            CandleResult.Ok(DType.F8E8M0)
+        }
+
+        else -> {
+            CandleResult.Err(
+                CandleException
+                    .UnsupportedSafeTensorDtype(value.wireName),
+            )
+        }
     }
 
 private val DType.into: () -> SafeTensorDtype
@@ -330,11 +381,11 @@ fun fromRawBuffer(
         }
 
         DType.BF16 -> {
-            convertSlice<BFloat16>(data, shape, device, DType.BF16)
+            convertSlice<io.github.kotlinmania.half.BF16>(data, shape, device, DType.BF16)
         }
 
         DType.F16 -> {
-            convertSlice<Float16>(data, shape, device, DType.F16)
+            convertSlice<io.github.kotlinmania.half.F16>(data, shape, device, DType.F16)
         }
 
         DType.F32 -> {
@@ -450,11 +501,11 @@ private fun convert(
         }
 
         SafeTensorDtype.BF16 -> {
-            convert<BFloat16>(view, device, DType.BF16)
+            convert<io.github.kotlinmania.half.BF16>(view, device, DType.BF16)
         }
 
         SafeTensorDtype.F16 -> {
-            convert<Float16>(view, device, DType.F16)
+            convert<io.github.kotlinmania.half.F16>(view, device, DType.F16)
         }
 
         SafeTensorDtype.F32 -> {
@@ -487,10 +538,17 @@ private fun convertDummy(
     val dtypePair =
         when (view.dtype()) {
             SafeTensorDtype.F6E2M3 -> kotlin.Pair(DType.F6E2M3, "F6_E2M3 (MX6)")
+
             SafeTensorDtype.F6E3M2 -> kotlin.Pair(DType.F6E3M2, "F6_E3M2 (MX6)")
+
             SafeTensorDtype.F4 -> kotlin.Pair(DType.F4, "F4 (MX4)")
+
             SafeTensorDtype.F8E8M0 -> kotlin.Pair(DType.F8E8M0, "F8_E8M0")
-            else -> return CandleResult.Err(CandleError.Msg("convertDummy called with non-dummy dtype"))
+
+            else -> return CandleResult.Err(
+                CandleException
+                    .Msg("convertDummy called with non-dummy dtype"),
+            )
         }
     val dtype = dtypePair.first
 
@@ -505,10 +563,17 @@ private fun convertDummy(
                 val cpuStorage =
                     when (dtype) {
                         DType.F6E2M3 -> CpuStorage.F6E2M3(data)
+
                         DType.F6E3M2 -> CpuStorage.F6E3M2(data)
+
                         DType.F4 -> CpuStorage.F4(data)
+
                         DType.F8E8M0 -> CpuStorage.F8E8M0(data)
-                        else -> return CandleResult.Err(CandleError.Msg("unreachable dummy dtype"))
+
+                        else -> return CandleResult.Err(
+                            CandleException
+                                .Msg("unreachable dummy dtype"),
+                        )
                     }
                 Storage.Cpu(cpuStorage)
             }
@@ -522,10 +587,17 @@ private fun convertDummy(
                 val cudaSlice =
                     when (dtype) {
                         DType.F6E2M3 -> SafeTensors.cudaSliceF6E2M3(slice)
+
                         DType.F6E3M2 -> SafeTensors.cudaSliceF6E3M2(slice)
+
                         DType.F4 -> SafeTensors.cudaSliceF4(slice)
+
                         DType.F8E8M0 -> SafeTensors.cudaSliceF8E8M0(slice)
-                        else -> return CandleResult.Err(CandleError.Msg("unreachable dummy dtype"))
+
+                        else -> return CandleResult.Err(
+                            CandleException
+                                .Msg("unreachable dummy dtype"),
+                        )
                     }
                 val cudaStorage =
                     SafeTensors.cudaStorage(
@@ -587,11 +659,11 @@ private fun convertBack(tensor: Tensor): CandleResult<ByteArray> {
         }
 
         DType.F16 -> {
-            CandleResult.Ok(convertBack<Float16>(flattened.toVec1Storage()))
+            CandleResult.Ok(convertBack<io.github.kotlinmania.half.F16>(flattened.toVec1Storage()))
         }
 
         DType.BF16 -> {
-            CandleResult.Ok(convertBack<BFloat16>(flattened.toVec1Storage()))
+            CandleResult.Ok(convertBack<io.github.kotlinmania.half.BF16>(flattened.toVec1Storage()))
         }
 
         DType.F32 -> {
@@ -607,7 +679,11 @@ private fun convertBack(tensor: Tensor): CandleResult<ByteArray> {
         }
 
         DType.F6E2M3, DType.F6E3M2, DType.F4, DType.F8E8M0 -> {
-            CandleResult.Err(CandleError.Msg("Internal error: dtype mismatch in storage").bt())
+            CandleResult.Err(
+                CandleException
+                    .Msg("Internal error: dtype mismatch in storage")
+                    .bt(),
+            )
         }
     }
 }
@@ -650,7 +726,11 @@ class SafeTensors internal constructor(
         if (view != null) {
             CandleResult.Ok(view)
         } else {
-            CandleResult.Err(CandleError.CannotFindTensor(name).bt())
+            CandleResult.Err(
+                CandleException
+                    .CannotFindTensor(name)
+                    .bt(),
+            )
         }
     }
 
@@ -678,7 +758,10 @@ class SafeTensors internal constructor(
             this
         }
         val build: () -> CandleResult<ByteArray> = {
-            CandleResult.Err(CandleError.Msg("Metal support not compiled"))
+            CandleResult.Err(
+                CandleException
+                    .Msg("Metal support not compiled"),
+            )
         }
     }
 
@@ -695,7 +778,11 @@ class SafeTensors internal constructor(
             if (bytes != null) {
                 CandleResult.Ok(bytes)
             } else {
-                CandleResult.Err(CandleError.Msg("file not found: $p").withPath(p))
+                CandleResult.Err(
+                    CandleException
+                        .Msg("file not found: $p")
+                        .withPath(p),
+                )
             }
         }
 
@@ -754,11 +841,17 @@ class SafeTensors internal constructor(
         }
 
         val cudaAlloc: (CudaDevice, Int) -> CandleResult<ByteArray> = { _, _ ->
-            CandleResult.Err(CandleError.Msg("CUDA support not compiled"))
+            CandleResult.Err(
+                CandleException
+                    .Msg("CUDA support not compiled"),
+            )
         }
 
         val cudaMemcpyHtod: (CudaDevice, ByteArray, ByteArray) -> CandleResult<Unit> = { _, _, _ ->
-            CandleResult.Err(CandleError.Msg("CUDA support not compiled"))
+            CandleResult.Err(
+                CandleException
+                    .Msg("CUDA support not compiled"),
+            )
         }
 
         val cudaSliceF6E2M3: (ByteArray) -> ByteArray = { s -> s }
@@ -767,21 +860,36 @@ class SafeTensors internal constructor(
         val cudaSliceF8E8M0: (ByteArray) -> ByteArray = { s -> s }
         val cudaStorage: (ByteArray, CudaDevice) -> ByteArray = { s, _ -> s }
         val storageCuda: (ByteArray) -> CandleResult<Storage> = { _ ->
-            CandleResult.Err(CandleError.Msg("CUDA support not compiled"))
+            CandleResult.Err(
+                CandleException
+                    .Msg("CUDA support not compiled"),
+            )
         }
 
         val newBufferBuilder: (MetalDevice) -> BufferBuilder = { dev -> BufferBuilder(dev) }
         val metalStorageNew: (ByteArray, MetalDevice, Int, DType) -> ByteArray = { b, _, _, _ -> b }
         val storageMetal: (ByteArray) -> CandleResult<Storage> = { _ ->
-            CandleResult.Err(CandleError.Msg("Metal support not compiled"))
+            CandleResult.Err(
+                CandleException
+                    .Msg("Metal support not compiled"),
+            )
         }
 
         val toVec1: (Tensor) -> CandleResult<CpuStorage> = { flattened ->
             val cpuTensor = flattened.toDevice(Device.Cpu)
             val storage = cpuTensor.storageAndLayout().first
             when (storage) {
-                is Storage.Cpu -> CandleResult.Ok(storage.storage)
-                else -> CandleResult.Err(CandleError.Msg("Internal error: dtype mismatch in storage").bt())
+                is Storage.Cpu -> {
+                    CandleResult.Ok(storage.storage)
+                }
+
+                else -> {
+                    CandleResult.Err(
+                        CandleException
+                            .Msg("Internal error: dtype mismatch in storage")
+                            .bt(),
+                    )
+                }
             }
         }
 
@@ -1065,7 +1173,10 @@ class SafeTensors internal constructor(
 
         val deserialize: (ByteArray) -> CandleResult<SafeTensors> = deserializeLambda@{ data ->
             if (data.size < 8) {
-                return@deserializeLambda CandleResult.Err(CandleError.Msg("safetensors buffer too small"))
+                return@deserializeLambda CandleResult.Err(
+                    CandleException
+                        .Msg("safetensors buffer too small"),
+                )
             }
             var hLen = 0L
             for (b in 0 until 8) {
@@ -1073,7 +1184,10 @@ class SafeTensors internal constructor(
             }
             val headerLen = hLen.toInt()
             if (headerLen < 0 || 8 + headerLen > data.size) {
-                return@deserializeLambda CandleResult.Err(CandleError.Msg("invalid safetensors header length"))
+                return@deserializeLambda CandleResult.Err(
+                    CandleException
+                        .Msg("invalid safetensors header length"),
+                )
             }
             val headerStr = data.decodeToString(8, 8 + headerLen).trim()
             val dataStart = 8 + headerLen
@@ -1085,16 +1199,25 @@ class SafeTensors internal constructor(
                     while (pos < body.length && (body[pos].isWhitespace() || body[pos] == ',')) pos++
                     if (pos >= body.length) break
                     if (body[pos] != '"') {
-                        return@deserializeLambda CandleResult.Err(CandleError.Msg("expected quote in safetensors header"))
+                        return@deserializeLambda CandleResult.Err(
+                            CandleException
+                                .Msg("expected quote in safetensors header"),
+                        )
                     }
                     val nameEnd = body.indexOf('"', pos + 1)
                     if (nameEnd < 0) {
-                        return@deserializeLambda CandleResult.Err(CandleError.Msg("unterminated key in safetensors header"))
+                        return@deserializeLambda CandleResult.Err(
+                            CandleException
+                                .Msg("unterminated key in safetensors header"),
+                        )
                     }
                     val name = body.substring(pos + 1, nameEnd)
                     val objStart = body.indexOf('{', nameEnd + 1)
                     if (objStart < 0) {
-                        return@deserializeLambda CandleResult.Err(CandleError.Msg("missing object in safetensors header"))
+                        return@deserializeLambda CandleResult.Err(
+                            CandleException
+                                .Msg("missing object in safetensors header"),
+                        )
                     }
                     var braceDepth = 1
                     var scan = objStart + 1
@@ -1113,14 +1236,20 @@ class SafeTensors internal constructor(
                         val shapeKeyIdx = objContent.indexOf("\"shape\"")
                         val offsetsKeyIdx = objContent.indexOf("\"data_offsets\"")
                         if (dtypeKeyIdx < 0 || shapeKeyIdx < 0 || offsetsKeyIdx < 0) {
-                            return@deserializeLambda CandleResult.Err(CandleError.Msg("missing fields for tensor $name"))
+                            return@deserializeLambda CandleResult.Err(
+                                CandleException
+                                    .Msg("missing fields for tensor $name"),
+                            )
                         }
                         val dtypeQuote1 = objContent.indexOf('"', dtypeKeyIdx + 7)
                         val dtypeQuote2 = objContent.indexOf('"', dtypeQuote1 + 1)
                         val dtypeStr = objContent.substring(dtypeQuote1 + 1, dtypeQuote2)
                         val stDtype =
                             SafeTensorDtype.entries.firstOrNull { it.wireName == dtypeStr }
-                                ?: return@deserializeLambda CandleResult.Err(CandleError.UnsupportedSafeTensorDtype(dtypeStr))
+                                ?: return@deserializeLambda CandleResult.Err(
+                                    CandleException
+                                        .UnsupportedSafeTensorDtype(dtypeStr),
+                                )
 
                         val shapeBrack1 = objContent.indexOf('[', shapeKeyIdx + 7)
                         val shapeBrack2 = objContent.indexOf(']', shapeBrack1 + 1)
@@ -1203,7 +1332,7 @@ class MmapedSafetensors private constructor(
                 else -> {
                     val index =
                         routing[name] ?: return CandleResult.Err(
-                            CandleError
+                            CandleException
                                 .CannotFindTensor(
                                     path = name,
                                 ).bt(),

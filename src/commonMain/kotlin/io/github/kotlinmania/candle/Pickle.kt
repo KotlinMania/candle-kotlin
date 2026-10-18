@@ -6,12 +6,13 @@
 // composable/tensor agnostic at some point.
 package io.github.kotlinmania.candle
 
+import io.github.kotlinmania.byteorder.BigEndian
+import io.github.kotlinmania.byteorder.LittleEndian
 import io.github.kotlinmania.candle.CandleResult.Err
 import io.github.kotlinmania.candle.CandleResult.Ok
 import io.github.kotlinmania.candle.Zip.ZipArchive
-import io.github.kotlinmania.candle.CandleException as Error
 
-private fun Err(v: UByte): CandleResult<Nothing> = Err(Error.Msg("unknown op-code $v"))
+private fun Err(v: UByte): CandleResult<Nothing> = Err(CandleException.Msg("unknown op-code $v"))
 
 private fun Err(obj: Object): CandleResult<Nothing> = Err(from(obj))
 
@@ -61,7 +62,7 @@ public enum class OpCode(
     Long1(0x8au),
     ;
 
-    public interface Error
+    public interface CandleException
 
     public interface OResult
 
@@ -545,7 +546,7 @@ public class Stack internal constructor(
                 val len = r.readU32<LittleEndian>().unwrap()
                 val rawData = ByteArray(len.toInt())
                 r.readExact(rawData).unwrap()
-                val data = String.fromUtf8(rawData).mapErr { e -> Error.wrap(e) }.unwrap()
+                val data = String.fromUtf8(rawData).mapErr { e -> CandleException.wrap(e) }.unwrap()
                 this.push(Object.Unicode(data))
             }
 
@@ -731,7 +732,7 @@ public class Stack internal constructor(
     }
 }
 
-public fun from(value: Object): Error = Error.Msg(format("conversion error on $value"))
+public fun from(value: Object): CandleException = CandleException.Msg(format("conversion error on $value"))
 
 // https://github.com/pytorch/pytorch/blob/4eac43d046ded0f0a5a5fa8db03eb40f45bf656e/torch/_utils.py#L198
 // Arguments: storage, storageOffset, size, stride, requiresGrad, backwardHooks
@@ -874,7 +875,7 @@ public fun <P : Any> readPthTensorInfo(
                         .intoIter()
                         .find { (k, _) -> k == Object.Unicode(key.toOwned()) }
                         ?.second
-                        .okOrElse { Error.Msg(format("key $key not found")) }
+                        .okOrElse { CandleException.Msg(format("key $key not found")) }
                         .unwrap()
                 } else {
                     obj

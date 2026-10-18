@@ -246,13 +246,6 @@ public object IntDTypeI32 : IntDType<Int> {
 
 public interface FloatDType<T> : WithDType<T>
 
-public typealias Float16 = io.github.kotlinmania.half.F16
-public typealias BFloat16 = io.github.kotlinmania.half.BF16
-public typealias F16 = io.github.kotlinmania.half.F16
-public typealias BF16 = io.github.kotlinmania.half.BF16
-public typealias F8E4M3 = io.github.kotlinmania.float8.F8E4M3
-public typealias F8E5M2 = io.github.kotlinmania.float8.F8E5M2
-
 public object Float16Utils {
     public val floatToF16Bits: (Float) -> Short = { value ->
         val fbits = value.toRawBits()

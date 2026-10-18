@@ -7,12 +7,12 @@ import io.github.kotlinmania.candle.DType
 import io.github.kotlinmania.candle.DeviceId
 import io.github.kotlinmania.candle.GgmlDType
 import io.github.kotlinmania.candle.Layout
-import io.github.kotlinmania.candle.Result
 import io.github.kotlinmania.candle.Shape
 import io.github.kotlinmania.candle.quantized.cuda.CudaSlice
 import io.github.kotlinmania.candle.quantized.cuda.MATRIX_ROW_PADDING
 import io.github.kotlinmania.candle.quantized.cuda.QCudaStorage
 import io.github.kotlinmania.oncecell.sync.OnceCell
+import kotlin.Result
 
 /**
  * CUDA fast path for GGUF matrix-vector multiplication (decode phase).
