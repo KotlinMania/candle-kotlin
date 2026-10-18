@@ -3110,6 +3110,36 @@ public class Tensor internal constructor(
             device: Device,
         ): Tensor = new(data.toFloatArray(), shape, device)
 
+        public fun fromVec(
+            data: List<Double>,
+            shape: Shape,
+            device: Device,
+        ): Tensor = new(data.toDoubleArray(), shape, device)
+
+        public fun fromVec(
+            data: List<Long>,
+            shape: Shape,
+            device: Device,
+        ): Tensor = new(data.toLongArray(), shape, device)
+
+        public fun fromVec(
+            data: List<Int>,
+            shape: Shape,
+            device: Device,
+        ): Tensor = new(data.toIntArray(), shape, device)
+
+        public fun fromVec(
+            data: List<UInt>,
+            shape: Shape,
+            device: Device,
+        ): Tensor = new(data.toUIntArray(), shape, device)
+
+        public fun fromVec(
+            data: List<UByte>,
+            shape: Shape,
+            device: Device,
+        ): Tensor = new(data.toUByteArray(), shape, device)
+
         /**
          * Repeat this tensor along the specified dimensions.
          */
