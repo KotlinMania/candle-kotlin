@@ -4,7 +4,7 @@ import io.github.kotlinmania.float8.F8E4M3
 import io.github.kotlinmania.half.BF16
 import io.github.kotlinmania.half.F16
 import io.github.kotlinmania.rand.distr.Uniform
-import io.github.kotlinmania.rand.rng
+import io.github.kotlinmania.rand.rngs.rng
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.ln
