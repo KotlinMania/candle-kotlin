@@ -3,9 +3,6 @@ package io.github.kotlinmania.candle
 
 import io.github.kotlinmania.candle.CandleResult.Err
 import io.github.kotlinmania.candle.CandleResult.Ok
-import io.github.kotlinmania.float8.F8E4M3
-import io.github.kotlinmania.half.BF16
-import io.github.kotlinmania.half.F16
 
 /**
  * Types for elements that can be stored and manipulated using tensors.

@@ -1,8 +1,6 @@
 // port-lint: tests candle-core/src/dtype.rs
 package io.github.kotlinmania.candle
 
-import io.github.kotlinmania.half.BF16
-import io.github.kotlinmania.half.F16
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue

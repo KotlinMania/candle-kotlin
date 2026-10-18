@@ -37,7 +37,7 @@ Candle-NN, or Candle-Transformers.
 
 | Sibling | Source changes required by this migration |
 | --- | --- |
-| `candle-nn-kotlin` | Replace `ShapeDim` with `Dim` in `candlenn/Ops.kt` and `candlenn/Sampling.kt`; the existing Candle-NN PR #3 carries these edits. |
+| `candle-nn-kotlin` | Replace `ShapeDim` with `Dim` in `candlenn/Ops.kt` and `candlenn/Sampling.kt`; the existing [Candle-NN PR #3](https://github.com/KotlinMania/candle-nn-kotlin/pull/3) carries these edits. |
 | `candle-transformers-kotlin` | No references to the removed aliases found in the available source. |
 | `moshi-kotlin` | No references to the removed aliases found in the available source. |
 

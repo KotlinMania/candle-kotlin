@@ -8,12 +8,9 @@ package io.github.kotlinmania.candle
 
 import io.github.kotlinmania.byteorder.BigEndian
 import io.github.kotlinmania.byteorder.LittleEndian
-import io.github.kotlinmania.candle.CandleException
 import io.github.kotlinmania.candle.CandleResult.Err
 import io.github.kotlinmania.candle.CandleResult.Ok
 import io.github.kotlinmania.candle.Zip.ZipArchive
-import io.github.kotlinmania.half.BF16
-import io.github.kotlinmania.half.F16
 
 private fun Err(v: UByte): CandleResult<Nothing> = Err(CandleException.Msg("unknown op-code $v"))
 

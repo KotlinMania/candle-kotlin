@@ -1,8 +1,5 @@
 package io.github.kotlinmania.candle
 
-import io.github.kotlinmania.half.BF16
-import io.github.kotlinmania.half.F16
-
 private fun QTensor.asRef(): QTensor = this
 
 sealed class QMatMul : Module {
