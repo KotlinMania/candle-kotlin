@@ -3,6 +3,7 @@ package io.github.kotlinmania.candle
 
 import io.github.kotlinmania.candle.CandleResult.Err
 import io.github.kotlinmania.candle.CandleResult.Ok
+import io.github.kotlinmania.float8.F8E4M3
 
 /**
  * Dummy data types for experimental/future float formats

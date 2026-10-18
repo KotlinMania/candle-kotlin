@@ -3,13 +3,12 @@ package io.github.kotlinmania.candle.streaming
 import io.github.kotlinmania.candle.D
 import io.github.kotlinmania.candle.Module
 import io.github.kotlinmania.candle.Shape
-import io.github.kotlinmania.candle.ShapeDim
 import io.github.kotlinmania.candle.Tensor
 import io.github.kotlinmania.candle.bail
 import io.github.kotlinmania.candle.cat
 import io.github.kotlinmania.candle.clone
 
-public interface Dim : ShapeDim
+public interface Dim : io.github.kotlinmania.candle.Dim
 
 /**
  * StreamTensor useful for streaming ops.
@@ -42,7 +41,7 @@ public class StreamTensor(
 
     public fun shape(): Shape? = asRef(self.tensor)?.let { t -> t.shape() }
 
-    public fun <D : ShapeDim> cat2(
+    public fun <D : io.github.kotlinmania.candle.Dim> cat2(
         rhs: StreamTensor,
         dim: D,
     ): StreamTensor {
@@ -66,7 +65,7 @@ public class StreamTensor(
         return Ok(Self(xs))
     }
 
-    public fun <D : ShapeDim> seqLen(dim: D): Int {
+    public fun <D : io.github.kotlinmania.candle.Dim> seqLen(dim: D): Int {
         val v = self.tensor
         return when (v) {
             null -> 0
@@ -78,7 +77,7 @@ public class StreamTensor(
         self.tensor = None
     }
 
-    public fun <D : ShapeDim> narrow(
+    public fun <D : io.github.kotlinmania.candle.Dim> narrow(
         dim: D,
         offset: Int,
         len: Int,
@@ -107,7 +106,7 @@ public class StreamTensor(
      * Splits the Streaming Tensor on the time axis dim with the first lhsLen elements
      * returned in the first output and the remaining in the second output.
      */
-    public fun <D : ShapeDim> split(
+    public fun <D : io.github.kotlinmania.candle.Dim> split(
         dim: D,
         lhsLen: Int,
     ): Pair<StreamTensor, StreamTensor> {

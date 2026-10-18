@@ -1,7 +1,6 @@
 // port-lint: source cuda_backend/error.rs
 package io.github.kotlinmania.candle.cuda.error
 
-import io.github.kotlinmania.candle.CandleError
 import io.github.kotlinmania.candle.DType
 import io.github.kotlinmania.candle.Layout
 import io.github.kotlinmania.thiserror.StdError
@@ -63,7 +62,10 @@ sealed class CudaError(
     fun into(): CudaError = this
 }
 
-fun from(v: CudaError): CandleError = io.github.kotlinmania.candle.CandleException.Cuda(v).bt()
+fun from(v: CudaError): io.github.kotlinmania.candle.CandleException =
+    io.github.kotlinmania.candle.CandleException
+        .Cuda(v)
+        .bt()
 
 interface WrapErr<O> {
     fun w(): Result<O>
@@ -83,7 +85,12 @@ class ResultWrapErr<O>(
             },
         )
 
-    override fun w(): Result<O> = self.mapErr { e -> io.github.kotlinmania.candle.CandleException.Cuda(e.into()).bt() }
+    override fun w(): Result<O> =
+        self.mapErr { e ->
+            io.github.kotlinmania.candle.CandleException
+                .Cuda(e.into())
+                .bt()
+        }
 }
 
 fun <O> Result<O>.w(): Result<O> = ResultWrapErr(this).w()

@@ -1,6 +1,7 @@
 package io.github.kotlinmania.candle
 
 import io.github.kotlinmania.candle.quantized.cuda.PaddedCudaSlice
+import io.github.kotlinmania.float8.F8E4M3
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals

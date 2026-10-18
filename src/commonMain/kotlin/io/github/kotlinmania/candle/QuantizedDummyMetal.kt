@@ -1,6 +1,6 @@
 package io.github.kotlinmania.candle
 
-import io.github.kotlinmania.candle.CandleException as Error
+import io.github.kotlinmania.candle.CandleException
 
 /**
  * Implementation of quantized Metal storage when Metal support has not been compiled in.
@@ -10,7 +10,7 @@ import io.github.kotlinmania.candle.CandleException as Error
  */
 // port-lint: source quantized/dummy_metal.rs
 
-private val Err: (CandleError) -> CandleResult<Nothing> = { CandleResult.Err(it) }
+private val Err: (CandleException) -> CandleResult<Nothing> = { CandleResult.Err(it) }
 
 public class QMetalStorage(
     private val dtype: GgmlDType,
@@ -23,9 +23,9 @@ public class QMetalStorage(
 
     public fun device(): MetalDevice = self.device
 
-    public fun dequantize(elemCount: Int): CandleResult<MetalStorage> = Err(Error.NotCompiledWithMetalSupport)
+    public fun dequantize(elemCount: Int): CandleResult<MetalStorage> = Err(CandleException.NotCompiledWithMetalSupport)
 
-    public fun quantize(src: MetalStorage): CandleResult<Unit> = Err(Error.NotCompiledWithMetalSupport)
+    public fun quantize(src: MetalStorage): CandleResult<Unit> = Err(CandleException.NotCompiledWithMetalSupport)
 
     public fun quantizeImatrix(
         src: MetalStorage,
@@ -33,7 +33,7 @@ public class QMetalStorage(
         nPerRow: Int,
     ): CandleResult<Unit> =
         Err(
-            Error.NotCompiledWithMetalSupport,
+            CandleException.NotCompiledWithMetalSupport,
         )
 
     public fun quantizeImatrixOnto(
@@ -42,10 +42,10 @@ public class QMetalStorage(
         nPerRow: Int,
     ): CandleResult<Unit> =
         Err(
-            Error.NotCompiledWithMetalSupport,
+            CandleException.NotCompiledWithMetalSupport,
         )
 
-    public fun quantizeOnto(src: CpuStorage): CandleResult<Unit> = Err(Error.NotCompiledWithCudaSupport)
+    public fun quantizeOnto(src: CpuStorage): CandleResult<Unit> = Err(CandleException.NotCompiledWithCudaSupport)
 
     public fun storageSizeInBytes(): Int {
         self
@@ -58,12 +58,12 @@ public class QMetalStorage(
         layout: Layout,
     ): CandleResult<Pair<MetalStorage, Shape>> =
         Err(
-            Error.NotCompiledWithMetalSupport,
+            CandleException.NotCompiledWithMetalSupport,
         )
 
     public fun data(): CandleResult<ByteArray> {
         self
-        return Err(Error.NotCompiledWithMetalSupport)
+        return Err(CandleException.NotCompiledWithMetalSupport)
     }
 
     public fun indexedMoeForward(
@@ -74,7 +74,7 @@ public class QMetalStorage(
         il: Layout,
     ): CandleResult<Pair<MetalStorage, Shape>> =
         Err(
-            Error.NotCompiledWithMetalSupport,
+            CandleException.NotCompiledWithMetalSupport,
         )
 
     public companion object {
@@ -82,7 +82,7 @@ public class QMetalStorage(
             d: MetalDevice,
             e: Int,
             dt: GgmlDType,
-        ): CandleResult<QMetalStorage> = Err(Error.NotCompiledWithMetalSupport)
+        ): CandleResult<QMetalStorage> = Err(CandleException.NotCompiledWithMetalSupport)
     }
 }
 
@@ -91,5 +91,5 @@ public fun <T> loadQuantized(
     data: List<T>,
 ): CandleResult<QStorage> =
     Err(
-        Error.NotCompiledWithMetalSupport,
+        CandleException.NotCompiledWithMetalSupport,
     )

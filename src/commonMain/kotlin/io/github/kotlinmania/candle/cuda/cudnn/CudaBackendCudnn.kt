@@ -1,7 +1,6 @@
 // port-lint: source cuda_backend/cudnn.rs
 package io.github.kotlinmania.candle.cuda.cudnn
 
-import io.github.kotlinmania.candle.CandleError
 import io.github.kotlinmania.candle.CudaDevice
 import io.github.kotlinmania.candle.CudnnFwdAlgo
 import io.github.kotlinmania.candle.DeviceId
@@ -76,9 +75,13 @@ internal class ConvForward(
     }
 }
 
-internal fun from(err: CudnnError): CandleError = CandleError.wrap(err)
+internal fun from(err: CudnnError): io.github.kotlinmania.candle.CandleException =
+    io.github.kotlinmania.candle.CandleException
+        .wrap(err)
 
-internal fun from(err: DriverError): CandleError = CandleError.wrap(err)
+internal fun from(err: DriverError): io.github.kotlinmania.candle.CandleException =
+    io.github.kotlinmania.candle.CandleException
+        .wrap(err)
 
 internal fun <T, Y> launchConv2d(
     src: List<T>,

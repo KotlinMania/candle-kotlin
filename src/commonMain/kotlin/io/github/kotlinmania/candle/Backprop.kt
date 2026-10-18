@@ -1,9 +1,9 @@
 // port-lint: source backprop.rs
 package io.github.kotlinmania.candle
 
+import io.github.kotlinmania.candle.CandleException
 import io.github.kotlinmania.envie.getenv
 import io.github.kotlinmania.threadlocal.ThreadLocal
-import io.github.kotlinmania.candle.CandleException as Error
 
 private val <T> T.self: T get() = this
 private val Err: (Throwable) -> Nothing get() = { throw it }
@@ -469,7 +469,7 @@ public fun Tensor.backward(): GradStore {
 
                 is Op.ConvTranspose1D -> {
                     Err(
-                        Error.BackwardNotSupported(op = "conv-transpose1d"),
+                        CandleException.BackwardNotSupported(op = "conv-transpose1d"),
                     )
                 }
 
@@ -790,7 +790,7 @@ public fun Tensor.backward(): GradStore {
                         UnaryOp.Floor, UnaryOp.Round, UnaryOp.Sign -> {}
 
                         UnaryOp.Ceil -> {
-                            Err(Error.BackwardNotSupported(op = "ceil"))
+                            Err(CandleException.BackwardNotSupported(op = "ceil"))
                         }
 
                         UnaryOp.Gelu -> {

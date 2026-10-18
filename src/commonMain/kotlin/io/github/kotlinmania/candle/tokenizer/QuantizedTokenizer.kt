@@ -1,7 +1,6 @@
 // port-lint: source quantized/tokenizer.rs
 package io.github.kotlinmania.candle.tokenizer
 
-import io.github.kotlinmania.candle.CandleError
 import io.github.kotlinmania.candle.CandleResult
 import io.github.kotlinmania.candle.bail
 import io.github.kotlinmania.candle.gguf.Content
@@ -219,7 +218,6 @@ private object BPE {
     val builder: () -> BpeBuilder = { BpeBuilder() }
 }
 
-
 private fun <T> CandleResult<T>.ok(): T? = (this as? CandleResult.Ok)?.value
 
 private fun <T> CandleResult<T>.unwrapOr(default: T): T = if (this is CandleResult.Ok) this.value else default
@@ -235,12 +233,29 @@ private val format: (String, Any?) -> String = { fmt, a ->
 }
 
 private fun <T> T?.withContext(f: () -> String): CandleResult<T> =
-    if (this != null) CandleResult.Ok(this) else CandleResult.Err(CandleError.Msg(f()))
+    if (this != null) {
+        CandleResult.Ok(this)
+    } else {
+        CandleResult.Err(
+            io.github.kotlinmania.candle.CandleException
+                .Msg(f()),
+        )
+    }
 
 private fun <T> CandleResult<T>.withContext(f: () -> String): CandleResult<T> =
     when (this) {
-        is CandleResult.Ok -> this
-        is CandleResult.Err -> CandleResult.Err((this.error as? CandleError ?: CandleError.Wrapped(this.error.toString())).context(f()))
+        is CandleResult.Ok -> {
+            this
+        }
+
+        is CandleResult.Err -> {
+            CandleResult.Err(
+                (
+                    this.error as? io.github.kotlinmania.candle.CandleException ?: io.github.kotlinmania.candle.CandleException
+                        .Wrapped(this.error.toString())
+                ).context(f()),
+            )
+        }
     }
 
 private val String.splitOnce: (Char) -> Pair<String, String>?
@@ -306,8 +321,10 @@ public fun mergesFromValue(v: Value): CandleResult<List<Pair<String, String>>> {
                 m
                     .splitOnce(' ')
                     ?.let { pair -> Pair(pair.first, pair.second) }
-                    .okOrElse { CandleError.Msg(format("invalid merge entry `{m}`", m)) }
-                    .unwrap()
+                    .okOrElse {
+                        io.github.kotlinmania.candle.CandleException
+                            .Msg(format("invalid merge entry `{m}`", m))
+                    }.unwrap()
             }
     return CandleResult.Ok(list)
 }
@@ -349,7 +366,7 @@ public fun preTokenizerSequence(
                 SplitPattern.Regex(regex),
                 SplitDelimiterBehavior.Isolated,
                 false,
-            ).mapErr(CandleError::wrap)
+            ).mapErr(io.github.kotlinmania.candle.CandleException::wrap)
             .unwrap()
     return CandleResult.Ok(PreTokenizerWrapper.Sequence.new(listOf(split.into(), byteLevel.into())).into())
 }
@@ -491,7 +508,10 @@ public class Tokenizer internal constructor(
                     .unwrap()
                     .lowercase()
             if (modelKind != "gpt2") {
-                return Result.failure(CandleError.Msg(format("unsupported tokenizer model `{model_kind}`", modelKind)))
+                return Result.failure(
+                    io.github.kotlinmania.candle.CandleException
+                        .Msg(format("unsupported tokenizer model `{model_kind}`", modelKind)),
+                )
             }
 
             val tokens =
@@ -527,7 +547,7 @@ public class Tokenizer internal constructor(
                 builder = builder.ignoreMerges(ignoreMergesRes.value.toBool().unwrap())
             }
 
-            val bpe = builder.build().mapErr(CandleError::wrap).unwrap()
+            val bpe = builder.build().mapErr(io.github.kotlinmania.candle.CandleException::wrap).unwrap()
             val tokenizer = Tokenizer.new(bpe)
 
             val pre =

@@ -1,20 +1,17 @@
 package io.github.kotlinmania.candle.metal
 
 import io.github.kotlinmania.candle.BinaryOpT
-import io.github.kotlinmania.candle.CandleError
 import io.github.kotlinmania.candle.CmpOp
 import io.github.kotlinmania.candle.CpuStorage
 import io.github.kotlinmania.candle.CpuStorageRef
 import io.github.kotlinmania.candle.DType
 import io.github.kotlinmania.candle.DeviceLocation
-import io.github.kotlinmania.candle.F8E4M3
 import io.github.kotlinmania.candle.Layout
 import io.github.kotlinmania.candle.ParamsConv1D
 import io.github.kotlinmania.candle.ParamsConv2D
 import io.github.kotlinmania.candle.ParamsConvTranspose1D
 import io.github.kotlinmania.candle.ParamsConvTranspose2D
 import io.github.kotlinmania.candle.ReduceOp
-import io.github.kotlinmania.candle.Result
 import io.github.kotlinmania.candle.Scalar
 import io.github.kotlinmania.candle.Shape
 import io.github.kotlinmania.candle.StridedBlocks
@@ -81,7 +78,9 @@ import io.github.kotlinmania.candle.metal.device.tryLock
 import io.github.kotlinmania.candle.metal.device.unwrap
 import io.github.kotlinmania.candle.metal.device.write
 import io.github.kotlinmania.candle.metal.device.zerosImpl
+import io.github.kotlinmania.float8.F8E4M3
 import io.github.kotlinmania.thiserror.StdError
+import kotlin.Result
 
 fun bufferO(
     buffer: Buffer,
@@ -218,7 +217,11 @@ class MetalStorage(
             }
 
             DType.F6E2M3, DType.F6E3M2, DType.F4, DType.F8E8M0 -> {
-                Err(CandleError.UnsupportedDTypeForOp(self.dtype, "to_cpu_storage").bt())
+                Err(
+                    io.github.kotlinmania.candle.CandleException
+                        .UnsupportedDTypeForOp(self.dtype, "to_cpu_storage")
+                        .bt(),
+                )
             }
         }
 
@@ -582,7 +585,11 @@ class MetalStorage(
                     }
                 }
             if (checkEmpty && layout.shape().elemCount() == 0) {
-                Err(CandleError.EmptyTensor(op = "reduce").bt()).getOrThrow()
+                Err(
+                    io.github.kotlinmania.candle.CandleException
+                        .EmptyTensor(op = "reduce")
+                        .bt(),
+                ).getOrThrow()
             }
             val dtype = if (returnIndex) DType.U32 else self.dtype
             val buffer =
@@ -645,7 +652,11 @@ class MetalStorage(
                 else -> bail("Metal strided reduce op $op ${self.dtype} not implemented")
             }
         if (checkEmpty && layout.shape().elemCount() == 0) {
-            Err(CandleError.EmptyTensor(op = "reduce").bt()).getOrThrow()
+            Err(
+                io.github.kotlinmania.candle.CandleException
+                    .EmptyTensor(op = "reduce")
+                    .bt(),
+            ).getOrThrow()
         }
         val dtype = if (returnIndex) DType.U32 else self.dtype
         val buffer =
@@ -750,7 +761,11 @@ class MetalStorage(
                         DType.I16,
                         DType.I32,
                         -> {
-                            return Err(CandleError.UnsupportedDTypeForOp(dtype, "const-set").bt())
+                            return Err(
+                                io.github.kotlinmania.candle.CandleException
+                                    .UnsupportedDTypeForOp(dtype, "const-set")
+                                    .bt(),
+                            )
                         }
                     }
                 CandleMetalKernels
@@ -807,7 +822,11 @@ class MetalStorage(
                         DType.I16,
                         DType.I32,
                         -> {
-                            return Err(CandleError.UnsupportedDTypeForOp(dtype, "const-set").bt())
+                            return Err(
+                                io.github.kotlinmania.candle.CandleException
+                                    .UnsupportedDTypeForOp(dtype, "const-set")
+                                    .bt(),
+                            )
                         }
                     }
                 CandleMetalKernels
@@ -2496,7 +2515,11 @@ class MetalStorage(
         dim: Int,
     ): Result<MetalStorage> {
         if (!idsL.isContiguous()) {
-            return Err(CandleError.RequiresContiguous(op = "gather").bt())
+            return Err(
+                io.github.kotlinmania.candle.CandleException
+                    .RequiresContiguous(op = "gather")
+                    .bt(),
+            )
         }
         val idsEl = idsL.dims()[dim]
         val dstEl = idsL.shape().elemCount()
@@ -2558,7 +2581,11 @@ class MetalStorage(
         dim: Int,
     ): Result<Unit> {
         if (!l.isContiguous() || !idsL.isContiguous() || !srcL.isContiguous()) {
-            return Err(CandleError.RequiresContiguous(op = "scatter").bt())
+            return Err(
+                io.github.kotlinmania.candle.CandleException
+                    .RequiresContiguous(op = "scatter")
+                    .bt(),
+            )
         }
         val name =
             when (Pair(ids.dtype, self.dtype)) {
@@ -2642,7 +2669,11 @@ class MetalStorage(
         dim: Int,
     ): Result<Unit> {
         if (!l.isContiguous() || !idsL.isContiguous() || !srcL.isContiguous()) {
-            return Err(CandleError.RequiresContiguous(op = "scatter-add").bt())
+            return Err(
+                io.github.kotlinmania.candle.CandleException
+                    .RequiresContiguous(op = "scatter-add")
+                    .bt(),
+            )
         }
         val name =
             when (Pair(ids.dtype, self.dtype)) {
@@ -2861,7 +2892,11 @@ class MetalStorage(
         val acc = self.device.zerosImpl(l.shape(), self.dtype()).getOrThrow()
         self.copyStridedSrc(acc, 0, l).getOrThrow()
         if (!idsL.isContiguous() || !srcL.isContiguous()) {
-            return Err(CandleError.RequiresContiguous(op = "index-add").bt())
+            return Err(
+                io.github.kotlinmania.candle.CandleException
+                    .RequiresContiguous(op = "index-add")
+                    .bt(),
+            )
         }
         val name =
             when (Pair(ids.dtype, self.dtype)) {
@@ -3592,7 +3627,11 @@ class MetalBackendDevice(
                 is CpuStorageRef.F4,
                 is CpuStorageRef.F8E8M0,
                 -> {
-                    return Err(CandleError.UnsupportedDTypeForOp(dtype, "to_dtype").bt())
+                    return Err(
+                        io.github.kotlinmania.candle.CandleException
+                            .UnsupportedDTypeForOp(dtype, "to_dtype")
+                            .bt(),
+                    )
                 }
             }
         return Ok(Self.Storage.new(buffer.getOrThrow(), self.clone(), count, dtype))
@@ -3717,7 +3756,11 @@ class MetalBackendDevice(
                 is CpuStorage.F4,
                 is CpuStorage.F8E8M0,
                 -> {
-                    return Err(CandleError.UnsupportedDTypeForOp(storage.dtype(), "to_dtype").bt())
+                    return Err(
+                        io.github.kotlinmania.candle.CandleException
+                            .UnsupportedDTypeForOp(storage.dtype(), "to_dtype")
+                            .bt(),
+                    )
                 }
             }
         return Ok(

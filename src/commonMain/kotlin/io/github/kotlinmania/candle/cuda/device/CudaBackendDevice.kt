@@ -1,20 +1,18 @@
 // port-lint: source cuda_backend/device.rs
 package io.github.kotlinmania.candle.cuda.device
 
-import io.github.kotlinmania.candle.BFloat16
 import io.github.kotlinmania.candle.CpuStorage
 import io.github.kotlinmania.candle.CpuStorageRef
 import io.github.kotlinmania.candle.DType
 import io.github.kotlinmania.candle.DeviceLocation
-import io.github.kotlinmania.candle.F8E4M3
-import io.github.kotlinmania.candle.Float16
 import io.github.kotlinmania.candle.Layout
-import io.github.kotlinmania.candle.Result
 import io.github.kotlinmania.candle.Shape
 import io.github.kotlinmania.candle.bail
 import io.github.kotlinmania.candle.cuda.error.CudaError
 import io.github.kotlinmania.candle.cuda.error.w
+import io.github.kotlinmania.float8.F8E4M3
 import io.github.kotlinmania.threadlocal.ThreadLocal
+import kotlin.Result
 
 /**
  * Unique identifier for cuda devices.
@@ -222,12 +220,12 @@ sealed class CudaStorageSlice {
 
     @ConsistentCopyVisibility
     data class BF16 internal constructor(
-        val data: CudaSlice<BFloat16>,
+        val data: CudaSlice<io.github.kotlinmania.half.BF16>,
     ) : CudaStorageSlice()
 
     @ConsistentCopyVisibility
     data class F16 internal constructor(
-        val data: CudaSlice<Float16>,
+        val data: CudaSlice<io.github.kotlinmania.half.F16>,
     ) : CudaStorageSlice()
 
     @ConsistentCopyVisibility
@@ -246,9 +244,27 @@ sealed class CudaStorageSlice {
     ) : CudaStorageSlice()
 
     companion object {
-        fun BF16(s: CudaSlice<Short>): BF16 = BF16(CudaSlice(s.data.map { BFloat16.fromBits(it.toUShort()) }.toMutableList()))
+        fun BF16(s: CudaSlice<Short>): BF16 =
+            BF16(
+                CudaSlice(
+                    s.data
+                        .map {
+                            io.github.kotlinmania.half.BF16
+                                .fromBits(it.toUShort())
+                        }.toMutableList(),
+                ),
+            )
 
-        fun F16(s: CudaSlice<Short>): F16 = F16(CudaSlice(s.data.map { Float16.fromBits(it.toUShort()) }.toMutableList()))
+        fun F16(s: CudaSlice<Short>): F16 =
+            F16(
+                CudaSlice(
+                    s.data
+                        .map {
+                            io.github.kotlinmania.half.F16
+                                .fromBits(it.toUShort())
+                        }.toMutableList(),
+                ),
+            )
 
         fun <T> F8E4M3(s: CudaSlice<T>): F8E4M3Slice =
             F8E4M3Slice(
@@ -256,22 +272,22 @@ sealed class CudaStorageSlice {
                     s.data
                         .map { elem ->
                             when (elem) {
-                                is io.github.kotlinmania.candle.F8E4M3 -> {
+                                is io.github.kotlinmania.float8.F8E4M3 -> {
                                     elem
                                 }
 
                                 is Byte -> {
-                                    io.github.kotlinmania.candle.F8E4M3
+                                    io.github.kotlinmania.float8.F8E4M3
                                         .fromBits(elem.toUByte())
                                 }
 
                                 is UByte -> {
-                                    io.github.kotlinmania.candle.F8E4M3
+                                    io.github.kotlinmania.float8.F8E4M3
                                         .fromBits(elem)
                                 }
 
                                 else -> {
-                                    io.github.kotlinmania.candle.F8E4M3.ZERO
+                                    io.github.kotlinmania.float8.F8E4M3.ZERO
                                 }
                             }
                         }.toMutableList(),
@@ -611,12 +627,12 @@ class CudaDevice internal constructor(
                 }
 
                 DType.BF16 -> {
-                    val data = self.allocZeros<BFloat16>(elemCount).getOrThrow()
+                    val data = self.allocZeros<io.github.kotlinmania.half.BF16>(elemCount).getOrThrow()
                     CudaStorageSlice.BF16(data)
                 }
 
                 DType.F16 -> {
-                    val data = self.allocZeros<Float16>(elemCount).getOrThrow()
+                    val data = self.allocZeros<io.github.kotlinmania.half.F16>(elemCount).getOrThrow()
                     CudaStorageSlice.F16(data)
                 }
 
@@ -816,12 +832,12 @@ class CudaDevice internal constructor(
                 }
 
                 DType.BF16 -> {
-                    val data = self.alloc<BFloat16>(elemCount).getOrThrow()
+                    val data = self.alloc<io.github.kotlinmania.half.BF16>(elemCount).getOrThrow()
                     CudaStorageSlice.BF16(data)
                 }
 
                 DType.F16 -> {
-                    val data = self.alloc<Float16>(elemCount).getOrThrow()
+                    val data = self.alloc<io.github.kotlinmania.half.F16>(elemCount).getOrThrow()
                     CudaStorageSlice.F16(data)
                 }
 
@@ -981,7 +997,7 @@ class CudaDevice internal constructor(
                     CudaStorageSlice.F64(data)
                 }
 
-                is CpuStorage.F8E4M3Storage -> {
+                is CpuStorage.F8E4M3 -> {
                     val data = self.cloneHtod(storage.data).getOrThrow()
                     CudaStorageSlice.F8E4M3(data)
                 }
@@ -989,7 +1005,7 @@ class CudaDevice internal constructor(
                 is CpuStorage.F4,
                 is CpuStorage.F6E2M3,
                 is CpuStorage.F6E3M2,
-                is CpuStorage.F8E8M0Storage,
+                is CpuStorage.F8E8M0,
                 -> {
                     return Err(
                         CudaError
@@ -1056,7 +1072,7 @@ class CudaDevice internal constructor(
                     CudaStorageSlice.F64(data)
                 }
 
-                is CpuStorage.F8E4M3Storage -> {
+                is CpuStorage.F8E4M3 -> {
                     val data = self.cloneHtod(storage.data).getOrThrow()
                     CudaStorageSlice.F8E4M3(data)
                 }
@@ -1064,7 +1080,7 @@ class CudaDevice internal constructor(
                 is CpuStorage.F4,
                 is CpuStorage.F6E2M3,
                 is CpuStorage.F6E3M2,
-                is CpuStorage.F8E8M0Storage,
+                is CpuStorage.F8E8M0,
                 -> {
                     return Err(
                         CudaError
@@ -1166,7 +1182,7 @@ private val IntArray.set: (Int) -> Unit get() = { v -> this[0] = v }
 private val Int.saturatingSub: (Int) -> Int get() = { other -> maxOf(0, this - other) }
 
 private fun <R> ThreadLocal<IntArray>.withDepth(block: (IntArray) -> R): R = block(getOr { intArrayOf(0) })
- 
+
 private fun <R> ThreadLocal<MutableMap<CudaGraphHtodCacheKey, Any>>.withCache(block: (MutableMap<CudaGraphHtodCacheKey, Any>) -> R): R =
     block(getOr { HashMap() })
 

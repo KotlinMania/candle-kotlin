@@ -14,6 +14,7 @@ import io.github.kotlinmania.candle.BlockQ6K
 import io.github.kotlinmania.candle.BlockQ80
 import io.github.kotlinmania.candle.BlockQ81
 import io.github.kotlinmania.candle.BlockQ8K
+import io.github.kotlinmania.candle.CandleException
 import io.github.kotlinmania.candle.CpuStorage
 import io.github.kotlinmania.candle.CudaDevice
 import io.github.kotlinmania.candle.CudaStorage
@@ -21,7 +22,7 @@ import io.github.kotlinmania.candle.Device
 import io.github.kotlinmania.candle.F16GgmlType
 import io.github.kotlinmania.candle.F32GgmlType
 import io.github.kotlinmania.candle.GgmlDType
-import io.github.kotlinmania.candle.GgmlTypeCompanion
+import io.github.kotlinmania.candle.GgmlType
 import io.github.kotlinmania.candle.Layout
 import io.github.kotlinmania.candle.QStorage
 import io.github.kotlinmania.candle.Shape
@@ -29,7 +30,6 @@ import io.github.kotlinmania.candle.Storage
 import io.github.kotlinmania.candle.Test
 import io.github.kotlinmania.candle.bail
 import io.github.kotlinmania.candle.cuda.CudaStorageSlice
-import io.github.kotlinmania.candle.CandleError as Error
 
 internal class CudaSlice(
     val bytes: ByteArray,
@@ -67,8 +67,8 @@ private val IntArray.slice: (IntRange) -> IntArray get() = { r ->
     copyOfRange(r.first.coerceAtLeast(0), (r.last + 1).coerceAtMost(size))
 }
 private val FloatArray.asView: () -> FloatArray get() = { this }
-private val ByteArray.stream: () -> Long get() = { throw Error.NotCompiledWithCudaSupport }
-private val ByteArray.devicePtr: (Long) -> Pair<Long, Long> get() = { throw Error.NotCompiledWithCudaSupport }
+private val ByteArray.stream: () -> Long get() = { throw CandleException.NotCompiledWithCudaSupport }
+private val ByteArray.devicePtr: (Long) -> Pair<Long, Long> get() = { throw CandleException.NotCompiledWithCudaSupport }
 
 private fun <T> List<T>.toVec(): MutableList<T> = toMutableList()
 
@@ -88,18 +88,18 @@ private val CudaStorage.matmul: (CudaStorage, List<Int>, Layout, Layout) -> Cuda
 }
 
 private const val QUANTIZED: String = "quantized"
-private val CudaDevice.getOrLoadFunc: (String, String) -> String get() = { _, _ -> throw Error.NotCompiledWithCudaSupport }
-private val CudaDevice.alloc: (Int) -> ByteArray get() = { throw Error.NotCompiledWithCudaSupport }
-private val CudaDevice.allocZeros: (Int) -> ByteArray get() = { throw Error.NotCompiledWithCudaSupport }
-private val CudaDevice.cloneDtoh: (ByteArray) -> ByteArray get() = { throw Error.NotCompiledWithCudaSupport }
-private val CudaDevice.cloneDtohF32: (FloatArray) -> FloatArray get() = { throw Error.NotCompiledWithCudaSupport }
-private val CudaDevice.cloneHtod: (FloatArray) -> FloatArray get() = { throw Error.NotCompiledWithCudaSupport }
-private val CudaDevice.memcpyHtod: (ByteArray, ByteArray) -> Unit get() = { _, _ -> throw Error.NotCompiledWithCudaSupport }
-private val CudaDevice.memcpyDtoh: (ByteArray, ByteArray) -> Unit get() = { _, _ -> throw Error.NotCompiledWithCudaSupport }
+private val CudaDevice.getOrLoadFunc: (String, String) -> String get() = { _, _ -> throw CandleException.NotCompiledWithCudaSupport }
+private val CudaDevice.alloc: (Int) -> ByteArray get() = { throw CandleException.NotCompiledWithCudaSupport }
+private val CudaDevice.allocZeros: (Int) -> ByteArray get() = { throw CandleException.NotCompiledWithCudaSupport }
+private val CudaDevice.cloneDtoh: (ByteArray) -> ByteArray get() = { throw CandleException.NotCompiledWithCudaSupport }
+private val CudaDevice.cloneDtohF32: (FloatArray) -> FloatArray get() = { throw CandleException.NotCompiledWithCudaSupport }
+private val CudaDevice.cloneHtod: (FloatArray) -> FloatArray get() = { throw CandleException.NotCompiledWithCudaSupport }
+private val CudaDevice.memcpyHtod: (ByteArray, ByteArray) -> Unit get() = { _, _ -> throw CandleException.NotCompiledWithCudaSupport }
+private val CudaDevice.memcpyDtoh: (ByteArray, ByteArray) -> Unit get() = { _, _ -> throw CandleException.NotCompiledWithCudaSupport }
 private val String.builder: () -> MutableList<Any?> get() = { mutableListOf(this) }
 private val MutableList<Any?>.arg: (Any?) -> Unit get() = { add(it) }
 private val MutableList<Any?>.launch: (Any?) -> MutableList<Any?> get() = {
-    throw Error.NotCompiledWithCudaSupport
+    throw CandleException.NotCompiledWithCudaSupport
 }
 private val barg: (MutableList<Any?>, Any?, Any?, Any?, Any?, Any?, Any?) -> Unit get() = { b, a1, a2, a3, a4, a5, a6 ->
     b.add(a1)
@@ -167,7 +167,7 @@ class QCudaStorage internal constructor(
             buffer: ByteArray,
             n: Int,
             dst: FloatArray,
-            companion: GgmlTypeCompanion<T, *>,
+            companion: GgmlType<T, *>,
         ) {
             val slice = buffer.slice(0 until minOf(buffer.size, n))
             val vec = slice.toList()
@@ -412,7 +412,11 @@ class QCudaStorage internal constructor(
         val rhsSlice0 = rhs.asCudaSlice<Float>()
         val offsets =
             rhsL.contiguousOffsets()
-                ?: Err(Error.RequiresContiguous(op = "dmmv").bt())
+                ?: Err(
+                    CandleException
+                        .RequiresContiguous(op = "dmmv")
+                        .bt(),
+                )
         val rhsSlice = rhsSlice0.subList(offsets.first, minOf(offsets.second, rhsSlice0.size)).toFloatArray()
         val dims = rhsL.shape().dims()
         val (bSize, k) =
@@ -472,7 +476,7 @@ class QCudaStorage internal constructor(
                 val offsets =
                     layout.contiguousOffsets()
                         ?: Err(
-                            Error
+                            CandleException
                                 .RequiresContiguous(
                                     op = "quantized-matmul",
                                 ).bt(),
@@ -1084,7 +1088,7 @@ private fun indexedMoeForwardFusedQ81Input(
 fun <T> loadQuantized(
     device: CudaDevice,
     data: List<T>,
-    companion: GgmlTypeCompanion<T, *>? = null,
+    companion: GgmlType<T, *>? = null,
 ): QStorage =
     io.github.kotlinmania.candle
         .loadQuantized(device, data)

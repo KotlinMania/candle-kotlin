@@ -6,12 +6,12 @@
  */
 package io.github.kotlinmania.candle.gguf
 
+import io.github.kotlinmania.byteorder.LittleEndian
 import io.github.kotlinmania.candle.CandleResult
 import io.github.kotlinmania.candle.CandleResult.Ok
 import io.github.kotlinmania.candle.Device
 import io.github.kotlinmania.candle.GgmlDType
 import io.github.kotlinmania.candle.HashMap
-import io.github.kotlinmania.candle.LittleEndian
 import io.github.kotlinmania.candle.NpyByteReader
 import io.github.kotlinmania.candle.NpyByteWriter
 import io.github.kotlinmania.candle.QTensor

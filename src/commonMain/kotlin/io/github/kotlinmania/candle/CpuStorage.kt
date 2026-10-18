@@ -1,5 +1,8 @@
 package io.github.kotlinmania.candle
 
+import io.github.kotlinmania.float8.F8E4M3
+import io.github.kotlinmania.half.BF16
+import io.github.kotlinmania.half.F16
 import kotlin.math.abs
 import kotlin.math.ceil
 import kotlin.math.cos
@@ -170,9 +173,6 @@ public sealed class CpuStorage {
     public data class F8E8M0(
         val data: ByteArray,
     ) : CpuStorage()
-
-    public typealias F8E4M3Storage = F8E4M3
-    public typealias F8E8M0Storage = F8E8M0
 
     public fun asSlice(): List<Double> {
         val len =
@@ -3639,7 +3639,7 @@ public class MatMul(
         msg: String,
     ): CandleException =
         CandleException.MatMulUnexpectedStriding(
-            MatMulUnexpectedStridingDetails(
+            MatMulUnexpectedStriding(
                 lhsL = lhsL,
                 rhsL = rhsL,
                 bmnk = bmnk,

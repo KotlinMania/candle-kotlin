@@ -447,3 +447,17 @@ If you encounter an error like this one `called `Result::unwrap()` on an `Err` v
 `c:\Windows\System32\nvcuda.dll` -> `cuda.dll`
 `c:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.4\bin\cublas64_12.dll` -> `cublas.dll`
 `c:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.4\bin\curand64_10.dll` -> `curand.dll`
+
+## Kotlin package imports
+
+Use the package that defines each type:
+
+```kotlin
+import io.github.kotlinmania.candle.CandleException
+import io.github.kotlinmania.candle.Dim
+import io.github.kotlinmania.float8.F8E4M3
+import io.github.kotlinmania.half.BF16
+import io.github.kotlinmania.half.F16
+```
+
+Compatibility type aliases have been removed, including `CandleError`, `ShapeDim`, `Float16`, and `BFloat16`.
