@@ -2919,6 +2919,42 @@ public class Tensor internal constructor(
             return fromStorage(device.storageFromCpuStorageOwned(CpuStorage.U8(data.copyOf())), shape, BackpropOp.None, false)
         }
 
+        public fun new(data: Double, device: Device = Device.Cpu): Tensor =
+            new(doubleArrayOf(data), Shape.SCALAR, device)
+
+        public fun new(data: Float, device: Device = Device.Cpu): Tensor =
+            new(floatArrayOf(data), Shape.SCALAR, device)
+
+        public fun new(data: Long, device: Device = Device.Cpu): Tensor =
+            new(longArrayOf(data), Shape.SCALAR, device)
+
+        public fun new(data: Int, device: Device = Device.Cpu): Tensor =
+            new(intArrayOf(data), Shape.SCALAR, device)
+
+        public fun new(data: UInt, device: Device = Device.Cpu): Tensor =
+            new(uintArrayOf(data), Shape.SCALAR, device)
+
+        public fun new(data: UByte, device: Device = Device.Cpu): Tensor =
+            new(ubyteArrayOf(data), Shape.SCALAR, device)
+
+        public fun new(data: DoubleArray, device: Device = Device.Cpu): Tensor =
+            new(data, Shape(data.size), device)
+
+        public fun new(data: FloatArray, device: Device = Device.Cpu): Tensor =
+            new(data, Shape(data.size), device)
+
+        public fun new(data: LongArray, device: Device = Device.Cpu): Tensor =
+            new(data, Shape(data.size), device)
+
+        public fun new(data: IntArray, device: Device = Device.Cpu): Tensor =
+            new(data, Shape(data.size), device)
+
+        public fun new(data: UIntArray, device: Device = Device.Cpu): Tensor =
+            new(data, Shape(data.size), device)
+
+        public fun new(data: UByteArray, device: Device = Device.Cpu): Tensor =
+            new(data, Shape(data.size), device)
+
         /**
          * Returns a new tensor with all the elements having the same specified value.
          *
