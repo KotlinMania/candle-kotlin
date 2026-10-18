@@ -2,7 +2,6 @@
 package io.github.kotlinmania.candle
 
 import io.github.kotlinmania.byteorder.LittleEndian
-import io.github.kotlinmania.candle.CandleException
 import io.github.kotlinmania.candle.CandleResult.Ok
 
 private fun Any.asRef(): String = toString()

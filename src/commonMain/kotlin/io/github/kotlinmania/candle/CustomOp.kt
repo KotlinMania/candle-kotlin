@@ -1,7 +1,6 @@
 // port-lint: source custom_op.rs
 package io.github.kotlinmania.candle
 
-import io.github.kotlinmania.candle.CandleException
 import io.github.kotlinmania.candle.Tensor.Companion.fromStorage
 
 private val <T> T.self: T get() = this

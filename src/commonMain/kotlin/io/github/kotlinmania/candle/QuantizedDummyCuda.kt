@@ -1,7 +1,5 @@
 package io.github.kotlinmania.candle
 
-import io.github.kotlinmania.candle.CandleException
-
 /**
  * Implementation of quantized CUDA storage when CUDA support has not been compiled in.
  *

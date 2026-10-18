@@ -1,7 +1,5 @@
 package io.github.kotlinmania.candle
 
-import io.github.kotlinmania.candle.CandleException
-
 /**
  * Implementation of quantized Metal storage when Metal support has not been compiled in.
  *

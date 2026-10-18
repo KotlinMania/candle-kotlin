@@ -1,8 +1,6 @@
 // port-lint: source storage.rs
 package io.github.kotlinmania.candle
 
-import io.github.kotlinmania.candle.CandleException
-
 private val <T> T.self: T get() = this
 private val Err: (Throwable) -> Nothing get() = { throw it }
 private val unreachable: () -> Nothing get() = { error("unreachable") }

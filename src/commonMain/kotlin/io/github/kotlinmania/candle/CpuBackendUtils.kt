@@ -1,7 +1,6 @@
 // port-lint: source cpu_backend/utils.rs
 package io.github.kotlinmania.candle
 
-import io.github.kotlinmania.candle.CandleException
 import io.github.kotlinmania.float8.F8E4M3
 import io.github.kotlinmania.half.BF16
 import io.github.kotlinmania.half.F16

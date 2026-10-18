@@ -1,7 +1,6 @@
 // port-lint: source backprop.rs
 package io.github.kotlinmania.candle
 
-import io.github.kotlinmania.candle.CandleException
 import io.github.kotlinmania.envie.getenv
 import io.github.kotlinmania.threadlocal.ThreadLocal
 
