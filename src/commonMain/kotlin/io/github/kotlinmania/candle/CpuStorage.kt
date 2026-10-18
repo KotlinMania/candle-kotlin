@@ -12,6 +12,7 @@ import kotlin.math.sign
 import kotlin.math.sin
 import kotlin.math.sqrt
 import kotlin.math.tanh
+import io.github.kotlinmania.float8.F8E4M3 as Float8
 
 /**
  * Implementation of Backend Fns for CPU
@@ -970,114 +971,116 @@ public sealed class CpuStorage {
         layout: Layout,
         reduceDims: List<Int>,
     ): CpuStorage {
-        val srcShape = layout.shape
-        val srcDims = srcShape.dims
-        val outDims = ArrayList<Int>()
-        for (i in srcDims.indices) {
-            if (i in reduceDims) {
-                outDims.add(1)
-            } else {
-                outDims.add(srcDims[i])
+        for (dim in reduceDims) {
+            if (dim !in layout.dims.indices) throw CandleException.DimOutOfRange(layout.shape, dim, "reduce")
+        }
+        if (reduceDims.distinct().size != reduceDims.size) {
+            throw CandleException.DuplicateDimIndex(layout.shape, reduceDims, "reduce")
+        }
+        if (op != ReduceOp.Sum && reduceDims.size != 1) {
+            throw CandleException.OnlySingleDimension(op.name.lowercase(), reduceDims)
+        }
+        if (op != ReduceOp.Sum && layout.shape.elemCount() == 0) throw CandleException.EmptyTensor("reduce")
+        return when (this) {
+            is U8 -> {
+                reduceTyped(op, layout, reduceDims, data.asList(), 0.toUByte(), { a, b -> (a + b).toUByte() }, { a, b -> a < b }) {
+                    U8(it.toUByteArray())
+                }
+            }
+
+            is U32 -> {
+                reduceTyped(op, layout, reduceDims, data.asList(), 0u, { a, b -> a + b }, { a, b -> a < b }) { U32(it.toUIntArray()) }
+            }
+
+            is I16 -> {
+                reduceTyped(op, layout, reduceDims, data.asList(), 0.toShort(), { a, b -> (a + b).toShort() }, { a, b -> a < b }) {
+                    I16(it.toShortArray())
+                }
+            }
+
+            is I32 -> {
+                reduceTyped(op, layout, reduceDims, data.asList(), 0, { a, b -> a + b }, { a, b -> a < b }) { I32(it.toIntArray()) }
+            }
+
+            is I64 -> {
+                reduceTyped(op, layout, reduceDims, data.asList(), 0L, { a, b -> a + b }, { a, b -> a < b }) { I64(it.toLongArray()) }
+            }
+
+            is F32 -> {
+                reduceTyped(op, layout, reduceDims, data.asList(), 0f, { a, b -> a + b }, { a, b -> a < b }) { F32(it.toFloatArray()) }
+            }
+
+            is F64 -> {
+                reduceTyped(op, layout, reduceDims, data.asList(), 0.0, { a, b -> a + b }, { a, b -> a < b }) { F64(it.toDoubleArray()) }
+            }
+
+            is BF16 -> {
+                reduceTyped(
+                    op,
+                    layout,
+                    reduceDims,
+                    data.asList(),
+                    0.toShort(),
+                    { a, b -> Float16Utils.floatToBF16Bits(Float16Utils.bf16BitsToFloat(a) + Float16Utils.bf16BitsToFloat(b)) },
+                    { a, b -> Float16Utils.bf16BitsToFloat(a) < Float16Utils.bf16BitsToFloat(b) },
+                ) { BF16(it.toShortArray()) }
+            }
+
+            is F16 -> {
+                reduceTyped(
+                    op,
+                    layout,
+                    reduceDims,
+                    data.asList(),
+                    0.toShort(),
+                    { a, b -> Float16Utils.floatToF16Bits(Float16Utils.f16BitsToFloat(a) + Float16Utils.f16BitsToFloat(b)) },
+                    { a, b -> Float16Utils.f16BitsToFloat(a) < Float16Utils.f16BitsToFloat(b) },
+                ) { F16(it.toShortArray()) }
+            }
+
+            is F8E4M3 -> {
+                reduceTyped(
+                    op,
+                    layout,
+                    reduceDims,
+                    data.asList(),
+                    0.toByte(),
+                    { a, b -> (Float8.fromBits(a.toUByte()) + Float8.fromBits(b.toUByte())).bits },
+                    { a, b -> Float8.fromBits(a.toUByte()).toF32() < Float8.fromBits(b.toUByte()).toF32() },
+                ) { F8E4M3(it.toByteArray()) }
+            }
+
+            is F6E2M3, is F6E3M2, is F4, is F8E8M0 -> {
+                throw CandleException.UnsupportedDTypeForOp(dtype(), "reduce")
             }
         }
-        val outShape = Shape(outDims)
-        val outCount = outShape.elemCount()
-        val outLayout = Layout.contiguous(outShape)
-
-        val outData = FloatArray(outCount)
-        when (op) {
-            ReduceOp.Sum -> {
-                val strided = layout.stridedIndex()
-                var srcIdx = 0
-                while (strided.hasNext()) {
-                    val sIdx = strided.next()
-                    val outIdx = getReducedIndex(srcIdx++, srcDims, reduceDims)
-                    outData[outIdx] += getAsFloat(sIdx)
-                }
-            }
-
-            ReduceOp.Min -> {
-                outData.fill(Float.POSITIVE_INFINITY)
-                val strided = layout.stridedIndex()
-                var srcIdx = 0
-                while (strided.hasNext()) {
-                    val sIdx = strided.next()
-                    val outIdx = getReducedIndex(srcIdx++, srcDims, reduceDims)
-                    val v = getAsFloat(sIdx)
-                    if (v < outData[outIdx]) outData[outIdx] = v
-                }
-            }
-
-            ReduceOp.Max -> {
-                outData.fill(Float.NEGATIVE_INFINITY)
-                val strided = layout.stridedIndex()
-                var srcIdx = 0
-                while (strided.hasNext()) {
-                    val sIdx = strided.next()
-                    val outIdx = getReducedIndex(srcIdx++, srcDims, reduceDims)
-                    val v = getAsFloat(sIdx)
-                    if (v > outData[outIdx]) outData[outIdx] = v
-                }
-            }
-
-            ReduceOp.ArgMin, ReduceOp.ArgMax -> {
-                // ArgMin/ArgMax along single dimension
-                val dim = reduceDims[0]
-                val dimSize = srcDims[dim]
-                val argOut = UIntArray(outCount)
-                val bestVal = FloatArray(outCount) { if (op == ReduceOp.ArgMin) Float.POSITIVE_INFINITY else Float.NEGATIVE_INFINITY }
-                val strided = layout.stridedIndex()
-                var srcIdx = 0
-                while (strided.hasNext()) {
-                    val sIdx = strided.next()
-                    val dimPos = (srcIdx / getDimStride(srcIdx, srcDims, dim)) % dimSize
-                    val outIdx = getReducedIndex(srcIdx++, srcDims, reduceDims)
-                    val v = getAsFloat(sIdx)
-                    if (op == ReduceOp.ArgMin && v < bestVal[outIdx]) {
-                        bestVal[outIdx] = v
-                        argOut[outIdx] = dimPos.toUInt()
-                    } else if (op == ReduceOp.ArgMax && v > bestVal[outIdx]) {
-                        bestVal[outIdx] = v
-                        argOut[outIdx] = dimPos.toUInt()
-                    }
-                }
-                return U32(argOut)
-            }
-        }
-        return F32(outData).toDType(outLayout, dtype())
     }
 
-    private fun getDimStride(
-        srcIdx: Int,
-        dims: List<Int>,
-        targetDim: Int,
-    ): Int {
-        srcIdx.hashCode()
-        var stride = 1
-        for (i in (dims.size - 1) downTo (targetDim + 1)) {
-            stride *= dims[i]
-        }
-        return stride
-    }
-
-    private fun getReducedIndex(
-        srcFlatIdx: Int,
-        dims: List<Int>,
+    private fun <T> reduceTyped(
+        op: ReduceOp,
+        layout: Layout,
         reduceDims: List<Int>,
-    ): Int {
-        var remaining = srcFlatIdx
-        var outIdx = 0
-        var outStride = 1
-        for (i in dims.indices.reversed()) {
-            val dimSize = dims[i]
-            val coord = remaining % dimSize
-            remaining /= dimSize
-            val outCoord = if (i in reduceDims) 0 else coord
-            val outDimSize = if (i in reduceDims) 1 else dimSize
-            outIdx += outCoord * outStride
-            outStride *= outDimSize
+        values: List<T>,
+        zero: T,
+        add: (T, T) -> T,
+        less: (T, T) -> Boolean,
+        wrap: (List<T>) -> CpuStorage,
+    ): CpuStorage {
+        if (op == ReduceOp.Sum) {
+            val dims = reduceDims.sorted()
+            val dstShape = Shape(layout.dims.mapIndexed { i, size -> if (i in dims) 1 else size })
+            val dimsAndStride = dims.map { dim -> layout.dims[dim] to layout.dims.drop(dim + 1).fold(1, Int::times) }
+            return wrap(ReduceSum(dstShape, dims.toIntArray(), dimsAndStride).foldTyped(values, layout, zero, add))
         }
-        return outIdx
+        val useMin = op == ReduceOp.Min || op == ReduceOp.ArgMin
+        val returnIndex = op == ReduceOp.ArgMin || op == ReduceOp.ArgMax
+        val reducer = ReduceIndex(reduceDims.single(), useMin, returnIndex)
+        val replace: (T, T) -> Boolean = { best, value -> if (useMin) less(value, best) else less(best, value) }
+        return if (returnIndex) {
+            U32(reducer.foldTyped(values, layout, replace) { _, index -> index.toUInt() }.toUIntArray())
+        } else {
+            wrap(reducer.foldTyped(values, layout, replace) { value, _ -> value })
+        }
     }
 
     public fun indexSelect(
@@ -2143,18 +2146,7 @@ public sealed class CpuStorage {
         source: CpuStorage,
         sourceL: Layout,
         d: Int,
-    ) {
-        d.hashCode()
-        val srcOffsets = sourceL.contiguousOffsets() ?: throw CandleException.RequiresContiguous("scatter-set")
-        val idsOffsets = indexesL.contiguousOffsets() ?: throw CandleException.RequiresContiguous("scatter-set")
-        val lOffsets = l.contiguousOffsets() ?: throw CandleException.RequiresContiguous("scatter-set")
-        val count = idsOffsets.end - idsOffsets.start
-        for (i in 0 until count) {
-            val idx = indexes.getAsDouble(idsOffsets.start + i).toInt()
-            val srcVal = source.getAsDouble(srcOffsets.start + i)
-            setDouble(lOffsets.start + idx, srcVal)
-        }
-    }
+    ) = scatterUpdate(l, indexes, indexesL, source, sourceL, d, false)
 
     public fun scatterAddSet(
         l: Layout,
@@ -2163,17 +2155,93 @@ public sealed class CpuStorage {
         source: CpuStorage,
         sourceL: Layout,
         d: Int,
+    ) = scatterUpdate(l, indexes, indexesL, source, sourceL, d, true)
+
+    private fun scatterUpdate(
+        l: Layout,
+        indexes: CpuStorage,
+        indexesL: Layout,
+        source: CpuStorage,
+        sourceL: Layout,
+        d: Int,
+        add: Boolean,
     ) {
-        d.hashCode()
-        val srcOffsets = sourceL.contiguousOffsets() ?: throw CandleException.RequiresContiguous("scatter-add")
-        val idsOffsets = indexesL.contiguousOffsets() ?: throw CandleException.RequiresContiguous("scatter-add")
-        val lOffsets = l.contiguousOffsets() ?: throw CandleException.RequiresContiguous("scatter-add")
-        val count = idsOffsets.end - idsOffsets.start
-        for (i in 0 until count) {
-            val idx = indexes.getAsDouble(idsOffsets.start + i).toInt()
-            val cur = getAsDouble(lOffsets.start + idx)
-            val srcVal = source.getAsDouble(srcOffsets.start + i)
-            setDouble(lOffsets.start + idx, cur + srcVal)
+        val op = if (add) "scatter-add" else "scatter"
+        if (dtype() != source.dtype()) throw CandleException.DTypeMismatchBinaryOp(dtype(), source.dtype(), op)
+        if (this is F6E2M3 || this is F6E3M2 || this is F4 || this is F8E8M0) {
+            throw CandleException.UnsupportedDTypeForOp(dtype(), op)
+        }
+        val ids = indexes.scatterIndexes(op, add)
+        Scatter(ids, indexesL, d).forEachOffset(l, sourceL) { dstIndex, srcIndex ->
+            updateElement(source, dstIndex, srcIndex, add)
+        }
+    }
+
+    private fun scatterIndexes(op: String, signedSmall: Boolean): List<Long> =
+        when (this) {
+            is U8 -> data.map { if (it == UByte.MAX_VALUE) Long.MAX_VALUE else it.toLong() }
+            is U32 -> data.map { if (it == UInt.MAX_VALUE) Long.MAX_VALUE else it.toLong() }
+            is I64 -> data.asList()
+            is I16 -> if (signedSmall) data.map { if (it == Short.MAX_VALUE) Long.MAX_VALUE else it.toLong() } else throw CandleException.UnsupportedDTypeForOp(dtype(), op)
+            is I32 -> if (signedSmall) data.map { if (it == Int.MAX_VALUE) Long.MAX_VALUE else it.toLong() } else throw CandleException.UnsupportedDTypeForOp(dtype(), op)
+            else -> throw CandleException.UnsupportedDTypeForOp(dtype(), op)
+        }
+
+    private fun updateElement(source: CpuStorage, dst: Int, src: Int, add: Boolean) {
+        when (this) {
+            is U8 -> {
+                val v = (source as U8).data[src]
+                data[dst] = if (add) (data[dst] + v).toUByte() else v
+            }
+
+            is U32 -> {
+                val v = (source as U32).data[src]
+                data[dst] = if (add) data[dst] + v else v
+            }
+
+            is I16 -> {
+                val v = (source as I16).data[src]
+                data[dst] = if (add) (data[dst] + v).toShort() else v
+            }
+
+            is I32 -> {
+                val v = (source as I32).data[src]
+                data[dst] = if (add) data[dst] + v else v
+            }
+
+            is I64 -> {
+                val v = (source as I64).data[src]
+                data[dst] = if (add) data[dst] + v else v
+            }
+
+            is F32 -> {
+                val v = (source as F32).data[src]
+                data[dst] = if (add) data[dst] + v else v
+            }
+
+            is F64 -> {
+                val v = (source as F64).data[src]
+                data[dst] = if (add) data[dst] + v else v
+            }
+
+            is BF16 -> {
+                val v = (source as BF16).data[src]
+                data[dst] = if (add) Float16Utils.floatToBF16Bits(Float16Utils.bf16BitsToFloat(data[dst]) + Float16Utils.bf16BitsToFloat(v)) else v
+            }
+
+            is F16 -> {
+                val v = (source as F16).data[src]
+                data[dst] = if (add) Float16Utils.floatToF16Bits(Float16Utils.f16BitsToFloat(data[dst]) + Float16Utils.f16BitsToFloat(v)) else v
+            }
+
+            is F8E4M3 -> {
+                val v = (source as F8E4M3).data[src]
+                data[dst] = if (add) (Float8.fromBits(data[dst].toUByte()) + Float8.fromBits(v.toUByte())).bits else v
+            }
+
+            is F6E2M3, is F6E3M2, is F4, is F8E8M0 -> {
+                throw CandleException.UnsupportedDTypeForOp(dtype(), "scatter")
+            }
         }
     }
 
@@ -2185,8 +2253,17 @@ public sealed class CpuStorage {
         sourceL: Layout,
         d: Int,
     ): CpuStorage {
+        val op = "index-add"
+        if (dtype() != source.dtype()) throw CandleException.DTypeMismatchBinaryOp(dtype(), source.dtype(), op)
+        if (this is F6E2M3 || this is F6E3M2 || this is F4 || this is F8E8M0) {
+            throw CandleException.UnsupportedDTypeForOp(dtype(), op)
+        }
+        val offsets = indexesL.contiguousOffsets() ?: throw CandleException.RequiresContiguous(op)
+        val ids = indexes.scatterIndexes(op, true).subList(offsets.start, offsets.end)
         val res = tryClone(l)
-        res.scatterAddSet(l, indexes, indexesL, source, sourceL, d)
+        IndexAdd(ids, d).forEachOffset(l, sourceL) { dstIndex, srcIndex ->
+            res.updateElement(source, dstIndex, srcIndex, true)
+        }
         return res
     }
 
@@ -2497,6 +2574,13 @@ public class ReduceIndex(
         srcL: Layout,
         f: (Double, Double) -> Boolean,
         g: (Double, Int) -> U,
+    ): List<U> = foldTyped(src, srcL, f, g)
+
+    internal fun <T, U> foldTyped(
+        src: List<T>,
+        srcL: Layout,
+        f: (T, T) -> Boolean,
+        g: (T, Int) -> U,
     ): List<U> {
         val reduceDimSize = srcL.dims[reduceDimIndex]
         val reduceDimStride = srcL.stride[reduceDimIndex]
@@ -2593,7 +2677,14 @@ public class ReduceSum internal constructor(
         src: List<Double>,
         srcL: Layout,
         startElt: Double,
-    ): List<Double> {
+    ): List<Double> = foldTyped(src, srcL, startElt) { a, b -> a + b }
+
+    internal fun <T> foldTyped(
+        src: List<T>,
+        srcL: Layout,
+        startElt: T,
+        add: (T, T) -> T,
+    ): List<T> {
         val dst = MutableList(dstShape.elemCount()) { startElt }
         val offsets = srcL.contiguousOffsets()
         if (offsets != null) {
@@ -2611,8 +2702,8 @@ public class ReduceSum internal constructor(
                 for ((u, _) in reduceDimsAndStride) reduceSz *= u
                 for (dstI in 0 until dst.size) {
                     val srcI = dstI * reduceSz
-                    var acc = 0.0
-                    for (k in 0 until reduceSz) acc += s[srcI + k]
+                    var acc = startElt
+                    for (k in 0 until reduceSz) acc = add(acc, s[srcI + k])
                     dst[dstI] = acc
                 }
                 return dst
@@ -2624,7 +2715,7 @@ public class ReduceSum internal constructor(
                     val post = dstIndex % stride
                     dstIndex = (pre / dim) * stride + post
                 }
-                dst[dstIndex] = dst[dstIndex] + s[unstrIndex]
+                dst[dstIndex] = add(dst[dstIndex], s[unstrIndex])
             }
         } else {
             var unstrIndex = 0
@@ -2635,7 +2726,7 @@ public class ReduceSum internal constructor(
                     val post = dstIndex % stride
                     dstIndex = (pre / dim) * stride + post
                 }
-                dst[dstIndex] = dst[dstIndex] + src[srcIndex]
+                dst[dstIndex] = add(dst[dstIndex], src[srcIndex])
             }
         }
         return dst
@@ -3040,6 +3131,15 @@ public class Scatter(
         v2: List<Double>,
         l2: Layout,
     ) {
+        forEachOffset(l1, l2) { dstIdx, srcIdx -> update.f(v1, dstIdx, v2[srcIdx]) }
+    }
+
+    internal fun forEachOffset(l1: Layout, l2: Layout, apply: (Int, Int) -> Unit) {
+        if (dim !in l1.dims.indices) throw CandleException.DimOutOfRange(l1.shape, dim, op)
+        if (l1.dims.size != l2.dims.size || l1.dims.indices.any { it != dim && l1.dims[it] != l2.dims[it] }) {
+            throw CandleException.ShapeMismatchBinaryOp(l1.shape, l2.shape, op)
+        }
+        if (idsL.dims != l2.dims) throw CandleException.ShapeMismatchBinaryOp(idsL.shape, l2.shape, op)
         val dstOffsets = l1.contiguousOffsets() ?: throw CandleException.RequiresContiguous("scatter")
         val srcOffsets = l2.contiguousOffsets() ?: throw CandleException.RequiresContiguous("scatter")
         val idsOffsets = idsL.contiguousOffsets() ?: throw CandleException.RequiresContiguous("scatter")
@@ -3059,12 +3159,11 @@ public class Scatter(
                     val idsIdx = curIdsIdx + rightI
                     val index = ids[idsOffsets.start + idsIdx]
                     if (index == Long.MAX_VALUE) continue
-                    val idxInt = index.toInt()
-                    if (idxInt < 0 || idxInt >= dstDimLen) {
-                        throw CandleException.InvalidIndex("gather", idxInt, dstDimLen)
+                    if (index < 0 || index >= dstDimLen.toLong()) {
+                        throw CandleException.InvalidIndex(op, index.coerceIn(Int.MIN_VALUE.toLong(), Int.MAX_VALUE.toLong()).toInt(), dstDimLen)
                     }
-                    val dstIdx = dstOffsets.start + startDstIdx + idxInt * dstRightLen + rightI
-                    update.f(v1, dstIdx, v2[srcOffsets.start + idsIdx])
+                    val dstIdx = dstOffsets.start + startDstIdx + index.toInt() * dstRightLen + rightI
+                    apply(dstIdx, srcOffsets.start + idsIdx)
                 }
             }
         }
@@ -3095,42 +3194,33 @@ public class IndexAdd(
         val dstLen = l1.shape.elemCount()
         val dst = MutableList(dstLen) { 0.0 }
         copyStridedSrc(v1, dst, 0, l1)
-        val srcOffsets = l2.contiguousOffsets() ?: throw CandleException.RequiresContiguous("index-add")
-        val srcSlice = v2.subList(srcOffsets.start, srcOffsets.end)
+        forEachOffset(l1, l2) { dstIndex, srcIndex -> dst[dstIndex] = dst[dstIndex] + v2[srcIndex] }
+        return dst
+    }
+
+    internal fun forEachOffset(l1: Layout, l2: Layout, apply: (Int, Int) -> Unit) {
+        if (dim !in l1.dims.indices) throw CandleException.DimOutOfRange(l1.shape, dim, op)
+        if (l1.dims.size != l2.dims.size || l1.dims.indices.any { it != dim && l1.dims[it] != l2.dims[it] }) {
+            throw CandleException.ShapeMismatchBinaryOp(l1.shape, l2.shape, op)
+        }
+        if (ids.size != l2.dims[dim]) throw CandleException.ShapeMismatchBinaryOp(Shape(ids.size), l2.shape, op)
+        val srcOffsets = l2.contiguousOffsets() ?: throw CandleException.RequiresContiguous(op)
         val maxIdx = l1.dims[dim]
-        val preDim = l2.dims.subList(0, dim).fold(1) { a, b -> a * b }
+        val preDim = l2.dims.take(dim).fold(1, Int::times)
         val srcDimSz = l2.dims[dim]
-        val postDim = l2.dims.subList(dim + 1, l2.dims.size).fold(1) { a, b -> a * b }
-        if (dim == 0) {
-            for ((srcIdx, rawDstIdx) in ids.withIndex()) {
-                if (rawDstIdx == Long.MAX_VALUE) continue
-                val dstIdx = rawDstIdx.toInt()
-                if (dstIdx < 0 || dstIdx >= maxIdx) {
-                    throw CandleException.InvalidIndex("index-add", dstIdx, maxIdx)
-                }
-                val sBase = srcIdx * postDim
-                val dBase = dstIdx * postDim
-                for (k in 0 until postDim) {
-                    dst[dBase + k] = dst[dBase + k] + srcSlice[sBase + k]
-                }
+        val postDim = l2.dims.drop(dim + 1).fold(1, Int::times)
+        for ((srcIdx, rawDstIdx) in ids.withIndex()) {
+            if (rawDstIdx == Long.MAX_VALUE) continue
+            if (rawDstIdx < 0 || rawDstIdx >= maxIdx.toLong()) {
+                throw CandleException.InvalidIndex(op, rawDstIdx.coerceIn(Int.MIN_VALUE.toLong(), Int.MAX_VALUE.toLong()).toInt(), maxIdx)
             }
-        } else {
-            for ((srcIdx, rawDstIdx) in ids.withIndex()) {
-                if (rawDstIdx == Long.MAX_VALUE) continue
-                val dstIdx = rawDstIdx.toInt()
-                if (dstIdx < 0 || dstIdx >= maxIdx) {
-                    throw CandleException.InvalidIndex("index-add", dstIdx, maxIdx)
-                }
-                for (preI in 0 until preDim) {
-                    val preSrcI = (preI * srcDimSz + srcIdx) * postDim
-                    val preDstI = (preI * maxIdx + dstIdx) * postDim
-                    for (k in 0 until postDim) {
-                        dst[preDstI + k] = dst[preDstI + k] + srcSlice[preSrcI + k]
-                    }
-                }
+            val dstIdx = rawDstIdx.toInt()
+            for (preI in 0 until preDim) {
+                val preSrcI = srcOffsets.start + (preI * srcDimSz + srcIdx) * postDim
+                val preDstI = (preI * maxIdx + dstIdx) * postDim
+                for (k in 0 until postDim) apply(preDstI + k, preSrcI + k)
             }
         }
-        return dst
     }
 }
 
