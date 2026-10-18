@@ -3146,30 +3146,35 @@ public class Tensor internal constructor(
             device: Device,
         ): Tensor = new(data.toFloatArray(), shape, device)
 
+        @kotlin.jvm.JvmName("fromVecDouble")
         public fun fromVec(
             data: List<Double>,
             shape: Shape,
             device: Device,
         ): Tensor = new(data.toDoubleArray(), shape, device)
 
+        @kotlin.jvm.JvmName("fromVecLong")
         public fun fromVec(
             data: List<Long>,
             shape: Shape,
             device: Device,
         ): Tensor = new(data.toLongArray(), shape, device)
 
+        @kotlin.jvm.JvmName("fromVecInt")
         public fun fromVec(
             data: List<Int>,
             shape: Shape,
             device: Device,
         ): Tensor = new(data.toIntArray(), shape, device)
 
+        @kotlin.jvm.JvmName("fromVecUInt")
         public fun fromVec(
             data: List<UInt>,
             shape: Shape,
             device: Device,
         ): Tensor = new(data.toUIntArray(), shape, device)
 
+        @kotlin.jvm.JvmName("fromVecUByte")
         public fun fromVec(
             data: List<UByte>,
             shape: Shape,
