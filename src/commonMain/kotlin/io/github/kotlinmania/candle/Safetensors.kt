@@ -1172,107 +1172,29 @@ class SafeTensors internal constructor(
         }
 
         val deserialize: (ByteArray) -> CandleResult<SafeTensors> = deserializeLambda@{ data ->
-            if (data.size < 8) {
-                return@deserializeLambda CandleResult.Err(
-                    CandleException
-                        .Msg("safetensors buffer too small"),
-                )
-            }
-            var hLen = 0L
-            for (b in 0 until 8) {
-                hLen = hLen or ((data[b].toLong() and 0xFFL) shl (b * 8))
-            }
-            val headerLen = hLen.toInt()
-            if (headerLen < 0 || 8 + headerLen > data.size) {
-                return@deserializeLambda CandleResult.Err(
-                    CandleException
-                        .Msg("invalid safetensors header length"),
-                )
-            }
-            val headerStr = data.decodeToString(8, 8 + headerLen).trim()
-            val dataStart = 8 + headerLen
-            val views = LinkedHashMap<String, SafeTensorView>()
-            val body = headerStr.removePrefix("{").removeSuffix("}").trim()
-            if (body.isNotEmpty()) {
-                var pos = 0
-                while (pos < body.length) {
-                    while (pos < body.length && (body[pos].isWhitespace() || body[pos] == ',')) pos++
-                    if (pos >= body.length) break
-                    if (body[pos] != '"') {
-                        return@deserializeLambda CandleResult.Err(
-                            CandleException
-                                .Msg("expected quote in safetensors header"),
-                        )
-                    }
-                    val nameEnd = body.indexOf('"', pos + 1)
-                    if (nameEnd < 0) {
-                        return@deserializeLambda CandleResult.Err(
-                            CandleException
-                                .Msg("unterminated key in safetensors header"),
-                        )
-                    }
-                    val name = body.substring(pos + 1, nameEnd)
-                    val objStart = body.indexOf('{', nameEnd + 1)
-                    if (objStart < 0) {
-                        return@deserializeLambda CandleResult.Err(
-                            CandleException
-                                .Msg("missing object in safetensors header"),
-                        )
-                    }
-                    var braceDepth = 1
-                    var scan = objStart + 1
-                    while (scan < body.length && braceDepth > 0) {
-                        if (body[scan] == '{') {
-                            braceDepth++
-                        } else if (body[scan] == '}') {
-                            braceDepth--
-                        }
-                        scan++
-                    }
-                    val objContent = body.substring(objStart + 1, scan - 1)
-                    pos = scan
-                    if (name != "__metadata__") {
-                        val dtypeKeyIdx = objContent.indexOf("\"dtype\"")
-                        val shapeKeyIdx = objContent.indexOf("\"shape\"")
-                        val offsetsKeyIdx = objContent.indexOf("\"data_offsets\"")
-                        if (dtypeKeyIdx < 0 || shapeKeyIdx < 0 || offsetsKeyIdx < 0) {
-                            return@deserializeLambda CandleResult.Err(
-                                CandleException
-                                    .Msg("missing fields for tensor $name"),
+            try {
+                val header = readSafetensorHeader(data)
+                val views = LinkedHashMap<String, SafeTensorView>()
+                for (entry in header.tensors) {
+                    val dtype =
+                        SafeTensorDtype.entries.firstOrNull { it.wireName == entry.dtype }
+                            ?: return@deserializeLambda CandleResult.Err(
+                                CandleException.UnsupportedSafeTensorDtype(entry.dtype),
                             )
+                    val bitsPerElement =
+                        when (dtype) {
+                            SafeTensorDtype.F4 -> 4
+                            SafeTensorDtype.F6E2M3, SafeTensorDtype.F6E3M2 -> 6
+                            else -> dtype.byteSize * 8
                         }
-                        val dtypeQuote1 = objContent.indexOf('"', dtypeKeyIdx + 7)
-                        val dtypeQuote2 = objContent.indexOf('"', dtypeQuote1 + 1)
-                        val dtypeStr = objContent.substring(dtypeQuote1 + 1, dtypeQuote2)
-                        val stDtype =
-                            SafeTensorDtype.entries.firstOrNull { it.wireName == dtypeStr }
-                                ?: return@deserializeLambda CandleResult.Err(
-                                    CandleException
-                                        .UnsupportedSafeTensorDtype(dtypeStr),
-                                )
-
-                        val shapeBrack1 = objContent.indexOf('[', shapeKeyIdx + 7)
-                        val shapeBrack2 = objContent.indexOf(']', shapeBrack1 + 1)
-                        val shapeBody = objContent.substring(shapeBrack1 + 1, shapeBrack2).trim()
-                        val shapeDims =
-                            if (shapeBody.isEmpty()) {
-                                IntArray(0)
-                            } else {
-                                val parts = shapeBody.split(',')
-                                IntArray(parts.size) { idx -> parts[idx].trim().toInt() }
-                            }
-
-                        val offBrack1 = objContent.indexOf('[', offsetsKeyIdx + 14)
-                        val offBrack2 = objContent.indexOf(']', offBrack1 + 1)
-                        val offParts = objContent.substring(offBrack1 + 1, offBrack2).split(',')
-                        val startOff = offParts[0].trim().toInt()
-                        val endOff = offParts[1].trim().toInt()
-                        val slice = data.copyOfRange(dataStart + startOff, dataStart + endOff)
-                        views[name] = SafeTensorView(stDtype, shapeDims, slice)
-                    }
+                    entry.validateSize(bitsPerElement)
+                    val bytes = data.copyOfRange(header.dataStart + entry.start, header.dataStart + entry.end)
+                    views[entry.name] = SafeTensorView(dtype, entry.shape, bytes)
                 }
+                CandleResult.Ok(SafeTensors(views))
+            } catch (error: Exception) {
+                CandleResult.Err(CandleException.Msg(error.message ?: "invalid safetensors data"))
             }
-            CandleResult.Ok(SafeTensors(views))
         }
     }
 }
