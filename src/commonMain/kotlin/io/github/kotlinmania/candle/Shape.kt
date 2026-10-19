@@ -40,6 +40,32 @@ public class Shape(
         public fun fromDims(dims: List<Int>): Shape = Self(dims.toVec())
 
         public fun fromDims(vararg dims: Int): Shape = Self(dims.toVec())
+
+        public fun toIndex(
+            dim: Int,
+            shape: Shape,
+            op: String,
+        ): Int {
+            val rank = shape.rank
+            val normalized = if (dim < 0) rank + dim else dim
+            if (normalized < 0 || normalized >= rank) {
+                throw CandleException.DimOutOfRange(shape, dim, op)
+            }
+            return normalized
+        }
+
+        public fun toIndexPlusOne(
+            dim: Int,
+            shape: Shape,
+            op: String,
+        ): Int {
+            val rank = shape.rank
+            val normalized = if (dim < 0) rank + 1 + dim else dim
+            if (normalized < 0 || normalized > rank) {
+                throw CandleException.DimOutOfRange(shape, dim, op)
+            }
+            return normalized
+        }
     }
 
     /**
