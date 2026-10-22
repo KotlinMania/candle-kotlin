@@ -15,9 +15,29 @@ build/
 *.iml
 out/
 
-# Upstream Rust source — clone freshly when porting begins
+# Upstream Rust source — clone freshly into tmp/ when porting begins.
+# tmp/ is fully ignored; no .gitkeep, nothing tracked. Rust sources must
+# never live in the repo.
 tmp/
-!tmp/.gitkeep
+
+# Upstream Rust crate trees — never commit these at repo root.
+# If porting, clone upstream into tmp/ instead.
+/candle-book/
+/candle-core/
+/candle-datasets/
+/candle-examples/
+/candle-flash-attn/
+/candle-flash-attn-v3/
+/candle-kernels/
+/candle-metal-kernels/
+/candle-nn/
+/candle-onnx/
+/candle-pyo3/
+/candle-transformers/
+/candle-ug/
+/candle-wasm-examples/
+/candle-wasm-tests/
+/tensor-tools/
 
 # AST distance reports and binaries
 port_status_report.md
