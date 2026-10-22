@@ -17,7 +17,7 @@ jobs:
         uses: actions/checkout@v7
 
       - name: Set up JDK 21
-        uses: actions/setup-java@v6.0.0
+        uses: actions/setup-java@v6.0.1
         with:
           distribution: zulu
           java-version: '21'
@@ -42,13 +42,30 @@ jobs:
           npm --version
           yarn --version
 
+      - name: Compile C wrapper
+        run: |
+          clang -c -Isrc/nativeInterop/cinterop src/nativeInterop/cinterop/candle_wrapper.c -o src/nativeInterop/cinterop/candle_wrapper.o
+          ar rcs src/nativeInterop/cinterop/candle_wrapper.a src/nativeInterop/cinterop/candle_wrapper.o
+        
+      - name: Select existing LLVM tools for the real C Wasm fixture
+        run: |
+          llvm_bin="$(dirname "$(readlink -f "$(command -v clang)")")"
+          test -x "$llvm_bin/clang"
+          test -x "$llvm_bin/lld"
+          "$llvm_bin/clang" --version
+          "$llvm_bin/lld" -flavor wasm --version
+          echo "MACRO_FIXTURE_LLVM_BIN=$llvm_bin" >> "$GITHUB_ENV"
+
       - name: Build and test JS targets
         env:
           ORG_GRADLE_PROJECT_kotlin_js_yarn_download: "false"
         run: >
           ./gradlew
-          jsBrowserTest
+          compileKotlinJs
+          compileTestKotlinJs
           jsNodeTest
+          jsBrowserTest
+          -Pproject.macroFixture.llvmBin="$MACRO_FIXTURE_LLVM_BIN"
           --no-configuration-cache
 
       - name: Upload test reports (JS)

@@ -4,7 +4,10 @@ package io.github.kotlinmania.candle.internal
 internal object CandleJni {
     init {
         System.loadLibrary("candle_jni")
+        check(abiVersion() == 1) { "The candle JNI payload does not match the Kotlin library ABI" }
     }
+
+    @JvmStatic external fun abiVersion(): Int
 
     @JvmStatic external fun neonReduceOneF32(x: FloatArray): Float
 

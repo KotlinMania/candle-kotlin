@@ -470,10 +470,41 @@ private fun <T : Comparable<T>> U8VecOps.max(
     b: T,
 ): T = maxOf(a, b)
 
-private val mklVsAdd: (List<Float>, List<Float>, MutableList<Float>) -> Unit = { _, _, _ -> }
-private val accelerateVsAdd: (List<Float>, List<Float>, MutableList<Float>) -> Unit = { _, _, _ -> }
-private val mklVdAdd: (List<Double>, List<Double>, MutableList<Double>) -> Unit = { _, _, _ -> }
-private val accelerateVdAdd: (List<Double>, List<Double>, MutableList<Double>) -> Unit = { _, _, _ -> }
+private val mklVsAdd: (List<Float>, List<Float>, MutableList<Float>) -> Unit = { lhs, rhs, res ->
+    val n = lhs.size
+    val a = FloatArray(n) { lhs[it] }
+    val b = FloatArray(n) { rhs[it] }
+    val y = FloatArray(n)
+    Mkl.vsAdd(a, b, y)
+    for (i in 0 until n) res[i] = y[i]
+}
+
+private val accelerateVsAdd: (List<Float>, List<Float>, MutableList<Float>) -> Unit = { lhs, rhs, res ->
+    val n = lhs.size
+    val a = FloatArray(n) { lhs[it] }
+    val b = FloatArray(n) { rhs[it] }
+    val y = FloatArray(n)
+    Accelerate.vsAdd(a, b, y)
+    for (i in 0 until n) res[i] = y[i]
+}
+
+private val mklVdAdd: (List<Double>, List<Double>, MutableList<Double>) -> Unit = { lhs, rhs, res ->
+    val n = lhs.size
+    val a = DoubleArray(n) { lhs[it] }
+    val b = DoubleArray(n) { rhs[it] }
+    val y = DoubleArray(n)
+    Mkl.vdAdd(a, b, y)
+    for (i in 0 until n) res[i] = y[i]
+}
+
+private val accelerateVdAdd: (List<Double>, List<Double>, MutableList<Double>) -> Unit = { lhs, rhs, res ->
+    val n = lhs.size
+    val a = DoubleArray(n) { lhs[it] }
+    val b = DoubleArray(n) { rhs[it] }
+    val y = DoubleArray(n)
+    Accelerate.vdAdd(a, b, y)
+    for (i in 0 until n) res[i] = y[i]
+}
 private val vecDotF32: (List<Float>, List<Float>, MutableList<Float>, Int) -> Unit = { lhs, rhs, res, len ->
     val out = FloatArray(1)
     io.github.kotlinmania.candle

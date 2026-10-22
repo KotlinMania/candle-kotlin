@@ -20,10 +20,10 @@ internal class CandlePool(
     }
 }
 
-private val cfg: (Boolean) -> Boolean = { false }
-private val feature: String = ""
-private val targetFeature: String = ""
-private val targetOs: String = ""
+private val cfg: (Boolean) -> Boolean = { it }
+internal expect val feature: String
+internal expect val targetFeature: String
+internal expect val targetOs: String
 private val not: (Boolean) -> Boolean = { !it }
 private val Some: (Int) -> Int? = { it }
 private val numCpus: CandlePool = CandlePool()

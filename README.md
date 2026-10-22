@@ -116,16 +116,19 @@ val rand = Tensor.randn(0.0f, 1.0f, Shape(listOf(4, 4)), Device.Cpu)
 
 ### 3. Element-Wise Arithmetic & Broadcasting
 
-All standard operators are implemented with automatic shape broadcasting:
+Tensor-tensor operators (`+`, `-`, `*`, `/`) are implemented with automatic shape
+broadcasting. For scalar arithmetic use `affine(mul, add)` (returns `mul * x + add`)
+and the `div(Double)` operator:
 
 ```kotlin
 val a = Tensor.new(floatArrayOf(1f, 2f, 3f, 4f), Shape(listOf(2, 2)), Device.Cpu)
 val b = Tensor.new(floatArrayOf(10f, 20f, 30f, 40f), Shape(listOf(2, 2)), Device.Cpu)
 
-val sum = a + b        // Element-wise addition
-val diff = b - a       // Element-wise subtraction
-val prod = a * b       // Element-wise multiplication
-val scaled = a * 2.5f  // Scalar multiplication
+val sum = a + b              // Element-wise addition
+val diff = b - a             // Element-wise subtraction
+val prod = a * b             // Element-wise multiplication
+val scaled = a.affine(2.5, 0.0)  // Scalar multiplication (2.5 * a)
+val recip = a / 2.0          // Scalar division (only scalar operator overload)
 ```
 
 ### 4. Reshaping, Slicing & Transposition
@@ -145,19 +148,22 @@ val slice = t.narrow(1, 0, 2)
 
 ### 5. Automatic Differentiation & Gradients
 
-Track computation graphs and compute backward passes using `Variable`:
+Track computation graphs and compute backward passes using `Var` and `Tensor.backward()`
+(defined in `Backprop.kt`, returns a `GradStore`):
 
 ```kotlin
-import io.github.kotlinmania.candle.Variable
+import io.github.kotlinmania.candle.Var
+import io.github.kotlinmania.candle.backward
 
-val x = Variable(Tensor.new(floatArrayOf(3.0f), Shape(listOf(1)), Device.Cpu))
+val x = Var.fromTensor(Tensor.new(floatArrayOf(3.0f), Shape(1), Device.Cpu))
 
-// y = x^2 + 2x + 1
-val y = (x * x) + (x * 2.0f) + 1.0f
+// y = x^2 + 2x + 1  (operate on the underlying tensor via x.tensor)
+val xt = x.tensor
+val y = (xt * xt) + xt.affine(2.0, 1.0)
 
-// Backward pass
+// Backward pass returns a GradStore of gradients
 val grads = y.backward()
-val dx = grads.get(x) // dy/dx = 2x + 2 = 8.0
+val dx = grads.get(xt) // dy/dx = 2x + 2 = 8.0
 ```
 
 ### 6. Quantized Models (GGUF & GGML)

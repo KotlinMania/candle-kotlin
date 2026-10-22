@@ -659,6 +659,8 @@ private class MacroBinaryOp(
     private val f32Fn: (Float, Float) -> Float,
     private val f64Fn: (Double, Double) -> Double,
     private val i64Fn: (Long, Long) -> Long,
+    private val f32VecFn: ((FloatArray, FloatArray, FloatArray) -> Unit)? = null,
+    private val f64VecFn: ((DoubleArray, DoubleArray, DoubleArray) -> Unit)? = null,
 ) : BinaryOpT {
     override fun bf16(
         v1: BF16,
@@ -709,6 +711,34 @@ private class MacroBinaryOp(
         v1: F8E4M3,
         v2: F8E4M3,
     ): F8E4M3 = F8E4M3.fromFloat(f32Fn(v1.toFloat(), v2.toFloat()))
+
+    // Dispatch to Accelerate/MKL C bindings for vectorized binary ops
+    // (add) instead of scalar element-by-element loops. Falls back to the
+    // default plain loop when no vectorized function is provided (sub, mul,
+    // div, minimum, maximum).
+    override fun f32Vec(
+        xs1: FloatArray,
+        xs2: FloatArray,
+        ys: FloatArray,
+    ) {
+        if (f32VecFn != null) {
+            f32VecFn(xs1, xs2, ys)
+        } else {
+            super.f32Vec(xs1, xs2, ys)
+        }
+    }
+
+    override fun f64Vec(
+        xs1: DoubleArray,
+        xs2: DoubleArray,
+        ys: DoubleArray,
+    ) {
+        if (f64VecFn != null) {
+            f64VecFn(xs1, xs2, ys)
+        } else {
+            super.f64Vec(xs1, xs2, ys)
+        }
+    }
 }
 
 private class MacroUnaryOp(
@@ -716,6 +746,8 @@ private class MacroUnaryOp(
     override val kernel: String,
     private val f32Fn: (Float) -> Float,
     private val f64Fn: (Double) -> Double,
+    private val f32VecFn: ((FloatArray, FloatArray) -> Unit)? = null,
+    private val f64VecFn: ((DoubleArray, DoubleArray) -> Unit)? = null,
 ) : UnaryOpT {
     override fun bf16(v: BF16): BF16 = BF16.fromFloat(f32Fn(v.toFloat()))
 
@@ -736,9 +768,30 @@ private class MacroUnaryOp(
     override fun i64(v: Long): Long = v
 
     override fun f8e4m3(v: F8E4M3): F8E4M3 = F8E4M3.fromFloat(f32Fn(v.toFloat()))
+
+    // Dispatch to Accelerate/MKL C bindings for vectorized unary ops
+    // (exp, log, sin, cos, tanh, sqrt) instead of scalar element-by-element
+    // loops. Falls back to the default plain loop when no vectorized function
+    // is provided (neg, recip, sqr).
+    override fun f32Vec(xs: FloatArray, ys: FloatArray) {
+        if (f32VecFn != null) {
+            f32VecFn(xs, ys)
+        } else {
+            super.f32Vec(xs, ys)
+        }
+    }
+
+    override fun f64Vec(xs: DoubleArray, ys: DoubleArray) {
+        if (f64VecFn != null) {
+            f64VecFn(xs, ys)
+        } else {
+            super.f64Vec(xs, ys)
+        }
+    }
 }
 
-public object Add : BinaryOpT by MacroBinaryOp("add", "badd", { a, b -> a + b }, { a, b -> a + b }, { a, b -> a + b })
+public object Add : BinaryOpT by MacroBinaryOp("add", "badd", { a, b -> a + b }, { a, b -> a + b }, { a, b -> a + b },
+    { a, b, y -> Accelerate.vsAdd(a, b, y) }, { a, b, y -> Accelerate.vdAdd(a, b, y) })
 
 public object Div : BinaryOpT by MacroBinaryOp("div", "bdiv", { a, b -> a / b }, { a, b -> a / b }, { a, b -> a / b })
 
@@ -766,23 +819,30 @@ public object Minimum : BinaryOpT by MacroBinaryOp("minimum", "bminimum", { a, b
     }
 }, { a, b -> if (a > b) b else a }, { a, b -> if (a > b) b else a })
 
-public object Exp : UnaryOpT by MacroUnaryOp("exp", "uexp", { v -> exp(v) }, { v -> exp(v) })
+public object Exp : UnaryOpT by MacroUnaryOp("exp", "uexp", { v -> exp(v) }, { v -> exp(v) },
+    { xs, ys -> Accelerate.vsExp(xs, ys) }, { xs, ys -> Accelerate.vdExp(xs, ys) })
 
-public object Log : UnaryOpT by MacroUnaryOp("log", "ulog", { v -> kotlin.math.ln(v) }, { v -> kotlin.math.ln(v) })
+public object Log : UnaryOpT by MacroUnaryOp("log", "ulog", { v -> kotlin.math.ln(v) }, { v -> kotlin.math.ln(v) },
+    { xs, ys -> Accelerate.vsLn(xs, ys) }, { xs, ys -> Accelerate.vdLn(xs, ys) })
 
-public object Sin : UnaryOpT by MacroUnaryOp("sin", "usin", { v -> kotlin.math.sin(v) }, { v -> kotlin.math.sin(v) })
+public object Sin : UnaryOpT by MacroUnaryOp("sin", "usin", { v -> kotlin.math.sin(v) }, { v -> kotlin.math.sin(v) },
+    { xs, ys -> Accelerate.vsSin(xs, ys) }, { xs, ys -> Accelerate.vdSin(xs, ys) })
 
-public object Cos : UnaryOpT by MacroUnaryOp("cos", "ucos", { v -> kotlin.math.cos(v) }, { v -> kotlin.math.cos(v) })
+public object Cos : UnaryOpT by MacroUnaryOp("cos", "ucos", { v -> kotlin.math.cos(v) }, { v -> kotlin.math.cos(v) },
+    { xs, ys -> Accelerate.vsCos(xs, ys) }, { xs, ys -> Accelerate.vdCos(xs, ys) })
 
 public object Neg : UnaryOpT by MacroUnaryOp("neg", "uneg", { v -> -v }, { v -> -v })
 
 public object Recip : UnaryOpT by MacroUnaryOp("recip", "urecip", { v -> 1.0f / v }, { v -> 1.0 / v })
 
-public object Sqr : UnaryOpT by MacroUnaryOp("sqr", "usqr", { v -> v * v }, { v -> v * v })
+public object Sqr : UnaryOpT by MacroUnaryOp("sqr", "usqr", { v -> v * v }, { v -> v * v },
+    { xs, ys -> Accelerate.vsSqr(xs, ys) }, { xs, ys -> Accelerate.vdSqr(xs, ys) })
 
-public object Sqrt : UnaryOpT by MacroUnaryOp("sqrt", "usqrt", { v -> sqrt(v) }, { v -> sqrt(v) })
+public object Sqrt : UnaryOpT by MacroUnaryOp("sqrt", "usqrt", { v -> sqrt(v) }, { v -> sqrt(v) },
+    { xs, ys -> Accelerate.vsSqrt(xs, ys) }, { xs, ys -> Accelerate.vdSqrt(xs, ys) })
 
-public object Tanh : UnaryOpT by MacroUnaryOp("tanh", "utanh", { v -> tanh(v) }, { v -> tanh(v) })
+public object Tanh : UnaryOpT by MacroUnaryOp("tanh", "utanh", { v -> tanh(v) }, { v -> tanh(v) },
+    { xs, ys -> Accelerate.vsTanh(xs, ys) }, { xs, ys -> Accelerate.vdTanh(xs, ys) })
 
 /**
  * Tanh based approximation of the `gelu` operation

@@ -20,7 +20,7 @@ jobs:
         uses: android-actions/setup-android@v4
 
       - name: Set up JDK 21
-        uses: actions/setup-java@v6.0.0
+        uses: actions/setup-java@v6.0.1
         with:
           distribution: zulu
           java-version: '21'
@@ -28,12 +28,85 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v6.3.0
 
-      - name: Build and test Android targets
+      - name: Set up Node.js
+        uses: actions/setup-node@v7.0.0
+        with:
+          node-version: '24'
+          check-latest: true
+
+      - name: Compile C wrapper
+        run: |
+          clang -c -Isrc/nativeInterop/cinterop src/nativeInterop/cinterop/candle_wrapper.c -o src/nativeInterop/cinterop/candle_wrapper.o
+          ar rcs src/nativeInterop/cinterop/candle_wrapper.a src/nativeInterop/cinterop/candle_wrapper.o
+        
+      - name: Start a real Android x86-64 emulator
+        run: bash verification/start-android-ci-emulator.sh
+
+      - name: Build and execute Android JNI and Native tests
         run: >
           ./gradlew
           setupAndroidSdk
           compileAndroidMain
-          assembleUnitTest
-          assembleAndroidTest
           testAndroidHostTest
-          --no-configuration-cache
+          connectedAndroidDeviceTest
+          linkDebugTestAndroidNativeX64
+          --no-daemon --max-workers=2 --no-configuration-cache
+
+      - name: Verify JNI device test execution
+        run: >
+          python3 verification/verify_behavior_results.py
+          build/outputs/androidTest-results/connected
+
+      - name: Execute the actual Android Native x86-64 binary
+        run: |
+          set -o pipefail
+          adb -s emulator-5554 push build/bin/androidNativeX64/debugTest/test.kexe /data/local/tmp/candle-native-test
+          adb -s emulator-5554 shell chmod 755 /data/local/tmp/candle-native-test
+          adb -s emulator-5554 shell 'cd /data/local/tmp && ./candle-native-test' | tee build/android-native-tests.log
+
+      - name: Download the same-head real KMP root publication
+        uses: actions/download-artifact@v8
+        with:
+          name: candle-root-publication-${{ github.sha }}
+          path: build
+
+      - name: Verify root publication source provenance
+        env:
+          EXPECTED_ROOT_HEAD: ${{ github.sha }}
+        run: |
+          test "$(git rev-parse HEAD)" = "$EXPECTED_ROOT_HEAD"
+          test "$(cat build/staging-deploy.source-head)" = "$EXPECTED_ROOT_HEAD"
+          test -d build/staging-deploy/io/github/kotlinmania/candle-kotlin
+
+      - name: Stage the actual Android publication for independent consumption
+        run: >
+          ./gradlew publishAndroidPublicationToCentralPortalStagingRepository jvmJar
+          verifyAndroidLibraryArtifact verifyPackagedJniArtifact
+          --no-daemon --max-workers=2 --no-configuration-cache
+
+      - name: Execute the independent published Android artifact consumer
+        env:
+          ANDROID_HOME: ${{ github.workspace }}/.android-sdk
+        run: >
+          env -u ANDROID_SDK_ROOT ./gradlew -p verification/android-consumer
+          verifyAndroidPublication --refresh-dependencies
+          --no-daemon --max-workers=2 --no-configuration-cache
+
+      - name: Upload actual Android test evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: android-behavior-tests
+          path: |
+            build/test-results/
+            build/reports/publication/
+            verification/android-consumer/build/test-results/
+            verification/android-consumer/build/reports/selected-android-artifact.json
+            build/outputs/androidTest-results/
+            build/android-native-tests.log
+            build/android-ci-emulator.log
+          if-no-files-found: error
+
+      - name: Stop the CI emulator
+        if: always()
+        run: adb -s emulator-5554 emu kill

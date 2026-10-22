@@ -926,6 +926,14 @@ public sealed class CpuStorage {
         val n = bmnk[2]
         val k = bmnk[3]
 
+        // Fast path: dispatch to Accelerate/MKL BLAS sgemm/dgemm C bindings
+        // when available and strides are BLAS-compatible. Falls back to the
+        // plain loop below for unsupported dtypes or non-contiguous layouts.
+        if (hasAccelerate() || hasMkl()) {
+            val blasResult = tryBlasMatmul(rhs, b, m, n, k, lhsLayout, rhsLayout)
+            if (blasResult != null) return blasResult
+        }
+
         val count = b * m * n
         val outShape = if (b > 1 || lhsLayout.shape.rank > 2) Shape(listOf(b, m, n)) else Shape(listOf(m, n))
 
@@ -964,6 +972,102 @@ public sealed class CpuStorage {
             }
         }
         return F32(dst).toDType(Layout.contiguous(outShape), dtype())
+    }
+
+    // BLAS dispatch for matmul: uses Accelerate/MKL sgemm/dgemm C bindings
+    // when strides are compatible with BLAS layout requirements. Returns
+    // null to signal the caller should fall back to the plain loop.
+    private fun tryBlasMatmul(
+        rhs: CpuStorage,
+        b: Int,
+        m: Int,
+        n: Int,
+        k: Int,
+        lhsLayout: Layout,
+        rhsLayout: Layout,
+    ): CpuStorage? {
+        // Only F32 and F64 are supported by BLAS sgemm/dgemm.
+        if (this::class != rhs::class) return null
+        when (this) {
+            is F32 -> {}
+            is F64 -> {}
+            else -> return null
+        }
+
+        val lhsStride = lhsLayout.stride
+        val rhsStride = rhsLayout.stride
+        val lhsDims = lhsLayout.dims
+        val rhsDims = rhsLayout.dims
+
+        val rhsM1 = rhsStride[rhsStride.lastIndex]
+        val rhsM2 = rhsStride[rhsStride.lastIndex - 1]
+        val lhsM1 = lhsStride[lhsStride.lastIndex]
+        val lhsM2 = lhsStride[lhsStride.lastIndex - 1]
+
+        // Determine BLAS transpose flags and leading dimensions from strides.
+        // BLAS uses column-major; row-major data is handled by swapping
+        // A=rhs, B=lhs and transposing m/n in the sgemm call.
+        val (lda, transa) = when {
+            (rhsM1 == 1 || n == 1) && (rhsM2 == n || k == 1) -> Pair(n, false)
+            rhsM1 == k && rhsM2 == 1 -> Pair(k, true)
+            else -> return null
+        }
+        val (ldb, transb) = when {
+            (lhsM1 == 1 || k == 1) && (lhsM2 == k || m == 1) -> Pair(k, false)
+            lhsM1 == m && lhsM2 == 1 -> Pair(m, true)
+            else -> return null
+        }
+
+        val lhsStart = lhsLayout.startOffset
+        val rhsStart = rhsLayout.startOffset
+        val lhsBatchStride = if (lhsDims.size > 2) lhsStride[lhsDims.size - 3] else 0
+        val rhsBatchStride = if (rhsDims.size > 2) rhsStride[rhsDims.size - 3] else 0
+
+        val outShape = if (b > 1 || lhsLayout.shape.rank > 2) Shape(listOf(b, m, n)) else Shape(listOf(m, n))
+        val count = b * m * n
+        val transaByte: UByte = if (transa) 'T'.code.toUByte() else 'N'.code.toUByte()
+        val transbByte: UByte = if (transb) 'T'.code.toUByte() else 'N'.code.toUByte()
+        val useMkl = hasMkl()
+
+        if (this is F32 && rhs is F32) {
+            val dst = FloatArray(count)
+            for (step in 0 until b) {
+                val lhsOff = lhsStart + step * lhsBatchStride
+                val rhsOff = rhsStart + step * rhsBatchStride
+                val dstOff = step * m * n
+                val aSlice = rhs.data.copyOfRange(rhsOff, rhsOff + k * n)
+                val bSlice = data.copyOfRange(lhsOff, lhsOff + m * k)
+                val cSlice = FloatArray(m * n)
+                if (useMkl) {
+                    Mkl.sgemm(transaByte, transbByte, n, m, k, 1.0f, aSlice, lda, bSlice, ldb, 0.0f, cSlice, n)
+                } else {
+                    Accelerate.sgemm(transaByte, transbByte, n, m, k, 1.0f, aSlice, lda, bSlice, ldb, 0.0f, cSlice, n)
+                }
+                cSlice.copyInto(dst, dstOff, 0, m * n)
+            }
+            return F32(dst).toDType(Layout.contiguous(outShape), dtype())
+        }
+
+        if (this is F64 && rhs is F64) {
+            val dst = DoubleArray(count)
+            for (step in 0 until b) {
+                val lhsOff = lhsStart + step * lhsBatchStride
+                val rhsOff = rhsStart + step * rhsBatchStride
+                val dstOff = step * m * n
+                val aSlice = rhs.data.copyOfRange(rhsOff, rhsOff + k * n)
+                val bSlice = data.copyOfRange(lhsOff, lhsOff + m * k)
+                val cSlice = DoubleArray(m * n)
+                if (useMkl) {
+                    Mkl.dgemm(transaByte, transbByte, n, m, k, 1.0, aSlice, lda, bSlice, ldb, 0.0, cSlice, n)
+                } else {
+                    Accelerate.dgemm(transaByte, transbByte, n, m, k, 1.0, aSlice, lda, bSlice, ldb, 0.0, cSlice, n)
+                }
+                cSlice.copyInto(dst, dstOff, 0, m * n)
+            }
+            return F64(dst).toDType(Layout.contiguous(outShape), dtype())
+        }
+
+        return null
     }
 
     public fun reduceOp(

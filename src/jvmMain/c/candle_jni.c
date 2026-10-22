@@ -5,6 +5,15 @@
 
 #include "../../nativeInterop/cinterop/candle_wrapper.c"
 
+/* JNI ABI version — bumped when the native symbol surface changes.
+ * The Kotlin side checks this on load to detect payload/library mismatches. */
+JNIEXPORT jint JNICALL
+Java_io_github_kotlinmania_candle_internal_CandleJni_abiVersion(JNIEnv* env, jclass clazz) {
+    (void)env;
+    (void)clazz;
+    return 1;
+}
+
 /* ============================================================================
  * JNI Bindings for CPU NEON / ARM64 inline assembly & SIMD
  * ============================================================================ */
