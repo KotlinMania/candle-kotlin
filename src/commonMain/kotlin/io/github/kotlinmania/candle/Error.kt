@@ -2,8 +2,18 @@
 package io.github.kotlinmania.candle
 
 import io.github.kotlinmania.thiserror.StdError
-import io.github.kotlinmania.zip.ZipError
 import kotlin.Result
+
+/**
+ * Zip archive operation error.
+ */
+public open class ZipError(
+    message: String? = null,
+    cause: Throwable? = null,
+) : Exception(message, cause),
+    StdError {
+    override fun source(): StdError? = cause as? StdError
+}
 
 /**
  * Candle-specific Error and Result
