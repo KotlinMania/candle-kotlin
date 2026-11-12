@@ -601,6 +601,23 @@ kotlin {
             compilerOptions.freeCompilerArgs.add("-Xwarning-level=UNCHECKED_CAST:disabled")
         }
 
+    targets.withType<KotlinNativeTarget>().configureEach {
+        if (konanTarget.family.isAppleFamily) {
+            binaries.configureEach {
+                val isStaticArchive =
+                    this is org.jetbrains.kotlin.gradle.plugin.mpp.StaticLibrary ||
+                        (this is org.jetbrains.kotlin.gradle.plugin.mpp.Framework && isStatic)
+                if (buildType == org.jetbrains.kotlin.gradle.plugin.mpp.NativeBuildType.DEBUG && !isStaticArchive) {
+                    // Xcode 26 ld-prime emits N_AST stabs ('...a(...a.o)') for unreferenced
+                    // force-loaded stdlib-per-file-cache archives on Debug links, causing
+                    // dsymutil 'could not open' warnings. Passing -dead_strip elides unused
+                    // archive members while retaining full N_OSO DWARF debug info for live symbols.
+                    linkerOpts("-dead_strip")
+                }
+            }
+        }
+    }
+
     if (nativeReleaseLinkFreeCompilerArgs.isNotEmpty()) {
         tasks
             .withType<org.jetbrains.kotlin.gradle.tasks.KotlinNativeLink>()
