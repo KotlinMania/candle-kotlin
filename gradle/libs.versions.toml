@@ -39,6 +39,7 @@ libm = "0.1.0"
 numTraits = "0.1.0"
 randDistr = "0.1.0"
 rayon = "1.7.1"
+rustLang = "0.1.0-SNAPSHOT"
 
 [plugins]
 kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
@@ -85,6 +86,8 @@ libm-kotlin = { module = "io.github.kotlinmania:libm-kotlin", version.ref = "lib
 num-traits-kotlin = { module = "io.github.kotlinmania:num-traits-kotlin", version.ref = "numTraits" }
 rand-distr-kotlin = { module = "io.github.kotlinmania:rand-distr-kotlin", version.ref = "randDistr" }
 rayon-kotlin = { module = "io.github.kotlinmania:rayon-kotlin", version.ref = "rayon" }
+rust-lang-runtime-kmp = { module = "io.github.kotlinmania:rust-lang-runtime-kmp", version.ref = "rustLang" }
+rust-lang-core-values-kmp = { module = "io.github.kotlinmania:rust-lang-core-values-kmp", version.ref = "rustLang" }
 
 
 [bundles]
@@ -117,6 +120,8 @@ candle-commonMain = [
   "threadlocal-kotlin",
   "once-cell-kotlin",
   "envie-kotlin",
+  "rust-lang-runtime-kmp",
+  "rust-lang-core-values-kmp",
 ]
 candle-commonTest = [
   "kotlinx-coroutines-test",
