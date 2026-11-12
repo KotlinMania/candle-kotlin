@@ -19,11 +19,9 @@
 #endif
 #endif
 
-JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_accelerate_AccelerateJniBridge_candle_1accelerate_1sgemmFfi(JNIEnv* km_env, jclass km_clazz, jstring transa, jstring transb, jlong m, jlong n, jlong k, jlong alpha, jlong a, jlong lda, jlong b, jlong ldb, jlong beta, jlong c, jlong ldc) {
+JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_accelerate_AccelerateJniBridge_candleAccelerateSgemmFfi(JNIEnv* km_env, jclass km_clazz, jlong transa, jlong transb, jlong m, jlong n, jlong k, jlong alpha, jlong a, jlong lda, jlong b, jlong ldb, jlong beta, jlong c, jlong ldc) {
     (void)km_env;
     (void)km_clazz;
-    const char* transa_utf = (transa != NULL) ? (*km_env)->GetStringUTFChars(km_env, transa, NULL) : NULL;
-    const char* transb_utf = (transb != NULL) ? (*km_env)->GetStringUTFChars(km_env, transb, NULL) : NULL;
     typedef void (*km_fn_t)(const char*, const char*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*);
     static km_fn_t km_fn_ptr = NULL;
 #ifdef _WIN32
@@ -45,19 +43,15 @@ JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_accelerate_AccelerateJn
     }
 #endif
     if (km_fn_ptr != NULL) {
-        km_fn_ptr(transa_utf, transb_utf, (void*)(uintptr_t)m, (void*)(uintptr_t)n, (void*)(uintptr_t)k, (void*)(uintptr_t)alpha, (void*)(uintptr_t)a, (void*)(uintptr_t)lda, (void*)(uintptr_t)b, (void*)(uintptr_t)ldb, (void*)(uintptr_t)beta, (void*)(uintptr_t)c, (void*)(uintptr_t)ldc);
+        km_fn_ptr((const char*)(uintptr_t)transa, (const char*)(uintptr_t)transb, (void*)(uintptr_t)m, (void*)(uintptr_t)n, (void*)(uintptr_t)k, (void*)(uintptr_t)alpha, (void*)(uintptr_t)a, (void*)(uintptr_t)lda, (void*)(uintptr_t)b, (void*)(uintptr_t)ldb, (void*)(uintptr_t)beta, (void*)(uintptr_t)c, (void*)(uintptr_t)ldc);
     } else {
         errno = ENOSYS;
     }
-    if (transa != NULL && transa_utf != NULL) (*km_env)->ReleaseStringUTFChars(km_env, transa, transa_utf);
-    if (transb != NULL && transb_utf != NULL) (*km_env)->ReleaseStringUTFChars(km_env, transb, transb_utf);
 }
 
-JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_accelerate_AccelerateJniBridge_candle_1accelerate_1dgemmFfi(JNIEnv* km_env, jclass km_clazz, jstring transa, jstring transb, jlong m, jlong n, jlong k, jlong alpha, jlong a, jlong lda, jlong b, jlong ldb, jlong beta, jlong c, jlong ldc) {
+JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_accelerate_AccelerateJniBridge_candleAccelerateDgemmFfi(JNIEnv* km_env, jclass km_clazz, jlong transa, jlong transb, jlong m, jlong n, jlong k, jlong alpha, jlong a, jlong lda, jlong b, jlong ldb, jlong beta, jlong c, jlong ldc) {
     (void)km_env;
     (void)km_clazz;
-    const char* transa_utf = (transa != NULL) ? (*km_env)->GetStringUTFChars(km_env, transa, NULL) : NULL;
-    const char* transb_utf = (transb != NULL) ? (*km_env)->GetStringUTFChars(km_env, transb, NULL) : NULL;
     typedef void (*km_fn_t)(const char*, const char*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*);
     static km_fn_t km_fn_ptr = NULL;
 #ifdef _WIN32
@@ -79,15 +73,13 @@ JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_accelerate_AccelerateJn
     }
 #endif
     if (km_fn_ptr != NULL) {
-        km_fn_ptr(transa_utf, transb_utf, (void*)(uintptr_t)m, (void*)(uintptr_t)n, (void*)(uintptr_t)k, (void*)(uintptr_t)alpha, (void*)(uintptr_t)a, (void*)(uintptr_t)lda, (void*)(uintptr_t)b, (void*)(uintptr_t)ldb, (void*)(uintptr_t)beta, (void*)(uintptr_t)c, (void*)(uintptr_t)ldc);
+        km_fn_ptr((const char*)(uintptr_t)transa, (const char*)(uintptr_t)transb, (void*)(uintptr_t)m, (void*)(uintptr_t)n, (void*)(uintptr_t)k, (void*)(uintptr_t)alpha, (void*)(uintptr_t)a, (void*)(uintptr_t)lda, (void*)(uintptr_t)b, (void*)(uintptr_t)ldb, (void*)(uintptr_t)beta, (void*)(uintptr_t)c, (void*)(uintptr_t)ldc);
     } else {
         errno = ENOSYS;
     }
-    if (transa != NULL && transa_utf != NULL) (*km_env)->ReleaseStringUTFChars(km_env, transa, transa_utf);
-    if (transb != NULL && transb_utf != NULL) (*km_env)->ReleaseStringUTFChars(km_env, transb, transb_utf);
 }
 
-JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_accelerate_AccelerateJniBridge_candle_1accelerate_1vvexpf(JNIEnv* km_env, jclass km_clazz, jlong dst, jlong src, jlong len) {
+JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_accelerate_AccelerateJniBridge_candleAccelerateVvexpf(JNIEnv* km_env, jclass km_clazz, jlong dst, jlong src, jlong len) {
     (void)km_env;
     (void)km_clazz;
     typedef void (*km_fn_t)(void*, void*, void*);
@@ -117,7 +109,7 @@ JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_accelerate_AccelerateJn
     }
 }
 
-JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_accelerate_AccelerateJniBridge_candle_1accelerate_1vvexp(JNIEnv* km_env, jclass km_clazz, jlong dst, jlong src, jlong len) {
+JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_accelerate_AccelerateJniBridge_candleAccelerateVvexp(JNIEnv* km_env, jclass km_clazz, jlong dst, jlong src, jlong len) {
     (void)km_env;
     (void)km_clazz;
     typedef void (*km_fn_t)(void*, void*, void*);
@@ -147,7 +139,7 @@ JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_accelerate_AccelerateJn
     }
 }
 
-JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_accelerate_AccelerateJniBridge_candle_1accelerate_1vvsqrtf(JNIEnv* km_env, jclass km_clazz, jlong dst, jlong src, jlong len) {
+JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_accelerate_AccelerateJniBridge_candleAccelerateVvsqrtf(JNIEnv* km_env, jclass km_clazz, jlong dst, jlong src, jlong len) {
     (void)km_env;
     (void)km_clazz;
     typedef void (*km_fn_t)(void*, void*, void*);
@@ -177,7 +169,7 @@ JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_accelerate_AccelerateJn
     }
 }
 
-JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_accelerate_AccelerateJniBridge_candle_1accelerate_1vvsqrt(JNIEnv* km_env, jclass km_clazz, jlong dst, jlong src, jlong len) {
+JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_accelerate_AccelerateJniBridge_candleAccelerateVvsqrt(JNIEnv* km_env, jclass km_clazz, jlong dst, jlong src, jlong len) {
     (void)km_env;
     (void)km_clazz;
     typedef void (*km_fn_t)(void*, void*, void*);
@@ -207,7 +199,7 @@ JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_accelerate_AccelerateJn
     }
 }
 
-JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_accelerate_AccelerateJniBridge_candle_1accelerate_1vvsinf(JNIEnv* km_env, jclass km_clazz, jlong dst, jlong src, jlong len) {
+JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_accelerate_AccelerateJniBridge_candleAccelerateVvsinf(JNIEnv* km_env, jclass km_clazz, jlong dst, jlong src, jlong len) {
     (void)km_env;
     (void)km_clazz;
     typedef void (*km_fn_t)(void*, void*, void*);
@@ -237,7 +229,7 @@ JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_accelerate_AccelerateJn
     }
 }
 
-JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_accelerate_AccelerateJniBridge_candle_1accelerate_1vvsin(JNIEnv* km_env, jclass km_clazz, jlong dst, jlong src, jlong len) {
+JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_accelerate_AccelerateJniBridge_candleAccelerateVvsin(JNIEnv* km_env, jclass km_clazz, jlong dst, jlong src, jlong len) {
     (void)km_env;
     (void)km_clazz;
     typedef void (*km_fn_t)(void*, void*, void*);
@@ -267,7 +259,7 @@ JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_accelerate_AccelerateJn
     }
 }
 
-JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_accelerate_AccelerateJniBridge_candle_1accelerate_1vvcosf(JNIEnv* km_env, jclass km_clazz, jlong dst, jlong src, jlong len) {
+JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_accelerate_AccelerateJniBridge_candleAccelerateVvcosf(JNIEnv* km_env, jclass km_clazz, jlong dst, jlong src, jlong len) {
     (void)km_env;
     (void)km_clazz;
     typedef void (*km_fn_t)(void*, void*, void*);
@@ -297,7 +289,7 @@ JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_accelerate_AccelerateJn
     }
 }
 
-JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_accelerate_AccelerateJniBridge_candle_1accelerate_1vvcos(JNIEnv* km_env, jclass km_clazz, jlong dst, jlong src, jlong len) {
+JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_accelerate_AccelerateJniBridge_candleAccelerateVvcos(JNIEnv* km_env, jclass km_clazz, jlong dst, jlong src, jlong len) {
     (void)km_env;
     (void)km_clazz;
     typedef void (*km_fn_t)(void*, void*, void*);
@@ -327,7 +319,7 @@ JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_accelerate_AccelerateJn
     }
 }
 
-JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_accelerate_AccelerateJniBridge_candle_1accelerate_1vvlogf(JNIEnv* km_env, jclass km_clazz, jlong dst, jlong src, jlong len) {
+JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_accelerate_AccelerateJniBridge_candleAccelerateVvlogf(JNIEnv* km_env, jclass km_clazz, jlong dst, jlong src, jlong len) {
     (void)km_env;
     (void)km_clazz;
     typedef void (*km_fn_t)(void*, void*, void*);
@@ -357,7 +349,7 @@ JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_accelerate_AccelerateJn
     }
 }
 
-JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_accelerate_AccelerateJniBridge_candle_1accelerate_1vvlog(JNIEnv* km_env, jclass km_clazz, jlong dst, jlong src, jlong len) {
+JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_accelerate_AccelerateJniBridge_candleAccelerateVvlog(JNIEnv* km_env, jclass km_clazz, jlong dst, jlong src, jlong len) {
     (void)km_env;
     (void)km_clazz;
     typedef void (*km_fn_t)(void*, void*, void*);
@@ -387,7 +379,7 @@ JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_accelerate_AccelerateJn
     }
 }
 
-JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_accelerate_AccelerateJniBridge_candle_1accelerate_1vvtanhf(JNIEnv* km_env, jclass km_clazz, jlong dst, jlong src, jlong len) {
+JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_accelerate_AccelerateJniBridge_candleAccelerateVvtanhf(JNIEnv* km_env, jclass km_clazz, jlong dst, jlong src, jlong len) {
     (void)km_env;
     (void)km_clazz;
     typedef void (*km_fn_t)(void*, void*, void*);
@@ -417,7 +409,7 @@ JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_accelerate_AccelerateJn
     }
 }
 
-JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_accelerate_AccelerateJniBridge_candle_1accelerate_1vvtanh(JNIEnv* km_env, jclass km_clazz, jlong dst, jlong src, jlong len) {
+JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_accelerate_AccelerateJniBridge_candleAccelerateVvtanh(JNIEnv* km_env, jclass km_clazz, jlong dst, jlong src, jlong len) {
     (void)km_env;
     (void)km_clazz;
     typedef void (*km_fn_t)(void*, void*, void*);
@@ -447,7 +439,7 @@ JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_accelerate_AccelerateJn
     }
 }
 
-JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_accelerate_AccelerateJniBridge_candle_1accelerate_1vDspVaddD(JNIEnv* km_env, jclass km_clazz, jlong arg0, jlong arg1, jlong arg2, jlong arg3, jlong arg4, jlong arg5, jlong arg6) {
+JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_accelerate_AccelerateJniBridge_candleAccelerateVDspVaddD(JNIEnv* km_env, jclass km_clazz, jlong arg0, jlong arg1, jlong arg2, jlong arg3, jlong arg4, jlong arg5, jlong arg6) {
     (void)km_env;
     (void)km_clazz;
     typedef void (*km_fn_t)(void*, int64_t, void*, int64_t, void*, int64_t, uint64_t);
@@ -477,7 +469,7 @@ JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_accelerate_AccelerateJn
     }
 }
 
-JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_accelerate_AccelerateJniBridge_candle_1accelerate_1vDspVadd(JNIEnv* km_env, jclass km_clazz, jlong arg0, jlong arg1, jlong arg2, jlong arg3, jlong arg4, jlong arg5, jlong arg6) {
+JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_accelerate_AccelerateJniBridge_candleAccelerateVDspVadd(JNIEnv* km_env, jclass km_clazz, jlong arg0, jlong arg1, jlong arg2, jlong arg3, jlong arg4, jlong arg5, jlong arg6) {
     (void)km_env;
     (void)km_clazz;
     typedef void (*km_fn_t)(void*, int64_t, void*, int64_t, void*, int64_t, uint64_t);
@@ -507,7 +499,7 @@ JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_accelerate_AccelerateJn
     }
 }
 
-JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_accelerate_AccelerateJniBridge_candle_1accelerate_1vDspVsubD(JNIEnv* km_env, jclass km_clazz, jlong arg0, jlong arg1, jlong arg2, jlong arg3, jlong arg4, jlong arg5, jlong arg6) {
+JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_accelerate_AccelerateJniBridge_candleAccelerateVDspVsubD(JNIEnv* km_env, jclass km_clazz, jlong arg0, jlong arg1, jlong arg2, jlong arg3, jlong arg4, jlong arg5, jlong arg6) {
     (void)km_env;
     (void)km_clazz;
     typedef void (*km_fn_t)(void*, int64_t, void*, int64_t, void*, int64_t, uint64_t);
@@ -537,7 +529,7 @@ JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_accelerate_AccelerateJn
     }
 }
 
-JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_accelerate_AccelerateJniBridge_candle_1accelerate_1vDspVsub(JNIEnv* km_env, jclass km_clazz, jlong arg0, jlong arg1, jlong arg2, jlong arg3, jlong arg4, jlong arg5, jlong arg6) {
+JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_accelerate_AccelerateJniBridge_candleAccelerateVDspVsub(JNIEnv* km_env, jclass km_clazz, jlong arg0, jlong arg1, jlong arg2, jlong arg3, jlong arg4, jlong arg5, jlong arg6) {
     (void)km_env;
     (void)km_clazz;
     typedef void (*km_fn_t)(void*, int64_t, void*, int64_t, void*, int64_t, uint64_t);
@@ -567,7 +559,7 @@ JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_accelerate_AccelerateJn
     }
 }
 
-JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_accelerate_AccelerateJniBridge_candle_1accelerate_1vDspVmulD(JNIEnv* km_env, jclass km_clazz, jlong arg0, jlong arg1, jlong arg2, jlong arg3, jlong arg4, jlong arg5, jlong arg6) {
+JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_accelerate_AccelerateJniBridge_candleAccelerateVDspVmulD(JNIEnv* km_env, jclass km_clazz, jlong arg0, jlong arg1, jlong arg2, jlong arg3, jlong arg4, jlong arg5, jlong arg6) {
     (void)km_env;
     (void)km_clazz;
     typedef void (*km_fn_t)(void*, int64_t, void*, int64_t, void*, int64_t, uint64_t);
@@ -597,7 +589,7 @@ JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_accelerate_AccelerateJn
     }
 }
 
-JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_accelerate_AccelerateJniBridge_candle_1accelerate_1vDspVmul(JNIEnv* km_env, jclass km_clazz, jlong arg0, jlong arg1, jlong arg2, jlong arg3, jlong arg4, jlong arg5, jlong arg6) {
+JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_accelerate_AccelerateJniBridge_candleAccelerateVDspVmul(JNIEnv* km_env, jclass km_clazz, jlong arg0, jlong arg1, jlong arg2, jlong arg3, jlong arg4, jlong arg5, jlong arg6) {
     (void)km_env;
     (void)km_clazz;
     typedef void (*km_fn_t)(void*, int64_t, void*, int64_t, void*, int64_t, uint64_t);
@@ -627,7 +619,7 @@ JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_accelerate_AccelerateJn
     }
 }
 
-JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_accelerate_AccelerateJniBridge_candle_1accelerate_1vDspVdivD(JNIEnv* km_env, jclass km_clazz, jlong arg0, jlong arg1, jlong arg2, jlong arg3, jlong arg4, jlong arg5, jlong arg6) {
+JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_accelerate_AccelerateJniBridge_candleAccelerateVDspVdivD(JNIEnv* km_env, jclass km_clazz, jlong arg0, jlong arg1, jlong arg2, jlong arg3, jlong arg4, jlong arg5, jlong arg6) {
     (void)km_env;
     (void)km_clazz;
     typedef void (*km_fn_t)(void*, int64_t, void*, int64_t, void*, int64_t, uint64_t);
@@ -657,7 +649,7 @@ JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_accelerate_AccelerateJn
     }
 }
 
-JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_accelerate_AccelerateJniBridge_candle_1accelerate_1vDspVdiv(JNIEnv* km_env, jclass km_clazz, jlong arg0, jlong arg1, jlong arg2, jlong arg3, jlong arg4, jlong arg5, jlong arg6) {
+JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_accelerate_AccelerateJniBridge_candleAccelerateVDspVdiv(JNIEnv* km_env, jclass km_clazz, jlong arg0, jlong arg1, jlong arg2, jlong arg3, jlong arg4, jlong arg5, jlong arg6) {
     (void)km_env;
     (void)km_clazz;
     typedef void (*km_fn_t)(void*, int64_t, void*, int64_t, void*, int64_t, uint64_t);
@@ -687,7 +679,7 @@ JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_accelerate_AccelerateJn
     }
 }
 
-JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_accelerate_AccelerateJniBridge_candle_1accelerate_1vDspVminD(JNIEnv* km_env, jclass km_clazz, jlong arg0, jlong arg1, jlong arg2, jlong arg3, jlong arg4, jlong arg5, jlong arg6) {
+JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_accelerate_AccelerateJniBridge_candleAccelerateVDspVminD(JNIEnv* km_env, jclass km_clazz, jlong arg0, jlong arg1, jlong arg2, jlong arg3, jlong arg4, jlong arg5, jlong arg6) {
     (void)km_env;
     (void)km_clazz;
     typedef void (*km_fn_t)(void*, int64_t, void*, int64_t, void*, int64_t, uint64_t);
@@ -717,7 +709,7 @@ JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_accelerate_AccelerateJn
     }
 }
 
-JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_accelerate_AccelerateJniBridge_candle_1accelerate_1vDspVmin(JNIEnv* km_env, jclass km_clazz, jlong arg0, jlong arg1, jlong arg2, jlong arg3, jlong arg4, jlong arg5, jlong arg6) {
+JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_accelerate_AccelerateJniBridge_candleAccelerateVDspVmin(JNIEnv* km_env, jclass km_clazz, jlong arg0, jlong arg1, jlong arg2, jlong arg3, jlong arg4, jlong arg5, jlong arg6) {
     (void)km_env;
     (void)km_clazz;
     typedef void (*km_fn_t)(void*, int64_t, void*, int64_t, void*, int64_t, uint64_t);
@@ -747,7 +739,7 @@ JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_accelerate_AccelerateJn
     }
 }
 
-JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_accelerate_AccelerateJniBridge_candle_1accelerate_1vDspVmaxD(JNIEnv* km_env, jclass km_clazz, jlong arg0, jlong arg1, jlong arg2, jlong arg3, jlong arg4, jlong arg5, jlong arg6) {
+JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_accelerate_AccelerateJniBridge_candleAccelerateVDspVmaxD(JNIEnv* km_env, jclass km_clazz, jlong arg0, jlong arg1, jlong arg2, jlong arg3, jlong arg4, jlong arg5, jlong arg6) {
     (void)km_env;
     (void)km_clazz;
     typedef void (*km_fn_t)(void*, int64_t, void*, int64_t, void*, int64_t, uint64_t);
@@ -777,7 +769,7 @@ JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_accelerate_AccelerateJn
     }
 }
 
-JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_accelerate_AccelerateJniBridge_candle_1accelerate_1vDspVmax(JNIEnv* km_env, jclass km_clazz, jlong arg0, jlong arg1, jlong arg2, jlong arg3, jlong arg4, jlong arg5, jlong arg6) {
+JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_accelerate_AccelerateJniBridge_candleAccelerateVDspVmax(JNIEnv* km_env, jclass km_clazz, jlong arg0, jlong arg1, jlong arg2, jlong arg3, jlong arg4, jlong arg5, jlong arg6) {
     (void)km_env;
     (void)km_clazz;
     typedef void (*km_fn_t)(void*, int64_t, void*, int64_t, void*, int64_t, uint64_t);

@@ -8,30 +8,31 @@ import io.github.kotlinmania.candle.shape.Dim
 import io.github.kotlinmania.candle.shape.Shape
 import io.github.kotlinmania.candle.stridedindex.StridedBlocks
 import io.github.kotlinmania.candle.stridedindex.StridedIndex
+import io.github.kotlinmania.rustlang.core.mem.PrimitiveLayouts
+import io.github.kotlinmania.rustlang.core.mem.TypeLayout
+import io.github.kotlinmania.rustlang.core.result.fromResidual
 
 // Tensor Layouts including contiguous or sparse strides
 
-public open class Layout(
-    public var shape: Shape,
+public data class Layout(
+    public var shape: Shape = Shape(),
     // The strides are given in number of elements and not in bytes.
-    public var stride: List<Int>,
-    public var startOffset: Int,
+    public var stride: List<Int> = emptyList(),
+    public var startOffset: Int = 0,
 ) {
-    public open fun dims(): List<Int> = this.shape.dims()
+    public fun dims(): List<Int> = this.shape.dims()
 
     /**
      * The dimension size for a specified dimension index.
      */
-    public open fun <D : Dim> dim(dim: D): Result<Int> {
-        val dim1 = dim.toIndex(this.shape, "dim").getOrElse { return Result.failure(it) }
-        return Result.success(this.dims()[dim1])
+    public fun <D : Dim> dim(dim: D): Result<Int> {
+        val dim1 =
+            when (val tryResult = dim.toIndex(this.shape, "dim")) {
+                is Result.Ok -> tryResult.value
+                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            }
+        return Ok(this.dims()[dim1])
     }
-
-    public open fun shape(): Shape = this.shape
-
-    public open fun stride(): List<Int> = this.stride
-
-    public open fun startOffset(): Int = this.startOffset
 
     /**
      * Returns outer stride along `dim` if valid.
@@ -43,7 +44,7 @@ public open class Layout(
      *
      * When the tensor is fully contiguous this returns `Some(dims[dim ..].product())`.
      */
-    internal open fun outerStrideForDim(dim: Int): Int? {
+    internal fun outerStrideForDim(dim: Int): Int? {
         val dims = this.dims()
         val strides = this.stride()
         // 1. Inner `dims[dim ..]` must have contiguous strides.
@@ -74,15 +75,15 @@ public open class Layout(
     /**
      * Checks if more than one logical index lands on the same cell (or when we can't prove it does not)
      */
-    public open fun hasInternalOverlap(): Boolean = !this.range().isSomeAnd({ f -> f.injective })
+    public fun hasInternalOverlap(): Boolean = !this.range().isSomeAnd({ f -> f.injective })
 
     /**
      * Returns range of cells this layout can reach, and wether it reaches all of them.
      * Returns `None` on arithmetic overflow.
      */
-    public open fun range(): LayoutRange? {
+    public fun range(): LayoutRange? {
         // Filter out dims <= 1 as their strides are irrelevant.
-        val axes: List<Pair<Int, Int>>  = (this.dims().zip(this.stride())).filter({ (d, _) -> d > 1 }).map({ (d, s) -> Pair(d, s) }).collect()
+        val axes: List<Pair<Int, Int>> = (this.dims().zip(this.stride())).filter({ (d, _) -> d > 1 }).map({ (d, s) -> Pair(d, s) }).collect()
         axes.sortUnstableByKey({ (_, s) -> s })
         var span = 0
         var injective = true
@@ -105,7 +106,7 @@ public open class Layout(
     /**
      * Relation between this layout and another
      */
-    public open fun relation(other: Layout): LayoutRelation {
+    public fun relation(other: Layout): LayoutRelation {
         if (this == other) {
             return LayoutRelation.Identical
         }
@@ -122,7 +123,9 @@ public open class Layout(
                         val b = matchVal.second
                         Pair(a, b)
                     }
-                    else -> { return LayoutRelation.Unknown }
+                    else -> {
+                        return LayoutRelation.Unknown
+                    }
                 }
             }
         if (a1.separatedFrom(b1)) {
@@ -143,7 +146,7 @@ public open class Layout(
      * Returns the appropriate start and stop offset if the data is stored in a C
      * contiguous (aka row major) way.
      */
-    public open fun contiguousOffsets(): Pair<Int, Int>? =
+    public fun contiguousOffsets(): Pair<Int, Int>? =
         if (this.isContiguous()) {
             val startO = this.startOffset
             Pair(startO, startO + this.shape.elemCount())
@@ -156,14 +159,14 @@ public open class Layout(
      * Note that this does not implies that the start offset is 0 or that there are no extra
      * elements at the end of the storage.
      */
-    public open fun isContiguous(): Boolean = this.shape.isContiguous(this.stride)
+    public fun isContiguous(): Boolean = this.shape.isContiguous(this.stride)
 
     /**
      * Returns true if the data is stored in a Fortran contiguous (aka column major) way.
      */
-    public open fun isFortranContiguous(): Boolean = this.shape.isFortranContiguous(this.stride)
+    public fun isFortranContiguous(): Boolean = this.shape.isFortranContiguous(this.stride)
 
-    public open fun isScalar(): Boolean {
+    public fun isScalar(): Boolean {
         val dims = this.dims()
         return dims.isEmpty() || dims.all({ d -> d == 1 })
     }
@@ -171,36 +174,45 @@ public open class Layout(
     /**
      * Returns true if the data is actually a scalar during broadcast
      */
-    public open fun isScalarBroadcast(): Boolean = this.stride().all({ s -> s == 0 })
+    public fun isScalarBroadcast(): Boolean = this.stride().all({ s -> s == 0 })
 
-    public open fun isScalarLike(): Boolean = this.isScalar() || this.isScalarBroadcast()
+    public fun isScalarLike(): Boolean = this.isScalar() || this.isScalarBroadcast()
 
-    public open fun narrow(dim: Int, start: Int, len: Int): Result<Layout> {
+    public fun narrow(dim: Int, start: Int, len: Int): Result<Layout> {
         val dims = this.shape().dims()
         if (dim >= dims.len()) {
-            Result.failure(Error.DimOutOfRange(shape = this.shape().clone(), dim = dim, op = "narrow").bt()).getOrElse { return Result.failure(it) }
+            when (val tryResult = Err(Error.DimOutOfRange(shape = this.shape().clone(), dim = dim, op = "narrow").bt())) {
+                is Result.Ok -> tryResult.value
+                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            }
         }
         if (start + len > dims[dim]) {
-            Result.failure(Error.NarrowInvalidArgs(shape = this.shape.clone(), dim = dim, start = start, len = len, msg = "start + len > dim_len").bt()).getOrElse { return Result.failure(it) }
+            when (val tryResult = Err(Error.NarrowInvalidArgs(shape = this.shape.clone(), dim = dim, start = start, len = len, msg = "start + len > dim_len").bt())) {
+                is Result.Ok -> tryResult.value
+                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            }
         }
         val dims1 = dims.toVec()
         dims1[dim] = len
-        return Result.success(Layout(shape = Shape.from(dims1), stride = this.stride.toMutableList(), startOffset = this.startOffset + this.stride[dim] * start))
+        return Ok(Layout(shape = Shape.from(dims1), stride = this.stride.toMutableList(), startOffset = this.startOffset + this.stride[dim] * start))
     }
 
-    public open fun transpose(dim1: Int, dim2: Int): Result<Layout> {
+    public fun transpose(dim1: Int, dim2: Int): Result<Layout> {
         val rank = this.shape.rank()
         if (rank <= dim1 || rank <= dim2) {
-            Result.failure(Error.UnexpectedNumberOfDims(expected = Int.max(dim1, dim2), got = rank, shape = this.shape().clone()).bt()).getOrElse { return Result.failure(it) }
+            when (val tryResult = Err(Error.UnexpectedNumberOfDims(expected = Int.max(dim1, dim2), got = rank, shape = this.shape().clone()).bt())) {
+                is Result.Ok -> tryResult.value
+                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            }
         }
         var stride = this.stride().toVec()
         val dims = this.shape().dims().toVec()
         dims.swap(dim1, dim2)
         stride.swap(dim1, dim2)
-        return Result.success(Layout(shape = Shape.from(dims), stride = stride, startOffset = this.startOffset))
+        return Ok(Layout(shape = Shape.from(dims), stride = stride, startOffset = this.startOffset))
     }
 
-    public open fun permute(idxs: List<Int>): Result<Layout> {
+    public fun permute(idxs: List<Int>): Result<Layout> {
         val isPermutation = idxs.size == this.shape.rank() && (0 until idxs.size).all({ i -> idxs.contains(i) })
         if (!isPermutation) {
             bail("dimension mismatch in permute, tensor {:?}, dims: {:?}", this.dims(), idxs)
@@ -213,33 +225,33 @@ public open class Layout(
             permStride[i] = stride[idx]
             permDims[i] = dims[idx]
         }
-        return Result.success(Layout(shape = Shape.from(permDims), stride = permStride, startOffset = this.startOffset))
+        return Ok(Layout(shape = Shape.from(permDims), stride = permStride, startOffset = this.startOffset))
     }
 
-    public open fun broadcastAs(shape: Shape): Result<Layout> {
+    public fun broadcastAs(shape: Shape): Result<Layout> {
         val shape1 = shape
         if (shape1.rank() < this.shape().rank()) {
-            return Result.failure(Error.BroadcastIncompatibleShapes(srcShape = this.shape().clone(), dstShape = shape1).bt())
+            return Err(Error.BroadcastIncompatibleShapes(srcShape = this.shape().clone(), dstShape = shape1).bt())
         }
         val addedDims = shape1.rank() - this.shape().rank()
         var stride = mutableListOf(0, addedDims)
-        for ((dstDim, srcDim, srcStride) in (shape1.dims()[addedDims until shape1.dims().size].zip((this.dims().zip(this.stride()))))) {
+        for ((dstDim, srcDim, srcStride) in (((shape1.dims()).slice(addedDims until shape1.dims().size)).zip((this.dims().zip(this.stride()))))) {
             val s =
                 if (dstDim == srcDim) {
                     srcStride
                 } else if (srcDim != 1) {
-                    return Result.failure(Error.BroadcastIncompatibleShapes(srcShape = this.shape().clone(), dstShape = shape1).bt())
+                    return Err(Error.BroadcastIncompatibleShapes(srcShape = this.shape().clone(), dstShape = shape1).bt())
                 } else {
                     0
                 }
             stride.add(s)
         }
-        return Result.success(Layout(shape = shape1, stride = stride, startOffset = this.startOffset))
+        return Ok(Layout(shape = shape1, stride = stride, startOffset = this.startOffset))
     }
 
-    internal open fun stridedIndex(): StridedIndex = StridedIndex.fromLayout(this)
+    internal fun stridedIndex(): StridedIndex = StridedIndex.fromLayout(this)
 
-    internal open fun stridedBlocks(): StridedBlocks {
+    internal fun stridedBlocks(): StridedBlocks {
         var blockLen = 1
         var contiguousDims = 0
         // Counted from the right.
@@ -260,7 +272,7 @@ public open class Layout(
             0 -> StridedBlocks.SingleBlock(startOffset = this.startOffset, len = blockLen)
             1 -> StridedBlocks.UniformBlocks(startOffset = this.startOffset, blockLen = blockLen, count = this.dims()[0], srcStride = this.stride[0])
             else -> {
-                val blockStartIndex = StridedIndex.new(this.dims()[0 until indexDims], this.stride[0 until indexDims], this.startOffset)
+                val blockStartIndex = StridedIndex.new(((this.dims()).slice(0 until indexDims)), ((this.stride).slice(0 until indexDims)), this.startOffset)
                 StridedBlocks.MultipleBlocks(blockStartIndex = blockStartIndex, blockLen = blockLen)
             }
         }
@@ -283,56 +295,80 @@ public open class Layout(
  * Describes the range of cells a [Layout] can reach within its allocation,
  * and whether it reaches all of them.
  */
-public open class LayoutRange(
+public data class LayoutRange(
     /**
      * Lowest reachable cell. Equal to layout `startOffset`.
      */
-    public var lo: Int,
+    public var lo: Int = 0,
     /**
      * Highest reachable cell (inclusive).
      */
-    public var hi: Int,
+    public var hi: Int = 0,
     /**
      * Proven to map distinct logical indices to distinct cells.
      */
-    public var injective: Boolean,
+    public var injective: Boolean = false,
     /**
      * Indicates that layout occupies every cell in `lo ..= hi`.
      * Does not necessarily mean that layout is contiguous.
      */
-    public var dense: Boolean,
+    public var dense: Boolean = false,
 ) {
     /**
      * Bounding intervals cannot meet, which means these layouts are seperate.
      */
-    public open fun separatedFrom(other: LayoutRange): Boolean = this.hi < other.lo || other.hi < this.lo
+    public fun separatedFrom(other: LayoutRange): Boolean = this.hi < other.lo || other.hi < this.lo
 
     /**
      * If a dense layout contains another's `lo` there is overlap.
      */
-    public open fun denselyContains(other: LayoutRange): Boolean = this.dense && other.lo >= this.lo && other.lo <= this.hi
+    public fun denselyContains(other: LayoutRange): Boolean = this.dense && other.lo >= this.lo && other.lo <= this.hi
+
+    public companion object {
+        public fun typeLayout(): io.github.kotlinmania.rustlang.core.mem.TypeLayout<LayoutRange> =
+            object : io.github.kotlinmania.rustlang.core.mem.TypeLayout<LayoutRange> {
+                override val alignBytes: Long = 8L
+                override val sizeBytes: Long = 24L
+                override fun readNative(addr: Long): LayoutRange =
+                    LayoutRange(
+                        (io.github.kotlinmania.rustlang.core.mem.PrimitiveLayouts.USIZE64).readNative(addr),
+                        (io.github.kotlinmania.rustlang.core.mem.PrimitiveLayouts.USIZE64).readNative(addr + 8L),
+                        (io.github.kotlinmania.rustlang.core.mem.PrimitiveLayouts.BOOL).readNative(addr + 16L),
+                        (io.github.kotlinmania.rustlang.core.mem.PrimitiveLayouts.BOOL).readNative(addr + 17L),
+                    )
+                override fun writeNative(addr: Long, value: LayoutRange) {
+                    (io.github.kotlinmania.rustlang.core.mem.PrimitiveLayouts.USIZE64).writeNative(addr, value.lo)
+                    (io.github.kotlinmania.rustlang.core.mem.PrimitiveLayouts.USIZE64).writeNative(addr + 8L, value.hi)
+                    (io.github.kotlinmania.rustlang.core.mem.PrimitiveLayouts.BOOL).writeNative(addr + 16L, value.injective)
+                    (io.github.kotlinmania.rustlang.core.mem.PrimitiveLayouts.BOOL).writeNative(addr + 17L, value.dense)
+                }
+            }
+    }
 }
 
 /**
  * How two layouts over the same allocation relate.
  */
-public sealed class LayoutRelation {
+public enum class LayoutRelation(
+    public val value: UInt,
+) {
     /**
      * Simple assignment. x[i] += x[i]
      */
-    public data object Identical : LayoutRelation()
+    Identical(0u),
+
     /**
      * Completely distinct layouts.
      */
-    public data object Disjoint : LayoutRelation()
+    Disjoint(1u),
+
     /**
      * Any kind of overlap.
      */
-    public data object Overlapping : LayoutRelation()
+    Overlapping(2u),
+
     /**
      * Could not prove relation.
      */
-    public data object Unknown : LayoutRelation()
-
-    public fun __rustEq(other: LayoutRelation): Boolean = this == other
+    Unknown(3u),
 }

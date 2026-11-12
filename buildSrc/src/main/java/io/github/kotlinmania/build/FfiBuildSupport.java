@@ -880,7 +880,7 @@ public final class FfiBuildSupport {
             .configureEach(t -> t.dependsOn(copyNodeFfi));
 
         project.getTasks()
-            .matching(t -> t.getName().startsWith("wasmJsNodeTest"))
+            .matching(t -> t.getName().startsWith("wasmJsNodeTest") || t.getName().startsWith("wasmWasiNodeTest"))
             .configureEach(t -> t.dependsOn(copyWasmNodeFfi));
     }
 
@@ -950,7 +950,9 @@ public final class FfiBuildSupport {
                     }
                 );
                 project.getTasks()
-                    .matching(t -> t.getName().startsWith("jsNodeTest") || t.getName().startsWith("wasmJsNodeTest"))
+                    .matching(t -> t.getName().startsWith("jsNodeTest")
+                        || t.getName().startsWith("wasmJsNodeTest")
+                        || t.getName().startsWith("wasmWasiNodeTest"))
                     .configureEach(t -> t.dependsOn(copyIbNode, copyIbWasmNode));
             }
         }

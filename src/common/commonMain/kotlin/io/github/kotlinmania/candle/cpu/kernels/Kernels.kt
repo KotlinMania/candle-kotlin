@@ -1,7 +1,6 @@
 // port-lint: source cpu/kernels.rs
 package io.github.kotlinmania.candle.cpu.kernels
 
-import io.github.kotlinmania.candle.COpaquePointer
 import io.github.kotlinmania.candle.cpu.vecAddBf16
 import io.github.kotlinmania.candle.cpu.vecAddF16
 import io.github.kotlinmania.candle.cpu.vecDotBf16
@@ -17,6 +16,10 @@ import io.github.kotlinmania.half.Bf16
 import io.github.kotlinmania.half.F16
 import io.github.kotlinmania.half.f16.fromF32
 import io.github.kotlinmania.numtraits.NumAssign
+import io.github.kotlinmania.rayon.scope
+import io.github.kotlinmania.rustlang.core.mem.ObjectSlotLayout
+import io.github.kotlinmania.rustlang.core.ptr.ConstPtr
+import io.github.kotlinmania.rustlang.core.ptr.MutPtr
 
 public interface VecOps<T> : NumAssign {
     public fun min(rhs: T): T
@@ -26,23 +29,31 @@ public interface VecOps<T> : NumAssign {
     /**
      * Element-wise addition of two slices into a third.
      */
-    public fun vecAdd(lhs: List<T>, rhs: List<T>, res: List<T>) {
-        ((lhs.zip(rhs)).zip(res)).forEach({ ((a, b), y) -> y = a + b })
+    public fun vecAdd(lhs: List<T>, rhs: List<T>, res: MutableList<T>) {
+        for (i in 0 until minOf(lhs.size, rhs.size, res.size)) {
+            res[i] = lhs[i] + rhs[i]
+        }
     }
 
-    public fun vecMul(lhs: List<T>, rhs: List<T>, res: List<T>) {
-        ((lhs.zip(rhs)).zip(res)).forEach({ ((a, b), y) -> y = a * b })
+    public fun vecMul(lhs: List<T>, rhs: List<T>, res: MutableList<T>) {
+        for (i in 0 until minOf(lhs.size, rhs.size, res.size)) {
+            res[i] = lhs[i] * rhs[i]
+        }
     }
 
-    public fun scalarMul(scalar: T, xs: List<T>, ys: List<T>) {
-        (xs.zip(ys)).forEach({ (x, y) -> y = x * scalar })
+    public fun scalarMul(scalar: T, xs: List<T>, ys: MutableList<T>) {
+        for (i in 0 until minOf(xs.size, ys.size)) {
+            ys[i] = xs[i] * scalar
+        }
     }
 
     /**
      * Add a broadcast scalar to every element of a slice: `ys[i] = xs[i] + scalar`.
      */
-    public fun scalarAdd(scalar: T, xs: List<T>, ys: List<T>) {
-        (xs.zip(ys)).forEach({ (x, y) -> y = x + scalar })
+    public fun scalarAdd(scalar: T, xs: List<T>, ys: MutableList<T>) {
+        for (i in 0 until minOf(xs.size, ys.size)) {
+            ys[i] = xs[i] + scalar
+        }
     }
 
     /**
@@ -53,11 +64,16 @@ public interface VecOps<T> : NumAssign {
      * The length of `lhs` and `rhs` have to be at least `len`. `res` has to point to a valid
      * element.
      */
-    public fun vecDot(lhs: org.rustlang.runtime.RustPointer<T>?, rhs: org.rustlang.runtime.RustPointer<T>?, res: org.rustlang.runtime.RustPointer<T>?, len: Int) {
+    public fun vecDot(lhs: ConstPtr<T>, rhs: ConstPtr<T>, res: MutPtr<T>, len: Int) {
         val res1 = res
-        (res1)!!.write(T.zero())
+        (ObjectSlotLayout<T>()).writeNative((res1).rawAddress, T.zero())
         for (i in 0 until len) {
-            (res1)!!.let { __rustPlace -> var __rustValue = __rustPlace.read(); __rustValue += ((org.rustlang.runtime.rustPointerOffset(lhs, null, (i).toLong(), false, false))!!.read() * (org.rustlang.runtime.rustPointerOffset(rhs, null, (i).toLong(), false, false))!!.read()); __rustPlace.write(__rustValue) }
+            (res1).let { targetPtr ->
+                val targetLayout = ObjectSlotLayout<T>()
+                var currentValue = targetLayout.readNative(targetPtr.rawAddress)
+                currentValue += ((ObjectSlotLayout<T>()).readNative((ConstPtr((lhs).rawAddress + ((i).toLong() * (ObjectSlotLayout<T>()).strideBytes))).rawAddress) * (ObjectSlotLayout<T>()).readNative((ConstPtr((rhs).rawAddress + ((i).toLong() * (ObjectSlotLayout<T>()).strideBytes))).rawAddress))
+                targetLayout.writeNative(targetPtr.rawAddress, currentValue)
+            }
         }
     }
 
@@ -69,11 +85,16 @@ public interface VecOps<T> : NumAssign {
      * The length of `xs` must be at least `len`. `res` has to point to a valid
      * element.
      */
-    public fun vecReduceSum(xs: org.rustlang.runtime.RustPointer<T>?, res: org.rustlang.runtime.RustPointer<T>?, len: Int) {
+    public fun vecReduceSum(xs: ConstPtr<T>, res: MutPtr<T>, len: Int) {
         val res1 = res
-        (res1)!!.write(T.zero())
+        (ObjectSlotLayout<T>()).writeNative((res1).rawAddress, T.zero())
         for (i in 0 until len) {
-            (res1)!!.let { __rustPlace -> var __rustValue = __rustPlace.read(); __rustValue += ((org.rustlang.runtime.rustPointerOffset(xs, null, (i).toLong(), false, false))!!.read()); __rustPlace.write(__rustValue) }
+            (res1).let { targetPtr ->
+                val targetLayout = ObjectSlotLayout<T>()
+                var currentValue = targetLayout.readNative(targetPtr.rawAddress)
+                currentValue += ((ObjectSlotLayout<T>()).readNative((ConstPtr((xs).rawAddress + ((i).toLong() * (ObjectSlotLayout<T>()).strideBytes))).rawAddress))
+                targetLayout.writeNative(targetPtr.rawAddress, currentValue)
+            }
         }
     }
 
@@ -85,11 +106,11 @@ public interface VecOps<T> : NumAssign {
      * The length of `xs` must be at least `len` and positive. `res` has to point to a valid
      * element.
      */
-    public fun vecReduceMax(xs: org.rustlang.runtime.RustPointer<T>?, res: org.rustlang.runtime.RustPointer<T>?, len: Int) {
+    public fun vecReduceMax(xs: ConstPtr<T>, res: MutPtr<T>, len: Int) {
         val res1 = res
-        (res1)!!.write((xs)!!.read())
+        (ObjectSlotLayout<T>()).writeNative((res1).rawAddress, (ObjectSlotLayout<T>()).readNative((xs).rawAddress))
         for (i in 1 until len) {
-            (res1)!!.write((res1)!!.read().max((org.rustlang.runtime.rustPointerOffset(xs, null, (i).toLong(), false, false))!!.read()))
+            (ObjectSlotLayout<T>()).writeNative((res1).rawAddress, (ObjectSlotLayout<T>()).readNative((res1).rawAddress).max((ObjectSlotLayout<T>()).readNative((ConstPtr((xs).rawAddress + ((i).toLong() * (ObjectSlotLayout<T>()).strideBytes))).rawAddress)))
         }
     }
 
@@ -101,11 +122,11 @@ public interface VecOps<T> : NumAssign {
      * The length of `xs` must be at least `len` and positive. `res` has to point to a valid
      * element.
      */
-    public fun vecReduceMin(xs: org.rustlang.runtime.RustPointer<T>?, res: org.rustlang.runtime.RustPointer<T>?, len: Int) {
+    public fun vecReduceMin(xs: ConstPtr<T>, res: MutPtr<T>, len: Int) {
         val res1 = res
-        (res1)!!.write((xs)!!.read())
+        (ObjectSlotLayout<T>()).writeNative((res1).rawAddress, (ObjectSlotLayout<T>()).readNative((xs).rawAddress))
         for (i in 1 until len) {
-            (res1)!!.write((res1)!!.read().min((org.rustlang.runtime.rustPointerOffset(xs, null, (i).toLong(), false, false))!!.read()))
+            (ObjectSlotLayout<T>()).writeNative((res1).rawAddress, (ObjectSlotLayout<T>()).readNative((res1).rawAddress).min((ObjectSlotLayout<T>()).readNative((ConstPtr((xs).rawAddress + ((i).toLong() * (ObjectSlotLayout<T>()).strideBytes))).rawAddress)))
         }
     }
 }
@@ -114,17 +135,17 @@ public fun Float.min(other: Float): Float = Float.min(this, other)
 
 public fun Float.max(other: Float): Float = Float.max(this, other)
 
-public fun vecOpsFloat(lhs: List<Float>, rhs: List<Float>, res: List<Float>) {
-    vsAdd(lhs, rhs, res)
-    vsAdd(lhs, rhs, res)
-    ((lhs.zip(rhs)).zip(res)).forEach({ ((a, b), y) -> y = a + b })
+public fun vecOpsFloat(lhs: List<Float>, rhs: List<Float>, res: MutableList<Float>) {
+    for (i in 0 until minOf(lhs.size, rhs.size, res.size)) {
+        res[i] = lhs[i] + rhs[i]
+    }
 }
 
-public fun vecOpsFloat(lhs: COpaquePointer?, rhs: COpaquePointer?, res: COpaquePointer?, len: ULong) {
+public fun vecOpsFloat(lhs: ConstPtr<Float>, rhs: ConstPtr<Float>, res: MutPtr<Float>, len: ULong) {
     vecDotF32(lhs, rhs, res, len.toInt())
 }
 
-public fun vecOpsFloat(xs: COpaquePointer?, res: COpaquePointer?, len: ULong) {
+public fun vecOpsFloat(xs: ConstPtr<Float>, res: MutPtr<Float>, len: ULong) {
     vecSum(xs, res, len.toInt())
 }
 
@@ -140,21 +161,21 @@ public fun vecOpsF16(scalar: F16, xs: List<F16>, ys: List<F16>) {
     vecScalarAddF16(scalar, xs.asPtr(), ys.asMutPtr(), xs.size)
 }
 
-public fun vecOpsF16(lhs: org.rustlang.runtime.RustPointer<F16>?, rhs: org.rustlang.runtime.RustPointer<F16>?, res: org.rustlang.runtime.RustPointer<F16>?, len: Int) {
+public fun vecOpsF16(lhs: ConstPtr<F16>, rhs: ConstPtr<F16>, res: MutPtr<F16>, len: Int) {
     val res1 = res
     val resF32 = 0.0f
     vecDotF16(lhs, rhs, resF32, len)
-    (res1)!!.write(fromF32(resF32))
+    (ObjectSlotLayout<F16>()).writeNative((res1).rawAddress, fromF32(resF32))
 }
 
 public fun Double.min(other: Double): Double = Double.min(this, other)
 
 public fun Double.max(other: Double): Double = Double.max(this, other)
 
-public fun vecOpsDouble(lhs: List<Double>, rhs: List<Double>, res: List<Double>) {
-    vdAdd(lhs, rhs, res)
-    vdAdd(lhs, rhs, res)
-    ((lhs.zip(rhs)).zip(res)).forEach({ ((a, b), y) -> y = a + b })
+public fun vecOpsDouble(lhs: List<Double>, rhs: List<Double>, res: MutableList<Double>) {
+    for (i in 0 until minOf(lhs.size, rhs.size, res.size)) {
+        res[i] = lhs[i] + rhs[i]
+    }
 }
 
 public fun Bf16.min(other: Bf16): Bf16 = Bf16.min(this, other)
@@ -169,11 +190,15 @@ public fun vecOpsBf16(scalar: Bf16, xs: List<Bf16>, ys: List<Bf16>) {
     vecScalarAddBf16(scalar, xs.asPtr(), ys.asMutPtr(), xs.size)
 }
 
-public fun vecOpsBf16(lhs: org.rustlang.runtime.RustPointer<Bf16>?, rhs: org.rustlang.runtime.RustPointer<Bf16>?, res: org.rustlang.runtime.RustPointer<Bf16>?, len: Int) {
+public fun vecOpsBf16(lhs: ConstPtr<Bf16>, rhs: ConstPtr<Bf16>, res: MutPtr<Bf16>, len: Int) {
     val res1 = res
     val resF32 = 0.0f
     vecDotBf16(lhs, rhs, resF32, len)
-    (res1)!!.write(io.github.kotlinmania.half.bf16.fromF32(resF32))
+    (ObjectSlotLayout<Bf16>()).writeNative(
+        (res1).rawAddress,
+        io.github.kotlinmania.half.bf16
+            .fromF32(resF32),
+    )
 }
 
 public fun UByte.min(other: UByte): UByte = UByte.min(this, other)

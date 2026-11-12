@@ -12,61 +12,75 @@ import io.github.kotlinmania.candle.cpu.features.get
 import io.github.kotlinmania.candle.cpu.neon.vecMulBf16
 import io.github.kotlinmania.half.Bf16
 import io.github.kotlinmania.half.F16
+import io.github.kotlinmania.rustlang.core.mem.ObjectSlotLayout
+import io.github.kotlinmania.rustlang.core.mem.PrimitiveLayouts
+import io.github.kotlinmania.rustlang.core.ptr.ConstPtr
+import io.github.kotlinmania.rustlang.core.ptr.MutPtr
 
-public fun scalarVecDotF32(aRow: org.rustlang.runtime.RustPointer<Float>?, bRow: org.rustlang.runtime.RustPointer<Float>?, c: org.rustlang.runtime.RustPointer<Float>?, k: Int) {
+public fun scalarVecDotF32(aRow: ConstPtr<Float>, bRow: ConstPtr<Float>, c: MutPtr<Float>, k: Int) {
     val c1 = c
     for (i in 0 until k) {
-        (c1)!!.let { __rustPlace -> var __rustValue = __rustPlace.read(); __rustValue += ((org.rustlang.runtime.rustPointerOffset(aRow, null, (i).toLong(), false, false))!!.read() * (org.rustlang.runtime.rustPointerOffset(bRow, null, (i).toLong(), false, false))!!.read()); __rustPlace.write(__rustValue) }
+        (c1).let { targetPtr ->
+            val targetLayout = PrimitiveLayouts.F32
+            var currentValue = targetLayout.readNative(targetPtr.rawAddress)
+            currentValue += ((PrimitiveLayouts.F32).readNative((ConstPtr((aRow).rawAddress + ((i).toLong() * (PrimitiveLayouts.F32).strideBytes))).rawAddress) * (PrimitiveLayouts.F32).readNative((ConstPtr((bRow).rawAddress + ((i).toLong() * (PrimitiveLayouts.F32).strideBytes))).rawAddress))
+            targetLayout.writeNative(targetPtr.rawAddress, currentValue)
+        }
     }
 }
 
-public fun scalarVecSum(row: org.rustlang.runtime.RustPointer<Float>?, b: org.rustlang.runtime.RustPointer<Float>?, k: Int) {
+public fun scalarVecSum(row: ConstPtr<Float>, b: MutPtr<Float>, k: Int) {
     val b1 = b
-    (b1)!!.write(0.0f)
+    (PrimitiveLayouts.F32).writeNative((b1).rawAddress, 0.0f)
     for (i in 0 until k) {
-        (b1)!!.let { __rustPlace -> var __rustValue = __rustPlace.read(); __rustValue += ((org.rustlang.runtime.rustPointerOffset(row, null, (i).toLong(), false, false))!!.read()); __rustPlace.write(__rustValue) }
+        (b1).let { targetPtr ->
+            val targetLayout = PrimitiveLayouts.F32
+            var currentValue = targetLayout.readNative(targetPtr.rawAddress)
+            currentValue += ((PrimitiveLayouts.F32).readNative((ConstPtr((row).rawAddress + ((i).toLong() * (PrimitiveLayouts.F32).strideBytes))).rawAddress))
+            targetLayout.writeNative(targetPtr.rawAddress, currentValue)
+        }
     }
 }
 
-public fun scalarVecDotF16(aRow: org.rustlang.runtime.RustPointer<F16>?, bRow: org.rustlang.runtime.RustPointer<F16>?, c: org.rustlang.runtime.RustPointer<Float>?, k: Int) {
+public fun scalarVecDotF16(aRow: ConstPtr<F16>, bRow: ConstPtr<F16>, c: MutPtr<Float>, k: Int) {
     val c1 = c
     var sum = 0.0
     for (i in 0 until k) {
-        sum += (org.rustlang.runtime.rustPointerOffset(aRow, null, (i).toLong(), false, false))!!.read().toF32() * (org.rustlang.runtime.rustPointerOffset(bRow, null, (i).toLong(), false, false))!!.read().toF32()
+        sum += (ObjectSlotLayout<F16>()).readNative((ConstPtr((aRow).rawAddress + ((i).toLong() * (ObjectSlotLayout<F16>()).strideBytes))).rawAddress).toF32() * (ObjectSlotLayout<F16>()).readNative((ConstPtr((bRow).rawAddress + ((i).toLong() * (ObjectSlotLayout<F16>()).strideBytes))).rawAddress).toF32()
     }
-    (c1)!!.write(sum)
+    (PrimitiveLayouts.F32).writeNative((c1).rawAddress, sum)
 }
 
-public fun scalarVecDotBf16(aRow: org.rustlang.runtime.RustPointer<Bf16>?, bRow: org.rustlang.runtime.RustPointer<Bf16>?, c: org.rustlang.runtime.RustPointer<Float>?, k: Int) {
+public fun scalarVecDotBf16(aRow: ConstPtr<Bf16>, bRow: ConstPtr<Bf16>, c: MutPtr<Float>, k: Int) {
     val c1 = c
     var sum = 0.0
     for (i in 0 until k) {
-        sum += (org.rustlang.runtime.rustPointerOffset(aRow, null, (i).toLong(), false, false))!!.read().toF32() * (org.rustlang.runtime.rustPointerOffset(bRow, null, (i).toLong(), false, false))!!.read().toF32()
+        sum += (ObjectSlotLayout<Bf16>()).readNative((ConstPtr((aRow).rawAddress + ((i).toLong() * (ObjectSlotLayout<Bf16>()).strideBytes))).rawAddress).toF32() * (ObjectSlotLayout<Bf16>()).readNative((ConstPtr((bRow).rawAddress + ((i).toLong() * (ObjectSlotLayout<Bf16>()).strideBytes))).rawAddress).toF32()
     }
-    (c1)!!.write(sum)
+    (PrimitiveLayouts.F32).writeNative((c1).rawAddress, sum)
 }
 
-public fun scalarVecAddF16(aRow: org.rustlang.runtime.RustPointer<F16>?, bRow: org.rustlang.runtime.RustPointer<F16>?, c: org.rustlang.runtime.RustPointer<F16>?, k: Int) {
+public fun scalarVecAddF16(aRow: ConstPtr<F16>, bRow: ConstPtr<F16>, c: MutPtr<F16>, k: Int) {
     for (i in 0 until k) {
-        (org.rustlang.runtime.rustPointerOffset(c, null, (i).toLong(), false, false))!!.write((org.rustlang.runtime.rustPointerOffset(aRow, null, (i).toLong(), false, false))!!.read() + (org.rustlang.runtime.rustPointerOffset(bRow, null, (i).toLong(), false, false))!!.read())
-    }
-}
-
-public fun scalarVecAddBf16(aRow: org.rustlang.runtime.RustPointer<Bf16>?, bRow: org.rustlang.runtime.RustPointer<Bf16>?, c: org.rustlang.runtime.RustPointer<Bf16>?, k: Int) {
-    for (i in 0 until k) {
-        (org.rustlang.runtime.rustPointerOffset(c, null, (i).toLong(), false, false))!!.write((org.rustlang.runtime.rustPointerOffset(aRow, null, (i).toLong(), false, false))!!.read() + (org.rustlang.runtime.rustPointerOffset(bRow, null, (i).toLong(), false, false))!!.read())
+        (ObjectSlotLayout<F16>()).writeNative((MutPtr((c).rawAddress + ((i).toLong() * (ObjectSlotLayout<F16>()).strideBytes))).rawAddress, (ObjectSlotLayout<F16>()).readNative((ConstPtr((aRow).rawAddress + ((i).toLong() * (ObjectSlotLayout<F16>()).strideBytes))).rawAddress) + (ObjectSlotLayout<F16>()).readNative((ConstPtr((bRow).rawAddress + ((i).toLong() * (ObjectSlotLayout<F16>()).strideBytes))).rawAddress))
     }
 }
 
-public fun scalarVecScalarAddF16(scalar: F16, xs: org.rustlang.runtime.RustPointer<F16>?, ys: org.rustlang.runtime.RustPointer<F16>?, k: Int) {
+public fun scalarVecAddBf16(aRow: ConstPtr<Bf16>, bRow: ConstPtr<Bf16>, c: MutPtr<Bf16>, k: Int) {
     for (i in 0 until k) {
-        (org.rustlang.runtime.rustPointerOffset(ys, null, (i).toLong(), false, false))!!.write((org.rustlang.runtime.rustPointerOffset(xs, null, (i).toLong(), false, false))!!.read() + scalar)
+        (ObjectSlotLayout<Bf16>()).writeNative((MutPtr((c).rawAddress + ((i).toLong() * (ObjectSlotLayout<Bf16>()).strideBytes))).rawAddress, (ObjectSlotLayout<Bf16>()).readNative((ConstPtr((aRow).rawAddress + ((i).toLong() * (ObjectSlotLayout<Bf16>()).strideBytes))).rawAddress) + (ObjectSlotLayout<Bf16>()).readNative((ConstPtr((bRow).rawAddress + ((i).toLong() * (ObjectSlotLayout<Bf16>()).strideBytes))).rawAddress))
     }
 }
 
-public fun scalarVecScalarAddBf16(scalar: Bf16, xs: org.rustlang.runtime.RustPointer<Bf16>?, ys: org.rustlang.runtime.RustPointer<Bf16>?, k: Int) {
+public fun scalarVecScalarAddF16(scalar: F16, xs: ConstPtr<F16>, ys: MutPtr<F16>, k: Int) {
     for (i in 0 until k) {
-        (org.rustlang.runtime.rustPointerOffset(ys, null, (i).toLong(), false, false))!!.write((org.rustlang.runtime.rustPointerOffset(xs, null, (i).toLong(), false, false))!!.read() + scalar)
+        (ObjectSlotLayout<F16>()).writeNative((MutPtr((ys).rawAddress + ((i).toLong() * (ObjectSlotLayout<F16>()).strideBytes))).rawAddress, (ObjectSlotLayout<F16>()).readNative((ConstPtr((xs).rawAddress + ((i).toLong() * (ObjectSlotLayout<F16>()).strideBytes))).rawAddress) + scalar)
+    }
+}
+
+public fun scalarVecScalarAddBf16(scalar: Bf16, xs: ConstPtr<Bf16>, ys: MutPtr<Bf16>, k: Int) {
+    for (i in 0 until k) {
+        (ObjectSlotLayout<Bf16>()).writeNative((MutPtr((ys).rawAddress + ((i).toLong() * (ObjectSlotLayout<Bf16>()).strideBytes))).rawAddress, (ObjectSlotLayout<Bf16>()).readNative((ConstPtr((xs).rawAddress + ((i).toLong() * (ObjectSlotLayout<Bf16>()).strideBytes))).rawAddress) + scalar)
     }
 }
 
@@ -89,91 +103,99 @@ public fun useNeonBf16(): Boolean {
     return features.neon && (!false || features.bf16)
 }
 
-internal fun vecDotF32(aRow: org.rustlang.runtime.RustPointer<Float>?, bRow: org.rustlang.runtime.RustPointer<Float>?, c: org.rustlang.runtime.RustPointer<Float>?, k: Int) {
+internal fun vecDotF32(aRow: ConstPtr<Float>, bRow: ConstPtr<Float>, c: MutPtr<Float>, k: Int) {
     if (useAvx2()) {
         return vecDotF32(aRow, bRow, c, k)
     }
     if (useNeon()) {
-        return io.github.kotlinmania.candle.cpu.neon.vecDotF32(aRow, bRow, c, k)
+        return io.github.kotlinmania.candle.cpu.neon
+            .vecDotF32(aRow, bRow, c, k)
     }
     vecDotF32(aRow, bRow, c, k)
 }
 
-internal fun vecSum(row: org.rustlang.runtime.RustPointer<Float>?, b: org.rustlang.runtime.RustPointer<Float>?, k: Int) {
+internal fun vecSum(row: ConstPtr<Float>, b: MutPtr<Float>, k: Int) {
     if (useAvx2()) {
         return vecSum(row, b, k)
     }
     if (useNeon()) {
-        return io.github.kotlinmania.candle.cpu.neon.vecSum(row, b, k)
+        return io.github.kotlinmania.candle.cpu.neon
+            .vecSum(row, b, k)
     }
     vecSum(row, b, k)
 }
 
-internal fun vecDotF16(aRow: org.rustlang.runtime.RustPointer<F16>?, bRow: org.rustlang.runtime.RustPointer<F16>?, c: org.rustlang.runtime.RustPointer<Float>?, k: Int) {
+internal fun vecDotF16(aRow: ConstPtr<F16>, bRow: ConstPtr<F16>, c: MutPtr<Float>, k: Int) {
     if (useAvx2F16()) {
         return vecDotF16(aRow, bRow, c, k)
     }
     if (useNeonF16()) {
-        return io.github.kotlinmania.candle.cpu.neon.vecDotF16(aRow, bRow, c, k)
+        return io.github.kotlinmania.candle.cpu.neon
+            .vecDotF16(aRow, bRow, c, k)
     }
     scalarVecDotF16(aRow, bRow, c, k)
 }
 
-internal fun vecDotBf16(aRow: org.rustlang.runtime.RustPointer<Bf16>?, bRow: org.rustlang.runtime.RustPointer<Bf16>?, c: org.rustlang.runtime.RustPointer<Float>?, k: Int) {
+internal fun vecDotBf16(aRow: ConstPtr<Bf16>, bRow: ConstPtr<Bf16>, c: MutPtr<Float>, k: Int) {
     if (useAvx2()) {
         return vecDotBf16(aRow, bRow, c, k)
     }
     if (useNeonBf16()) {
-        return io.github.kotlinmania.candle.cpu.neon.vecDotBf16(aRow, bRow, c, k)
+        return io.github.kotlinmania.candle.cpu.neon
+            .vecDotBf16(aRow, bRow, c, k)
     }
     scalarVecDotBf16(aRow, bRow, c, k)
 }
 
-internal fun vecAddF16(aRow: org.rustlang.runtime.RustPointer<F16>?, bRow: org.rustlang.runtime.RustPointer<F16>?, c: org.rustlang.runtime.RustPointer<F16>?, k: Int) {
+internal fun vecAddF16(aRow: ConstPtr<F16>, bRow: ConstPtr<F16>, c: MutPtr<F16>, k: Int) {
     if (useAvx2F16()) {
         return vecAddF16(aRow, bRow, c, k)
     }
     if (useNeonF16()) {
-        return io.github.kotlinmania.candle.cpu.neon.vecAddF16(aRow, bRow, c, k)
+        return io.github.kotlinmania.candle.cpu.neon
+            .vecAddF16(aRow, bRow, c, k)
     }
     vecAddF16(aRow, bRow, c, k)
 }
 
-internal fun vecAddBf16(aRow: org.rustlang.runtime.RustPointer<Bf16>?, bRow: org.rustlang.runtime.RustPointer<Bf16>?, c: org.rustlang.runtime.RustPointer<Bf16>?, k: Int) {
+internal fun vecAddBf16(aRow: ConstPtr<Bf16>, bRow: ConstPtr<Bf16>, c: MutPtr<Bf16>, k: Int) {
     if (useAvx2()) {
         return vecAddBf16(aRow, bRow, c, k)
     }
     if (useNeonBf16()) {
-        return io.github.kotlinmania.candle.cpu.neon.vecAddBf16(aRow, bRow, c, k)
+        return io.github.kotlinmania.candle.cpu.neon
+            .vecAddBf16(aRow, bRow, c, k)
     }
     vecAddBf16(aRow, bRow, c, k)
 }
 
-internal fun vecScalarAddF16(scalar: F16, xs: org.rustlang.runtime.RustPointer<F16>?, ys: org.rustlang.runtime.RustPointer<F16>?, k: Int) {
+internal fun vecScalarAddF16(scalar: F16, xs: ConstPtr<F16>, ys: MutPtr<F16>, k: Int) {
     if (useAvx2F16()) {
         return vecScalarAddF16(scalar, xs, ys, k)
     }
     if (useNeonF16()) {
-        return io.github.kotlinmania.candle.cpu.neon.vecScalarAddF16(scalar, xs, ys, k)
+        return io.github.kotlinmania.candle.cpu.neon
+            .vecScalarAddF16(scalar, xs, ys, k)
     }
     vecScalarAddF16(scalar, xs, ys, k)
 }
 
-internal fun vecMulBf16(aRow: org.rustlang.runtime.RustPointer<Bf16>?, bRow: org.rustlang.runtime.RustPointer<Bf16>?, c: org.rustlang.runtime.RustPointer<Bf16>?, k: Int) {
+internal fun vecMulBf16(aRow: ConstPtr<Bf16>, bRow: ConstPtr<Bf16>, c: MutPtr<Bf16>, k: Int) {
     if (useNeonBf16()) {
         return vecMulBf16(aRow, bRow, c, k)
     }
     for (j in 0 until k) {
-        (org.rustlang.runtime.rustPointerOffset(c, null, (j).toLong(), false, false))!!.write((org.rustlang.runtime.rustPointerOffset(aRow, null, (j).toLong(), false, false))!!.read() * (org.rustlang.runtime.rustPointerOffset(bRow, null, (j).toLong(), false, false))!!.read())
+        (ObjectSlotLayout<Bf16>()).writeNative((MutPtr((c).rawAddress + ((j).toLong() * (ObjectSlotLayout<Bf16>()).strideBytes))).rawAddress, (ObjectSlotLayout<Bf16>()).readNative((ConstPtr((aRow).rawAddress + ((j).toLong() * (ObjectSlotLayout<Bf16>()).strideBytes))).rawAddress) * (ObjectSlotLayout<Bf16>()).readNative((ConstPtr((bRow).rawAddress + ((j).toLong() * (ObjectSlotLayout<Bf16>()).strideBytes))).rawAddress))
     }
 }
 
-internal fun vecScalarAddBf16(scalar: Bf16, xs: org.rustlang.runtime.RustPointer<Bf16>?, ys: org.rustlang.runtime.RustPointer<Bf16>?, k: Int) {
+internal fun vecScalarAddBf16(scalar: Bf16, xs: ConstPtr<Bf16>, ys: MutPtr<Bf16>, k: Int) {
     if (useAvx2()) {
         return vecScalarAddBf16(scalar, xs, ys, k)
     }
     if (useNeonBf16()) {
-        return io.github.kotlinmania.candle.cpu.neon.vecScalarAddBf16(scalar, xs, ys, k)
+        return io.github.kotlinmania.candle.cpu.neon
+            .vecScalarAddBf16(scalar, xs, ys, k)
     }
     vecScalarAddBf16(scalar, xs, ys, k)
 }

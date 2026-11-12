@@ -9,6 +9,9 @@ import io.github.kotlinmania.candle.error.bail
 import io.github.kotlinmania.candle.layout.Layout
 import io.github.kotlinmania.candle.shape.Shape
 import io.github.kotlinmania.candle.tensor.Tensor
+import io.github.kotlinmania.rustlang.core.result.fromResidual
+import io.github.kotlinmania.rustlang.std.io.BufRead
+import io.github.kotlinmania.rustlang.std.io.Read
 import io.github.kotlinmania.candle.error.Error as E
 
 // Just enough pickle support to be able to read PyTorch checkpoints.
@@ -54,300 +57,362 @@ public sealed class OpCode(
     public data object Appends : OpCode(101u)
     public data object Long1 : OpCode(0x8au)
 
-    public fun __rustEq(other: OpCode): Boolean = this == other
+    public fun rustEquals(other: OpCode): Boolean = this == other
 
     public companion object {
         // Avoid using FromPrimitive so as not to drag another dependency.
-        public fun tryFrom(value: UByte): Result<OpCode> =
+        public fun tryFrom(value: UByte): Result<OpCode, UByte> =
             when (value) {
-                0x80 -> Result.success(OpCode.Proto)
-                99u -> Result.success(OpCode.Global)
-                113u -> Result.success(OpCode.BinPut)
-                114u -> Result.success(OpCode.LongBinPut)
-                41u -> Result.success(OpCode.EmptyTuple)
-                82u -> Result.success(OpCode.Reduce)
-                40u -> Result.success(OpCode.Mark)
-                88u -> Result.success(OpCode.BinUnicode)
-                74u -> Result.success(OpCode.BinInt)
-                116u -> Result.success(OpCode.Tuple)
-                81u -> Result.success(OpCode.BinPersId)
-                75u -> Result.success(OpCode.BinInt1)
-                77u -> Result.success(OpCode.BinInt2)
-                78u -> Result.success(OpCode.None)
-                0x85 -> Result.success(OpCode.Tuple1)
-                0x86 -> Result.success(OpCode.Tuple2)
-                0x87 -> Result.success(OpCode.Tuple3)
-                0x88 -> Result.success(OpCode.NewTrue)
-                0x89 -> Result.success(OpCode.NewFalse)
-                104u -> Result.success(OpCode.BinGet)
-                106u -> Result.success(OpCode.LongBinGet)
-                115u -> Result.success(OpCode.SetItem)
-                117u -> Result.success(OpCode.SetItems)
-                125u -> Result.success(OpCode.EmptyDict)
-                100u -> Result.success(OpCode.EmptyDict)
-                98u -> Result.success(OpCode.Build)
-                46u -> Result.success(OpCode.Stop)
-                0x81 -> Result.success(OpCode.NewObj)
-                93u -> Result.success(OpCode.EmptyList)
-                71u -> Result.success(OpCode.BinFloat)
-                97u -> Result.success(OpCode.Append)
-                101u -> Result.success(OpCode.Appends)
-                0x8a -> Result.success(OpCode.Long1)
+                0x80 -> Ok(OpCode.Proto)
+                99u -> Ok(OpCode.Global)
+                113u -> Ok(OpCode.BinPut)
+                114u -> Ok(OpCode.LongBinPut)
+                41u -> Ok(OpCode.EmptyTuple)
+                82u -> Ok(OpCode.Reduce)
+                40u -> Ok(OpCode.Mark)
+                88u -> Ok(OpCode.BinUnicode)
+                74u -> Ok(OpCode.BinInt)
+                116u -> Ok(OpCode.Tuple)
+                81u -> Ok(OpCode.BinPersId)
+                75u -> Ok(OpCode.BinInt1)
+                77u -> Ok(OpCode.BinInt2)
+                78u -> Ok(OpCode.None)
+                0x85 -> Ok(OpCode.Tuple1)
+                0x86 -> Ok(OpCode.Tuple2)
+                0x87 -> Ok(OpCode.Tuple3)
+                0x88 -> Ok(OpCode.NewTrue)
+                0x89 -> Ok(OpCode.NewFalse)
+                104u -> Ok(OpCode.BinGet)
+                106u -> Ok(OpCode.LongBinGet)
+                115u -> Ok(OpCode.SetItem)
+                117u -> Ok(OpCode.SetItems)
+                125u -> Ok(OpCode.EmptyDict)
+                100u -> Ok(OpCode.EmptyDict)
+                98u -> Ok(OpCode.Build)
+                46u -> Ok(OpCode.Stop)
+                0x81 -> Ok(OpCode.NewObj)
+                93u -> Ok(OpCode.EmptyList)
+                71u -> Ok(OpCode.BinFloat)
+                97u -> Ok(OpCode.Append)
+                101u -> Ok(OpCode.Appends)
+                0x8a -> Ok(OpCode.Long1)
                 else -> {
                     val value1 = value
-                    Result.failure(value1)
+                    Err(value1)
                 }
             }
     }
 }
 
 public fun <R : BufRead> readToNewline(r: R): Result<List<UByte>> {
-    val data: List<UByte>  = ArrayList(32)
-    r.readUntil(10u, data).getOrElse { return Result.failure(it) }
+    val data: List<UByte> = ArrayList(32)
+    when (val tryResult = r.readUntil(10u, data)) {
+        is Result.Ok -> tryResult.value
+        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+    }
     data.removeLastOrNull()
     if (data.last() == 13u) {
         data.removeLastOrNull()
     }
-    return Result.success(data)
+    return Ok(data)
 }
 
 public sealed class Object {
-    public data class Class(public var moduleName: String, public var className: String) : Object()
-    public data class Int(public var value: Int) : Object()
-    public data class Long(public var value: Long) : Object()
-    public data class Float(public var value: Double) : Object()
-    public data class Unicode(public var value: String) : Object()
-    public data class Bool(public var value: Boolean) : Object()
+    public data class Class(
+        public var moduleName: String,
+        public var clsName: String,
+    ) : Object()
+    public data class Int(
+        public var value: Int,
+    ) : Object()
+    public data class Long(
+        public var value: Long,
+    ) : Object()
+    public data class Float(
+        public var value: Double,
+    ) : Object()
+    public data class Unicode(
+        public var value: String,
+    ) : Object()
+    public data class Bool(
+        public var value: Boolean,
+    ) : Object()
     public data object None : Object()
-    public data class Tuple(public var value: List<Object>) : Object()
-    public data class List(public var value: List<Object>) : Object()
+    public data class Tuple(
+        public var value: List<Object>,
+    ) : Object()
+    public data class List(
+        public var value: List<Object>,
+    ) : Object()
     public data object Mark : Object()
-    public data class Dict(public var value: List<Pair<Object, Object>>) : Object()
-    public data class Reduce(public var callable: Object, public var args: Object) : Object()
-    public data class Build(public var callable: Object, public var args: Object) : Object()
-    public data class PersistentLoad(public var value: Object) : Object()
+    public data class Dict(
+        public var value: List<Pair<Object, Object>>,
+    ) : Object()
+    public data class Reduce(
+        public var callable: Object,
+        public var args: Object,
+    ) : Object()
+    public data class Build(
+        public var callable: Object,
+        public var args: Object,
+    ) : Object()
+    public data class PersistentLoad(
+        public var value: Object,
+    ) : Object()
 
-    public fun __rustEq(other: Object): Boolean = this == other
+    public fun rustEquals(other: Object): Boolean = this == other
 
-    public open fun unicode(): OResult<String> =
+    public fun unicode(): OResult<String> =
         when (this) {
             is Unicode -> {
                 val (t) = this
-                Result.success(t)
+                Ok(t)
             }
-            else -> Result.failure(this)
+            else -> Err(this)
         }
 
-    public open fun reduce(): OResult<Pair<Object, Object>> =
+    public fun reduce(): OResult<Pair<Object, Object>> =
         when (this) {
             is Reduce -> {
                 val callable = this.callable
                 val args = this.args
-                Result.success(Pair(callable, args))
+                Ok(Pair(callable, args))
             }
-            else -> Result.failure(this)
+            else -> Err(this)
         }
 
-    public open fun none(): OResult<Unit> =
+    public fun none(): OResult<Unit> =
         when (this) {
-            Object.None -> Result.success(Unit)
-            else -> Result.failure(this)
+            Object.None -> Ok(Unit)
+            else -> Err(this)
         }
 
-    public open fun persistentLoad(): OResult<Object> =
+    public fun persistentLoad(): OResult<Object> =
         when (this) {
             is PersistentLoad -> {
                 val (t) = this
-                Result.success(t)
+                Ok(t)
             }
-            else -> Result.failure(this)
+            else -> Err(this)
         }
 
-    public open fun bool(): OResult<Boolean> =
+    public fun bool(): OResult<Boolean> =
         when (this) {
             is Bool -> {
                 val (t) = this
-                Result.success(t)
+                Ok(t)
             }
-            else -> Result.failure(this)
+            else -> Err(this)
         }
 
-    public open fun int(): OResult<Int> =
+    public fun int(): OResult<Int> =
         when (this) {
             is Int -> {
                 val (t) = this
-                Result.success(t)
+                Ok(t)
             }
-            else -> Result.failure(this)
+            else -> Err(this)
         }
 
-    public open fun intOrLong(): OResult<Long> =
+    public fun intOrLong(): OResult<Long> =
         when (this) {
             is Int -> {
                 val (t) = this
-                Result.success(t.toLong())
+                Ok(t.toLong())
             }
             is Long -> {
                 val (t1) = this
-                Result.success(t1)
+                Ok(t1)
             }
-            else -> Result.failure(this)
+            else -> Err(this)
         }
 
-    public open fun tuple(): OResult<List<Object>> =
+    public fun tuple(): OResult<List<Object>> =
         when (this) {
             is Tuple -> {
                 val (t) = this
-                Result.success(t)
+                Ok(t)
             }
-            else -> Result.failure(this)
+            else -> Err(this)
         }
 
-    public open fun dict(): OResult<List<Pair<Object, Object>>> =
+    public fun dict(): OResult<List<Pair<Object, Object>>> =
         when (this) {
             is Dict -> {
                 val (t) = this
-                Result.success(t)
+                Ok(t)
             }
-            else -> Result.failure(this)
+            else -> Err(this)
         }
 
-    public open fun cls(): OResult<Pair<String, String>> =
+    public fun cls(): OResult<Pair<String, String>> =
         when (this) {
             is Class -> {
                 val moduleName = this.moduleName
-                val className = this.className
-                Result.success(Pair(moduleName, className))
+                val className = this.clsName
+                Ok(Pair(moduleName, className))
             }
-            else -> Result.failure(this)
+            else -> Err(this)
         }
 
-    public open fun intoTensorInfo(name: Object, dirName: Path): Result<TensorInfo?> {
+    public fun intoTensorInfo(name: Object, dirName: Path): Result<TensorInfo?> {
         val name2 =
             run {
                 val matchVal = name.unicode()
-                if (matchVal.isSuccess) {
-                    val name1 = matchVal.getOrThrow()
-                    name1
-                } else {
-                    return Result.success(null)
+                when (matchVal) {
+                    is Result.Ok -> {
+                        val name1 = matchVal.value
+                        name1
+                    }
+                    is Result.Err -> {
+                        return Ok(null)
+                    }
                 }
             }
         val (callable, args) =
             run {
                 val matchVal1 = this.reduce()
-                if (matchVal1.isSuccess) {
-                    val callableArgs = matchVal1.getOrThrow()
-                    callableArgs
-                } else {
-                    return Result.success(null)
+                when (matchVal1) {
+                    is Result.Ok -> {
+                        val callableArgs = matchVal1.value
+                        callableArgs
+                    }
+                    is Result.Err -> {
+                        return Ok(null)
+                    }
                 }
             }
         val (callable2, args4) =
             when {
-                callable is Object.Class && (callable as Object.Class).moduleName == "torch._tensor" && (callable as Object.Class).className == "_rebuild_from_type_v2" -> {
+                callable is Object.Class && (callable as Object.Class).moduleName == "torch._tensor" && (callable as Object.Class).clsName == "_rebuild_from_type_v2" -> {
                     val moduleName = callable.moduleName
-                    val className = callable.className
-                    var args1 = args.tuple().getOrElse { return Result.failure(it) }
+                    val className = callable.clsName
+                    var args1 =
+                        when (val tryResult = args.tuple()) {
+                            is Result.Ok -> tryResult.value
+                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        }
                     val callable1 = args1.remove(0)
                     val args2 = args1.remove(1)
                     Pair(callable1, args2)
                 }
-                callable is Object.Class && (callable as Object.Class).moduleName == "torch._utils" && (callable as Object.Class).className == "_rebuild_parameter" -> {
+                callable is Object.Class && (callable as Object.Class).moduleName == "torch._utils" && (callable as Object.Class).clsName == "_rebuild_parameter" -> {
                     val moduleName1 = callable.moduleName
-                    val className1 = callable.className
-                    var args3 = args.tuple().getOrElse { return Result.failure(it) }
-                    args3.remove(0).reduce().getOrElse { return Result.failure(it) }
+                    val className1 = callable.clsName
+                    var args3 =
+                        when (val tryResult = args.tuple()) {
+                            is Result.Ok -> tryResult.value
+                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        }
+                    when (val tryResult = args3.remove(0).reduce()) {
+                        is Result.Ok -> tryResult.value
+                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    }
                 }
                 else -> Pair(callable, args)
             }
         when {
-            callable2 is Object.Class && (callable2 as Object.Class).moduleName == "torch._utils" && (callable2 as Object.Class).className == "_rebuild_tensor_v2" -> {
+            callable2 is Object.Class && (callable2 as Object.Class).moduleName == "torch._utils" && (callable2 as Object.Class).clsName == "_rebuild_tensor_v2" -> {
                 val moduleName2 = callable2.moduleName
-                val className2 = callable2.className
+                val className2 = callable2.clsName
             }
-            else -> { return Result.success(null) }
+            else -> {
+                return Ok(null)
+            }
         }
-        val (layout, dtype, filePath, storageSize) = rebuildArgs(args4).getOrElse { return Result.failure(it) }
-        return Result.success(TensorInfo(name = name2, dtype = dtype, layout = layout, path = "${dirName.toStringLossy()}/$filePath", storageSize = storageSize))
+        val (layout, dtype, filePath, storageSize) =
+            when (val tryResult = rebuildArgs(args4)) {
+                is Result.Ok -> tryResult.value
+                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            }
+        return Ok(TensorInfo(name = name2, dtype = dtype, layout = layout, path = "${dirName.toStringLossy()}/$filePath", storageSize = storageSize))
     }
 }
 
-public typealias OResult<T> = Result<T>
+public typealias OResult<T> = Result<T, Object>
 
-public fun tryFromString(value: Object): Result<String> =
+public fun tryFromString(value: Object): Result<String, Object> =
     when (value) {
         is Object.Unicode -> {
             val (s) = value
-            Result.success(s)
+            Ok(s)
         }
         else -> {
             val other = value
-            Result.failure(other)
+            Err(other)
         }
     }
 
-public fun tryFromInt(value: Object): Result<Int> =
+public fun tryFromInt(value: Object): Result<Int, Object> =
     when {
         value is Object.Int && (value as Object.Int).value >= 0 -> {
             val (s) = value
-            Result.success(s)
+            Ok(s)
         }
         else -> {
             val other = value
-            Result.failure(other)
+            Err(other)
         }
     }
 
-public fun <T : TryFrom<Object, Object>> tryFromVecT(value: Object, tryFromTFn: (Any?) -> Any?): Result<List<T>> {
-    return when (value) {
+public fun <T : TryFrom<Object, Object>> tryFromVecT(value: Object, tryFromTFn: (Any?) -> Any?): Result<List<T>, Object> =
+    when (value) {
         is Object.Tuple -> {
             val (values) = value
             // This does not return the appropriate value in the error case but instead return
             // the object related to the first error.
-            values.map({ v -> tryFromTFn(v) }).collect<Result<List<T>>>()
+            values.map({ v -> tryFromTFn(v) }).collect<Result<List<T>, Object>>()
         }
         else -> {
             val other = value
-            Result.failure(other)
+            Err(other)
         }
     }
-}
 
-public open class Stack(
-    public var stack: MutableList<Object>,
-    public var memo: Map<UInt, Object>,
+public data class Stack(
+    public var stack: MutableList<Object> = mutableListOf(),
+    public var memo: Map<UInt, Object> = emptyMap(),
 ) {
-    public open fun stack(): List<Object> = this.stack.asSlice()
-
-    public open fun <R : BufRead> readLoop(r: R): Result<Unit> {
+    public fun <R : BufRead> readLoop(r: R): Result<Unit> {
         while (true) {
-            if (this.read(r).getOrElse { return Result.failure(it) }) {
+            if (when (val tryResult = this.read(r)) {
+                    is Result.Ok -> tryResult.value
+                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                }
+            ) {
                 break
             }
         }
-        return Result.success(Unit)
+        return Ok(Unit)
     }
 
-    public open fun finalize(): Result<Object> = this.pop()
+    public fun finalize(): Result<Object> = this.pop()
 
-    public open fun push(obj: Object) {
+    public fun push(obj: Object) {
         this.stack.add(obj)
     }
 
-    public open fun pop(): Result<Object> =
+    public fun pop(): Result<Object> =
         when (val matchVal = this.stack.removeLastOrNull()) {
             null -> bail("unexpected empty stack")
             else -> {
                 val obj = matchVal
-                Result.success(obj)
+                Ok(obj)
             }
         }
 
     // https://docs.juliahub.com/Pickle/LAUNc/0.1.0/opcode/#Pickle.OpCodes.BUILD
-    public open fun build(): Result<Unit> {
-        val args = this.pop().getOrElse { return Result.failure(it) }
-        val obj = this.pop().getOrElse { return Result.failure(it) }
+    public fun build(): Result<Unit> {
+        val args =
+            when (val tryResult = this.pop()) {
+                is Result.Ok -> tryResult.value
+                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            }
+        val obj =
+            when (val tryResult = this.pop()) {
+                is Result.Ok -> tryResult.value
+                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            }
         val obj3 =
             run {
                 val matchVal = Pair(obj, args)
@@ -366,17 +431,25 @@ public open class Stack(
                 }
             }
         this.push(obj3)
-        return Result.success(Unit)
+        return Ok(Unit)
     }
 
-    public open fun reduce(): Result<Unit> {
-        val args = this.pop().getOrElse { return Result.failure(it) }
-        val callable = this.pop().getOrElse { return Result.failure(it) }
+    public fun reduce(): Result<Unit> {
+        val args =
+            when (val tryResult = this.pop()) {
+                is Result.Ok -> tryResult.value
+                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            }
+        val callable =
+            when (val tryResult = this.pop()) {
+                is Result.Ok -> tryResult.value
+                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            }
         val reduced =
             when (callable) {
                 is Object.Class -> {
                     val moduleName = callable.moduleName
-                    val className = callable.className
+                    val className = callable.clsName
                     if (moduleName == "collections" && (className == "OrderedDict" || className == "defaultdict")) {
                         // Note: have a separate ordered dict and a separate default dict.
                         Object.Dict(mutableListOf())
@@ -388,39 +461,43 @@ public open class Stack(
             }
         val reduced1 = reduced.unwrapOrElse({ Object.Reduce(callable = callable, args = args) })
         this.push(reduced1)
-        return Result.success(Unit)
+        return Ok(Unit)
     }
 
-    public open fun last(): Result<Object> =
+    public fun last(): Result<Object> =
         when (val matchVal = this.stack.lastOrNull()) {
             null -> bail("unexpected empty stack")
             else -> {
                 val obj = matchVal
-                Result.success(obj)
+                Ok(obj)
             }
         }
 
-    public open fun memoGet(id: UInt): Result<Object> =
+    public fun memoGet(id: UInt): Result<Object> =
         when (val matchVal = this.memo.get(id)) {
             null -> bail("missing object in memo {id}")
             else -> {
                 val obj = matchVal
                 // Maybe we should use refcounting rather than doing potential large clones here.
-                Result.success(obj.clone())
+                Ok(obj.clone())
             }
         }
 
-    public open fun memoPut(id: UInt): Result<Unit> {
-        val obj = this.last().getOrElse { return Result.failure(it) }.clone()
+    public fun memoPut(id: UInt): Result<Unit> {
+        val obj =
+            when (val tryResult = this.last()) {
+                is Result.Ok -> tryResult.value
+                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            }.clone()
         this.memo.insert(id, obj)
-        return Result.success(Unit)
+        return Ok(Unit)
     }
 
-    public open fun persistentLoad(id: Object): Result<Object> = Result.success(Object.PersistentLoad(id))
+    public fun persistentLoad(id: Object): Result<Object> = Ok(Object.PersistentLoad(id))
 
-    public open fun newObj(cls: Object, args: Object): Result<Object> = Result.success(Object.Reduce(callable = cls, args = args))
+    public fun newObj(cls: Object, args: Object): Result<Object> = Ok(Object.Reduce(callable = cls, args = args))
 
-    public open fun popToMarker(): Result<List<Object>> {
+    public fun popToMarker(): Result<List<Object>> {
         var markIdx = null
         for ((idx, obj) in this.stack.enumerate().rev()) {
             if (obj == Object.Mark) {
@@ -436,94 +513,186 @@ public open class Stack(
                 val markIdx1 = markIdx
                 val objs = this.stack.splitOff(markIdx1 + 1)
                 this.stack.removeLastOrNull()
-                Result.success(objs)
+                Ok(objs)
             }
         }
     }
 
-    public open fun <R : BufRead> read(r: R): Result<Boolean> {
+    public fun <R : BufRead> read(r: R): Result<Boolean> {
         val opCode2 =
             run {
-                val matchVal = OpCode.tryFrom(r.readU8().getOrElse { return Result.failure(it) })
-                if (matchVal.isSuccess) {
-                    val opCode = matchVal.getOrThrow()
-                    opCode
-                } else {
-                    val opCode1 = matchVal.exceptionOrNull()!!
-                    bail("unknown op-code {op_code}")
+                val matchVal =
+                    OpCode.tryFrom(
+                        when (val tryResult = r.readU8()) {
+                            is Result.Ok -> tryResult.value
+                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        },
+                    )
+                when (matchVal) {
+                    is Result.Ok -> {
+                        val opCode = matchVal.value
+                        opCode
+                    }
+                    is Result.Err -> {
+                        val opCode1 = matchVal.value
+                        bail("unknown op-code {op_code}")
+                    }
                 }
             }
         // println("op: {opCode:?}");
         // println("{:?}", self.stack);
         when (opCode2) {
             OpCode.Proto -> {
-                val version = r.readU8().getOrElse { return Result.failure(it) }
+                val version =
+                    when (val tryResult = r.readU8()) {
+                        is Result.Ok -> tryResult.value
+                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    }
                 if (VERBOSE) {
                     println("proto $version")
                 }
             }
             OpCode.Global -> {
-                val moduleName = readToNewline(r).getOrElse { return Result.failure(it) }
-                val className = readToNewline(r).getOrElse { return Result.failure(it) }
+                val moduleName =
+                    when (val tryResult = readToNewline(r)) {
+                        is Result.Ok -> tryResult.value
+                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    }
+                val className =
+                    when (val tryResult = readToNewline(r)) {
+                        is Result.Ok -> tryResult.value
+                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    }
                 val moduleName1 = String.fromUtf8Lossy(moduleName).toString()
                 val className1 = String.fromUtf8Lossy(className).toString()
-                this.push(Object.Class(moduleName = moduleName1, className = className1))
+                this.push(Object.Class(moduleName = moduleName1, clsName = className1))
             }
             OpCode.BinInt1 -> {
-                val arg = r.readU8().getOrElse { return Result.failure(it) }
+                val arg =
+                    when (val tryResult = r.readU8()) {
+                        is Result.Ok -> tryResult.value
+                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    }
                 this.push(Object.Int(arg.toInt()))
             }
             OpCode.BinInt2 -> {
-                val arg1 = r.readU16<LittleEndian>().getOrElse { return Result.failure(it) }
+                val arg1 =
+                    when (val tryResult = r.readU16<LittleEndian>()) {
+                        is Result.Ok -> tryResult.value
+                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    }
                 this.push(Object.Int(arg1.toInt()))
             }
             OpCode.BinInt -> {
-                val arg2 = r.readI32<LittleEndian>().getOrElse { return Result.failure(it) }
+                val arg2 =
+                    when (val tryResult = r.readI32<LittleEndian>()) {
+                        is Result.Ok -> tryResult.value
+                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    }
                 this.push(Object.Int(arg2))
             }
             OpCode.BinFloat -> {
                 // Somehow floats are encoded using BigEndian whereas int types use LittleEndian.
                 // https://github.com/python/cpython/blob/0c80da4c14d904a367968955544dd6ae58c8101c/Lib/pickletools.py#L855
                 // https://github.com/pytorch/pytorch/blob/372d078f361e726bb4ac0884ac334b04c58179ef/torch/_weights_only_unpickler.py#L243
-                val arg3 = r.readF64<BigEndian>().getOrElse { return Result.failure(it) }
+                val arg3 =
+                    when (val tryResult = r.readF64<BigEndian>()) {
+                        is Result.Ok -> tryResult.value
+                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    }
                 this.push(Object.Float(arg3))
             }
             OpCode.BinUnicode -> {
-                val len = r.readU32<LittleEndian>().getOrElse { return Result.failure(it) }
+                val len =
+                    when (val tryResult = r.readU32<LittleEndian>()) {
+                        is Result.Ok -> tryResult.value
+                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    }
                 val data = mutableListOf(0u.toUByte(), len.toInt())
-                r.readExact(data).getOrElse { return Result.failure(it) }
-                val data1 = String.fromUtf8(data).mapErr(E::wrap).getOrElse { return Result.failure(it) }
+                when (val tryResult = r.readExact(data)) {
+                    is Result.Ok -> tryResult.value
+                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                }
+                val data1 =
+                    when (val tryResult = String.fromUtf8(data).mapErr(E::wrap)) {
+                        is Result.Ok -> tryResult.value
+                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    }
                 this.push(Object.Unicode(data1))
             }
             OpCode.BinPersId -> {
-                val id = this.pop().getOrElse { return Result.failure(it) }
-                val obj = this.persistentLoad(id).getOrElse { return Result.failure(it) }
+                val id =
+                    when (val tryResult = this.pop()) {
+                        is Result.Ok -> tryResult.value
+                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    }
+                val obj =
+                    when (val tryResult = this.persistentLoad(id)) {
+                        is Result.Ok -> tryResult.value
+                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    }
                 this.push(obj)
             }
             OpCode.Tuple -> {
-                val objs = this.popToMarker().getOrElse { return Result.failure(it) }
+                val objs =
+                    when (val tryResult = this.popToMarker()) {
+                        is Result.Ok -> tryResult.value
+                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    }
                 this.push(Object.Tuple(objs))
             }
             OpCode.Tuple1 -> {
-                val obj1 = this.pop().getOrElse { return Result.failure(it) }
+                val obj1 =
+                    when (val tryResult = this.pop()) {
+                        is Result.Ok -> tryResult.value
+                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    }
                 this.push(Object.Tuple(mutableListOf(obj1)))
             }
             OpCode.Tuple2 -> {
-                val obj2 = this.pop().getOrElse { return Result.failure(it) }
-                val obj1 = this.pop().getOrElse { return Result.failure(it) }
+                val obj2 =
+                    when (val tryResult = this.pop()) {
+                        is Result.Ok -> tryResult.value
+                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    }
+                val obj1 =
+                    when (val tryResult = this.pop()) {
+                        is Result.Ok -> tryResult.value
+                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    }
                 this.push(Object.Tuple(mutableListOf(obj1, obj2)))
             }
             OpCode.Tuple3 -> {
-                val obj3 = this.pop().getOrElse { return Result.failure(it) }
-                val obj21 = this.pop().getOrElse { return Result.failure(it) }
-                val obj11 = this.pop().getOrElse { return Result.failure(it) }
+                val obj3 =
+                    when (val tryResult = this.pop()) {
+                        is Result.Ok -> tryResult.value
+                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    }
+                val obj21 =
+                    when (val tryResult = this.pop()) {
+                        is Result.Ok -> tryResult.value
+                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    }
+                val obj11 =
+                    when (val tryResult = this.pop()) {
+                        is Result.Ok -> tryResult.value
+                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    }
                 this.push(Object.Tuple(mutableListOf(obj11, obj21, obj3)))
             }
             OpCode.NewTrue -> this.push(Object.Bool(true))
             OpCode.NewFalse -> this.push(Object.Bool(false))
             OpCode.Append -> {
-                val value = this.pop().getOrElse { return Result.failure(it) }
-                val pylist = this.last().getOrElse { return Result.failure(it) }
+                val value =
+                    when (val tryResult = this.pop()) {
+                        is Result.Ok -> tryResult.value
+                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    }
+                val pylist =
+                    when (val tryResult = this.last()) {
+                        is Result.Ok -> tryResult.value
+                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    }
                 if (pylist is Object.List) {
                     val (d) = pylist
                     d.push(value)
@@ -532,8 +701,16 @@ public open class Stack(
                 }
             }
             OpCode.Appends -> {
-                val objs1 = this.popToMarker().getOrElse { return Result.failure(it) }
-                val pylist1 = this.last().getOrElse { return Result.failure(it) }
+                val objs1 =
+                    when (val tryResult = this.popToMarker()) {
+                        is Result.Ok -> tryResult.value
+                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    }
+                val pylist1 =
+                    when (val tryResult = this.last()) {
+                        is Result.Ok -> tryResult.value
+                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    }
                 if (pylist1 is Object.List) {
                     val (d1) = pylist1
                     d1.extend(objs1)
@@ -542,9 +719,21 @@ public open class Stack(
                 }
             }
             OpCode.SetItem -> {
-                val value1 = this.pop().getOrElse { return Result.failure(it) }
-                val key = this.pop().getOrElse { return Result.failure(it) }
-                val pydict = this.last().getOrElse { return Result.failure(it) }
+                val value1 =
+                    when (val tryResult = this.pop()) {
+                        is Result.Ok -> tryResult.value
+                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    }
+                val key =
+                    when (val tryResult = this.pop()) {
+                        is Result.Ok -> tryResult.value
+                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    }
+                val pydict =
+                    when (val tryResult = this.last()) {
+                        is Result.Ok -> tryResult.value
+                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    }
                 if (pydict is Object.Dict) {
                     val (d2) = pydict
                     d2.push(Pair(key, value1))
@@ -553,8 +742,16 @@ public open class Stack(
                 }
             }
             OpCode.SetItems -> {
-                val objs2 = this.popToMarker().getOrElse { return Result.failure(it) }
-                val pydict1 = this.last().getOrElse { return Result.failure(it) }
+                val objs2 =
+                    when (val tryResult = this.popToMarker()) {
+                        is Result.Ok -> tryResult.value
+                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    }
+                val pydict1 =
+                    when (val tryResult = this.last()) {
+                        is Result.Ok -> tryResult.value
+                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    }
                 if (pydict1 is Object.Dict) {
                     val (d3) = pydict1
                     if (objs2.size % 2 != 0) {
@@ -564,7 +761,11 @@ public open class Stack(
                         val matchVal1 = objs2.pop()
                         if (matchVal1 == null) break
                         val value2 = matchVal1
-                        val key1 = objs2.pop().context("empty objs").getOrElse { return Result.failure(it) }
+                        val key1 =
+                            when (val tryResult = objs2.pop().context("empty objs")) {
+                                is Result.Ok -> tryResult.value
+                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            }
                         d3.push(Pair(key1, value2))
                     }
                 } else {
@@ -573,12 +774,20 @@ public open class Stack(
             }
             OpCode.None -> this.push(Object.None)
             OpCode.Stop -> {
-                return Result.success(true)
+                return Ok(true)
             }
-            OpCode.Build -> this.build().getOrElse { return Result.failure(it) }
+            OpCode.Build ->
+                when (val tryResult = this.build()) {
+                    is Result.Ok -> tryResult.value
+                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                }
             OpCode.EmptyDict -> this.push(Object.Dict(mutableListOf()))
             OpCode.Dict -> {
-                val objs3 = this.popToMarker().getOrElse { return Result.failure(it) }
+                val objs3 =
+                    when (val tryResult = this.popToMarker()) {
+                        is Result.Ok -> tryResult.value
+                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    }
                 val pydict2 = mutableListOf()
                 if (objs3.size % 2 != 0) {
                     bail("setitems: not an even number of objects")
@@ -587,50 +796,113 @@ public open class Stack(
                     val matchVal2 = objs3.pop()
                     if (matchVal2 == null) break
                     val value3 = matchVal2
-                    val key2 = objs3.pop().context("empty objs").getOrElse { return Result.failure(it) }
+                    val key2 =
+                        when (val tryResult = objs3.pop().context("empty objs")) {
+                            is Result.Ok -> tryResult.value
+                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        }
                     pydict2.add(Pair(key2, value3))
                 }
                 this.push(Object.Dict(pydict2))
             }
             OpCode.Mark -> this.push(Object.Mark)
-            OpCode.Reduce -> this.reduce().getOrElse { return Result.failure(it) }
+            OpCode.Reduce ->
+                when (val tryResult = this.reduce()) {
+                    is Result.Ok -> tryResult.value
+                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                }
             OpCode.EmptyTuple -> this.push(Object.Tuple(mutableListOf()))
             OpCode.EmptyList -> this.push(Object.List(mutableListOf()))
             OpCode.BinGet -> {
-                val arg4 = r.readU8().getOrElse { return Result.failure(it) }
-                val obj2 = this.memoGet(arg4.toUInt()).getOrElse { return Result.failure(it) }
+                val arg4 =
+                    when (val tryResult = r.readU8()) {
+                        is Result.Ok -> tryResult.value
+                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    }
+                val obj2 =
+                    when (val tryResult = this.memoGet(arg4.toUInt())) {
+                        is Result.Ok -> tryResult.value
+                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    }
                 this.push(obj2)
             }
             OpCode.LongBinGet -> {
-                val arg5 = r.readU32<LittleEndian>().getOrElse { return Result.failure(it) }
-                val obj3 = this.memoGet(arg5).getOrElse { return Result.failure(it) }
+                val arg5 =
+                    when (val tryResult = r.readU32<LittleEndian>()) {
+                        is Result.Ok -> tryResult.value
+                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    }
+                val obj3 =
+                    when (val tryResult = this.memoGet(arg5)) {
+                        is Result.Ok -> tryResult.value
+                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    }
                 this.push(obj3)
             }
             OpCode.BinPut -> {
-                val arg6 = r.readU8().getOrElse { return Result.failure(it) }
-                this.memoPut(arg6.toUInt()).getOrElse { return Result.failure(it) }
+                val arg6 =
+                    when (val tryResult = r.readU8()) {
+                        is Result.Ok -> tryResult.value
+                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    }
+                when (val tryResult = this.memoPut(arg6.toUInt())) {
+                    is Result.Ok -> tryResult.value
+                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                }
             }
             OpCode.LongBinPut -> {
-                val arg7 = r.readU32<LittleEndian>().getOrElse { return Result.failure(it) }
-                this.memoPut(arg7).getOrElse { return Result.failure(it) }
+                val arg7 =
+                    when (val tryResult = r.readU32<LittleEndian>()) {
+                        is Result.Ok -> tryResult.value
+                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    }
+                when (val tryResult = this.memoPut(arg7)) {
+                    is Result.Ok -> tryResult.value
+                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                }
             }
             OpCode.NewObj -> {
-                val args = this.pop().getOrElse { return Result.failure(it) }
-                val cls = this.pop().getOrElse { return Result.failure(it) }
-                val obj4 = this.newObj(cls, args).getOrElse { return Result.failure(it) }
+                val args =
+                    when (val tryResult = this.pop()) {
+                        is Result.Ok -> tryResult.value
+                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    }
+                val cls =
+                    when (val tryResult = this.pop()) {
+                        is Result.Ok -> tryResult.value
+                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    }
+                val obj4 =
+                    when (val tryResult = this.newObj(cls, args)) {
+                        is Result.Ok -> tryResult.value
+                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    }
                 this.push(obj4)
             }
             OpCode.Long1 -> {
-                val nBytes = r.readU8().getOrElse { return Result.failure(it) }
+                val nBytes =
+                    when (val tryResult = r.readU8()) {
+                        is Result.Ok -> tryResult.value
+                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    }
                 var v = 0
                 // Decode the next n bytes in little endian
                 for (i in 0 until nBytes) {
-                    v = v or (((r.readU8().getOrElse { return Result.failure(it) }).toLong()) shl (i * 8).toInt())
+                    v = v or (
+                        (
+                            (
+                                when (val tryResult = r.readU8()) {
+                                    is Result.Ok -> tryResult.value
+                                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                }
+                            ).toLong()
+                        ) shl (i * 8).toInt()
+                    )
                 }
                 this.push(Object.Long(v))
             }
         }
-        return Result.success(false)
+        return Ok(false)
     }
 
     public companion object {
@@ -643,15 +915,55 @@ public fun fromE(value: Object): E = E.Msg("conversion error on $value")
 // https://github.com/pytorch/pytorch/blob/4eac43d046ded0f0a5a5fa8db03eb40f45bf656e/torch/_utils.py#L198
 // Arguments: storage, storageOffset, size, stride, requiresGrad, backwardHooks
 public fun rebuildArgs(args: Object): Result<List<Any?>> {
-    val args1 = args.tuple().getOrElse { return Result.failure(it) }
-    val stride = Vec.tryFrom(args1.remove(3)).getOrElse { return Result.failure(it) }
-    val size = Vec.tryFrom(args1.remove(2)).getOrElse { return Result.failure(it) }
-    val offset = (args1.remove(1).intOrLong().getOrElse { return Result.failure(it) }).toInt()
-    val storage = args1.remove(0).persistentLoad().getOrElse { return Result.failure(it) }
-    val storage1 = storage.tuple().getOrElse { return Result.failure(it) }
-    val storageSize = (storage1.remove(4).intOrLong().getOrElse { return Result.failure(it) }).toInt()
-    val path = storage1.remove(2).unicode().getOrElse { return Result.failure(it) }
-    val (moduleName, className) = storage1.remove(1).cls().getOrElse { return Result.failure(it) }
+    val args1 =
+        when (val tryResult = args.tuple()) {
+            is Result.Ok -> tryResult.value
+            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+        }
+    val stride =
+        when (val tryResult = Vec.tryFrom(args1.remove(3))) {
+            is Result.Ok -> tryResult.value
+            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+        }
+    val size =
+        when (val tryResult = Vec.tryFrom(args1.remove(2))) {
+            is Result.Ok -> tryResult.value
+            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+        }
+    val offset =
+        (
+            when (val tryResult = args1.remove(1).intOrLong()) {
+                is Result.Ok -> tryResult.value
+                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            }
+        ).toInt()
+    val storage =
+        when (val tryResult = args1.remove(0).persistentLoad()) {
+            is Result.Ok -> tryResult.value
+            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+        }
+    val storage1 =
+        when (val tryResult = storage.tuple()) {
+            is Result.Ok -> tryResult.value
+            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+        }
+    val storageSize =
+        (
+            when (val tryResult = storage1.remove(4).intOrLong()) {
+                is Result.Ok -> tryResult.value
+                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            }
+        ).toInt()
+    val path =
+        when (val tryResult = storage1.remove(2).unicode()) {
+            is Result.Ok -> tryResult.value
+            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+        }
+    val (moduleName, className) =
+        when (val tryResult = storage1.remove(1).cls()) {
+            is Result.Ok -> tryResult.value
+            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+        }
     val dtype =
         when (val matchVal = className.asStr()) {
             "FloatStorage" -> DType.F32
@@ -666,15 +978,15 @@ public fun rebuildArgs(args: Object): Result<List<Any?>> {
             }
         }
     val layout = Layout.new(Shape.from(size), stride, offset * dtype.sizeInBytes())
-    return Result.success(listOf(layout, dtype, path, storageSize))
+    return Ok(listOf(layout, dtype, path, storageSize))
 }
 
-public open class TensorInfo(
-    public var name: String,
-    public var dtype: DType,
-    public var layout: Layout,
-    public var path: String,
-    public var storageSize: Int,
+public data class TensorInfo(
+    public var name: String = "",
+    public var dtype: DType = DType.entries.first(),
+    public var layout: Layout = Layout(),
+    public var path: String = "",
+    public var storageSize: Int = 0,
 )
 
 /**
@@ -686,21 +998,46 @@ public open class TensorInfo(
  * * `key` - Optional key to retrieve `stateDict` from the pth file.
  */
 public fun <P : AsRef<Path>> readPthTensorInfo(file: P, verbose: Boolean, key: String?): Result<List<TensorInfo>> {
-    val file1 = File.open(file).getOrElse { return Result.failure(it) }
+    val file1 =
+        when (val tryResult = File.open(file)) {
+            is Result.Ok -> tryResult.value
+            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+        }
     val zipReader = BufReader.new(file1)
-    val zip = ZipArchive.new(zipReader).getOrElse { return Result.failure(it) }
+    val zip =
+        when (val tryResult = ZipArchive.new(zipReader)) {
+            is Result.Ok -> tryResult.value
+            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+        }
     val zipFileNames = zip.fileNames().map({ f -> f.toString() }).collect<List<String>>()
     val tensorInfos = mutableListOf<TensorInfo>()
     for (fileName in zipFileNames.iter()) {
         if (!fileName.endsWith("data.pkl")) {
             continue
         }
-        val dirName = PathBuf.from(fileName.takeIf { it.endsWith(".pkl") }?.removeSuffix(".pkl").context("no .pkl").getOrElse { return Result.failure(it) })
-        val reader = zip.byName(fileName).getOrElse { return Result.failure(it) }
+        val dirName =
+            PathBuf.from(
+                when (val tryResult = fileName.takeIf { it.endsWith(".pkl") }?.removeSuffix(".pkl").context("no .pkl")) {
+                    is Result.Ok -> tryResult.value
+                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                },
+            )
+        val reader =
+            when (val tryResult = zip.byName(fileName)) {
+                is Result.Ok -> tryResult.value
+                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            }
         val reader1 = BufReader.new(reader)
         val stack = Stack.empty()
-        stack.readLoop(reader1).getOrElse { return Result.failure(it) }
-        val obj = stack.finalize().getOrElse { return Result.failure(it) }
+        when (val tryResult = stack.readLoop(reader1)) {
+            is Result.Ok -> tryResult.value
+            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+        }
+        val obj =
+            when (val tryResult = stack.finalize()) {
+                is Result.Ok -> tryResult.value
+                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            }
         if (VERBOSE || verbose) {
             println("$obj")
         }
@@ -713,15 +1050,19 @@ public fun <P : AsRef<Path>> readPthTensorInfo(file: P, verbose: Boolean, key: S
                         is Object.Reduce -> {
                             val callable1 = callable.callable
                             when {
-                                callable1 is Object.Class && (callable1 as Object.Class).moduleName == "__torch__" && (callable1 as Object.Class).className == "Module" -> {
+                                callable1 is Object.Class && (callable1 as Object.Class).moduleName == "__torch__" && (callable1 as Object.Class).clsName == "Module" -> {
                                     val moduleName = callable1.moduleName
-                                    val className = callable1.className
+                                    val className = callable1.clsName
                                     args
                                 }
-                                else -> { continue }
+                                else -> {
+                                    continue
+                                }
                             }
                         }
-                        else -> { continue }
+                        else -> {
+                            continue
+                        }
                     }
                 }
                 else -> {
@@ -735,7 +1076,10 @@ public fun <P : AsRef<Path>> readPthTensorInfo(file: P, verbose: Boolean, key: S
                 val key1 = key
                 if (obj2 is Object.Dict) {
                     val (keyValues) = obj2
-                    (keyValues.indexOf({ (k, _) -> k == Object.Unicode(key1.toOwned()) }).takeIf { it >= 0 })?.let({ (_, v) -> v }).okOrElse({ E.Msg("key $key not found") }).getOrElse { return Result.failure(it) }
+                    when (val tryResult = (keyValues.indexOf({ (k, _) -> k == Object.Unicode(key1.toOwned()) }).takeIf { it >= 0 })?.let({ (_, v) -> v }).okOrElse({ E.Msg("key $key not found") })) {
+                        is Result.Ok -> tryResult.value
+                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    }
                 } else {
                     obj2
                 }
@@ -766,31 +1110,45 @@ public fun <P : AsRef<Path>> readPthTensorInfo(file: P, verbose: Boolean, key: S
             }
         }
     }
-    return Result.success(tensorInfos)
+    return Ok(tensorInfos)
 }
 
 /**
  * Lazy tensor loader.
  */
-public open class PthTensors(
-    public var tensorInfos: Map<String, TensorInfo>,
-    public var path: PathBuf,
+public data class PthTensors(
+    public var tensorInfos: Map<String, TensorInfo> = emptyMap(),
+    public var path: PathBuf = PathBuf(),
 ) {
-    public open fun tensorInfos(): Map<String, TensorInfo> = this.tensorInfos
-
-    public open fun get(name: String): Result<Tensor?> {
+    public fun get(name: String): Result<Tensor?> {
         val tensorInfo1 =
             when (val matchVal = this.tensorInfos.get(name)) {
-                null -> { return Result.success(null) }
+                null -> {
+                    return Ok(null)
+                }
                 else -> {
                     val tensorInfo = matchVal
                     tensorInfo
                 }
             }
         // We hope that the file has not changed since first reading it.
-        val zipReader = BufReader.new(File.open(this.path).getOrElse { return Result.failure(it) })
-        val zip = ZipArchive.new(zipReader).getOrElse { return Result.failure(it) }
-        val reader = zip.byName(tensorInfo1.path).getOrElse { return Result.failure(it) }
+        val zipReader =
+            BufReader.new(
+                when (val tryResult = File.open(this.path)) {
+                    is Result.Ok -> tryResult.value
+                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                },
+            )
+        val zip =
+            when (val tryResult = ZipArchive.new(zipReader)) {
+                is Result.Ok -> tryResult.value
+                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            }
+        val reader =
+            when (val tryResult = zip.byName(tensorInfo1.path)) {
+                is Result.Ok -> tryResult.value
+                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            }
         val isFortranContiguous = tensorInfo1.layout.isFortranContiguous()
         val rank = tensorInfo1.layout.shape().rank()
         // Reading the data is a bit tricky as it can be strided, for now only support the basic
@@ -800,28 +1158,53 @@ public open class PthTensors(
         }
         val startOffset = tensorInfo1.layout.startOffset()
         if (startOffset > 0) {
-            copy(reader.byRef().take(startOffset.toULong()), sink()).getOrElse { return Result.failure(it) }
+            when (val tryResult = copy(reader.byRef().take(startOffset.toULong()), sink())) {
+                is Result.Ok -> tryResult.value
+                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            }
         }
-        val tensor = Tensor.fromReader(tensorInfo1.layout.shape().clone(), tensorInfo1.dtype, reader).getOrElse { return Result.failure(it) }
+        val tensor =
+            when (val tryResult = Tensor.fromReader(tensorInfo1.layout.shape().clone(), tensorInfo1.dtype, reader)) {
+                is Result.Ok -> tryResult.value
+                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            }
         return if (rank > 1 && isFortranContiguous) {
             // Reverse the shape, e.g. Shape(2, 3, 4) -> Shape(4, 3, 2)
-            val shapeReversed: Vec = tensorInfo1.layout.dims().iter().rev().cloned().collect()
-            val tensor1 = tensor.reshape(shapeReversed).getOrElse { return Result.failure(it) }
+            val shapeReversed: Vec =
+                tensorInfo1.layout
+                    .dims()
+                    .iter()
+                    .rev()
+                    .cloned()
+                    .collect()
+            val tensor1 =
+                when (val tryResult = tensor.reshape(shapeReversed)) {
+                    is Result.Ok -> tryResult.value
+                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                }
             // Permute (transpose) the dimensions, e.g. Shape(4, 3, 2) -> Shape(2, 3, 4)
             val dimIndicesReversed: Vec = (0 until rank).rev().collect()
-            val tensor2 = tensor1.permute(dimIndicesReversed).getOrElse { return Result.failure(it) }
-            Result.success(tensor2)
+            val tensor2 =
+                when (val tryResult = tensor1.permute(dimIndicesReversed)) {
+                    is Result.Ok -> tryResult.value
+                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                }
+            Ok(tensor2)
         } else {
-            Result.success(tensor)
+            Ok(tensor)
         }
     }
 
     public companion object {
         public fun <P : AsRef<Path>> new(path: P, key: String?): Result<PthTensors> {
-            val tensorInfos = readPthTensorInfo(path.asRef(), false, key).getOrElse { return Result.failure(it) }
+            val tensorInfos =
+                when (val tryResult = readPthTensorInfo(path.asRef(), false, key)) {
+                    is Result.Ok -> tryResult.value
+                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                }
             val tensorInfos1 = tensorInfos.intoIter().map({ ti -> Pair(ti.name.toString(), ti) }).collect()
             val path1 = path.asRef().toOwned()
-            return Result.success(PthTensors(tensorInfos = tensorInfos1, path = path1))
+            return Ok(PthTensors(tensorInfos = tensorInfos1, path = path1))
         }
     }
 }
@@ -835,11 +1218,21 @@ public open class PthTensors(
  *   contains multiple objects and the stateDict is the one we are interested in.
  */
 public fun <P : AsRef<Path>> readAllWithKey(path: P, key: String?): Result<List<Pair<String, Tensor>>> {
-    val pth = PthTensors.new(path, key).getOrElse { return Result.failure(it) }
+    val pth =
+        when (val tryResult = PthTensors.new(path, key)) {
+            is Result.Ok -> tryResult.value
+            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+        }
     val tensorNames = pth.tensorInfos.keys()
     val tensors = ArrayList<Pair<String, Tensor>>(tensorNames.len())
     for (name in tensorNames) {
-        when (val matchVal = pth.get(name).getOrElse { return Result.failure(it) }) {
+        when (
+            val matchVal =
+                when (val tryResult = pth.get(name)) {
+                    is Result.Ok -> tryResult.value
+                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                }
+        ) {
             null -> {}
             else -> {
                 val tensor = matchVal
@@ -847,7 +1240,7 @@ public fun <P : AsRef<Path>> readAllWithKey(path: P, key: String?): Result<List<
             }
         }
     }
-    return Result.success(tensors)
+    return Ok(tensors)
 }
 
 /**

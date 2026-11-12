@@ -26,47 +26,60 @@ public typealias Err = DTypeParseError
 public sealed class DType : FromStr {
     // Unsigned 8 bits integer.
     public data object U8 : DType()
+
     // Unsigned 32 bits integer.
     public data object U32 : DType()
+
     // Signed 16 bits integer.
     public data object I16 : DType()
+
     // Signed 32 bits integer.
     public data object I32 : DType()
+
     // Signed 64 bits integer.
     public data object I64 : DType()
+
     // Brain floating-point using half precision (16 bits).
     public data object Bf16 : DType()
+
     // Floating-point using half precision (16 bits).
     public data object F16 : DType()
+
     // Floating-point using single precision (32 bits).
     public data object F32 : DType()
+
     // Floating-point using double precision (64 bits).
     public data object F64 : DType()
+
     // 8-bit floating point with 4-bit exponent and 3-bit mantissa.
     public data object F8e4m3 : DType()
+
     /**
      * 6-bit float with 2 exponent bits and 3 mantissa bits (MX6 format)
      */
     public data object F6e2m3 : DType()
+
     /**
      * 6-bit float with 3 exponent bits and 2 mantissa bits (MX6 format)
      */
     public data object F6e3m2 : DType()
+
     /**
      * 4-bit float (MX4 format)
      */
     public data object F4 : DType()
+
     /**
      * 8-bit float with 8 exponent bits and 0 mantissa bits
      */
     public data object F8e8m0 : DType()
 
-    public fun __rustEq(other: DType): Boolean = this == other
+    public fun rustEquals(other: DType): Boolean = this == other
 
     /**
      * String representation for dtypes.
      */
-    public open fun asStr(): String =
+    public fun asStr(): String =
         when (this) {
             DType.u8 -> "u8"
             DType.u32 -> "u32"
@@ -87,7 +100,7 @@ public sealed class DType : FromStr {
     /**
      * The size used by each element in bytes, i.e. 1 for `U8`, 4 for `F32`.
      */
-    public open fun sizeInBytes(): Int =
+    public fun sizeInBytes(): Int =
         when (this) {
             DType.u8 -> 1
             DType.u32 -> 4
@@ -108,42 +121,42 @@ public sealed class DType : FromStr {
             DType.f8e8m0 -> 1
         }
 
-    public open fun isInt(): Boolean =
+    public fun isInt(): Boolean =
         when (this) {
             DType.u8, DType.u32, DType.i16, DType.i32, DType.i64 -> true
             DType.bf16, DType.f16, DType.f32, DType.f64, DType.f8e4m3, DType.f6e2m3, DType.f6e3m2, DType.f4, DType.f8e8m0 -> false
         }
 
-    public open fun isFloat(): Boolean =
+    public fun isFloat(): Boolean =
         when (this) {
             DType.u8, DType.u32, DType.i16, DType.i32, DType.i64 -> false
             DType.bf16, DType.f16, DType.f32, DType.f64, DType.f8e4m3, DType.f6e2m3, DType.f6e3m2, DType.f4, DType.f8e8m0 -> true
         }
 
     public companion object {
-        public fun fromStr(s: String): Result<DType> =
+        public fun fromStr(s: String): Result<DType, DTypeParseError> =
             when (s) {
-                "u8" -> Result.success(DType.U8)
-                "u32" -> Result.success(DType.U32)
-                "i16" -> Result.success(DType.I16)
-                "i32" -> Result.success(DType.I32)
-                "i64" -> Result.success(DType.I64)
-                "bf16" -> Result.success(DType.BF16)
-                "f16" -> Result.success(DType.F16)
-                "f32" -> Result.success(DType.F32)
-                "f64" -> Result.success(DType.F64)
-                "f8e4m3" -> Result.success(DType.F8E4M3)
-                "f6e2m3" -> Result.success(DType.F6E2M3)
-                "f6e3m2" -> Result.success(DType.F6E3M2)
-                "f4" -> Result.success(DType.F4)
-                "f8e8m0" -> Result.success(DType.F8E8M0)
+                "u8" -> Ok(DType.U8)
+                "u32" -> Ok(DType.U32)
+                "i16" -> Ok(DType.I16)
+                "i32" -> Ok(DType.I32)
+                "i64" -> Ok(DType.I64)
+                "bf16" -> Ok(DType.BF16)
+                "f16" -> Ok(DType.F16)
+                "f32" -> Ok(DType.F32)
+                "f64" -> Ok(DType.F64)
+                "f8e4m3" -> Ok(DType.F8E4M3)
+                "f6e2m3" -> Ok(DType.F6E2M3)
+                "f6e3m2" -> Ok(DType.F6E3M2)
+                "f4" -> Ok(DType.F4)
+                "f8e8m0" -> Ok(DType.F8E8M0)
                 else -> Err(DTypeParseError(s.toString()))
             }
     }
 }
 
-public open class DTypeParseError(
-    public var value: String,
+public class DTypeParseError(
+    public var value: String = "",
 ) : Error {
     public var field0: String
         get() = value
@@ -151,12 +164,15 @@ public open class DTypeParseError(
             value = v
         }
 
-    public open fun fmt(f: StringBuilder) {
+    public fun fmt(f: StringBuilder) {
         f.append("cannot parse '${this.value}' as a dtype")
     }
 }
 
-public interface WithDType<T> : NumAssign, Any, VecOps {
+public interface WithDType<T> :
+    NumAssign,
+    Any,
+    VecOps {
     public val DTYPE: DType
 
     public fun fromF64(v: Double): T
@@ -190,7 +206,7 @@ public fun withDTypeF16(s: CpuStorage): Result<List<F16>> =
     when (s) {
         is CpuStorage.F16 -> {
             val (data) = s
-            Result.success(data)
+            Ok(data)
         }
         else -> Err(Error.UnexpectedDType(expected = DType.F16, got = s.dtype(), msg = "unexpected dtype").bt())
     }
@@ -209,7 +225,7 @@ public fun withDTypeBf16(s: CpuStorage): Result<List<Bf16>> =
     when (s) {
         is CpuStorage.Bf16 -> {
             val (data) = s
-            Result.success(data)
+            Ok(data)
         }
         else -> Err(Error.UnexpectedDType(expected = DType.BF16, got = s.dtype(), msg = "unexpected dtype").bt())
     }
@@ -228,7 +244,7 @@ public fun withDTypeDouble(s: CpuStorage): Result<List<Double>> =
     when (s) {
         is CpuStorage.F64 -> {
             val (data) = s
-            Result.success(data)
+            Ok(data)
         }
         else -> Err(Error.UnexpectedDType(expected = DType.F64, got = s.dtype(), msg = "unexpected dtype").bt())
     }
@@ -247,12 +263,14 @@ public fun withDTypeF8e4m3(s: CpuStorage): Result<List<F8e4m3>> =
     when (s) {
         is CpuStorage.F8e4m3 -> {
             val (data) = s
-            Result.success(data)
+            Ok(data)
         }
         else -> Err(Error.UnexpectedDType(expected = DType.F8E4M3, got = s.dtype(), msg = "unexpected dtype").bt())
     }
 
-public interface IntDType : WithDType, Bounded {
+public interface IntDType :
+    WithDType,
+    Bounded {
     public fun isTrue(): Boolean
 
     public fun asUsize(): Int

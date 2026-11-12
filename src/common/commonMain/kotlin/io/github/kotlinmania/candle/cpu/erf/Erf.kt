@@ -1,6 +1,11 @@
 // port-lint: source cpu/erf.rs
 package io.github.kotlinmania.candle.cpu.erf
 
+import io.github.kotlinmania.libm.Erf
+import io.github.kotlinmania.libm.erfc
+import io.github.kotlinmania.libm.erfcf
+import io.github.kotlinmania.libm.erff
+
 // Provides the [error](https://en.wikipedia.org/wiki/ErrorFunction) and
 // related functions
 
@@ -20,14 +25,18 @@ public fun polynomial(z: Double, coeff: List<Double>): Double =
         coeff.isEmpty() -> 0.0
         else -> {
             val sum = coeff[coeff.size - 1]
-            coeff.iter().rev().skip(1).fold(sum, { sum1, c -> c + z * sum1 })
+            coeff
+                .iter()
+                .rev()
+                .skip(1)
+                .fold(sum, { sum1, c -> c + z * sum1 })
         }
     }
 
 /**
  * `erf` calculates the error function at `x`.
  */
-public fun erfF64(x: Double): Double = erf(x)
+public fun erfF64(x: Double): Double = Erf(x)
 
 public fun erfF32(x: Float): Float = erff(x)
 

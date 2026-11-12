@@ -7,6 +7,7 @@ import io.github.kotlinmania.candle.error.bail
 import io.github.kotlinmania.candle.quantized.gguffile.Content
 import io.github.kotlinmania.candle.quantized.gguffile.Value
 import io.github.kotlinmania.gguffile.Value.*
+import io.github.kotlinmania.rustlang.core.result.fromResidual
 import io.github.kotlinmania.tokenizers.AddedToken
 import io.github.kotlinmania.tokenizers.Tokenizer
 import io.github.kotlinmania.tokenizers.decoders.DecoderWrapper
@@ -35,64 +36,78 @@ public fun ggufValueToU32(v: Value): Result<UInt> =
     when (v) {
         is U8 -> {
             val (v1) = v
-            Result.success(v1.toUInt())
+            Ok(v1.toUInt())
         }
         is I8 -> {
             val (v2) = v
-            Result.success(v2.toUInt())
+            Ok(v2.toUInt())
         }
         is U16 -> {
             val (v3) = v
-            Result.success(v3.toUInt())
+            Ok(v3.toUInt())
         }
         is I16 -> {
             val (v4) = v
-            Result.success(v4.toUInt())
+            Ok(v4.toUInt())
         }
         is U32 -> {
             val (v5) = v
-            Result.success(v5)
+            Ok(v5)
         }
         is I32 -> {
             val (v6) = v
-            Result.success(v6.toUInt())
+            Ok(v6.toUInt())
         }
         is U64 -> {
             val (v7) = v
-            Result.success(v7.toUInt())
+            Ok(v7.toUInt())
         }
         is I64 -> {
             val (v8) = v
-            Result.success(v8.toUInt())
+            Ok(v8.toUInt())
         }
         else -> bail("expected numeric value for token type/id, got {v:?}")
     }
 
 public fun valueToStringArray(v: Value, name: String): Result<List<String>> {
-    val arr = v.toVec().withContext({ "`$name` is not an array" }).getOrElse { return Result.failure(it) }
-    return arr.iter().map({ v1 ->
-        v1.toString().map({ s -> s.toString() }).withContext({ "`$name` element is not a string: $v" })
-    }).collect()
+    val arr =
+        when (val tryResult = v.toVec().withContext({ "`$name` is not an array" })) {
+            is Result.Ok -> tryResult.value
+            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+        }
+    return arr
+        .iter()
+        .map({ v1 ->
+            v1.toString().map({ s -> s.toString() }).withContext({ "`$name` element is not a string: $v" })
+        })
+        .collect()
 }
 
 public fun mergesFromValue(v: Value): Result<List<Pair<String, String>>> {
-    return valueToStringArray(v, "tokenizer.ggml.merges").getOrElse { return Result.failure(it) }.map({ m ->
+    return when (val tryResult = valueToStringArray(v, "tokenizer.ggml.merges")) {
+        is Result.Ok -> tryResult.value
+        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+    }.map({ m ->
         m.splitOnce(' ').map({ (a, b) -> Pair(a.toString(), b.toString()) }).okOrElse({ Error.msg("invalid merge entry `$m`") })
-    }).collect()
+    })
+        .collect()
 }
 
-public open class Pipeline(
-    public var normalizer: NormalizerWrapper?,
-    public var pretokenizer: PreTokenizerWrapper?,
-    public var decoder: DecoderWrapper?,
-    public var postProcessor: PostProcessorWrapper?,
+public data class Pipeline(
+    public var normalizer: NormalizerWrapper? = null,
+    public var pretokenizer: PreTokenizerWrapper? = null,
+    public var decoder: DecoderWrapper? = null,
+    public var postProcessor: PostProcessorWrapper? = null,
 ) {
-    public open fun apply(tokenizer: Tokenizer): Result<Unit> {
+    public fun apply(tokenizer: Tokenizer): Result<Unit> {
         when (val matchVal = this.normalizer) {
             null -> {}
             else -> {
                 val norm = matchVal
-                tokenizer.withNormalizer(norm).mapErr(Error::wrap).getOrElse { return Result.failure(it) }
+                when (val tryResult = tokenizer.withNormalizer(norm).mapErr(Error::wrap)) {
+                    is Result.Ok -> tryResult.value
+                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                }
             }
         }
         when (val matchVal1 = this.pretokenizer) {
@@ -116,26 +131,52 @@ public open class Pipeline(
                 tokenizer.withPostProcessor(pp)
             }
         }
-        return Result.success(Unit)
+        return Ok(Unit)
     }
 }
 
 public fun preTokenizerSequence(regex: String, byteLevel: ByteLevelPre): Result<PreTokenizerWrapper> {
-    val split = Split.new(SplitPattern.Regex(regex.toString()), SplitDelimiterBehavior.Isolated, false).mapErr(Error::wrap).getOrElse { return Result.failure(it) }
-    return Result.success(Sequence.new(mutableListOf(split.into(), byteLevel.into())).into())
+    val split =
+        when (val tryResult = Split.new(SplitPattern.Regex(regex.toString()), SplitDelimiterBehavior.Isolated, false).mapErr(Error::wrap)) {
+            is Result.Ok -> tryResult.value
+            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+        }
+    return Ok(Sequence.new(mutableListOf(split.into(), byteLevel.into())).into())
 }
 
 public fun pipelineFromPre(pre: String): Result<Pipeline> {
     val REGEX_QWEN2: String = "(?:'[sS]|'[tT]|'[rR][eE]|'[vV][eE]|'[mM]|'[lL][lL]|'[dD])|[^\\r\\n\\p{L}\\p{N}]?\\p{L}+|\\p{N}| ?[^\\s\\p{L}\\p{N}]+[\\r\\n]*|\\s*[\\r\\n]+|\\s+(?!\\S)|\\s+"
     val REGEX_LLAMA3: String = "(?:'[sS]|'[tT]|'[rR][eE]|'[vV][eE]|'[mM]|'[lL][lL]|'[dD])|[^\\r\\n\\p{L}\\p{N}]?\\p{L}+|\\p{N}{1,3}| ?[^\\s\\p{L}\\p{N}]+[\\r\\n]*|\\s*[\\r\\n]+|\\s+(?!\\S)|\\s+"
-    return Result.success(when (pre) {
-        // Matches Qwen2 tokenizer.json settings
-        "qwen2" -> Pipeline(normalizer = NFC.into(), pretokenizer = preTokenizerSequence(REGEX_QWEN2, ByteLevelPre.new(false, false, false)).getOrElse { return Result.failure(it) }, decoder = ByteLevelDecoder.new(false, false, false).into(), postProcessor = ByteLevelProcessor.new(false, false, false).into())
-        // Matches Smaug/Llama3 style byte-level BPE
-        "smaug-bpe", "lfm2", "llama3" -> Pipeline(normalizer = null, pretokenizer = preTokenizerSequence(REGEX_LLAMA3, ByteLevelPre.new(false, true, false)).getOrElse { return Result.failure(it) }, decoder = ByteLevelDecoder.new(true, true, true).into(), postProcessor = ByteLevelProcessor.new(true, false, true).into())
-        // Default GPT-2 style BPE
-        else -> Pipeline(normalizer = null, pretokenizer = ByteLevelPre.default().into(), decoder = ByteLevelDecoder.default().into(), postProcessor = ByteLevelProcessor.default().into())
-    })
+    return Ok(
+        when (pre) {
+            // Matches Qwen2 tokenizer.json settings
+            "qwen2" ->
+                Pipeline(
+                    normalizer = NFC.into(),
+                    pretokenizer =
+                        when (val tryResult = preTokenizerSequence(REGEX_QWEN2, ByteLevelPre.new(false, false, false))) {
+                            is Result.Ok -> tryResult.value
+                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        },
+                    decoder = ByteLevelDecoder.new(false, false, false).into(),
+                    postProcessor = ByteLevelProcessor.new(false, false, false).into(),
+                )
+            // Matches Smaug/Llama3 style byte-level BPE
+            "smaug-bpe", "lfm2", "llama3" ->
+                Pipeline(
+                    normalizer = null,
+                    pretokenizer =
+                        when (val tryResult = preTokenizerSequence(REGEX_LLAMA3, ByteLevelPre.new(false, true, false))) {
+                            is Result.Ok -> tryResult.value
+                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        },
+                    decoder = ByteLevelDecoder.new(true, true, true).into(),
+                    postProcessor = ByteLevelProcessor.new(true, false, true).into(),
+                )
+            // Default GPT-2 style BPE
+            else -> Pipeline(normalizer = null, pretokenizer = ByteLevelPre.default().into(), decoder = ByteLevelDecoder.default().into(), postProcessor = ByteLevelProcessor.default().into())
+        },
+    )
 }
 
 public fun templateProcessor(tokens: List<String>, bosId: UInt?, eosId: UInt?, addBos: Boolean, addEos: Boolean): PostProcessorWrapper? {
@@ -183,18 +224,57 @@ public fun templateProcessor(tokens: List<String>, bosId: UInt?, eosId: UInt?, a
 }
 
 public fun tokenizerFromGgufTokenizer(ct: Content): Result<Tokenizer> {
-    val modelKind = metadataValue(ct, "tokenizer.ggml.model").getOrElse { return Result.failure(it) }.toString().getOrElse { return Result.failure(it) }.toLowercase()
+    val modelKind =
+        when (
+            val tryResult =
+                when (val tryResult = metadataValue(ct, "tokenizer.ggml.model")) {
+                    is Result.Ok -> tryResult.value
+                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                }.toString()
+        ) {
+            is Result.Ok -> tryResult.value
+            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+        }.toLowercase()
     if (modelKind != "gpt2") {
         bail("unsupported tokenizer model `{model_kind}`")
     }
-    val tokens = valueToStringArray(metadataValue(ct, "tokenizer.ggml.tokens").getOrElse { return Result.failure(it) }, "tokenizer.ggml.tokens").getOrElse { return Result.failure(it) }
+    val tokens =
+        when (
+            val tryResult =
+                valueToStringArray(
+                    when (val tryResult = metadataValue(ct, "tokenizer.ggml.tokens")) {
+                        is Result.Ok -> tryResult.value
+                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    },
+                    "tokenizer.ggml.tokens",
+                )
+        ) {
+            is Result.Ok -> tryResult.value
+            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+        }
     val vocab: Vocab = tokens.enumerate().map({ (i, t) -> Pair(t.clone(), i.toUInt()) }).collect()
-    val merges = mergesFromValue(metadataValue(ct, "tokenizer.ggml.merges").getOrElse { return Result.failure(it) }).getOrElse { return Result.failure(it) }
+    val merges =
+        when (
+            val tryResult =
+                mergesFromValue(
+                    when (val tryResult = metadataValue(ct, "tokenizer.ggml.merges")) {
+                        is Result.Ok -> tryResult.value
+                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    },
+                )
+        ) {
+            is Result.Ok -> tryResult.value
+            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+        }
     var builder = Bpe.builder().vocabAndMerges(vocab, merges)
     when (val matchVal = metadataValue(ct, "tokenizer.ggml.unk_token_id")) {
         is Ok -> {
             val (value) = matchVal
-            val tokenId = ggufValueToU32(value).getOrElse { return Result.failure(it) }
+            val tokenId =
+                when (val tryResult = ggufValueToU32(value)) {
+                    is Result.Ok -> tryResult.value
+                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                }
             when (val matchVal1 = tokens.get(tokenId.toInt())) {
                 null -> {}
                 else -> {
@@ -208,27 +288,50 @@ public fun tokenizerFromGgufTokenizer(ct: Content): Result<Tokenizer> {
     when (val matchVal2 = metadataValue(ct, "tokenizer.ggml.byte_fallback")) {
         is Ok -> {
             val (value1) = matchVal2
-            builder = builder.byteFallback(value1.toBool().getOrElse { return Result.failure(it) })
+            builder =
+                builder.byteFallback(
+                    when (val tryResult = value1.toBool()) {
+                        is Result.Ok -> tryResult.value
+                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    },
+                )
         }
         else -> {}
     }
     when (val matchVal3 = metadataValue(ct, "tokenizer.ggml.ignore_merges")) {
         is Ok -> {
             val (value2) = matchVal3
-            builder = builder.ignoreMerges(value2.toBool().getOrElse { return Result.failure(it) })
+            builder =
+                builder.ignoreMerges(
+                    when (val tryResult = value2.toBool()) {
+                        is Result.Ok -> tryResult.value
+                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    },
+                )
         }
         else -> {}
     }
-    val bpe = builder.build().mapErr(Error::wrap).getOrElse { return Result.failure(it) }
+    val bpe =
+        when (val tryResult = builder.build().mapErr(Error::wrap)) {
+            is Result.Ok -> tryResult.value
+            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+        }
     val tokenizer = Tokenizer.new(bpe)
     val pre = metadataValue(ct, "tokenizer.ggml.pre").andThen({ v -> v.toString() }).map({ s -> s.toString() }).unwrapOrElse({ "gpt2".toString() })
-    val pipeline = pipelineFromPre(pre.asStr()).getOrElse { return Result.failure(it) }
+    val pipeline =
+        when (val tryResult = pipelineFromPre(pre.asStr())) {
+            is Result.Ok -> tryResult.value
+            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+        }
     val postProcessorBase = pipeline.postProcessor
     val addBos = metadataValue(ct, "tokenizer.ggml.add_bos_token").andThen({ v -> v.toBool() }).unwrapOr(false)
     val addEos = metadataValue(ct, "tokenizer.ggml.add_eos_token").andThen({ v -> v.toBool() }).unwrapOr(false)
     val bosId = metadataValue(ct, "tokenizer.ggml.bos_token_id").andThen(::ggufValueToU32).ok()
     val eosId = metadataValue(ct, "tokenizer.ggml.eos_token_id").andThen(::ggufValueToU32).ok()
-    pipeline.apply(tokenizer).getOrElse { return Result.failure(it) }
+    when (val tryResult = pipeline.apply(tokenizer)) {
+        is Result.Ok -> tryResult.value
+        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+    }
     // Compose existing post-processor with a template-based one if needed
     val templatePp = templateProcessor(tokens, bosId, eosId, addBos, addEos)
     if (templatePp != null || postProcessorBase != null) {
@@ -256,7 +359,11 @@ public fun tokenizerFromGgufTokenizer(ct: Content): Result<Tokenizer> {
             val (arr) = matchVal4.value as Value.Array
             val specials = mutableListOf()
             for ((idx, v) in arr.iter().enumerate()) {
-                val ty = ggufValueToU32(v).getOrElse { return Result.failure(it) }
+                val ty =
+                    when (val tryResult = ggufValueToU32(v)) {
+                        is Result.Ok -> tryResult.value
+                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    }
                 // Aligns with llamaTokenType: treat non-normal/non-byte tokens as special.
                 val isSpecial =
                     when (ty) {
@@ -274,7 +381,10 @@ public fun tokenizerFromGgufTokenizer(ct: Content): Result<Tokenizer> {
                 }
             }
             if (!specials.isEmpty()) {
-                tokenizer.addSpecialTokens(specials).mapErr(Error::wrap).getOrElse { return Result.failure(it) }
+                when (val tryResult = tokenizer.addSpecialTokens(specials).mapErr(Error::wrap)) {
+                    is Result.Ok -> tryResult.value
+                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                }
             }
         }
     }
@@ -283,16 +393,29 @@ public fun tokenizerFromGgufTokenizer(ct: Content): Result<Tokenizer> {
         when (val matchVal6 = metadataValue(ct, key)) {
             is Ok -> {
                 val (value3) = matchVal6
-                explicitSpecials.insert(ggufValueToU32(value3).getOrElse { return Result.failure(it) })
+                explicitSpecials.insert(
+                    when (val tryResult = ggufValueToU32(value3)) {
+                        is Result.Ok -> tryResult.value
+                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    },
+                )
             }
             else -> {}
         }
     }
     if (!explicitSpecials.isEmpty()) {
-        val specials1: Vec = explicitSpecials.intoIter().filterMap({ id -> tokens.get(id.toInt()) }).map({ tok1 -> AddedToken.from(tok1.clone(), true) }).collect()
+        val specials1: Vec =
+            explicitSpecials
+                .intoIter()
+                .filterMap({ id -> tokens.get(id.toInt()) })
+                .map({ tok1 -> AddedToken.from(tok1.clone(), true) })
+                .collect()
         if (!specials1.isEmpty()) {
-            tokenizer.addSpecialTokens(specials1).mapErr(Error::wrap).getOrElse { return Result.failure(it) }
+            when (val tryResult = tokenizer.addSpecialTokens(specials1).mapErr(Error::wrap)) {
+                is Result.Ok -> tryResult.value
+                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            }
         }
     }
-    return Result.success(tokenizer)
+    return Ok(tokenizer)
 }

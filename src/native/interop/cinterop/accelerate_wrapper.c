@@ -15,7 +15,7 @@
 #endif
 #endif
 
-void candle_accelerate_sgemmFfi(const char* transa, const char* transb, void* m, void* n, void* k, void* alpha, void* a, void* lda, void* b, void* ldb, void* beta, void* c, void* ldc) {
+void candleAccelerateSgemmFfi(const char* transa, const char* transb, void* m, void* n, void* k, void* alpha, void* a, void* lda, void* b, void* ldb, void* beta, void* c, void* ldc) {
     typedef void (*km_fn_t)(const char*, const char*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*);
     static km_fn_t km_fn_ptr = NULL;
 #ifdef _WIN32
@@ -43,7 +43,7 @@ void candle_accelerate_sgemmFfi(const char* transa, const char* transb, void* m,
     errno = ENOSYS;
 }
 
-void candle_accelerate_dgemmFfi(const char* transa, const char* transb, void* m, void* n, void* k, void* alpha, void* a, void* lda, void* b, void* ldb, void* beta, void* c, void* ldc) {
+void candleAccelerateDgemmFfi(const char* transa, const char* transb, void* m, void* n, void* k, void* alpha, void* a, void* lda, void* b, void* ldb, void* beta, void* c, void* ldc) {
     typedef void (*km_fn_t)(const char*, const char*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*);
     static km_fn_t km_fn_ptr = NULL;
 #ifdef _WIN32
@@ -71,7 +71,7 @@ void candle_accelerate_dgemmFfi(const char* transa, const char* transb, void* m,
     errno = ENOSYS;
 }
 
-void candle_accelerate_vvexpf(void* dst, void* src, void* len) {
+void candleAccelerateVvexpf(void* dst, void* src, void* len) {
     typedef void (*km_fn_t)(void*, void*, void*);
     static km_fn_t km_fn_ptr = NULL;
 #ifdef _WIN32
@@ -99,7 +99,7 @@ void candle_accelerate_vvexpf(void* dst, void* src, void* len) {
     errno = ENOSYS;
 }
 
-void candle_accelerate_vvexp(void* dst, void* src, void* len) {
+void candleAccelerateVvexp(void* dst, void* src, void* len) {
     typedef void (*km_fn_t)(void*, void*, void*);
     static km_fn_t km_fn_ptr = NULL;
 #ifdef _WIN32
@@ -127,7 +127,7 @@ void candle_accelerate_vvexp(void* dst, void* src, void* len) {
     errno = ENOSYS;
 }
 
-void candle_accelerate_vvsqrtf(void* dst, void* src, void* len) {
+void candleAccelerateVvsqrtf(void* dst, void* src, void* len) {
     typedef void (*km_fn_t)(void*, void*, void*);
     static km_fn_t km_fn_ptr = NULL;
 #ifdef _WIN32
@@ -155,7 +155,7 @@ void candle_accelerate_vvsqrtf(void* dst, void* src, void* len) {
     errno = ENOSYS;
 }
 
-void candle_accelerate_vvsqrt(void* dst, void* src, void* len) {
+void candleAccelerateVvsqrt(void* dst, void* src, void* len) {
     typedef void (*km_fn_t)(void*, void*, void*);
     static km_fn_t km_fn_ptr = NULL;
 #ifdef _WIN32
@@ -183,7 +183,7 @@ void candle_accelerate_vvsqrt(void* dst, void* src, void* len) {
     errno = ENOSYS;
 }
 
-void candle_accelerate_vvsinf(void* dst, void* src, void* len) {
+void candleAccelerateVvsinf(void* dst, void* src, void* len) {
     typedef void (*km_fn_t)(void*, void*, void*);
     static km_fn_t km_fn_ptr = NULL;
 #ifdef _WIN32
@@ -211,7 +211,7 @@ void candle_accelerate_vvsinf(void* dst, void* src, void* len) {
     errno = ENOSYS;
 }
 
-void candle_accelerate_vvsin(void* dst, void* src, void* len) {
+void candleAccelerateVvsin(void* dst, void* src, void* len) {
     typedef void (*km_fn_t)(void*, void*, void*);
     static km_fn_t km_fn_ptr = NULL;
 #ifdef _WIN32
@@ -239,7 +239,7 @@ void candle_accelerate_vvsin(void* dst, void* src, void* len) {
     errno = ENOSYS;
 }
 
-void candle_accelerate_vvcosf(void* dst, void* src, void* len) {
+void candleAccelerateVvcosf(void* dst, void* src, void* len) {
     typedef void (*km_fn_t)(void*, void*, void*);
     static km_fn_t km_fn_ptr = NULL;
 #ifdef _WIN32
@@ -267,7 +267,7 @@ void candle_accelerate_vvcosf(void* dst, void* src, void* len) {
     errno = ENOSYS;
 }
 
-void candle_accelerate_vvcos(void* dst, void* src, void* len) {
+void candleAccelerateVvcos(void* dst, void* src, void* len) {
     typedef void (*km_fn_t)(void*, void*, void*);
     static km_fn_t km_fn_ptr = NULL;
 #ifdef _WIN32
@@ -295,7 +295,7 @@ void candle_accelerate_vvcos(void* dst, void* src, void* len) {
     errno = ENOSYS;
 }
 
-void candle_accelerate_vvlogf(void* dst, void* src, void* len) {
+void candleAccelerateVvlogf(void* dst, void* src, void* len) {
     typedef void (*km_fn_t)(void*, void*, void*);
     static km_fn_t km_fn_ptr = NULL;
 #ifdef _WIN32
@@ -323,7 +323,7 @@ void candle_accelerate_vvlogf(void* dst, void* src, void* len) {
     errno = ENOSYS;
 }
 
-void candle_accelerate_vvlog(void* dst, void* src, void* len) {
+void candleAccelerateVvlog(void* dst, void* src, void* len) {
     typedef void (*km_fn_t)(void*, void*, void*);
     static km_fn_t km_fn_ptr = NULL;
 #ifdef _WIN32
@@ -351,7 +351,7 @@ void candle_accelerate_vvlog(void* dst, void* src, void* len) {
     errno = ENOSYS;
 }
 
-void candle_accelerate_vvtanhf(void* dst, void* src, void* len) {
+void candleAccelerateVvtanhf(void* dst, void* src, void* len) {
     typedef void (*km_fn_t)(void*, void*, void*);
     static km_fn_t km_fn_ptr = NULL;
 #ifdef _WIN32
@@ -379,7 +379,7 @@ void candle_accelerate_vvtanhf(void* dst, void* src, void* len) {
     errno = ENOSYS;
 }
 
-void candle_accelerate_vvtanh(void* dst, void* src, void* len) {
+void candleAccelerateVvtanh(void* dst, void* src, void* len) {
     typedef void (*km_fn_t)(void*, void*, void*);
     static km_fn_t km_fn_ptr = NULL;
 #ifdef _WIN32
@@ -407,7 +407,7 @@ void candle_accelerate_vvtanh(void* dst, void* src, void* len) {
     errno = ENOSYS;
 }
 
-void candle_accelerate_vDspVaddD(void* arg0, int64_t arg1, void* arg2, int64_t arg3, void* arg4, int64_t arg5, uint64_t arg6) {
+void candleAccelerateVDspVaddD(void* arg0, int64_t arg1, void* arg2, int64_t arg3, void* arg4, int64_t arg5, uint64_t arg6) {
     typedef void (*km_fn_t)(void*, int64_t, void*, int64_t, void*, int64_t, uint64_t);
     static km_fn_t km_fn_ptr = NULL;
 #ifdef _WIN32
@@ -435,7 +435,7 @@ void candle_accelerate_vDspVaddD(void* arg0, int64_t arg1, void* arg2, int64_t a
     errno = ENOSYS;
 }
 
-void candle_accelerate_vDspVadd(void* arg0, int64_t arg1, void* arg2, int64_t arg3, void* arg4, int64_t arg5, uint64_t arg6) {
+void candleAccelerateVDspVadd(void* arg0, int64_t arg1, void* arg2, int64_t arg3, void* arg4, int64_t arg5, uint64_t arg6) {
     typedef void (*km_fn_t)(void*, int64_t, void*, int64_t, void*, int64_t, uint64_t);
     static km_fn_t km_fn_ptr = NULL;
 #ifdef _WIN32
@@ -463,7 +463,7 @@ void candle_accelerate_vDspVadd(void* arg0, int64_t arg1, void* arg2, int64_t ar
     errno = ENOSYS;
 }
 
-void candle_accelerate_vDspVsubD(void* arg0, int64_t arg1, void* arg2, int64_t arg3, void* arg4, int64_t arg5, uint64_t arg6) {
+void candleAccelerateVDspVsubD(void* arg0, int64_t arg1, void* arg2, int64_t arg3, void* arg4, int64_t arg5, uint64_t arg6) {
     typedef void (*km_fn_t)(void*, int64_t, void*, int64_t, void*, int64_t, uint64_t);
     static km_fn_t km_fn_ptr = NULL;
 #ifdef _WIN32
@@ -491,7 +491,7 @@ void candle_accelerate_vDspVsubD(void* arg0, int64_t arg1, void* arg2, int64_t a
     errno = ENOSYS;
 }
 
-void candle_accelerate_vDspVsub(void* arg0, int64_t arg1, void* arg2, int64_t arg3, void* arg4, int64_t arg5, uint64_t arg6) {
+void candleAccelerateVDspVsub(void* arg0, int64_t arg1, void* arg2, int64_t arg3, void* arg4, int64_t arg5, uint64_t arg6) {
     typedef void (*km_fn_t)(void*, int64_t, void*, int64_t, void*, int64_t, uint64_t);
     static km_fn_t km_fn_ptr = NULL;
 #ifdef _WIN32
@@ -519,7 +519,7 @@ void candle_accelerate_vDspVsub(void* arg0, int64_t arg1, void* arg2, int64_t ar
     errno = ENOSYS;
 }
 
-void candle_accelerate_vDspVmulD(void* arg0, int64_t arg1, void* arg2, int64_t arg3, void* arg4, int64_t arg5, uint64_t arg6) {
+void candleAccelerateVDspVmulD(void* arg0, int64_t arg1, void* arg2, int64_t arg3, void* arg4, int64_t arg5, uint64_t arg6) {
     typedef void (*km_fn_t)(void*, int64_t, void*, int64_t, void*, int64_t, uint64_t);
     static km_fn_t km_fn_ptr = NULL;
 #ifdef _WIN32
@@ -547,7 +547,7 @@ void candle_accelerate_vDspVmulD(void* arg0, int64_t arg1, void* arg2, int64_t a
     errno = ENOSYS;
 }
 
-void candle_accelerate_vDspVmul(void* arg0, int64_t arg1, void* arg2, int64_t arg3, void* arg4, int64_t arg5, uint64_t arg6) {
+void candleAccelerateVDspVmul(void* arg0, int64_t arg1, void* arg2, int64_t arg3, void* arg4, int64_t arg5, uint64_t arg6) {
     typedef void (*km_fn_t)(void*, int64_t, void*, int64_t, void*, int64_t, uint64_t);
     static km_fn_t km_fn_ptr = NULL;
 #ifdef _WIN32
@@ -575,7 +575,7 @@ void candle_accelerate_vDspVmul(void* arg0, int64_t arg1, void* arg2, int64_t ar
     errno = ENOSYS;
 }
 
-void candle_accelerate_vDspVdivD(void* arg0, int64_t arg1, void* arg2, int64_t arg3, void* arg4, int64_t arg5, uint64_t arg6) {
+void candleAccelerateVDspVdivD(void* arg0, int64_t arg1, void* arg2, int64_t arg3, void* arg4, int64_t arg5, uint64_t arg6) {
     typedef void (*km_fn_t)(void*, int64_t, void*, int64_t, void*, int64_t, uint64_t);
     static km_fn_t km_fn_ptr = NULL;
 #ifdef _WIN32
@@ -603,7 +603,7 @@ void candle_accelerate_vDspVdivD(void* arg0, int64_t arg1, void* arg2, int64_t a
     errno = ENOSYS;
 }
 
-void candle_accelerate_vDspVdiv(void* arg0, int64_t arg1, void* arg2, int64_t arg3, void* arg4, int64_t arg5, uint64_t arg6) {
+void candleAccelerateVDspVdiv(void* arg0, int64_t arg1, void* arg2, int64_t arg3, void* arg4, int64_t arg5, uint64_t arg6) {
     typedef void (*km_fn_t)(void*, int64_t, void*, int64_t, void*, int64_t, uint64_t);
     static km_fn_t km_fn_ptr = NULL;
 #ifdef _WIN32
@@ -631,7 +631,7 @@ void candle_accelerate_vDspVdiv(void* arg0, int64_t arg1, void* arg2, int64_t ar
     errno = ENOSYS;
 }
 
-void candle_accelerate_vDspVminD(void* arg0, int64_t arg1, void* arg2, int64_t arg3, void* arg4, int64_t arg5, uint64_t arg6) {
+void candleAccelerateVDspVminD(void* arg0, int64_t arg1, void* arg2, int64_t arg3, void* arg4, int64_t arg5, uint64_t arg6) {
     typedef void (*km_fn_t)(void*, int64_t, void*, int64_t, void*, int64_t, uint64_t);
     static km_fn_t km_fn_ptr = NULL;
 #ifdef _WIN32
@@ -659,7 +659,7 @@ void candle_accelerate_vDspVminD(void* arg0, int64_t arg1, void* arg2, int64_t a
     errno = ENOSYS;
 }
 
-void candle_accelerate_vDspVmin(void* arg0, int64_t arg1, void* arg2, int64_t arg3, void* arg4, int64_t arg5, uint64_t arg6) {
+void candleAccelerateVDspVmin(void* arg0, int64_t arg1, void* arg2, int64_t arg3, void* arg4, int64_t arg5, uint64_t arg6) {
     typedef void (*km_fn_t)(void*, int64_t, void*, int64_t, void*, int64_t, uint64_t);
     static km_fn_t km_fn_ptr = NULL;
 #ifdef _WIN32
@@ -687,7 +687,7 @@ void candle_accelerate_vDspVmin(void* arg0, int64_t arg1, void* arg2, int64_t ar
     errno = ENOSYS;
 }
 
-void candle_accelerate_vDspVmaxD(void* arg0, int64_t arg1, void* arg2, int64_t arg3, void* arg4, int64_t arg5, uint64_t arg6) {
+void candleAccelerateVDspVmaxD(void* arg0, int64_t arg1, void* arg2, int64_t arg3, void* arg4, int64_t arg5, uint64_t arg6) {
     typedef void (*km_fn_t)(void*, int64_t, void*, int64_t, void*, int64_t, uint64_t);
     static km_fn_t km_fn_ptr = NULL;
 #ifdef _WIN32
@@ -715,7 +715,7 @@ void candle_accelerate_vDspVmaxD(void* arg0, int64_t arg1, void* arg2, int64_t a
     errno = ENOSYS;
 }
 
-void candle_accelerate_vDspVmax(void* arg0, int64_t arg1, void* arg2, int64_t arg3, void* arg4, int64_t arg5, uint64_t arg6) {
+void candleAccelerateVDspVmax(void* arg0, int64_t arg1, void* arg2, int64_t arg3, void* arg4, int64_t arg5, uint64_t arg6) {
     typedef void (*km_fn_t)(void*, int64_t, void*, int64_t, void*, int64_t, uint64_t);
     static km_fn_t km_fn_ptr = NULL;
 #ifdef _WIN32

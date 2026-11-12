@@ -15,7 +15,7 @@
 #endif
 #endif
 
-void candle_mkl_vsTanh(int32_t n, void* a, void* y) {
+void candleMklVsTanh(int32_t n, void* a, void* y) {
     typedef void (*km_fn_t)(int32_t, void*, void*);
     static km_fn_t km_fn_ptr = NULL;
 #ifdef _WIN32
@@ -43,7 +43,7 @@ void candle_mkl_vsTanh(int32_t n, void* a, void* y) {
     errno = ENOSYS;
 }
 
-void candle_mkl_vdTanh(int32_t n, void* a, void* y) {
+void candleMklVdTanh(int32_t n, void* a, void* y) {
     typedef void (*km_fn_t)(int32_t, void*, void*);
     static km_fn_t km_fn_ptr = NULL;
 #ifdef _WIN32
@@ -71,7 +71,7 @@ void candle_mkl_vdTanh(int32_t n, void* a, void* y) {
     errno = ENOSYS;
 }
 
-void candle_mkl_vsExp(int32_t n, void* a, void* y) {
+void candleMklVsExp(int32_t n, void* a, void* y) {
     typedef void (*km_fn_t)(int32_t, void*, void*);
     static km_fn_t km_fn_ptr = NULL;
 #ifdef _WIN32
@@ -99,7 +99,7 @@ void candle_mkl_vsExp(int32_t n, void* a, void* y) {
     errno = ENOSYS;
 }
 
-void candle_mkl_vdExp(int32_t n, void* a, void* y) {
+void candleMklVdExp(int32_t n, void* a, void* y) {
     typedef void (*km_fn_t)(int32_t, void*, void*);
     static km_fn_t km_fn_ptr = NULL;
 #ifdef _WIN32
@@ -127,7 +127,7 @@ void candle_mkl_vdExp(int32_t n, void* a, void* y) {
     errno = ENOSYS;
 }
 
-void candle_mkl_vsLn(int32_t n, void* a, void* y) {
+void candleMklVsLn(int32_t n, void* a, void* y) {
     typedef void (*km_fn_t)(int32_t, void*, void*);
     static km_fn_t km_fn_ptr = NULL;
 #ifdef _WIN32
@@ -155,7 +155,7 @@ void candle_mkl_vsLn(int32_t n, void* a, void* y) {
     errno = ENOSYS;
 }
 
-void candle_mkl_vdLn(int32_t n, void* a, void* y) {
+void candleMklVdLn(int32_t n, void* a, void* y) {
     typedef void (*km_fn_t)(int32_t, void*, void*);
     static km_fn_t km_fn_ptr = NULL;
 #ifdef _WIN32
@@ -183,7 +183,7 @@ void candle_mkl_vdLn(int32_t n, void* a, void* y) {
     errno = ENOSYS;
 }
 
-void candle_mkl_vsSin(int32_t n, void* a, void* y) {
+void candleMklVsSin(int32_t n, void* a, void* y) {
     typedef void (*km_fn_t)(int32_t, void*, void*);
     static km_fn_t km_fn_ptr = NULL;
 #ifdef _WIN32
@@ -211,7 +211,7 @@ void candle_mkl_vsSin(int32_t n, void* a, void* y) {
     errno = ENOSYS;
 }
 
-void candle_mkl_vdSin(int32_t n, void* a, void* y) {
+void candleMklVdSin(int32_t n, void* a, void* y) {
     typedef void (*km_fn_t)(int32_t, void*, void*);
     static km_fn_t km_fn_ptr = NULL;
 #ifdef _WIN32
@@ -239,7 +239,7 @@ void candle_mkl_vdSin(int32_t n, void* a, void* y) {
     errno = ENOSYS;
 }
 
-void candle_mkl_vsCos(int32_t n, void* a, void* y) {
+void candleMklVsCos(int32_t n, void* a, void* y) {
     typedef void (*km_fn_t)(int32_t, void*, void*);
     static km_fn_t km_fn_ptr = NULL;
 #ifdef _WIN32
@@ -267,7 +267,7 @@ void candle_mkl_vsCos(int32_t n, void* a, void* y) {
     errno = ENOSYS;
 }
 
-void candle_mkl_vdCos(int32_t n, void* a, void* y) {
+void candleMklVdCos(int32_t n, void* a, void* y) {
     typedef void (*km_fn_t)(int32_t, void*, void*);
     static km_fn_t km_fn_ptr = NULL;
 #ifdef _WIN32
@@ -295,7 +295,7 @@ void candle_mkl_vdCos(int32_t n, void* a, void* y) {
     errno = ENOSYS;
 }
 
-void candle_mkl_vsSqrt(int32_t n, void* a, void* y) {
+void candleMklVsSqrt(int32_t n, void* a, void* y) {
     typedef void (*km_fn_t)(int32_t, void*, void*);
     static km_fn_t km_fn_ptr = NULL;
 #ifdef _WIN32
@@ -323,7 +323,7 @@ void candle_mkl_vsSqrt(int32_t n, void* a, void* y) {
     errno = ENOSYS;
 }
 
-void candle_mkl_vdSqrt(int32_t n, void* a, void* y) {
+void candleMklVdSqrt(int32_t n, void* a, void* y) {
     typedef void (*km_fn_t)(int32_t, void*, void*);
     static km_fn_t km_fn_ptr = NULL;
 #ifdef _WIN32
@@ -351,7 +351,7 @@ void candle_mkl_vdSqrt(int32_t n, void* a, void* y) {
     errno = ENOSYS;
 }
 
-void candle_mkl_vsAdd(int32_t n, void* a, void* b, void* y) {
+void candleMklVsAdd(int32_t n, void* a, void* b, void* y) {
     typedef void (*km_fn_t)(int32_t, void*, void*, void*);
     static km_fn_t km_fn_ptr = NULL;
 #ifdef _WIN32
@@ -379,7 +379,7 @@ void candle_mkl_vsAdd(int32_t n, void* a, void* b, void* y) {
     errno = ENOSYS;
 }
 
-void candle_mkl_vdAdd(int32_t n, void* a, void* b, void* y) {
+void candleMklVdAdd(int32_t n, void* a, void* b, void* y) {
     typedef void (*km_fn_t)(int32_t, void*, void*, void*);
     static km_fn_t km_fn_ptr = NULL;
 #ifdef _WIN32
@@ -407,7 +407,7 @@ void candle_mkl_vdAdd(int32_t n, void* a, void* b, void* y) {
     errno = ENOSYS;
 }
 
-void candle_mkl_vsSub(int32_t n, void* a, void* b, void* y) {
+void candleMklVsSub(int32_t n, void* a, void* b, void* y) {
     typedef void (*km_fn_t)(int32_t, void*, void*, void*);
     static km_fn_t km_fn_ptr = NULL;
 #ifdef _WIN32
@@ -435,7 +435,7 @@ void candle_mkl_vsSub(int32_t n, void* a, void* b, void* y) {
     errno = ENOSYS;
 }
 
-void candle_mkl_vdSub(int32_t n, void* a, void* b, void* y) {
+void candleMklVdSub(int32_t n, void* a, void* b, void* y) {
     typedef void (*km_fn_t)(int32_t, void*, void*, void*);
     static km_fn_t km_fn_ptr = NULL;
 #ifdef _WIN32
@@ -463,7 +463,7 @@ void candle_mkl_vdSub(int32_t n, void* a, void* b, void* y) {
     errno = ENOSYS;
 }
 
-void candle_mkl_vsMul(int32_t n, void* a, void* b, void* y) {
+void candleMklVsMul(int32_t n, void* a, void* b, void* y) {
     typedef void (*km_fn_t)(int32_t, void*, void*, void*);
     static km_fn_t km_fn_ptr = NULL;
 #ifdef _WIN32
@@ -491,7 +491,7 @@ void candle_mkl_vsMul(int32_t n, void* a, void* b, void* y) {
     errno = ENOSYS;
 }
 
-void candle_mkl_vdMul(int32_t n, void* a, void* b, void* y) {
+void candleMklVdMul(int32_t n, void* a, void* b, void* y) {
     typedef void (*km_fn_t)(int32_t, void*, void*, void*);
     static km_fn_t km_fn_ptr = NULL;
 #ifdef _WIN32
@@ -519,7 +519,7 @@ void candle_mkl_vdMul(int32_t n, void* a, void* b, void* y) {
     errno = ENOSYS;
 }
 
-void candle_mkl_vsDiv(int32_t n, void* a, void* b, void* y) {
+void candleMklVsDiv(int32_t n, void* a, void* b, void* y) {
     typedef void (*km_fn_t)(int32_t, void*, void*, void*);
     static km_fn_t km_fn_ptr = NULL;
 #ifdef _WIN32
@@ -547,7 +547,7 @@ void candle_mkl_vsDiv(int32_t n, void* a, void* b, void* y) {
     errno = ENOSYS;
 }
 
-void candle_mkl_vdDiv(int32_t n, void* a, void* b, void* y) {
+void candleMklVdDiv(int32_t n, void* a, void* b, void* y) {
     typedef void (*km_fn_t)(int32_t, void*, void*, void*);
     static km_fn_t km_fn_ptr = NULL;
 #ifdef _WIN32
@@ -575,7 +575,7 @@ void candle_mkl_vdDiv(int32_t n, void* a, void* b, void* y) {
     errno = ENOSYS;
 }
 
-void candle_mkl_vsFmax(int32_t n, void* a, void* b, void* y) {
+void candleMklVsFmax(int32_t n, void* a, void* b, void* y) {
     typedef void (*km_fn_t)(int32_t, void*, void*, void*);
     static km_fn_t km_fn_ptr = NULL;
 #ifdef _WIN32
@@ -603,7 +603,7 @@ void candle_mkl_vsFmax(int32_t n, void* a, void* b, void* y) {
     errno = ENOSYS;
 }
 
-void candle_mkl_vdFmax(int32_t n, void* a, void* b, void* y) {
+void candleMklVdFmax(int32_t n, void* a, void* b, void* y) {
     typedef void (*km_fn_t)(int32_t, void*, void*, void*);
     static km_fn_t km_fn_ptr = NULL;
 #ifdef _WIN32
@@ -631,7 +631,7 @@ void candle_mkl_vdFmax(int32_t n, void* a, void* b, void* y) {
     errno = ENOSYS;
 }
 
-void candle_mkl_vsFmin(int32_t n, void* a, void* b, void* y) {
+void candleMklVsFmin(int32_t n, void* a, void* b, void* y) {
     typedef void (*km_fn_t)(int32_t, void*, void*, void*);
     static km_fn_t km_fn_ptr = NULL;
 #ifdef _WIN32
@@ -659,7 +659,7 @@ void candle_mkl_vsFmin(int32_t n, void* a, void* b, void* y) {
     errno = ENOSYS;
 }
 
-void candle_mkl_vdFmin(int32_t n, void* a, void* b, void* y) {
+void candleMklVdFmin(int32_t n, void* a, void* b, void* y) {
     typedef void (*km_fn_t)(int32_t, void*, void*, void*);
     static km_fn_t km_fn_ptr = NULL;
 #ifdef _WIN32
@@ -687,7 +687,7 @@ void candle_mkl_vdFmin(int32_t n, void* a, void* b, void* y) {
     errno = ENOSYS;
 }
 
-void candle_mkl_sgemm(const char* transa, const char* transb, void* m, void* n, void* k, void* alpha, void* a, void* lda, void* b, void* ldb, void* beta, void* c, void* ldc) {
+void candleMklSgemm(const char* transa, const char* transb, void* m, void* n, void* k, void* alpha, void* a, void* lda, void* b, void* ldb, void* beta, void* c, void* ldc) {
     typedef void (*km_fn_t)(const char*, const char*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*);
     static km_fn_t km_fn_ptr = NULL;
 #ifdef _WIN32
@@ -715,7 +715,7 @@ void candle_mkl_sgemm(const char* transa, const char* transb, void* m, void* n, 
     errno = ENOSYS;
 }
 
-void candle_mkl_dgemm(const char* transa, const char* transb, void* m, void* n, void* k, void* alpha, void* a, void* lda, void* b, void* ldb, void* beta, void* c, void* ldc) {
+void candleMklDgemm(const char* transa, const char* transb, void* m, void* n, void* k, void* alpha, void* a, void* lda, void* b, void* ldb, void* beta, void* c, void* ldc) {
     typedef void (*km_fn_t)(const char*, const char*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*);
     static km_fn_t km_fn_ptr = NULL;
 #ifdef _WIN32
@@ -743,7 +743,7 @@ void candle_mkl_dgemm(const char* transa, const char* transb, void* m, void* n, 
     errno = ENOSYS;
 }
 
-void candle_mkl_hgemm(const char* transa, const char* transb, void* m, void* n, void* k, void* alpha, void* a, void* lda, void* b, void* ldb, void* beta, void* c, void* ldc) {
+void candleMklHgemm(const char* transa, const char* transb, void* m, void* n, void* k, void* alpha, void* a, void* lda, void* b, void* ldb, void* beta, void* c, void* ldc) {
     typedef void (*km_fn_t)(const char*, const char*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*);
     static km_fn_t km_fn_ptr = NULL;
 #ifdef _WIN32

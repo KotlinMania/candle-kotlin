@@ -51,7 +51,7 @@ static uint64_t km_napi_arg_u64(const Napi::Value& v) {
     return 0;
 }
 
-static Napi::Value candle_mkl_vsTanh_napi(const Napi::CallbackInfo& km_info) {
+static Napi::Value candleMklVsTanh_napi(const Napi::CallbackInfo& km_info) {
     Napi::Env km_env = km_info.Env();
     int32_t n = static_cast<int32_t>(km_info.Length() > 0 ? km_info[0].ToNumber().Int32Value() : 0);
     void* a = reinterpret_cast<void*>(static_cast<uintptr_t>(km_info.Length() > 1 ? km_napi_arg_u64(km_info[1]) : 0));
@@ -84,7 +84,7 @@ static Napi::Value candle_mkl_vsTanh_napi(const Napi::CallbackInfo& km_info) {
     return km_env.Undefined();
 }
 
-static Napi::Value candle_mkl_vdTanh_napi(const Napi::CallbackInfo& km_info) {
+static Napi::Value candleMklVdTanh_napi(const Napi::CallbackInfo& km_info) {
     Napi::Env km_env = km_info.Env();
     int32_t n = static_cast<int32_t>(km_info.Length() > 0 ? km_info[0].ToNumber().Int32Value() : 0);
     void* a = reinterpret_cast<void*>(static_cast<uintptr_t>(km_info.Length() > 1 ? km_napi_arg_u64(km_info[1]) : 0));
@@ -117,7 +117,7 @@ static Napi::Value candle_mkl_vdTanh_napi(const Napi::CallbackInfo& km_info) {
     return km_env.Undefined();
 }
 
-static Napi::Value candle_mkl_vsExp_napi(const Napi::CallbackInfo& km_info) {
+static Napi::Value candleMklVsExp_napi(const Napi::CallbackInfo& km_info) {
     Napi::Env km_env = km_info.Env();
     int32_t n = static_cast<int32_t>(km_info.Length() > 0 ? km_info[0].ToNumber().Int32Value() : 0);
     void* a = reinterpret_cast<void*>(static_cast<uintptr_t>(km_info.Length() > 1 ? km_napi_arg_u64(km_info[1]) : 0));
@@ -150,7 +150,7 @@ static Napi::Value candle_mkl_vsExp_napi(const Napi::CallbackInfo& km_info) {
     return km_env.Undefined();
 }
 
-static Napi::Value candle_mkl_vdExp_napi(const Napi::CallbackInfo& km_info) {
+static Napi::Value candleMklVdExp_napi(const Napi::CallbackInfo& km_info) {
     Napi::Env km_env = km_info.Env();
     int32_t n = static_cast<int32_t>(km_info.Length() > 0 ? km_info[0].ToNumber().Int32Value() : 0);
     void* a = reinterpret_cast<void*>(static_cast<uintptr_t>(km_info.Length() > 1 ? km_napi_arg_u64(km_info[1]) : 0));
@@ -183,7 +183,7 @@ static Napi::Value candle_mkl_vdExp_napi(const Napi::CallbackInfo& km_info) {
     return km_env.Undefined();
 }
 
-static Napi::Value candle_mkl_vsLn_napi(const Napi::CallbackInfo& km_info) {
+static Napi::Value candleMklVsLn_napi(const Napi::CallbackInfo& km_info) {
     Napi::Env km_env = km_info.Env();
     int32_t n = static_cast<int32_t>(km_info.Length() > 0 ? km_info[0].ToNumber().Int32Value() : 0);
     void* a = reinterpret_cast<void*>(static_cast<uintptr_t>(km_info.Length() > 1 ? km_napi_arg_u64(km_info[1]) : 0));
@@ -216,7 +216,7 @@ static Napi::Value candle_mkl_vsLn_napi(const Napi::CallbackInfo& km_info) {
     return km_env.Undefined();
 }
 
-static Napi::Value candle_mkl_vdLn_napi(const Napi::CallbackInfo& km_info) {
+static Napi::Value candleMklVdLn_napi(const Napi::CallbackInfo& km_info) {
     Napi::Env km_env = km_info.Env();
     int32_t n = static_cast<int32_t>(km_info.Length() > 0 ? km_info[0].ToNumber().Int32Value() : 0);
     void* a = reinterpret_cast<void*>(static_cast<uintptr_t>(km_info.Length() > 1 ? km_napi_arg_u64(km_info[1]) : 0));
@@ -249,7 +249,7 @@ static Napi::Value candle_mkl_vdLn_napi(const Napi::CallbackInfo& km_info) {
     return km_env.Undefined();
 }
 
-static Napi::Value candle_mkl_vsSin_napi(const Napi::CallbackInfo& km_info) {
+static Napi::Value candleMklVsSin_napi(const Napi::CallbackInfo& km_info) {
     Napi::Env km_env = km_info.Env();
     int32_t n = static_cast<int32_t>(km_info.Length() > 0 ? km_info[0].ToNumber().Int32Value() : 0);
     void* a = reinterpret_cast<void*>(static_cast<uintptr_t>(km_info.Length() > 1 ? km_napi_arg_u64(km_info[1]) : 0));
@@ -282,7 +282,7 @@ static Napi::Value candle_mkl_vsSin_napi(const Napi::CallbackInfo& km_info) {
     return km_env.Undefined();
 }
 
-static Napi::Value candle_mkl_vdSin_napi(const Napi::CallbackInfo& km_info) {
+static Napi::Value candleMklVdSin_napi(const Napi::CallbackInfo& km_info) {
     Napi::Env km_env = km_info.Env();
     int32_t n = static_cast<int32_t>(km_info.Length() > 0 ? km_info[0].ToNumber().Int32Value() : 0);
     void* a = reinterpret_cast<void*>(static_cast<uintptr_t>(km_info.Length() > 1 ? km_napi_arg_u64(km_info[1]) : 0));
@@ -315,7 +315,7 @@ static Napi::Value candle_mkl_vdSin_napi(const Napi::CallbackInfo& km_info) {
     return km_env.Undefined();
 }
 
-static Napi::Value candle_mkl_vsCos_napi(const Napi::CallbackInfo& km_info) {
+static Napi::Value candleMklVsCos_napi(const Napi::CallbackInfo& km_info) {
     Napi::Env km_env = km_info.Env();
     int32_t n = static_cast<int32_t>(km_info.Length() > 0 ? km_info[0].ToNumber().Int32Value() : 0);
     void* a = reinterpret_cast<void*>(static_cast<uintptr_t>(km_info.Length() > 1 ? km_napi_arg_u64(km_info[1]) : 0));
@@ -348,7 +348,7 @@ static Napi::Value candle_mkl_vsCos_napi(const Napi::CallbackInfo& km_info) {
     return km_env.Undefined();
 }
 
-static Napi::Value candle_mkl_vdCos_napi(const Napi::CallbackInfo& km_info) {
+static Napi::Value candleMklVdCos_napi(const Napi::CallbackInfo& km_info) {
     Napi::Env km_env = km_info.Env();
     int32_t n = static_cast<int32_t>(km_info.Length() > 0 ? km_info[0].ToNumber().Int32Value() : 0);
     void* a = reinterpret_cast<void*>(static_cast<uintptr_t>(km_info.Length() > 1 ? km_napi_arg_u64(km_info[1]) : 0));
@@ -381,7 +381,7 @@ static Napi::Value candle_mkl_vdCos_napi(const Napi::CallbackInfo& km_info) {
     return km_env.Undefined();
 }
 
-static Napi::Value candle_mkl_vsSqrt_napi(const Napi::CallbackInfo& km_info) {
+static Napi::Value candleMklVsSqrt_napi(const Napi::CallbackInfo& km_info) {
     Napi::Env km_env = km_info.Env();
     int32_t n = static_cast<int32_t>(km_info.Length() > 0 ? km_info[0].ToNumber().Int32Value() : 0);
     void* a = reinterpret_cast<void*>(static_cast<uintptr_t>(km_info.Length() > 1 ? km_napi_arg_u64(km_info[1]) : 0));
@@ -414,7 +414,7 @@ static Napi::Value candle_mkl_vsSqrt_napi(const Napi::CallbackInfo& km_info) {
     return km_env.Undefined();
 }
 
-static Napi::Value candle_mkl_vdSqrt_napi(const Napi::CallbackInfo& km_info) {
+static Napi::Value candleMklVdSqrt_napi(const Napi::CallbackInfo& km_info) {
     Napi::Env km_env = km_info.Env();
     int32_t n = static_cast<int32_t>(km_info.Length() > 0 ? km_info[0].ToNumber().Int32Value() : 0);
     void* a = reinterpret_cast<void*>(static_cast<uintptr_t>(km_info.Length() > 1 ? km_napi_arg_u64(km_info[1]) : 0));
@@ -447,7 +447,7 @@ static Napi::Value candle_mkl_vdSqrt_napi(const Napi::CallbackInfo& km_info) {
     return km_env.Undefined();
 }
 
-static Napi::Value candle_mkl_vsAdd_napi(const Napi::CallbackInfo& km_info) {
+static Napi::Value candleMklVsAdd_napi(const Napi::CallbackInfo& km_info) {
     Napi::Env km_env = km_info.Env();
     int32_t n = static_cast<int32_t>(km_info.Length() > 0 ? km_info[0].ToNumber().Int32Value() : 0);
     void* a = reinterpret_cast<void*>(static_cast<uintptr_t>(km_info.Length() > 1 ? km_napi_arg_u64(km_info[1]) : 0));
@@ -481,7 +481,7 @@ static Napi::Value candle_mkl_vsAdd_napi(const Napi::CallbackInfo& km_info) {
     return km_env.Undefined();
 }
 
-static Napi::Value candle_mkl_vdAdd_napi(const Napi::CallbackInfo& km_info) {
+static Napi::Value candleMklVdAdd_napi(const Napi::CallbackInfo& km_info) {
     Napi::Env km_env = km_info.Env();
     int32_t n = static_cast<int32_t>(km_info.Length() > 0 ? km_info[0].ToNumber().Int32Value() : 0);
     void* a = reinterpret_cast<void*>(static_cast<uintptr_t>(km_info.Length() > 1 ? km_napi_arg_u64(km_info[1]) : 0));
@@ -515,7 +515,7 @@ static Napi::Value candle_mkl_vdAdd_napi(const Napi::CallbackInfo& km_info) {
     return km_env.Undefined();
 }
 
-static Napi::Value candle_mkl_vsSub_napi(const Napi::CallbackInfo& km_info) {
+static Napi::Value candleMklVsSub_napi(const Napi::CallbackInfo& km_info) {
     Napi::Env km_env = km_info.Env();
     int32_t n = static_cast<int32_t>(km_info.Length() > 0 ? km_info[0].ToNumber().Int32Value() : 0);
     void* a = reinterpret_cast<void*>(static_cast<uintptr_t>(km_info.Length() > 1 ? km_napi_arg_u64(km_info[1]) : 0));
@@ -549,7 +549,7 @@ static Napi::Value candle_mkl_vsSub_napi(const Napi::CallbackInfo& km_info) {
     return km_env.Undefined();
 }
 
-static Napi::Value candle_mkl_vdSub_napi(const Napi::CallbackInfo& km_info) {
+static Napi::Value candleMklVdSub_napi(const Napi::CallbackInfo& km_info) {
     Napi::Env km_env = km_info.Env();
     int32_t n = static_cast<int32_t>(km_info.Length() > 0 ? km_info[0].ToNumber().Int32Value() : 0);
     void* a = reinterpret_cast<void*>(static_cast<uintptr_t>(km_info.Length() > 1 ? km_napi_arg_u64(km_info[1]) : 0));
@@ -583,7 +583,7 @@ static Napi::Value candle_mkl_vdSub_napi(const Napi::CallbackInfo& km_info) {
     return km_env.Undefined();
 }
 
-static Napi::Value candle_mkl_vsMul_napi(const Napi::CallbackInfo& km_info) {
+static Napi::Value candleMklVsMul_napi(const Napi::CallbackInfo& km_info) {
     Napi::Env km_env = km_info.Env();
     int32_t n = static_cast<int32_t>(km_info.Length() > 0 ? km_info[0].ToNumber().Int32Value() : 0);
     void* a = reinterpret_cast<void*>(static_cast<uintptr_t>(km_info.Length() > 1 ? km_napi_arg_u64(km_info[1]) : 0));
@@ -617,7 +617,7 @@ static Napi::Value candle_mkl_vsMul_napi(const Napi::CallbackInfo& km_info) {
     return km_env.Undefined();
 }
 
-static Napi::Value candle_mkl_vdMul_napi(const Napi::CallbackInfo& km_info) {
+static Napi::Value candleMklVdMul_napi(const Napi::CallbackInfo& km_info) {
     Napi::Env km_env = km_info.Env();
     int32_t n = static_cast<int32_t>(km_info.Length() > 0 ? km_info[0].ToNumber().Int32Value() : 0);
     void* a = reinterpret_cast<void*>(static_cast<uintptr_t>(km_info.Length() > 1 ? km_napi_arg_u64(km_info[1]) : 0));
@@ -651,7 +651,7 @@ static Napi::Value candle_mkl_vdMul_napi(const Napi::CallbackInfo& km_info) {
     return km_env.Undefined();
 }
 
-static Napi::Value candle_mkl_vsDiv_napi(const Napi::CallbackInfo& km_info) {
+static Napi::Value candleMklVsDiv_napi(const Napi::CallbackInfo& km_info) {
     Napi::Env km_env = km_info.Env();
     int32_t n = static_cast<int32_t>(km_info.Length() > 0 ? km_info[0].ToNumber().Int32Value() : 0);
     void* a = reinterpret_cast<void*>(static_cast<uintptr_t>(km_info.Length() > 1 ? km_napi_arg_u64(km_info[1]) : 0));
@@ -685,7 +685,7 @@ static Napi::Value candle_mkl_vsDiv_napi(const Napi::CallbackInfo& km_info) {
     return km_env.Undefined();
 }
 
-static Napi::Value candle_mkl_vdDiv_napi(const Napi::CallbackInfo& km_info) {
+static Napi::Value candleMklVdDiv_napi(const Napi::CallbackInfo& km_info) {
     Napi::Env km_env = km_info.Env();
     int32_t n = static_cast<int32_t>(km_info.Length() > 0 ? km_info[0].ToNumber().Int32Value() : 0);
     void* a = reinterpret_cast<void*>(static_cast<uintptr_t>(km_info.Length() > 1 ? km_napi_arg_u64(km_info[1]) : 0));
@@ -719,7 +719,7 @@ static Napi::Value candle_mkl_vdDiv_napi(const Napi::CallbackInfo& km_info) {
     return km_env.Undefined();
 }
 
-static Napi::Value candle_mkl_vsFmax_napi(const Napi::CallbackInfo& km_info) {
+static Napi::Value candleMklVsFmax_napi(const Napi::CallbackInfo& km_info) {
     Napi::Env km_env = km_info.Env();
     int32_t n = static_cast<int32_t>(km_info.Length() > 0 ? km_info[0].ToNumber().Int32Value() : 0);
     void* a = reinterpret_cast<void*>(static_cast<uintptr_t>(km_info.Length() > 1 ? km_napi_arg_u64(km_info[1]) : 0));
@@ -753,7 +753,7 @@ static Napi::Value candle_mkl_vsFmax_napi(const Napi::CallbackInfo& km_info) {
     return km_env.Undefined();
 }
 
-static Napi::Value candle_mkl_vdFmax_napi(const Napi::CallbackInfo& km_info) {
+static Napi::Value candleMklVdFmax_napi(const Napi::CallbackInfo& km_info) {
     Napi::Env km_env = km_info.Env();
     int32_t n = static_cast<int32_t>(km_info.Length() > 0 ? km_info[0].ToNumber().Int32Value() : 0);
     void* a = reinterpret_cast<void*>(static_cast<uintptr_t>(km_info.Length() > 1 ? km_napi_arg_u64(km_info[1]) : 0));
@@ -787,7 +787,7 @@ static Napi::Value candle_mkl_vdFmax_napi(const Napi::CallbackInfo& km_info) {
     return km_env.Undefined();
 }
 
-static Napi::Value candle_mkl_vsFmin_napi(const Napi::CallbackInfo& km_info) {
+static Napi::Value candleMklVsFmin_napi(const Napi::CallbackInfo& km_info) {
     Napi::Env km_env = km_info.Env();
     int32_t n = static_cast<int32_t>(km_info.Length() > 0 ? km_info[0].ToNumber().Int32Value() : 0);
     void* a = reinterpret_cast<void*>(static_cast<uintptr_t>(km_info.Length() > 1 ? km_napi_arg_u64(km_info[1]) : 0));
@@ -821,7 +821,7 @@ static Napi::Value candle_mkl_vsFmin_napi(const Napi::CallbackInfo& km_info) {
     return km_env.Undefined();
 }
 
-static Napi::Value candle_mkl_vdFmin_napi(const Napi::CallbackInfo& km_info) {
+static Napi::Value candleMklVdFmin_napi(const Napi::CallbackInfo& km_info) {
     Napi::Env km_env = km_info.Env();
     int32_t n = static_cast<int32_t>(km_info.Length() > 0 ? km_info[0].ToNumber().Int32Value() : 0);
     void* a = reinterpret_cast<void*>(static_cast<uintptr_t>(km_info.Length() > 1 ? km_napi_arg_u64(km_info[1]) : 0));
@@ -855,14 +855,10 @@ static Napi::Value candle_mkl_vdFmin_napi(const Napi::CallbackInfo& km_info) {
     return km_env.Undefined();
 }
 
-static Napi::Value candle_mkl_sgemm_napi(const Napi::CallbackInfo& km_info) {
+static Napi::Value candleMklSgemm_napi(const Napi::CallbackInfo& km_info) {
     Napi::Env km_env = km_info.Env();
-    bool transa_null = (km_info.Length() <= 0 || km_info[0].IsNull() || km_info[0].IsUndefined());
-    std::string transa_str = transa_null ? std::string() : km_info[0].ToString().Utf8Value();
-    const char* transa = transa_null ? nullptr : transa_str.c_str();
-    bool transb_null = (km_info.Length() <= 1 || km_info[1].IsNull() || km_info[1].IsUndefined());
-    std::string transb_str = transb_null ? std::string() : km_info[1].ToString().Utf8Value();
-    const char* transb = transb_null ? nullptr : transb_str.c_str();
+    const char* transa = reinterpret_cast<const char*>(static_cast<uintptr_t>(km_info.Length() > 0 ? km_napi_arg_u64(km_info[0]) : 0));
+    const char* transb = reinterpret_cast<const char*>(static_cast<uintptr_t>(km_info.Length() > 1 ? km_napi_arg_u64(km_info[1]) : 0));
     void* m = reinterpret_cast<void*>(static_cast<uintptr_t>(km_info.Length() > 2 ? km_napi_arg_u64(km_info[2]) : 0));
     void* n = reinterpret_cast<void*>(static_cast<uintptr_t>(km_info.Length() > 3 ? km_napi_arg_u64(km_info[3]) : 0));
     void* k = reinterpret_cast<void*>(static_cast<uintptr_t>(km_info.Length() > 4 ? km_napi_arg_u64(km_info[4]) : 0));
@@ -902,14 +898,10 @@ static Napi::Value candle_mkl_sgemm_napi(const Napi::CallbackInfo& km_info) {
     return km_env.Undefined();
 }
 
-static Napi::Value candle_mkl_dgemm_napi(const Napi::CallbackInfo& km_info) {
+static Napi::Value candleMklDgemm_napi(const Napi::CallbackInfo& km_info) {
     Napi::Env km_env = km_info.Env();
-    bool transa_null = (km_info.Length() <= 0 || km_info[0].IsNull() || km_info[0].IsUndefined());
-    std::string transa_str = transa_null ? std::string() : km_info[0].ToString().Utf8Value();
-    const char* transa = transa_null ? nullptr : transa_str.c_str();
-    bool transb_null = (km_info.Length() <= 1 || km_info[1].IsNull() || km_info[1].IsUndefined());
-    std::string transb_str = transb_null ? std::string() : km_info[1].ToString().Utf8Value();
-    const char* transb = transb_null ? nullptr : transb_str.c_str();
+    const char* transa = reinterpret_cast<const char*>(static_cast<uintptr_t>(km_info.Length() > 0 ? km_napi_arg_u64(km_info[0]) : 0));
+    const char* transb = reinterpret_cast<const char*>(static_cast<uintptr_t>(km_info.Length() > 1 ? km_napi_arg_u64(km_info[1]) : 0));
     void* m = reinterpret_cast<void*>(static_cast<uintptr_t>(km_info.Length() > 2 ? km_napi_arg_u64(km_info[2]) : 0));
     void* n = reinterpret_cast<void*>(static_cast<uintptr_t>(km_info.Length() > 3 ? km_napi_arg_u64(km_info[3]) : 0));
     void* k = reinterpret_cast<void*>(static_cast<uintptr_t>(km_info.Length() > 4 ? km_napi_arg_u64(km_info[4]) : 0));
@@ -949,14 +941,10 @@ static Napi::Value candle_mkl_dgemm_napi(const Napi::CallbackInfo& km_info) {
     return km_env.Undefined();
 }
 
-static Napi::Value candle_mkl_hgemm_napi(const Napi::CallbackInfo& km_info) {
+static Napi::Value candleMklHgemm_napi(const Napi::CallbackInfo& km_info) {
     Napi::Env km_env = km_info.Env();
-    bool transa_null = (km_info.Length() <= 0 || km_info[0].IsNull() || km_info[0].IsUndefined());
-    std::string transa_str = transa_null ? std::string() : km_info[0].ToString().Utf8Value();
-    const char* transa = transa_null ? nullptr : transa_str.c_str();
-    bool transb_null = (km_info.Length() <= 1 || km_info[1].IsNull() || km_info[1].IsUndefined());
-    std::string transb_str = transb_null ? std::string() : km_info[1].ToString().Utf8Value();
-    const char* transb = transb_null ? nullptr : transb_str.c_str();
+    const char* transa = reinterpret_cast<const char*>(static_cast<uintptr_t>(km_info.Length() > 0 ? km_napi_arg_u64(km_info[0]) : 0));
+    const char* transb = reinterpret_cast<const char*>(static_cast<uintptr_t>(km_info.Length() > 1 ? km_napi_arg_u64(km_info[1]) : 0));
     void* m = reinterpret_cast<void*>(static_cast<uintptr_t>(km_info.Length() > 2 ? km_napi_arg_u64(km_info[2]) : 0));
     void* n = reinterpret_cast<void*>(static_cast<uintptr_t>(km_info.Length() > 3 ? km_napi_arg_u64(km_info[3]) : 0));
     void* k = reinterpret_cast<void*>(static_cast<uintptr_t>(km_info.Length() > 4 ? km_napi_arg_u64(km_info[4]) : 0));
@@ -997,33 +985,33 @@ static Napi::Value candle_mkl_hgemm_napi(const Napi::CallbackInfo& km_info) {
 }
 
 static void register_mkl_napi(Napi::Env env, Napi::Object exports) {
-    exports.Set("candle_mkl_vsTanh", Napi::Function::New(env, candle_mkl_vsTanh_napi));
-    exports.Set("candle_mkl_vdTanh", Napi::Function::New(env, candle_mkl_vdTanh_napi));
-    exports.Set("candle_mkl_vsExp", Napi::Function::New(env, candle_mkl_vsExp_napi));
-    exports.Set("candle_mkl_vdExp", Napi::Function::New(env, candle_mkl_vdExp_napi));
-    exports.Set("candle_mkl_vsLn", Napi::Function::New(env, candle_mkl_vsLn_napi));
-    exports.Set("candle_mkl_vdLn", Napi::Function::New(env, candle_mkl_vdLn_napi));
-    exports.Set("candle_mkl_vsSin", Napi::Function::New(env, candle_mkl_vsSin_napi));
-    exports.Set("candle_mkl_vdSin", Napi::Function::New(env, candle_mkl_vdSin_napi));
-    exports.Set("candle_mkl_vsCos", Napi::Function::New(env, candle_mkl_vsCos_napi));
-    exports.Set("candle_mkl_vdCos", Napi::Function::New(env, candle_mkl_vdCos_napi));
-    exports.Set("candle_mkl_vsSqrt", Napi::Function::New(env, candle_mkl_vsSqrt_napi));
-    exports.Set("candle_mkl_vdSqrt", Napi::Function::New(env, candle_mkl_vdSqrt_napi));
-    exports.Set("candle_mkl_vsAdd", Napi::Function::New(env, candle_mkl_vsAdd_napi));
-    exports.Set("candle_mkl_vdAdd", Napi::Function::New(env, candle_mkl_vdAdd_napi));
-    exports.Set("candle_mkl_vsSub", Napi::Function::New(env, candle_mkl_vsSub_napi));
-    exports.Set("candle_mkl_vdSub", Napi::Function::New(env, candle_mkl_vdSub_napi));
-    exports.Set("candle_mkl_vsMul", Napi::Function::New(env, candle_mkl_vsMul_napi));
-    exports.Set("candle_mkl_vdMul", Napi::Function::New(env, candle_mkl_vdMul_napi));
-    exports.Set("candle_mkl_vsDiv", Napi::Function::New(env, candle_mkl_vsDiv_napi));
-    exports.Set("candle_mkl_vdDiv", Napi::Function::New(env, candle_mkl_vdDiv_napi));
-    exports.Set("candle_mkl_vsFmax", Napi::Function::New(env, candle_mkl_vsFmax_napi));
-    exports.Set("candle_mkl_vdFmax", Napi::Function::New(env, candle_mkl_vdFmax_napi));
-    exports.Set("candle_mkl_vsFmin", Napi::Function::New(env, candle_mkl_vsFmin_napi));
-    exports.Set("candle_mkl_vdFmin", Napi::Function::New(env, candle_mkl_vdFmin_napi));
-    exports.Set("candle_mkl_sgemm", Napi::Function::New(env, candle_mkl_sgemm_napi));
-    exports.Set("candle_mkl_dgemm", Napi::Function::New(env, candle_mkl_dgemm_napi));
-    exports.Set("candle_mkl_hgemm", Napi::Function::New(env, candle_mkl_hgemm_napi));
+    exports.Set("candleMklVsTanh", Napi::Function::New(env, candleMklVsTanh_napi));
+    exports.Set("candleMklVdTanh", Napi::Function::New(env, candleMklVdTanh_napi));
+    exports.Set("candleMklVsExp", Napi::Function::New(env, candleMklVsExp_napi));
+    exports.Set("candleMklVdExp", Napi::Function::New(env, candleMklVdExp_napi));
+    exports.Set("candleMklVsLn", Napi::Function::New(env, candleMklVsLn_napi));
+    exports.Set("candleMklVdLn", Napi::Function::New(env, candleMklVdLn_napi));
+    exports.Set("candleMklVsSin", Napi::Function::New(env, candleMklVsSin_napi));
+    exports.Set("candleMklVdSin", Napi::Function::New(env, candleMklVdSin_napi));
+    exports.Set("candleMklVsCos", Napi::Function::New(env, candleMklVsCos_napi));
+    exports.Set("candleMklVdCos", Napi::Function::New(env, candleMklVdCos_napi));
+    exports.Set("candleMklVsSqrt", Napi::Function::New(env, candleMklVsSqrt_napi));
+    exports.Set("candleMklVdSqrt", Napi::Function::New(env, candleMklVdSqrt_napi));
+    exports.Set("candleMklVsAdd", Napi::Function::New(env, candleMklVsAdd_napi));
+    exports.Set("candleMklVdAdd", Napi::Function::New(env, candleMklVdAdd_napi));
+    exports.Set("candleMklVsSub", Napi::Function::New(env, candleMklVsSub_napi));
+    exports.Set("candleMklVdSub", Napi::Function::New(env, candleMklVdSub_napi));
+    exports.Set("candleMklVsMul", Napi::Function::New(env, candleMklVsMul_napi));
+    exports.Set("candleMklVdMul", Napi::Function::New(env, candleMklVdMul_napi));
+    exports.Set("candleMklVsDiv", Napi::Function::New(env, candleMklVsDiv_napi));
+    exports.Set("candleMklVdDiv", Napi::Function::New(env, candleMklVdDiv_napi));
+    exports.Set("candleMklVsFmax", Napi::Function::New(env, candleMklVsFmax_napi));
+    exports.Set("candleMklVdFmax", Napi::Function::New(env, candleMklVdFmax_napi));
+    exports.Set("candleMklVsFmin", Napi::Function::New(env, candleMklVsFmin_napi));
+    exports.Set("candleMklVdFmin", Napi::Function::New(env, candleMklVdFmin_napi));
+    exports.Set("candleMklSgemm", Napi::Function::New(env, candleMklSgemm_napi));
+    exports.Set("candleMklDgemm", Napi::Function::New(env, candleMklDgemm_napi));
+    exports.Set("candleMklHgemm", Napi::Function::New(env, candleMklHgemm_napi));
 }
 
 static KmNapiRegistrarNode registrar_node = { &register_mkl_napi, nullptr };

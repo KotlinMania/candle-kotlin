@@ -9,24 +9,45 @@ import io.github.kotlinmania.candle.tensor.Tensor
 import io.github.kotlinmania.float8.F8e4m3
 import io.github.kotlinmania.half.Bf16
 import io.github.kotlinmania.half.F16
+import io.github.kotlinmania.rustlang.core.result.fromResidual
 
 // TensorScalar Enum and Trait
 
 public sealed class Scalar : From<T> {
-    public data class U8(public var value: UByte) : Scalar()
-    public data class U32(public var value: UInt) : Scalar()
-    public data class I16(public var value: Short) : Scalar()
-    public data class I32(public var value: Int) : Scalar()
-    public data class I64(public var value: Long) : Scalar()
-    public data class Bf16(public var value: Bf16) : Scalar()
-    public data class F16(public var value: F16) : Scalar()
-    public data class F32(public var value: Float) : Scalar()
-    public data class F64(public var value: Double) : Scalar()
-    public data class F8e4m3(public var value: F8e4m3) : Scalar()
+    public data class U8(
+        public var value: UByte,
+    ) : Scalar()
+    public data class U32(
+        public var value: UInt,
+    ) : Scalar()
+    public data class I16(
+        public var value: Short,
+    ) : Scalar()
+    public data class I32(
+        public var value: Int,
+    ) : Scalar()
+    public data class I64(
+        public var value: Long,
+    ) : Scalar()
+    public data class Bf16(
+        public var value: Bf16,
+    ) : Scalar()
+    public data class F16(
+        public var value: F16,
+    ) : Scalar()
+    public data class F32(
+        public var value: Float,
+    ) : Scalar()
+    public data class F64(
+        public var value: Double,
+    ) : Scalar()
+    public data class F8e4m3(
+        public var value: F8e4m3,
+    ) : Scalar()
 
-    public fun __rustEq(other: Scalar): Boolean = this == other
+    public fun rustEquals(other: Scalar): Boolean = this == other
 
-    public open fun dtype(): DType =
+    public fun dtype(): DType =
         when (this) {
             is Scalar.U8 -> DType.U8
             is Scalar.U32 -> DType.U32
@@ -40,7 +61,7 @@ public sealed class Scalar : From<T> {
             is Scalar.F8e4m3 -> DType.F8E4M3
         }
 
-    public open fun toF64(): Double =
+    public fun toF64(): Double =
         when (this) {
             is Scalar.U8 -> {
                 val (v) = this
@@ -124,17 +145,25 @@ public sealed class Scalar : From<T> {
 }
 
 public sealed class TensorScalar {
-    public data class Tensor(public var value: Tensor) : TensorScalar()
-    public data class Scalar(public var value: Tensor) : TensorScalar()
+    public data class Tensor(
+        public var value: Tensor,
+    ) : TensorScalar()
+    public data class Scalar(
+        public var value: Tensor,
+    ) : TensorScalar()
 }
 
 public interface TensorOrScalar {
     public fun toTensorScalar(): Result<TensorScalar>
 }
 
-public fun Tensor.toTensorScalar(): Result<TensorScalar> = Result.success(TensorScalar.Tensor(this.clone()))
+public fun Tensor.toTensorScalar(): Result<TensorScalar> = Ok(TensorScalar.Tensor(this.clone()))
 
 public fun <T : WithDType> T.toTensorScalar(): Result<TensorScalar> {
-    val scalar = Tensor.new(this, Device.Cpu).getOrElse { return Result.failure(it) }
-    return Result.success(TensorScalar.Scalar(scalar))
+    val scalar =
+        when (val tryResult = Tensor.new(this, Device.Cpu)) {
+            is Result.Ok -> tryResult.value
+            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+        }
+    return Ok(TensorScalar.Scalar(scalar))
 }

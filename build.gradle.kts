@@ -1779,16 +1779,23 @@ val wasmWasiTestPreopens =
         .map { it.trim() }
         .filter { it.isNotEmpty() }
 
-if (wasmWasiTestPreopens.isNotEmpty()) {
-    tasks.named("wasmWasiNodeTest") {
-        val driverDir = layout.buildDirectory.dir("compileSync/wasmWasi/test/testDevelopmentExecutable/kotlin")
-        val hostRoot = layout.buildDirectory.dir("tmp/wasmWasiTestPreopens")
-        doFirst {
+tasks.matching { it.name == "wasmWasiNodeTest" }.configureEach {
+    val driverDir = layout.buildDirectory.dir("compileSync/wasmWasi/test/testDevelopmentExecutable/kotlin")
+    val wasmNodeModulesDir = rootProject.layout.buildDirectory.dir("wasm/node_modules")
+    val workspaceRootDir = rootProject.projectDir.parentFile ?: rootProject.projectDir
+    val hostRoot = layout.buildDirectory.dir("tmp/wasmWasiTestPreopens")
+    doFirst {
+        if (wasmWasiTestPreopens.isNotEmpty()) {
             VerificationSupport.patchWasmWasiTestPreopens(
                 driverDir.get().asFile,
                 hostRoot.get().asFile,
                 wasmWasiTestPreopens,
             )
         }
+        VerificationSupport.patchWasmWasiTestFfiImports(
+            driverDir.get().asFile,
+            wasmNodeModulesDir.get().asFile,
+            workspaceRootDir,
+        )
     }
 }

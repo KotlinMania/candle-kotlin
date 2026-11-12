@@ -51,14 +51,10 @@ static uint64_t km_napi_arg_u64(const Napi::Value& v) {
     return 0;
 }
 
-static Napi::Value candle_accelerate_sgemmFfi_napi(const Napi::CallbackInfo& km_info) {
+static Napi::Value candleAccelerateSgemmFfi_napi(const Napi::CallbackInfo& km_info) {
     Napi::Env km_env = km_info.Env();
-    bool transa_null = (km_info.Length() <= 0 || km_info[0].IsNull() || km_info[0].IsUndefined());
-    std::string transa_str = transa_null ? std::string() : km_info[0].ToString().Utf8Value();
-    const char* transa = transa_null ? nullptr : transa_str.c_str();
-    bool transb_null = (km_info.Length() <= 1 || km_info[1].IsNull() || km_info[1].IsUndefined());
-    std::string transb_str = transb_null ? std::string() : km_info[1].ToString().Utf8Value();
-    const char* transb = transb_null ? nullptr : transb_str.c_str();
+    const char* transa = reinterpret_cast<const char*>(static_cast<uintptr_t>(km_info.Length() > 0 ? km_napi_arg_u64(km_info[0]) : 0));
+    const char* transb = reinterpret_cast<const char*>(static_cast<uintptr_t>(km_info.Length() > 1 ? km_napi_arg_u64(km_info[1]) : 0));
     void* m = reinterpret_cast<void*>(static_cast<uintptr_t>(km_info.Length() > 2 ? km_napi_arg_u64(km_info[2]) : 0));
     void* n = reinterpret_cast<void*>(static_cast<uintptr_t>(km_info.Length() > 3 ? km_napi_arg_u64(km_info[3]) : 0));
     void* k = reinterpret_cast<void*>(static_cast<uintptr_t>(km_info.Length() > 4 ? km_napi_arg_u64(km_info[4]) : 0));
@@ -98,14 +94,10 @@ static Napi::Value candle_accelerate_sgemmFfi_napi(const Napi::CallbackInfo& km_
     return km_env.Undefined();
 }
 
-static Napi::Value candle_accelerate_dgemmFfi_napi(const Napi::CallbackInfo& km_info) {
+static Napi::Value candleAccelerateDgemmFfi_napi(const Napi::CallbackInfo& km_info) {
     Napi::Env km_env = km_info.Env();
-    bool transa_null = (km_info.Length() <= 0 || km_info[0].IsNull() || km_info[0].IsUndefined());
-    std::string transa_str = transa_null ? std::string() : km_info[0].ToString().Utf8Value();
-    const char* transa = transa_null ? nullptr : transa_str.c_str();
-    bool transb_null = (km_info.Length() <= 1 || km_info[1].IsNull() || km_info[1].IsUndefined());
-    std::string transb_str = transb_null ? std::string() : km_info[1].ToString().Utf8Value();
-    const char* transb = transb_null ? nullptr : transb_str.c_str();
+    const char* transa = reinterpret_cast<const char*>(static_cast<uintptr_t>(km_info.Length() > 0 ? km_napi_arg_u64(km_info[0]) : 0));
+    const char* transb = reinterpret_cast<const char*>(static_cast<uintptr_t>(km_info.Length() > 1 ? km_napi_arg_u64(km_info[1]) : 0));
     void* m = reinterpret_cast<void*>(static_cast<uintptr_t>(km_info.Length() > 2 ? km_napi_arg_u64(km_info[2]) : 0));
     void* n = reinterpret_cast<void*>(static_cast<uintptr_t>(km_info.Length() > 3 ? km_napi_arg_u64(km_info[3]) : 0));
     void* k = reinterpret_cast<void*>(static_cast<uintptr_t>(km_info.Length() > 4 ? km_napi_arg_u64(km_info[4]) : 0));
@@ -145,7 +137,7 @@ static Napi::Value candle_accelerate_dgemmFfi_napi(const Napi::CallbackInfo& km_
     return km_env.Undefined();
 }
 
-static Napi::Value candle_accelerate_vvexpf_napi(const Napi::CallbackInfo& km_info) {
+static Napi::Value candleAccelerateVvexpf_napi(const Napi::CallbackInfo& km_info) {
     Napi::Env km_env = km_info.Env();
     void* dst = reinterpret_cast<void*>(static_cast<uintptr_t>(km_info.Length() > 0 ? km_napi_arg_u64(km_info[0]) : 0));
     void* src = reinterpret_cast<void*>(static_cast<uintptr_t>(km_info.Length() > 1 ? km_napi_arg_u64(km_info[1]) : 0));
@@ -178,7 +170,7 @@ static Napi::Value candle_accelerate_vvexpf_napi(const Napi::CallbackInfo& km_in
     return km_env.Undefined();
 }
 
-static Napi::Value candle_accelerate_vvexp_napi(const Napi::CallbackInfo& km_info) {
+static Napi::Value candleAccelerateVvexp_napi(const Napi::CallbackInfo& km_info) {
     Napi::Env km_env = km_info.Env();
     void* dst = reinterpret_cast<void*>(static_cast<uintptr_t>(km_info.Length() > 0 ? km_napi_arg_u64(km_info[0]) : 0));
     void* src = reinterpret_cast<void*>(static_cast<uintptr_t>(km_info.Length() > 1 ? km_napi_arg_u64(km_info[1]) : 0));
@@ -211,7 +203,7 @@ static Napi::Value candle_accelerate_vvexp_napi(const Napi::CallbackInfo& km_inf
     return km_env.Undefined();
 }
 
-static Napi::Value candle_accelerate_vvsqrtf_napi(const Napi::CallbackInfo& km_info) {
+static Napi::Value candleAccelerateVvsqrtf_napi(const Napi::CallbackInfo& km_info) {
     Napi::Env km_env = km_info.Env();
     void* dst = reinterpret_cast<void*>(static_cast<uintptr_t>(km_info.Length() > 0 ? km_napi_arg_u64(km_info[0]) : 0));
     void* src = reinterpret_cast<void*>(static_cast<uintptr_t>(km_info.Length() > 1 ? km_napi_arg_u64(km_info[1]) : 0));
@@ -244,7 +236,7 @@ static Napi::Value candle_accelerate_vvsqrtf_napi(const Napi::CallbackInfo& km_i
     return km_env.Undefined();
 }
 
-static Napi::Value candle_accelerate_vvsqrt_napi(const Napi::CallbackInfo& km_info) {
+static Napi::Value candleAccelerateVvsqrt_napi(const Napi::CallbackInfo& km_info) {
     Napi::Env km_env = km_info.Env();
     void* dst = reinterpret_cast<void*>(static_cast<uintptr_t>(km_info.Length() > 0 ? km_napi_arg_u64(km_info[0]) : 0));
     void* src = reinterpret_cast<void*>(static_cast<uintptr_t>(km_info.Length() > 1 ? km_napi_arg_u64(km_info[1]) : 0));
@@ -277,7 +269,7 @@ static Napi::Value candle_accelerate_vvsqrt_napi(const Napi::CallbackInfo& km_in
     return km_env.Undefined();
 }
 
-static Napi::Value candle_accelerate_vvsinf_napi(const Napi::CallbackInfo& km_info) {
+static Napi::Value candleAccelerateVvsinf_napi(const Napi::CallbackInfo& km_info) {
     Napi::Env km_env = km_info.Env();
     void* dst = reinterpret_cast<void*>(static_cast<uintptr_t>(km_info.Length() > 0 ? km_napi_arg_u64(km_info[0]) : 0));
     void* src = reinterpret_cast<void*>(static_cast<uintptr_t>(km_info.Length() > 1 ? km_napi_arg_u64(km_info[1]) : 0));
@@ -310,7 +302,7 @@ static Napi::Value candle_accelerate_vvsinf_napi(const Napi::CallbackInfo& km_in
     return km_env.Undefined();
 }
 
-static Napi::Value candle_accelerate_vvsin_napi(const Napi::CallbackInfo& km_info) {
+static Napi::Value candleAccelerateVvsin_napi(const Napi::CallbackInfo& km_info) {
     Napi::Env km_env = km_info.Env();
     void* dst = reinterpret_cast<void*>(static_cast<uintptr_t>(km_info.Length() > 0 ? km_napi_arg_u64(km_info[0]) : 0));
     void* src = reinterpret_cast<void*>(static_cast<uintptr_t>(km_info.Length() > 1 ? km_napi_arg_u64(km_info[1]) : 0));
@@ -343,7 +335,7 @@ static Napi::Value candle_accelerate_vvsin_napi(const Napi::CallbackInfo& km_inf
     return km_env.Undefined();
 }
 
-static Napi::Value candle_accelerate_vvcosf_napi(const Napi::CallbackInfo& km_info) {
+static Napi::Value candleAccelerateVvcosf_napi(const Napi::CallbackInfo& km_info) {
     Napi::Env km_env = km_info.Env();
     void* dst = reinterpret_cast<void*>(static_cast<uintptr_t>(km_info.Length() > 0 ? km_napi_arg_u64(km_info[0]) : 0));
     void* src = reinterpret_cast<void*>(static_cast<uintptr_t>(km_info.Length() > 1 ? km_napi_arg_u64(km_info[1]) : 0));
@@ -376,7 +368,7 @@ static Napi::Value candle_accelerate_vvcosf_napi(const Napi::CallbackInfo& km_in
     return km_env.Undefined();
 }
 
-static Napi::Value candle_accelerate_vvcos_napi(const Napi::CallbackInfo& km_info) {
+static Napi::Value candleAccelerateVvcos_napi(const Napi::CallbackInfo& km_info) {
     Napi::Env km_env = km_info.Env();
     void* dst = reinterpret_cast<void*>(static_cast<uintptr_t>(km_info.Length() > 0 ? km_napi_arg_u64(km_info[0]) : 0));
     void* src = reinterpret_cast<void*>(static_cast<uintptr_t>(km_info.Length() > 1 ? km_napi_arg_u64(km_info[1]) : 0));
@@ -409,7 +401,7 @@ static Napi::Value candle_accelerate_vvcos_napi(const Napi::CallbackInfo& km_inf
     return km_env.Undefined();
 }
 
-static Napi::Value candle_accelerate_vvlogf_napi(const Napi::CallbackInfo& km_info) {
+static Napi::Value candleAccelerateVvlogf_napi(const Napi::CallbackInfo& km_info) {
     Napi::Env km_env = km_info.Env();
     void* dst = reinterpret_cast<void*>(static_cast<uintptr_t>(km_info.Length() > 0 ? km_napi_arg_u64(km_info[0]) : 0));
     void* src = reinterpret_cast<void*>(static_cast<uintptr_t>(km_info.Length() > 1 ? km_napi_arg_u64(km_info[1]) : 0));
@@ -442,7 +434,7 @@ static Napi::Value candle_accelerate_vvlogf_napi(const Napi::CallbackInfo& km_in
     return km_env.Undefined();
 }
 
-static Napi::Value candle_accelerate_vvlog_napi(const Napi::CallbackInfo& km_info) {
+static Napi::Value candleAccelerateVvlog_napi(const Napi::CallbackInfo& km_info) {
     Napi::Env km_env = km_info.Env();
     void* dst = reinterpret_cast<void*>(static_cast<uintptr_t>(km_info.Length() > 0 ? km_napi_arg_u64(km_info[0]) : 0));
     void* src = reinterpret_cast<void*>(static_cast<uintptr_t>(km_info.Length() > 1 ? km_napi_arg_u64(km_info[1]) : 0));
@@ -475,7 +467,7 @@ static Napi::Value candle_accelerate_vvlog_napi(const Napi::CallbackInfo& km_inf
     return km_env.Undefined();
 }
 
-static Napi::Value candle_accelerate_vvtanhf_napi(const Napi::CallbackInfo& km_info) {
+static Napi::Value candleAccelerateVvtanhf_napi(const Napi::CallbackInfo& km_info) {
     Napi::Env km_env = km_info.Env();
     void* dst = reinterpret_cast<void*>(static_cast<uintptr_t>(km_info.Length() > 0 ? km_napi_arg_u64(km_info[0]) : 0));
     void* src = reinterpret_cast<void*>(static_cast<uintptr_t>(km_info.Length() > 1 ? km_napi_arg_u64(km_info[1]) : 0));
@@ -508,7 +500,7 @@ static Napi::Value candle_accelerate_vvtanhf_napi(const Napi::CallbackInfo& km_i
     return km_env.Undefined();
 }
 
-static Napi::Value candle_accelerate_vvtanh_napi(const Napi::CallbackInfo& km_info) {
+static Napi::Value candleAccelerateVvtanh_napi(const Napi::CallbackInfo& km_info) {
     Napi::Env km_env = km_info.Env();
     void* dst = reinterpret_cast<void*>(static_cast<uintptr_t>(km_info.Length() > 0 ? km_napi_arg_u64(km_info[0]) : 0));
     void* src = reinterpret_cast<void*>(static_cast<uintptr_t>(km_info.Length() > 1 ? km_napi_arg_u64(km_info[1]) : 0));
@@ -541,7 +533,7 @@ static Napi::Value candle_accelerate_vvtanh_napi(const Napi::CallbackInfo& km_in
     return km_env.Undefined();
 }
 
-static Napi::Value candle_accelerate_vDspVaddD_napi(const Napi::CallbackInfo& km_info) {
+static Napi::Value candleAccelerateVDspVaddD_napi(const Napi::CallbackInfo& km_info) {
     Napi::Env km_env = km_info.Env();
     void* arg0 = reinterpret_cast<void*>(static_cast<uintptr_t>(km_info.Length() > 0 ? km_napi_arg_u64(km_info[0]) : 0));
     int64_t arg1 = km_info.Length() > 1 ? km_napi_arg_i64(km_info[1]) : 0;
@@ -578,7 +570,7 @@ static Napi::Value candle_accelerate_vDspVaddD_napi(const Napi::CallbackInfo& km
     return km_env.Undefined();
 }
 
-static Napi::Value candle_accelerate_vDspVadd_napi(const Napi::CallbackInfo& km_info) {
+static Napi::Value candleAccelerateVDspVadd_napi(const Napi::CallbackInfo& km_info) {
     Napi::Env km_env = km_info.Env();
     void* arg0 = reinterpret_cast<void*>(static_cast<uintptr_t>(km_info.Length() > 0 ? km_napi_arg_u64(km_info[0]) : 0));
     int64_t arg1 = km_info.Length() > 1 ? km_napi_arg_i64(km_info[1]) : 0;
@@ -615,7 +607,7 @@ static Napi::Value candle_accelerate_vDspVadd_napi(const Napi::CallbackInfo& km_
     return km_env.Undefined();
 }
 
-static Napi::Value candle_accelerate_vDspVsubD_napi(const Napi::CallbackInfo& km_info) {
+static Napi::Value candleAccelerateVDspVsubD_napi(const Napi::CallbackInfo& km_info) {
     Napi::Env km_env = km_info.Env();
     void* arg0 = reinterpret_cast<void*>(static_cast<uintptr_t>(km_info.Length() > 0 ? km_napi_arg_u64(km_info[0]) : 0));
     int64_t arg1 = km_info.Length() > 1 ? km_napi_arg_i64(km_info[1]) : 0;
@@ -652,7 +644,7 @@ static Napi::Value candle_accelerate_vDspVsubD_napi(const Napi::CallbackInfo& km
     return km_env.Undefined();
 }
 
-static Napi::Value candle_accelerate_vDspVsub_napi(const Napi::CallbackInfo& km_info) {
+static Napi::Value candleAccelerateVDspVsub_napi(const Napi::CallbackInfo& km_info) {
     Napi::Env km_env = km_info.Env();
     void* arg0 = reinterpret_cast<void*>(static_cast<uintptr_t>(km_info.Length() > 0 ? km_napi_arg_u64(km_info[0]) : 0));
     int64_t arg1 = km_info.Length() > 1 ? km_napi_arg_i64(km_info[1]) : 0;
@@ -689,7 +681,7 @@ static Napi::Value candle_accelerate_vDspVsub_napi(const Napi::CallbackInfo& km_
     return km_env.Undefined();
 }
 
-static Napi::Value candle_accelerate_vDspVmulD_napi(const Napi::CallbackInfo& km_info) {
+static Napi::Value candleAccelerateVDspVmulD_napi(const Napi::CallbackInfo& km_info) {
     Napi::Env km_env = km_info.Env();
     void* arg0 = reinterpret_cast<void*>(static_cast<uintptr_t>(km_info.Length() > 0 ? km_napi_arg_u64(km_info[0]) : 0));
     int64_t arg1 = km_info.Length() > 1 ? km_napi_arg_i64(km_info[1]) : 0;
@@ -726,7 +718,7 @@ static Napi::Value candle_accelerate_vDspVmulD_napi(const Napi::CallbackInfo& km
     return km_env.Undefined();
 }
 
-static Napi::Value candle_accelerate_vDspVmul_napi(const Napi::CallbackInfo& km_info) {
+static Napi::Value candleAccelerateVDspVmul_napi(const Napi::CallbackInfo& km_info) {
     Napi::Env km_env = km_info.Env();
     void* arg0 = reinterpret_cast<void*>(static_cast<uintptr_t>(km_info.Length() > 0 ? km_napi_arg_u64(km_info[0]) : 0));
     int64_t arg1 = km_info.Length() > 1 ? km_napi_arg_i64(km_info[1]) : 0;
@@ -763,7 +755,7 @@ static Napi::Value candle_accelerate_vDspVmul_napi(const Napi::CallbackInfo& km_
     return km_env.Undefined();
 }
 
-static Napi::Value candle_accelerate_vDspVdivD_napi(const Napi::CallbackInfo& km_info) {
+static Napi::Value candleAccelerateVDspVdivD_napi(const Napi::CallbackInfo& km_info) {
     Napi::Env km_env = km_info.Env();
     void* arg0 = reinterpret_cast<void*>(static_cast<uintptr_t>(km_info.Length() > 0 ? km_napi_arg_u64(km_info[0]) : 0));
     int64_t arg1 = km_info.Length() > 1 ? km_napi_arg_i64(km_info[1]) : 0;
@@ -800,7 +792,7 @@ static Napi::Value candle_accelerate_vDspVdivD_napi(const Napi::CallbackInfo& km
     return km_env.Undefined();
 }
 
-static Napi::Value candle_accelerate_vDspVdiv_napi(const Napi::CallbackInfo& km_info) {
+static Napi::Value candleAccelerateVDspVdiv_napi(const Napi::CallbackInfo& km_info) {
     Napi::Env km_env = km_info.Env();
     void* arg0 = reinterpret_cast<void*>(static_cast<uintptr_t>(km_info.Length() > 0 ? km_napi_arg_u64(km_info[0]) : 0));
     int64_t arg1 = km_info.Length() > 1 ? km_napi_arg_i64(km_info[1]) : 0;
@@ -837,7 +829,7 @@ static Napi::Value candle_accelerate_vDspVdiv_napi(const Napi::CallbackInfo& km_
     return km_env.Undefined();
 }
 
-static Napi::Value candle_accelerate_vDspVminD_napi(const Napi::CallbackInfo& km_info) {
+static Napi::Value candleAccelerateVDspVminD_napi(const Napi::CallbackInfo& km_info) {
     Napi::Env km_env = km_info.Env();
     void* arg0 = reinterpret_cast<void*>(static_cast<uintptr_t>(km_info.Length() > 0 ? km_napi_arg_u64(km_info[0]) : 0));
     int64_t arg1 = km_info.Length() > 1 ? km_napi_arg_i64(km_info[1]) : 0;
@@ -874,7 +866,7 @@ static Napi::Value candle_accelerate_vDspVminD_napi(const Napi::CallbackInfo& km
     return km_env.Undefined();
 }
 
-static Napi::Value candle_accelerate_vDspVmin_napi(const Napi::CallbackInfo& km_info) {
+static Napi::Value candleAccelerateVDspVmin_napi(const Napi::CallbackInfo& km_info) {
     Napi::Env km_env = km_info.Env();
     void* arg0 = reinterpret_cast<void*>(static_cast<uintptr_t>(km_info.Length() > 0 ? km_napi_arg_u64(km_info[0]) : 0));
     int64_t arg1 = km_info.Length() > 1 ? km_napi_arg_i64(km_info[1]) : 0;
@@ -911,7 +903,7 @@ static Napi::Value candle_accelerate_vDspVmin_napi(const Napi::CallbackInfo& km_
     return km_env.Undefined();
 }
 
-static Napi::Value candle_accelerate_vDspVmaxD_napi(const Napi::CallbackInfo& km_info) {
+static Napi::Value candleAccelerateVDspVmaxD_napi(const Napi::CallbackInfo& km_info) {
     Napi::Env km_env = km_info.Env();
     void* arg0 = reinterpret_cast<void*>(static_cast<uintptr_t>(km_info.Length() > 0 ? km_napi_arg_u64(km_info[0]) : 0));
     int64_t arg1 = km_info.Length() > 1 ? km_napi_arg_i64(km_info[1]) : 0;
@@ -948,7 +940,7 @@ static Napi::Value candle_accelerate_vDspVmaxD_napi(const Napi::CallbackInfo& km
     return km_env.Undefined();
 }
 
-static Napi::Value candle_accelerate_vDspVmax_napi(const Napi::CallbackInfo& km_info) {
+static Napi::Value candleAccelerateVDspVmax_napi(const Napi::CallbackInfo& km_info) {
     Napi::Env km_env = km_info.Env();
     void* arg0 = reinterpret_cast<void*>(static_cast<uintptr_t>(km_info.Length() > 0 ? km_napi_arg_u64(km_info[0]) : 0));
     int64_t arg1 = km_info.Length() > 1 ? km_napi_arg_i64(km_info[1]) : 0;
@@ -986,32 +978,32 @@ static Napi::Value candle_accelerate_vDspVmax_napi(const Napi::CallbackInfo& km_
 }
 
 static void register_accelerate_napi(Napi::Env env, Napi::Object exports) {
-    exports.Set("candle_accelerate_sgemmFfi", Napi::Function::New(env, candle_accelerate_sgemmFfi_napi));
-    exports.Set("candle_accelerate_dgemmFfi", Napi::Function::New(env, candle_accelerate_dgemmFfi_napi));
-    exports.Set("candle_accelerate_vvexpf", Napi::Function::New(env, candle_accelerate_vvexpf_napi));
-    exports.Set("candle_accelerate_vvexp", Napi::Function::New(env, candle_accelerate_vvexp_napi));
-    exports.Set("candle_accelerate_vvsqrtf", Napi::Function::New(env, candle_accelerate_vvsqrtf_napi));
-    exports.Set("candle_accelerate_vvsqrt", Napi::Function::New(env, candle_accelerate_vvsqrt_napi));
-    exports.Set("candle_accelerate_vvsinf", Napi::Function::New(env, candle_accelerate_vvsinf_napi));
-    exports.Set("candle_accelerate_vvsin", Napi::Function::New(env, candle_accelerate_vvsin_napi));
-    exports.Set("candle_accelerate_vvcosf", Napi::Function::New(env, candle_accelerate_vvcosf_napi));
-    exports.Set("candle_accelerate_vvcos", Napi::Function::New(env, candle_accelerate_vvcos_napi));
-    exports.Set("candle_accelerate_vvlogf", Napi::Function::New(env, candle_accelerate_vvlogf_napi));
-    exports.Set("candle_accelerate_vvlog", Napi::Function::New(env, candle_accelerate_vvlog_napi));
-    exports.Set("candle_accelerate_vvtanhf", Napi::Function::New(env, candle_accelerate_vvtanhf_napi));
-    exports.Set("candle_accelerate_vvtanh", Napi::Function::New(env, candle_accelerate_vvtanh_napi));
-    exports.Set("candle_accelerate_vDspVaddD", Napi::Function::New(env, candle_accelerate_vDspVaddD_napi));
-    exports.Set("candle_accelerate_vDspVadd", Napi::Function::New(env, candle_accelerate_vDspVadd_napi));
-    exports.Set("candle_accelerate_vDspVsubD", Napi::Function::New(env, candle_accelerate_vDspVsubD_napi));
-    exports.Set("candle_accelerate_vDspVsub", Napi::Function::New(env, candle_accelerate_vDspVsub_napi));
-    exports.Set("candle_accelerate_vDspVmulD", Napi::Function::New(env, candle_accelerate_vDspVmulD_napi));
-    exports.Set("candle_accelerate_vDspVmul", Napi::Function::New(env, candle_accelerate_vDspVmul_napi));
-    exports.Set("candle_accelerate_vDspVdivD", Napi::Function::New(env, candle_accelerate_vDspVdivD_napi));
-    exports.Set("candle_accelerate_vDspVdiv", Napi::Function::New(env, candle_accelerate_vDspVdiv_napi));
-    exports.Set("candle_accelerate_vDspVminD", Napi::Function::New(env, candle_accelerate_vDspVminD_napi));
-    exports.Set("candle_accelerate_vDspVmin", Napi::Function::New(env, candle_accelerate_vDspVmin_napi));
-    exports.Set("candle_accelerate_vDspVmaxD", Napi::Function::New(env, candle_accelerate_vDspVmaxD_napi));
-    exports.Set("candle_accelerate_vDspVmax", Napi::Function::New(env, candle_accelerate_vDspVmax_napi));
+    exports.Set("candleAccelerateSgemmFfi", Napi::Function::New(env, candleAccelerateSgemmFfi_napi));
+    exports.Set("candleAccelerateDgemmFfi", Napi::Function::New(env, candleAccelerateDgemmFfi_napi));
+    exports.Set("candleAccelerateVvexpf", Napi::Function::New(env, candleAccelerateVvexpf_napi));
+    exports.Set("candleAccelerateVvexp", Napi::Function::New(env, candleAccelerateVvexp_napi));
+    exports.Set("candleAccelerateVvsqrtf", Napi::Function::New(env, candleAccelerateVvsqrtf_napi));
+    exports.Set("candleAccelerateVvsqrt", Napi::Function::New(env, candleAccelerateVvsqrt_napi));
+    exports.Set("candleAccelerateVvsinf", Napi::Function::New(env, candleAccelerateVvsinf_napi));
+    exports.Set("candleAccelerateVvsin", Napi::Function::New(env, candleAccelerateVvsin_napi));
+    exports.Set("candleAccelerateVvcosf", Napi::Function::New(env, candleAccelerateVvcosf_napi));
+    exports.Set("candleAccelerateVvcos", Napi::Function::New(env, candleAccelerateVvcos_napi));
+    exports.Set("candleAccelerateVvlogf", Napi::Function::New(env, candleAccelerateVvlogf_napi));
+    exports.Set("candleAccelerateVvlog", Napi::Function::New(env, candleAccelerateVvlog_napi));
+    exports.Set("candleAccelerateVvtanhf", Napi::Function::New(env, candleAccelerateVvtanhf_napi));
+    exports.Set("candleAccelerateVvtanh", Napi::Function::New(env, candleAccelerateVvtanh_napi));
+    exports.Set("candleAccelerateVDspVaddD", Napi::Function::New(env, candleAccelerateVDspVaddD_napi));
+    exports.Set("candleAccelerateVDspVadd", Napi::Function::New(env, candleAccelerateVDspVadd_napi));
+    exports.Set("candleAccelerateVDspVsubD", Napi::Function::New(env, candleAccelerateVDspVsubD_napi));
+    exports.Set("candleAccelerateVDspVsub", Napi::Function::New(env, candleAccelerateVDspVsub_napi));
+    exports.Set("candleAccelerateVDspVmulD", Napi::Function::New(env, candleAccelerateVDspVmulD_napi));
+    exports.Set("candleAccelerateVDspVmul", Napi::Function::New(env, candleAccelerateVDspVmul_napi));
+    exports.Set("candleAccelerateVDspVdivD", Napi::Function::New(env, candleAccelerateVDspVdivD_napi));
+    exports.Set("candleAccelerateVDspVdiv", Napi::Function::New(env, candleAccelerateVDspVdiv_napi));
+    exports.Set("candleAccelerateVDspVminD", Napi::Function::New(env, candleAccelerateVDspVminD_napi));
+    exports.Set("candleAccelerateVDspVmin", Napi::Function::New(env, candleAccelerateVDspVmin_napi));
+    exports.Set("candleAccelerateVDspVmaxD", Napi::Function::New(env, candleAccelerateVDspVmaxD_napi));
+    exports.Set("candleAccelerateVDspVmax", Napi::Function::New(env, candleAccelerateVDspVmax_napi));
 }
 
 static KmNapiRegistrarNode registrar_node = { &register_accelerate_napi, nullptr };

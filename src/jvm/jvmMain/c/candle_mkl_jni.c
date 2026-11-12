@@ -19,7 +19,7 @@
 #endif
 #endif
 
-JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_mkl_MklJniBridge_candle_1mkl_1vsTanh(JNIEnv* km_env, jclass km_clazz, jint n, jlong a, jlong y) {
+JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_mkl_MklJniBridge_candleMklVsTanh(JNIEnv* km_env, jclass km_clazz, jint n, jlong a, jlong y) {
     (void)km_env;
     (void)km_clazz;
     typedef void (*km_fn_t)(int32_t, void*, void*);
@@ -49,7 +49,7 @@ JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_mkl_MklJniBridge_candle
     }
 }
 
-JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_mkl_MklJniBridge_candle_1mkl_1vdTanh(JNIEnv* km_env, jclass km_clazz, jint n, jlong a, jlong y) {
+JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_mkl_MklJniBridge_candleMklVdTanh(JNIEnv* km_env, jclass km_clazz, jint n, jlong a, jlong y) {
     (void)km_env;
     (void)km_clazz;
     typedef void (*km_fn_t)(int32_t, void*, void*);
@@ -79,7 +79,7 @@ JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_mkl_MklJniBridge_candle
     }
 }
 
-JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_mkl_MklJniBridge_candle_1mkl_1vsExp(JNIEnv* km_env, jclass km_clazz, jint n, jlong a, jlong y) {
+JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_mkl_MklJniBridge_candleMklVsExp(JNIEnv* km_env, jclass km_clazz, jint n, jlong a, jlong y) {
     (void)km_env;
     (void)km_clazz;
     typedef void (*km_fn_t)(int32_t, void*, void*);
@@ -109,7 +109,7 @@ JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_mkl_MklJniBridge_candle
     }
 }
 
-JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_mkl_MklJniBridge_candle_1mkl_1vdExp(JNIEnv* km_env, jclass km_clazz, jint n, jlong a, jlong y) {
+JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_mkl_MklJniBridge_candleMklVdExp(JNIEnv* km_env, jclass km_clazz, jint n, jlong a, jlong y) {
     (void)km_env;
     (void)km_clazz;
     typedef void (*km_fn_t)(int32_t, void*, void*);
@@ -139,7 +139,7 @@ JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_mkl_MklJniBridge_candle
     }
 }
 
-JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_mkl_MklJniBridge_candle_1mkl_1vsLn(JNIEnv* km_env, jclass km_clazz, jint n, jlong a, jlong y) {
+JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_mkl_MklJniBridge_candleMklVsLn(JNIEnv* km_env, jclass km_clazz, jint n, jlong a, jlong y) {
     (void)km_env;
     (void)km_clazz;
     typedef void (*km_fn_t)(int32_t, void*, void*);
@@ -169,7 +169,7 @@ JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_mkl_MklJniBridge_candle
     }
 }
 
-JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_mkl_MklJniBridge_candle_1mkl_1vdLn(JNIEnv* km_env, jclass km_clazz, jint n, jlong a, jlong y) {
+JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_mkl_MklJniBridge_candleMklVdLn(JNIEnv* km_env, jclass km_clazz, jint n, jlong a, jlong y) {
     (void)km_env;
     (void)km_clazz;
     typedef void (*km_fn_t)(int32_t, void*, void*);
@@ -199,7 +199,7 @@ JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_mkl_MklJniBridge_candle
     }
 }
 
-JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_mkl_MklJniBridge_candle_1mkl_1vsSin(JNIEnv* km_env, jclass km_clazz, jint n, jlong a, jlong y) {
+JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_mkl_MklJniBridge_candleMklVsSin(JNIEnv* km_env, jclass km_clazz, jint n, jlong a, jlong y) {
     (void)km_env;
     (void)km_clazz;
     typedef void (*km_fn_t)(int32_t, void*, void*);
@@ -229,7 +229,7 @@ JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_mkl_MklJniBridge_candle
     }
 }
 
-JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_mkl_MklJniBridge_candle_1mkl_1vdSin(JNIEnv* km_env, jclass km_clazz, jint n, jlong a, jlong y) {
+JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_mkl_MklJniBridge_candleMklVdSin(JNIEnv* km_env, jclass km_clazz, jint n, jlong a, jlong y) {
     (void)km_env;
     (void)km_clazz;
     typedef void (*km_fn_t)(int32_t, void*, void*);
@@ -259,7 +259,7 @@ JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_mkl_MklJniBridge_candle
     }
 }
 
-JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_mkl_MklJniBridge_candle_1mkl_1vsCos(JNIEnv* km_env, jclass km_clazz, jint n, jlong a, jlong y) {
+JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_mkl_MklJniBridge_candleMklVsCos(JNIEnv* km_env, jclass km_clazz, jint n, jlong a, jlong y) {
     (void)km_env;
     (void)km_clazz;
     typedef void (*km_fn_t)(int32_t, void*, void*);
@@ -289,7 +289,7 @@ JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_mkl_MklJniBridge_candle
     }
 }
 
-JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_mkl_MklJniBridge_candle_1mkl_1vdCos(JNIEnv* km_env, jclass km_clazz, jint n, jlong a, jlong y) {
+JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_mkl_MklJniBridge_candleMklVdCos(JNIEnv* km_env, jclass km_clazz, jint n, jlong a, jlong y) {
     (void)km_env;
     (void)km_clazz;
     typedef void (*km_fn_t)(int32_t, void*, void*);
@@ -319,7 +319,7 @@ JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_mkl_MklJniBridge_candle
     }
 }
 
-JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_mkl_MklJniBridge_candle_1mkl_1vsSqrt(JNIEnv* km_env, jclass km_clazz, jint n, jlong a, jlong y) {
+JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_mkl_MklJniBridge_candleMklVsSqrt(JNIEnv* km_env, jclass km_clazz, jint n, jlong a, jlong y) {
     (void)km_env;
     (void)km_clazz;
     typedef void (*km_fn_t)(int32_t, void*, void*);
@@ -349,7 +349,7 @@ JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_mkl_MklJniBridge_candle
     }
 }
 
-JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_mkl_MklJniBridge_candle_1mkl_1vdSqrt(JNIEnv* km_env, jclass km_clazz, jint n, jlong a, jlong y) {
+JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_mkl_MklJniBridge_candleMklVdSqrt(JNIEnv* km_env, jclass km_clazz, jint n, jlong a, jlong y) {
     (void)km_env;
     (void)km_clazz;
     typedef void (*km_fn_t)(int32_t, void*, void*);
@@ -379,7 +379,7 @@ JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_mkl_MklJniBridge_candle
     }
 }
 
-JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_mkl_MklJniBridge_candle_1mkl_1vsAdd(JNIEnv* km_env, jclass km_clazz, jint n, jlong a, jlong b, jlong y) {
+JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_mkl_MklJniBridge_candleMklVsAdd(JNIEnv* km_env, jclass km_clazz, jint n, jlong a, jlong b, jlong y) {
     (void)km_env;
     (void)km_clazz;
     typedef void (*km_fn_t)(int32_t, void*, void*, void*);
@@ -409,7 +409,7 @@ JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_mkl_MklJniBridge_candle
     }
 }
 
-JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_mkl_MklJniBridge_candle_1mkl_1vdAdd(JNIEnv* km_env, jclass km_clazz, jint n, jlong a, jlong b, jlong y) {
+JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_mkl_MklJniBridge_candleMklVdAdd(JNIEnv* km_env, jclass km_clazz, jint n, jlong a, jlong b, jlong y) {
     (void)km_env;
     (void)km_clazz;
     typedef void (*km_fn_t)(int32_t, void*, void*, void*);
@@ -439,7 +439,7 @@ JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_mkl_MklJniBridge_candle
     }
 }
 
-JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_mkl_MklJniBridge_candle_1mkl_1vsSub(JNIEnv* km_env, jclass km_clazz, jint n, jlong a, jlong b, jlong y) {
+JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_mkl_MklJniBridge_candleMklVsSub(JNIEnv* km_env, jclass km_clazz, jint n, jlong a, jlong b, jlong y) {
     (void)km_env;
     (void)km_clazz;
     typedef void (*km_fn_t)(int32_t, void*, void*, void*);
@@ -469,7 +469,7 @@ JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_mkl_MklJniBridge_candle
     }
 }
 
-JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_mkl_MklJniBridge_candle_1mkl_1vdSub(JNIEnv* km_env, jclass km_clazz, jint n, jlong a, jlong b, jlong y) {
+JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_mkl_MklJniBridge_candleMklVdSub(JNIEnv* km_env, jclass km_clazz, jint n, jlong a, jlong b, jlong y) {
     (void)km_env;
     (void)km_clazz;
     typedef void (*km_fn_t)(int32_t, void*, void*, void*);
@@ -499,7 +499,7 @@ JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_mkl_MklJniBridge_candle
     }
 }
 
-JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_mkl_MklJniBridge_candle_1mkl_1vsMul(JNIEnv* km_env, jclass km_clazz, jint n, jlong a, jlong b, jlong y) {
+JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_mkl_MklJniBridge_candleMklVsMul(JNIEnv* km_env, jclass km_clazz, jint n, jlong a, jlong b, jlong y) {
     (void)km_env;
     (void)km_clazz;
     typedef void (*km_fn_t)(int32_t, void*, void*, void*);
@@ -529,7 +529,7 @@ JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_mkl_MklJniBridge_candle
     }
 }
 
-JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_mkl_MklJniBridge_candle_1mkl_1vdMul(JNIEnv* km_env, jclass km_clazz, jint n, jlong a, jlong b, jlong y) {
+JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_mkl_MklJniBridge_candleMklVdMul(JNIEnv* km_env, jclass km_clazz, jint n, jlong a, jlong b, jlong y) {
     (void)km_env;
     (void)km_clazz;
     typedef void (*km_fn_t)(int32_t, void*, void*, void*);
@@ -559,7 +559,7 @@ JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_mkl_MklJniBridge_candle
     }
 }
 
-JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_mkl_MklJniBridge_candle_1mkl_1vsDiv(JNIEnv* km_env, jclass km_clazz, jint n, jlong a, jlong b, jlong y) {
+JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_mkl_MklJniBridge_candleMklVsDiv(JNIEnv* km_env, jclass km_clazz, jint n, jlong a, jlong b, jlong y) {
     (void)km_env;
     (void)km_clazz;
     typedef void (*km_fn_t)(int32_t, void*, void*, void*);
@@ -589,7 +589,7 @@ JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_mkl_MklJniBridge_candle
     }
 }
 
-JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_mkl_MklJniBridge_candle_1mkl_1vdDiv(JNIEnv* km_env, jclass km_clazz, jint n, jlong a, jlong b, jlong y) {
+JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_mkl_MklJniBridge_candleMklVdDiv(JNIEnv* km_env, jclass km_clazz, jint n, jlong a, jlong b, jlong y) {
     (void)km_env;
     (void)km_clazz;
     typedef void (*km_fn_t)(int32_t, void*, void*, void*);
@@ -619,7 +619,7 @@ JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_mkl_MklJniBridge_candle
     }
 }
 
-JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_mkl_MklJniBridge_candle_1mkl_1vsFmax(JNIEnv* km_env, jclass km_clazz, jint n, jlong a, jlong b, jlong y) {
+JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_mkl_MklJniBridge_candleMklVsFmax(JNIEnv* km_env, jclass km_clazz, jint n, jlong a, jlong b, jlong y) {
     (void)km_env;
     (void)km_clazz;
     typedef void (*km_fn_t)(int32_t, void*, void*, void*);
@@ -649,7 +649,7 @@ JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_mkl_MklJniBridge_candle
     }
 }
 
-JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_mkl_MklJniBridge_candle_1mkl_1vdFmax(JNIEnv* km_env, jclass km_clazz, jint n, jlong a, jlong b, jlong y) {
+JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_mkl_MklJniBridge_candleMklVdFmax(JNIEnv* km_env, jclass km_clazz, jint n, jlong a, jlong b, jlong y) {
     (void)km_env;
     (void)km_clazz;
     typedef void (*km_fn_t)(int32_t, void*, void*, void*);
@@ -679,7 +679,7 @@ JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_mkl_MklJniBridge_candle
     }
 }
 
-JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_mkl_MklJniBridge_candle_1mkl_1vsFmin(JNIEnv* km_env, jclass km_clazz, jint n, jlong a, jlong b, jlong y) {
+JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_mkl_MklJniBridge_candleMklVsFmin(JNIEnv* km_env, jclass km_clazz, jint n, jlong a, jlong b, jlong y) {
     (void)km_env;
     (void)km_clazz;
     typedef void (*km_fn_t)(int32_t, void*, void*, void*);
@@ -709,7 +709,7 @@ JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_mkl_MklJniBridge_candle
     }
 }
 
-JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_mkl_MklJniBridge_candle_1mkl_1vdFmin(JNIEnv* km_env, jclass km_clazz, jint n, jlong a, jlong b, jlong y) {
+JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_mkl_MklJniBridge_candleMklVdFmin(JNIEnv* km_env, jclass km_clazz, jint n, jlong a, jlong b, jlong y) {
     (void)km_env;
     (void)km_clazz;
     typedef void (*km_fn_t)(int32_t, void*, void*, void*);
@@ -739,11 +739,9 @@ JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_mkl_MklJniBridge_candle
     }
 }
 
-JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_mkl_MklJniBridge_candle_1mkl_1sgemm(JNIEnv* km_env, jclass km_clazz, jstring transa, jstring transb, jlong m, jlong n, jlong k, jlong alpha, jlong a, jlong lda, jlong b, jlong ldb, jlong beta, jlong c, jlong ldc) {
+JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_mkl_MklJniBridge_candleMklSgemm(JNIEnv* km_env, jclass km_clazz, jlong transa, jlong transb, jlong m, jlong n, jlong k, jlong alpha, jlong a, jlong lda, jlong b, jlong ldb, jlong beta, jlong c, jlong ldc) {
     (void)km_env;
     (void)km_clazz;
-    const char* transa_utf = (transa != NULL) ? (*km_env)->GetStringUTFChars(km_env, transa, NULL) : NULL;
-    const char* transb_utf = (transb != NULL) ? (*km_env)->GetStringUTFChars(km_env, transb, NULL) : NULL;
     typedef void (*km_fn_t)(const char*, const char*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*);
     static km_fn_t km_fn_ptr = NULL;
 #ifdef _WIN32
@@ -765,19 +763,15 @@ JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_mkl_MklJniBridge_candle
     }
 #endif
     if (km_fn_ptr != NULL) {
-        km_fn_ptr(transa_utf, transb_utf, (void*)(uintptr_t)m, (void*)(uintptr_t)n, (void*)(uintptr_t)k, (void*)(uintptr_t)alpha, (void*)(uintptr_t)a, (void*)(uintptr_t)lda, (void*)(uintptr_t)b, (void*)(uintptr_t)ldb, (void*)(uintptr_t)beta, (void*)(uintptr_t)c, (void*)(uintptr_t)ldc);
+        km_fn_ptr((const char*)(uintptr_t)transa, (const char*)(uintptr_t)transb, (void*)(uintptr_t)m, (void*)(uintptr_t)n, (void*)(uintptr_t)k, (void*)(uintptr_t)alpha, (void*)(uintptr_t)a, (void*)(uintptr_t)lda, (void*)(uintptr_t)b, (void*)(uintptr_t)ldb, (void*)(uintptr_t)beta, (void*)(uintptr_t)c, (void*)(uintptr_t)ldc);
     } else {
         errno = ENOSYS;
     }
-    if (transa != NULL && transa_utf != NULL) (*km_env)->ReleaseStringUTFChars(km_env, transa, transa_utf);
-    if (transb != NULL && transb_utf != NULL) (*km_env)->ReleaseStringUTFChars(km_env, transb, transb_utf);
 }
 
-JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_mkl_MklJniBridge_candle_1mkl_1dgemm(JNIEnv* km_env, jclass km_clazz, jstring transa, jstring transb, jlong m, jlong n, jlong k, jlong alpha, jlong a, jlong lda, jlong b, jlong ldb, jlong beta, jlong c, jlong ldc) {
+JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_mkl_MklJniBridge_candleMklDgemm(JNIEnv* km_env, jclass km_clazz, jlong transa, jlong transb, jlong m, jlong n, jlong k, jlong alpha, jlong a, jlong lda, jlong b, jlong ldb, jlong beta, jlong c, jlong ldc) {
     (void)km_env;
     (void)km_clazz;
-    const char* transa_utf = (transa != NULL) ? (*km_env)->GetStringUTFChars(km_env, transa, NULL) : NULL;
-    const char* transb_utf = (transb != NULL) ? (*km_env)->GetStringUTFChars(km_env, transb, NULL) : NULL;
     typedef void (*km_fn_t)(const char*, const char*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*);
     static km_fn_t km_fn_ptr = NULL;
 #ifdef _WIN32
@@ -799,19 +793,15 @@ JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_mkl_MklJniBridge_candle
     }
 #endif
     if (km_fn_ptr != NULL) {
-        km_fn_ptr(transa_utf, transb_utf, (void*)(uintptr_t)m, (void*)(uintptr_t)n, (void*)(uintptr_t)k, (void*)(uintptr_t)alpha, (void*)(uintptr_t)a, (void*)(uintptr_t)lda, (void*)(uintptr_t)b, (void*)(uintptr_t)ldb, (void*)(uintptr_t)beta, (void*)(uintptr_t)c, (void*)(uintptr_t)ldc);
+        km_fn_ptr((const char*)(uintptr_t)transa, (const char*)(uintptr_t)transb, (void*)(uintptr_t)m, (void*)(uintptr_t)n, (void*)(uintptr_t)k, (void*)(uintptr_t)alpha, (void*)(uintptr_t)a, (void*)(uintptr_t)lda, (void*)(uintptr_t)b, (void*)(uintptr_t)ldb, (void*)(uintptr_t)beta, (void*)(uintptr_t)c, (void*)(uintptr_t)ldc);
     } else {
         errno = ENOSYS;
     }
-    if (transa != NULL && transa_utf != NULL) (*km_env)->ReleaseStringUTFChars(km_env, transa, transa_utf);
-    if (transb != NULL && transb_utf != NULL) (*km_env)->ReleaseStringUTFChars(km_env, transb, transb_utf);
 }
 
-JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_mkl_MklJniBridge_candle_1mkl_1hgemm(JNIEnv* km_env, jclass km_clazz, jstring transa, jstring transb, jlong m, jlong n, jlong k, jlong alpha, jlong a, jlong lda, jlong b, jlong ldb, jlong beta, jlong c, jlong ldc) {
+JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_mkl_MklJniBridge_candleMklHgemm(JNIEnv* km_env, jclass km_clazz, jlong transa, jlong transb, jlong m, jlong n, jlong k, jlong alpha, jlong a, jlong lda, jlong b, jlong ldb, jlong beta, jlong c, jlong ldc) {
     (void)km_env;
     (void)km_clazz;
-    const char* transa_utf = (transa != NULL) ? (*km_env)->GetStringUTFChars(km_env, transa, NULL) : NULL;
-    const char* transb_utf = (transb != NULL) ? (*km_env)->GetStringUTFChars(km_env, transb, NULL) : NULL;
     typedef void (*km_fn_t)(const char*, const char*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*);
     static km_fn_t km_fn_ptr = NULL;
 #ifdef _WIN32
@@ -833,11 +823,9 @@ JNIEXPORT void JNICALL Java_io_github_kotlinmania_candle_mkl_MklJniBridge_candle
     }
 #endif
     if (km_fn_ptr != NULL) {
-        km_fn_ptr(transa_utf, transb_utf, (void*)(uintptr_t)m, (void*)(uintptr_t)n, (void*)(uintptr_t)k, (void*)(uintptr_t)alpha, (void*)(uintptr_t)a, (void*)(uintptr_t)lda, (void*)(uintptr_t)b, (void*)(uintptr_t)ldb, (void*)(uintptr_t)beta, (void*)(uintptr_t)c, (void*)(uintptr_t)ldc);
+        km_fn_ptr((const char*)(uintptr_t)transa, (const char*)(uintptr_t)transb, (void*)(uintptr_t)m, (void*)(uintptr_t)n, (void*)(uintptr_t)k, (void*)(uintptr_t)alpha, (void*)(uintptr_t)a, (void*)(uintptr_t)lda, (void*)(uintptr_t)b, (void*)(uintptr_t)ldb, (void*)(uintptr_t)beta, (void*)(uintptr_t)c, (void*)(uintptr_t)ldc);
     } else {
         errno = ENOSYS;
     }
-    if (transa != NULL && transa_utf != NULL) (*km_env)->ReleaseStringUTFChars(km_env, transa, transa_utf);
-    if (transb != NULL && transb_utf != NULL) (*km_env)->ReleaseStringUTFChars(km_env, transb, transb_utf);
 }
 

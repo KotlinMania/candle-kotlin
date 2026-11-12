@@ -5,46 +5,105 @@ import io.github.kotlinmania.byteorder.LittleEndian
 import io.github.kotlinmania.candle.error.Error
 import io.github.kotlinmania.candle.error.Result
 import io.github.kotlinmania.candle.error.bail
+import io.github.kotlinmania.rustlang.core.result.fromResidual
+import io.github.kotlinmania.rustlang.std.fs.File
+import io.github.kotlinmania.rustlang.std.io.Cursor
+import io.github.kotlinmania.rustlang.std.io.Read
+import io.github.kotlinmania.rustlang.std.path.Path
 
 public fun <P : AsRef<Path>> loadImatrix(fname: P): Result<Map<String, List<Float>>> {
     val allData = HashMap.new()
     var file =
-        File.open(fname).mapErr({ e ->
-            Error.msg("Failed to open ${fname.asRef().display()}: $e")
-        }).getOrElse { return Result.failure(it) }
+        when (
+            val tryResult =
+                File.open(fname).mapErr({ e ->
+                    Error.msg("Failed to open ${fname.asRef().display()}: $e")
+                })
+        ) {
+            is Result.Ok -> tryResult.value
+            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+        }
     val buffer = mutableListOf()
-    file.readToEnd(buffer).mapErr({ e ->
-        Error.msg("Failed to read file ${fname.asRef().display()}: $e")
-    }).getOrElse { return Result.failure(it) }
+    when (
+        val tryResult =
+            file.readToEnd(buffer).mapErr({ e ->
+                Error.msg("Failed to read file ${fname.asRef().display()}: $e")
+            })
+    ) {
+        is Result.Ok -> tryResult.value
+        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+    }
     val cursor = Cursor.new(buffer)
-    val nEntries = (cursor.readI32<LittleEndian>().mapErr({ e -> Error.msg("Failed to read number of entries: $e") }).getOrElse { return Result.failure(it) }).toInt()
+    val nEntries =
+        (
+            when (val tryResult = cursor.readI32<LittleEndian>().mapErr({ e -> Error.msg("Failed to read number of entries: $e") })) {
+                is Result.Ok -> tryResult.value
+                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            }
+        ).toInt()
     if (nEntries < 1) {
         bail("No data in file {}", fname.asRef().display())
     }
     for (i in 0 until nEntries) {
         // Read length of the name
         val len =
-            (cursor.readI32<LittleEndian>().mapErr({ e ->
-                Error.msg("Failed to read name length for entry ${i + 1}: $e")
-            }).getOrElse { return Result.failure(it) }).toInt()
+            (
+                when (
+                    val tryResult =
+                        cursor.readI32<LittleEndian>().mapErr({ e ->
+                            Error.msg("Failed to read name length for entry ${i + 1}: $e")
+                        })
+                ) {
+                    is Result.Ok -> tryResult.value
+                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                }
+            ).toInt()
         // Read the name
         val nameBuf = mutableListOf(0u.toUByte(), len)
-        cursor.readExact(nameBuf).mapErr({ e ->
-            Error.msg("Failed to read name for entry ${i + 1}: $e")
-        }).getOrElse { return Result.failure(it) }
+        when (
+            val tryResult =
+                cursor.readExact(nameBuf).mapErr({ e ->
+                    Error.msg("Failed to read name for entry ${i + 1}: $e")
+                })
+        ) {
+            is Result.Ok -> tryResult.value
+            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+        }
         val name =
-            String.fromUtf8(nameBuf).mapErr({ e ->
-                Error.msg("Invalid UTF-8 name for entry ${i + 1}: $e")
-            }).getOrElse { return Result.failure(it) }
+            when (
+                val tryResult =
+                    String.fromUtf8(nameBuf).mapErr({ e ->
+                        Error.msg("Invalid UTF-8 name for entry ${i + 1}: $e")
+                    })
+            ) {
+                is Result.Ok -> tryResult.value
+                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            }
         // Read ncall and nval
         val ncall =
-            (cursor.readI32<LittleEndian>().mapErr({ e ->
-                Error.msg("Failed to read ncall for entry ${i + 1}: $e")
-            }).getOrElse { return Result.failure(it) }).toInt()
+            (
+                when (
+                    val tryResult =
+                        cursor.readI32<LittleEndian>().mapErr({ e ->
+                            Error.msg("Failed to read ncall for entry ${i + 1}: $e")
+                        })
+                ) {
+                    is Result.Ok -> tryResult.value
+                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                }
+            ).toInt()
         val nval =
-            (cursor.readI32<LittleEndian>().mapErr({ e ->
-                Error.msg("Failed to read nval for entry ${i + 1}: $e")
-            }).getOrElse { return Result.failure(it) }).toInt()
+            (
+                when (
+                    val tryResult =
+                        cursor.readI32<LittleEndian>().mapErr({ e ->
+                            Error.msg("Failed to read nval for entry ${i + 1}: $e")
+                        })
+                ) {
+                    is Result.Ok -> tryResult.value
+                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                }
+            ).toInt()
         if (nval < 1) {
             bail("Invalid nval for entry {}: {}", i + 1, nval)
         }
@@ -59,5 +118,5 @@ public fun <P : AsRef<Path>> loadImatrix(fname: P): Result<Map<String, List<Floa
         }
         allData.insert(name, data)
     }
-    return Result.success(allData)
+    return Ok(allData)
 }

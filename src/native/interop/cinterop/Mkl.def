@@ -3,3 +3,4 @@ headers = mkl_wrapper.h
 headerFilter = mkl_wrapper.h
 compilerOpts = -Isrc/native/interop/cinterop
 staticLibraries = mkl_wrapper.a
+noStringConversion = candleMklSgemm candleMklDgemm candleMklHgemm

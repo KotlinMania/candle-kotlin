@@ -11,7 +11,7 @@ public fun ((Tensor) -> Result<Tensor>).forward(xs: Tensor): Result<Tensor> = th
 
 public fun <M : Module> M?.forward(xs: Tensor): Result<Tensor> =
     when (this) {
-        null -> Result.success(xs.clone())
+        null -> Ok(xs.clone())
         else -> {
             val m = this
             m.forward(xs)

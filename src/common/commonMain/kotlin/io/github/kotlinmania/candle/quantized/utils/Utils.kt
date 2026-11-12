@@ -1,7 +1,12 @@
 // port-lint: source quantized/utils.rs
+@file:OptIn(ExperimentalUnsignedTypes::class)
+
 package io.github.kotlinmania.candle.quantized.utils
 
 import io.github.kotlinmania.candle.quantized.kquants.GgmlType
+import io.github.kotlinmania.rustlang.core.mem.PrimitiveLayouts
+import io.github.kotlinmania.rustlang.core.ptr.ConstPtr
+import io.github.kotlinmania.rustlang.core.ptr.MutPtr
 
 internal fun nearestInt(v: Float): Int = v.round().toInt()
 
@@ -45,11 +50,11 @@ internal fun getScaleMinK4(j: Int, q: List<UByte>): Pair<UByte, UByte> =
         Pair(d1, m1)
     }
 
-internal fun makeQxQuants(n: Int, nmax: Int, x: org.rustlang.runtime.RustPointer<Float>?, ls: org.rustlang.runtime.RustPointer<Byte>?, rmseType: Int, qw: org.rustlang.runtime.RustPointer<Float>?): Float {
+internal fun makeQxQuants(n: Int, nmax: Int, x: ConstPtr<Float>, ls: MutPtr<Byte>, rmseType: Int, qw: ConstPtr<Float>): Float {
     var max = 0.0f
     var amax = 0.0f
     for (i in 0 until n) {
-        val x1 = (org.rustlang.runtime.rustPointerOffset(x, null, (i).toLong(), false, false))!!.read()
+        val x1 = (PrimitiveLayouts.F32).readNative((ConstPtr((x).rawAddress + ((i).toLong() * (PrimitiveLayouts.F32).strideBytes))).rawAddress)
         val ax = x1.abs()
         if (ax > amax) {
             amax = ax
@@ -59,16 +64,16 @@ internal fun makeQxQuants(n: Int, nmax: Int, x: org.rustlang.runtime.RustPointer
     if (amax == 0.0) {
         // all zero
         for (i1 in 0 until n) {
-            (org.rustlang.runtime.rustPointerOffset(ls, org.rustlang.runtime.AtomicScalarCodec.I8, (i1).toLong(), false, false))!!.write(0)
+            (PrimitiveLayouts.I8).writeNative((MutPtr((ls).rawAddress + ((i1).toLong() * (PrimitiveLayouts.I8).strideBytes))).rawAddress, 0)
         }
         return 0.0f
     }
     var iscale = -(nmax.toFloat()) / max
     if (rmseType == 0) {
         for (i2 in 0 until n) {
-            val x2 = (org.rustlang.runtime.rustPointerOffset(x, null, (i2).toLong(), false, false))!!.read()
+            val x2 = (PrimitiveLayouts.F32).readNative((ConstPtr((x).rawAddress + ((i2).toLong() * (PrimitiveLayouts.F32).strideBytes))).rawAddress)
             val l = nearestInt(iscale * x2)
-            (org.rustlang.runtime.rustPointerOffset(ls, org.rustlang.runtime.AtomicScalarCodec.I8, (i2).toLong(), false, false))!!.write((nmax + l.clamp(-nmax, nmax - 1)).toByte())
+            (PrimitiveLayouts.I8).writeNative((MutPtr((ls).rawAddress + ((i2).toLong() * (PrimitiveLayouts.I8).strideBytes))).rawAddress, (nmax + l.clamp(-nmax, nmax - 1)).toByte())
         }
         return 1.0f / iscale
     }
@@ -76,13 +81,13 @@ internal fun makeQxQuants(n: Int, nmax: Int, x: org.rustlang.runtime.RustPointer
     var sumlx = 0.0f
     var suml2 = 0.0f
     for (i3 in 0 until n) {
-        val x3 = (org.rustlang.runtime.rustPointerOffset(x, null, (i3).toLong(), false, false))!!.read()
+        val x3 = (PrimitiveLayouts.F32).readNative((ConstPtr((x).rawAddress + ((i3).toLong() * (PrimitiveLayouts.F32).strideBytes))).rawAddress)
         val l1 = nearestInt(iscale * x3)
         val l2 = l1.clamp(-nmax, nmax - 1)
-        (org.rustlang.runtime.rustPointerOffset(ls, org.rustlang.runtime.AtomicScalarCodec.I8, (i3).toLong(), false, false))!!.write((l2 + nmax).toByte())
+        (PrimitiveLayouts.I8).writeNative((MutPtr((ls).rawAddress + ((i3).toLong() * (PrimitiveLayouts.I8).strideBytes))).rawAddress, (l2 + nmax).toByte())
         val w =
-            if (!(qw == null)) {
-                (org.rustlang.runtime.rustPointerOffset(qw, null, (i3).toLong(), false, false))!!.read()
+            if (!((qw).rawAddress == 0L)) {
+                (PrimitiveLayouts.F32).readNative((ConstPtr((qw).rawAddress + ((i3).toLong() * (PrimitiveLayouts.F32).strideBytes))).rawAddress)
             } else if (weightType == 1) {
                 x3 * x3
             } else {
@@ -100,15 +105,15 @@ internal fun makeQxQuants(n: Int, nmax: Int, x: org.rustlang.runtime.RustPointer
         var sl2 = 0.0f
         var changed = false
         for (i4 in 0 until n) {
-            val x4 = (org.rustlang.runtime.rustPointerOffset(x, null, (i4).toLong(), false, false))!!.read()
+            val x4 = (PrimitiveLayouts.F32).readNative((ConstPtr((x).rawAddress + ((i4).toLong() * (PrimitiveLayouts.F32).strideBytes))).rawAddress)
             val l4 = nearestInt(iscale1 * x4)
             val l5 = l4.clamp(-nmax, nmax - 1)
-            if (l5 + nmax != (org.rustlang.runtime.rustPointerOffset(ls, org.rustlang.runtime.AtomicScalarCodec.I8, (i4).toLong(), false, false))!!.read().toInt()) {
+            if (l5 + nmax != (PrimitiveLayouts.I8).readNative((MutPtr((ls).rawAddress + ((i4).toLong() * (PrimitiveLayouts.I8).strideBytes))).rawAddress).toInt()) {
                 changed = true
             }
             val w1 =
-                if (!(qw == null)) {
-                    (org.rustlang.runtime.rustPointerOffset(qw, null, (i4).toLong(), false, false))!!.read()
+                if (!((qw).rawAddress == 0L)) {
+                    (PrimitiveLayouts.F32).readNative((ConstPtr((qw).rawAddress + ((i4).toLong() * (PrimitiveLayouts.F32).strideBytes))).rawAddress)
                 } else if (weightType == 1) {
                     x4 * x4
                 } else {
@@ -122,9 +127,9 @@ internal fun makeQxQuants(n: Int, nmax: Int, x: org.rustlang.runtime.RustPointer
             break
         }
         for (i5 in 0 until n) {
-            val x5 = (org.rustlang.runtime.rustPointerOffset(x, null, (i5).toLong(), false, false))!!.read()
+            val x5 = (PrimitiveLayouts.F32).readNative((ConstPtr((x).rawAddress + ((i5).toLong() * (PrimitiveLayouts.F32).strideBytes))).rawAddress)
             val l7 = nearestInt(iscale1 * x5)
-            (org.rustlang.runtime.rustPointerOffset(ls, org.rustlang.runtime.AtomicScalarCodec.I8, (i5).toLong(), false, false))!!.write((nmax + l7.clamp(-nmax, nmax - 1)).toByte())
+            (PrimitiveLayouts.I8).writeNative((MutPtr((ls).rawAddress + ((i5).toLong() * (PrimitiveLayouts.I8).strideBytes))).rawAddress, (nmax + l7.clamp(-nmax, nmax - 1)).toByte())
         }
         sumlx = slx
         suml2 = sl2
@@ -134,16 +139,16 @@ internal fun makeQxQuants(n: Int, nmax: Int, x: org.rustlang.runtime.RustPointer
     for (itry1 in 0 until 5) {
         var nChanged = 0
         for (i6 in 0 until n) {
-            val x6 = (org.rustlang.runtime.rustPointerOffset(x, null, (i6).toLong(), false, false))!!.read()
+            val x6 = (PrimitiveLayouts.F32).readNative((ConstPtr((x).rawAddress + ((i6).toLong() * (PrimitiveLayouts.F32).strideBytes))).rawAddress)
             val w2 =
-                if (!(qw == null)) {
-                    (org.rustlang.runtime.rustPointerOffset(qw, null, (i6).toLong(), false, false))!!.read()
+                if (!((qw).rawAddress == 0L)) {
+                    (PrimitiveLayouts.F32).readNative((ConstPtr((qw).rawAddress + ((i6).toLong() * (PrimitiveLayouts.F32).strideBytes))).rawAddress)
                 } else if (weightType == 1) {
                     x6 * x6
                 } else {
                     1.0
                 }
-            val l8 = (org.rustlang.runtime.rustPointerOffset(ls, org.rustlang.runtime.AtomicScalarCodec.I8, (i6).toLong(), false, false))!!.read().toInt() - nmax
+            val l8 = (PrimitiveLayouts.I8).readNative((MutPtr((ls).rawAddress + ((i6).toLong() * (PrimitiveLayouts.I8).strideBytes))).rawAddress).toInt() - nmax
             var slx1 = sumlx - w2 * x6 * l8.toFloat()
             if (slx1 > 0.0f) {
                 var sl21 = suml2 - w2 * l8.toFloat() * l8.toFloat()
@@ -153,7 +158,7 @@ internal fun makeQxQuants(n: Int, nmax: Int, x: org.rustlang.runtime.RustPointer
                     slx1 += w2 * x6 * newL1.toFloat()
                     sl21 += w2 * newL1.toFloat() * newL1.toFloat()
                     if (sl21 > 0.0f && slx1 * slx1 * suml2 > sumlx * sumlx * sl21) {
-                        (org.rustlang.runtime.rustPointerOffset(ls, org.rustlang.runtime.AtomicScalarCodec.I8, (i6).toLong(), false, false))!!.write((nmax + newL1).toByte())
+                        (PrimitiveLayouts.I8).writeNative((MutPtr((ls).rawAddress + ((i6).toLong() * (PrimitiveLayouts.I8).strideBytes))).rawAddress, (nmax + newL1).toByte())
                         sumlx = slx1
                         suml2 = sl21
                         scale = sumlx / suml2
@@ -178,12 +183,12 @@ internal fun makeQxQuants(n: Int, nmax: Int, x: org.rustlang.runtime.RustPointer
         var sumlx1 = 0.0
         var suml21 = 0.0
         for (i7 in 0 until n) {
-            val x7 = (org.rustlang.runtime.rustPointerOffset(x, null, (i7).toLong(), false, false))!!.read()
+            val x7 = (PrimitiveLayouts.F32).readNative((ConstPtr((x).rawAddress + ((i7).toLong() * (PrimitiveLayouts.F32).strideBytes))).rawAddress)
             val l9 = nearestInt(iscale * x7)
             val l10 = l9.clamp(-nmax, nmax - 1)
             val w3 =
-                if (!(qw == null)) {
-                    (org.rustlang.runtime.rustPointerOffset(qw, null, (i7).toLong(), false, false))!!.read()
+                if (!((qw).rawAddress == 0L)) {
+                    (PrimitiveLayouts.F32).readNative((ConstPtr((qw).rawAddress + ((i7).toLong() * (PrimitiveLayouts.F32).strideBytes))).rawAddress)
                 } else if (weightType == 1) {
                     x7 * x7
                 } else {
@@ -195,9 +200,9 @@ internal fun makeQxQuants(n: Int, nmax: Int, x: org.rustlang.runtime.RustPointer
         }
         if (suml21 > 0.0 && sumlx1 * sumlx1 > best * suml21) {
             for (i8 in 0 until n) {
-                val x8 = (org.rustlang.runtime.rustPointerOffset(x, null, (i8).toLong(), false, false))!!.read()
+                val x8 = (PrimitiveLayouts.F32).readNative((ConstPtr((x).rawAddress + ((i8).toLong() * (PrimitiveLayouts.F32).strideBytes))).rawAddress)
                 val l12 = nearestInt(iscale * x8)
-                (org.rustlang.runtime.rustPointerOffset(ls, org.rustlang.runtime.AtomicScalarCodec.I8, (i8).toLong(), false, false))!!.write((nmax + l12.clamp(-nmax, nmax - 1)).toByte())
+                (PrimitiveLayouts.I8).writeNative((MutPtr((ls).rawAddress + ((i8).toLong() * (PrimitiveLayouts.I8).strideBytes))).rawAddress, (nmax + l12.clamp(-nmax, nmax - 1)).toByte())
             }
             scale = sumlx1 / suml21
             best = scale * sumlx1
@@ -211,7 +216,12 @@ internal fun makeQkx1Quants(nmax: Int, ntry: Int, x: List<Float>): Pair<Float, F
     val n = x.size
     val l = mutableListOf(0, n)
     // Get min/max
-    val min = x.iter().take(n).minBy({ a, b -> a.totalCmp(b) }).unwrapOr(x[0])
+    val min =
+        x
+            .iter()
+            .take(n)
+            .minBy({ a, b -> a.totalCmp(b) })
+            .unwrapOr(x[0])
     val max = x.iter().maxBy({ a, b -> a.totalCmp(b) }).unwrapOr(x[0])
     // If min == max, all values are the same => nothing to do here
     if (max == min) {
@@ -322,8 +332,8 @@ internal fun makeQ3Quants(x: List<Float>, nmax: Int, doRmse: Boolean): Float {
  */
 internal fun makeQkx3Quants(nmax: Int, x: List<Float>, weights: List<Float>?, rmin: Float, rdelta: Float, nstep: Int, useMad: Boolean): Pair<Float, Float> {
     val n = x.size
-    val l: List<UByte>  = List(32) { 0u }
-    val lAux: List<UByte>  = List(32) { 0u }
+    val l: UByteArray = UByteArray(32) { 0u.toUByte() }
+    val lAux: UByteArray = UByteArray(32) { 0u.toUByte() }
     var minVal = x[0]
     var maxVal = x[0]
     var sumW =
@@ -457,10 +467,13 @@ internal fun makeQpQuants(n: Int, nmax: UByte, x: List<Float>, l: List<UByte>, q
     }
     val scale = 1.0f / iscale
     var bestMse =
-        ((x.zip(l)).zip(quantWeights)).map({ ((xi1, li1), w) ->
-            val diff = xi1 - scale * li1.toFloat()
-            w * diff * diff
-        }).sum<Float>()
+        ((x.zip(l)).zip(quantWeights))
+            .map({ (xl, w) ->
+                val (xi1, li1) = xl
+                val diff = xi1 - scale * li1.toFloat()
+                w * diff * diff
+            })
+            .sum<Float>()
     for (isMatch in -4..4) {
         if (isMatch == 0) {
             continue
@@ -468,12 +481,14 @@ internal fun makeQpQuants(n: Int, nmax: UByte, x: List<Float>, l: List<UByte>, q
         val iscaleIs = (0.1f * isMatch.toFloat() + nmax.toFloat()) / max
         val scaleIs = 1.0f / iscaleIs
         val mse =
-            (x.zip(quantWeights)).map({ (xi1, w) ->
-                var li1 = nearestInt(iscaleIs * xi1).toUByte()
-                li1 = li1.min(nmax)
-                val diff = xi1 - scaleIs * li1.toFloat()
-                w * diff * diff
-            }).sum<Float>()
+            (x.zip(quantWeights))
+                .map({ (xi1, w) ->
+                    var li1 = nearestInt(iscaleIs * xi1).toUByte()
+                    li1 = li1.min(nmax)
+                    val diff = xi1 - scaleIs * li1.toFloat()
+                    w * diff * diff
+                })
+                .sum<Float>()
         if (mse < bestMse) {
             bestMse = mse
             iscale = iscaleIs

@@ -2,8 +2,10 @@
 package io.github.kotlinmania.candle.nditer
 
 import io.github.kotlinmania.candle.layout.Layout
+import io.github.kotlinmania.rustlang.core.mem.PrimitiveLayouts
+import io.github.kotlinmania.rustlang.core.mem.TypeLayout
 
-public typealias Item = List<Int>
+public typealias Item = IntArray
 
 /**
  * Maximum tensor rank supported by [NdIter].
@@ -25,30 +27,31 @@ public val MAX_DIMS: Int = 8
  * Note: `innerStrides[n]` can be 1 contiguous, but also 0 (broadcast/scalar) or > 1 (non-contiguous),
  * so callers must not assume contiguous element access within a slice.
  */
-public open class NdIter(
-    public var innerSize: Int,
+public class NdIter(
+    public var innerSize: Int = 0,
     /**
      * Per-layout element stride within each inner slice: `elementOffset = base + i * stride`.
      */
-    public var innerStrides: List<Int>,
-    public var outerDims: List<Int>,
-    public var outerStrides: List<List<Int>>,
-    public var outerLen: Int,
-    public var startOffsets: List<Int>,
-    public var offsets: List<Int>,
-    public var coords: List<Int>,
-    public var remaining: Int,
-) : Iterable<List<Int>> {
-    override fun iterator(): kotlin.collections.Iterator<List<Int>> = object : AbstractIterator<List<Int>>() {
-        override fun computeNext() {
-            when (val v = this@NdIter.next()) {
-                null -> done()
-                else -> setNext(v)
+    public var innerStrides: IntArray = IntArray((N).toInt()),
+    public var outerDims: IntArray = IntArray(MAX_DIMS),
+    public var outerStrides: List<IntArray> = List((N).toInt()) { IntArray(0) },
+    public var outerLen: Int = 0,
+    public var startOffsets: IntArray = IntArray((N).toInt()),
+    public var offsets: IntArray = IntArray((N).toInt()),
+    public var coords: IntArray = IntArray(MAX_DIMS),
+    public var remaining: Int = 0,
+) : Iterable<IntArray> {
+    override fun iterator(): kotlin.collections.Iterator<IntArray> =
+        object : AbstractIterator<IntArray>() {
+            override fun computeNext() {
+                when (val v = this@NdIter.next()) {
+                    null -> done()
+                    else -> setNext(v)
+                }
             }
         }
-    }
 
-    public open fun next(): List<Int>? {
+    public fun next(): IntArray? {
         if (this.remaining == 0) {
             return null
         }
@@ -70,15 +73,15 @@ public open class NdIter(
         return item
     }
 
-    public open fun nth(n: Int): List<Int>? {
+    public fun nth(n: Int): IntArray? {
         if (n >= this.remaining) {
             this.remaining = 0
             return null
         }
-        val total = this.outerDims[0 until this.outerLen].iter().product<Int>()
+        val total = ((this.outerDims).slice(0 until this.outerLen)).iter().product<Int>()
         var position = total - this.remaining + n
         this.offsets = this.startOffsets
-        this.coords = List(MAX_DIMS) { 0 }
+        this.coords = IntArray(MAX_DIMS) { 0 }
         for (k in (0 until this.outerLen).rev()) {
             val coord = position % this.outerDims[k]
             position /= this.outerDims[k]
@@ -91,9 +94,116 @@ public open class NdIter(
         return this.next()
     }
 
-    public open fun sizeHint(): Pair<Int, Int?> = Pair(this.remaining, this.remaining)
+    public fun sizeHint(): Pair<Int, Int?> = Pair(this.remaining, this.remaining)
 
     public companion object {
+        public fun typeLayout(): io.github.kotlinmania.rustlang.core.mem.TypeLayout<NdIter> =
+            object : io.github.kotlinmania.rustlang.core.mem.TypeLayout<NdIter> {
+                override val alignBytes: Long = 8L
+                private val off2: Long =
+                    io.github.kotlinmania.rustlang.core.mem
+                        .alignUpBytes((8L + ((N).toLong() * (io.github.kotlinmania.rustlang.core.mem.PrimitiveLayouts.USIZE64).strideBytes)), 8L)
+                private val off3: Long =
+                    io.github.kotlinmania.rustlang.core.mem
+                        .alignUpBytes((off2 + ((MAX_DIMS).toLong() * (io.github.kotlinmania.rustlang.core.mem.PrimitiveLayouts.USIZE64).strideBytes)), 8L)
+                private val off4: Long =
+                    io.github.kotlinmania.rustlang.core.mem
+                        .alignUpBytes(
+                            (
+                                off3 + (
+                                    (N).toLong() *
+                                        (
+                                            io.github.kotlinmania.rustlang.core.mem
+                                                .FixedArrayTypeLayout(io.github.kotlinmania.rustlang.core.mem.PrimitiveLayouts.USIZE64, (MAX_DIMS).toInt())
+                                        ).strideBytes
+                                )
+                            ),
+                            8L,
+                        )
+                private val off5: Long =
+                    io.github.kotlinmania.rustlang.core.mem
+                        .alignUpBytes((off4 + 8L), 8L)
+                private val off6: Long =
+                    io.github.kotlinmania.rustlang.core.mem
+                        .alignUpBytes((off5 + ((N).toLong() * (io.github.kotlinmania.rustlang.core.mem.PrimitiveLayouts.USIZE64).strideBytes)), 8L)
+                private val off7: Long =
+                    io.github.kotlinmania.rustlang.core.mem
+                        .alignUpBytes((off6 + ((N).toLong() * (io.github.kotlinmania.rustlang.core.mem.PrimitiveLayouts.USIZE64).strideBytes)), 8L)
+                private val off8: Long =
+                    io.github.kotlinmania.rustlang.core.mem
+                        .alignUpBytes((off7 + ((MAX_DIMS).toLong() * (io.github.kotlinmania.rustlang.core.mem.PrimitiveLayouts.USIZE64).strideBytes)), 8L)
+                override val sizeBytes: Long =
+                    io.github.kotlinmania.rustlang.core.mem
+                        .alignUpBytes((off8 + 8L), 8L)
+                override fun readNative(addr: Long): NdIter =
+                    NdIter(
+                        (io.github.kotlinmania.rustlang.core.mem.PrimitiveLayouts.USIZE64).readNative(addr),
+                        (
+                            io.github.kotlinmania.rustlang.core.mem
+                                .FixedArrayTypeLayout(io.github.kotlinmania.rustlang.core.mem.PrimitiveLayouts.USIZE64, (N).toInt())
+                        ).readNative(addr + 8L).toIntArray(),
+                        (
+                            io.github.kotlinmania.rustlang.core.mem
+                                .FixedArrayTypeLayout(io.github.kotlinmania.rustlang.core.mem.PrimitiveLayouts.USIZE64, (MAX_DIMS).toInt())
+                        ).readNative(addr + off2).toIntArray(),
+                        (
+                            io.github.kotlinmania.rustlang.core.mem
+                                .FixedArrayTypeLayout(
+                                    io.github.kotlinmania.rustlang.core.mem
+                                        .FixedArrayTypeLayout(io.github.kotlinmania.rustlang.core.mem.PrimitiveLayouts.USIZE64, (MAX_DIMS).toInt()),
+                                    (N).toInt(),
+                                )
+                        ).readNative(addr + off3).map { it.toIntArray() },
+                        (io.github.kotlinmania.rustlang.core.mem.PrimitiveLayouts.USIZE64).readNative(addr + off4),
+                        (
+                            io.github.kotlinmania.rustlang.core.mem
+                                .FixedArrayTypeLayout(io.github.kotlinmania.rustlang.core.mem.PrimitiveLayouts.USIZE64, (N).toInt())
+                        ).readNative(addr + off5).toIntArray(),
+                        (
+                            io.github.kotlinmania.rustlang.core.mem
+                                .FixedArrayTypeLayout(io.github.kotlinmania.rustlang.core.mem.PrimitiveLayouts.USIZE64, (N).toInt())
+                        ).readNative(addr + off6).toIntArray(),
+                        (
+                            io.github.kotlinmania.rustlang.core.mem
+                                .FixedArrayTypeLayout(io.github.kotlinmania.rustlang.core.mem.PrimitiveLayouts.USIZE64, (MAX_DIMS).toInt())
+                        ).readNative(addr + off7).toIntArray(),
+                        (io.github.kotlinmania.rustlang.core.mem.PrimitiveLayouts.USIZE64).readNative(addr + off8),
+                    )
+                override fun writeNative(addr: Long, value: NdIter) {
+                    (io.github.kotlinmania.rustlang.core.mem.PrimitiveLayouts.USIZE64).writeNative(addr, value.innerSize)
+                    (
+                        io.github.kotlinmania.rustlang.core.mem
+                            .FixedArrayTypeLayout(io.github.kotlinmania.rustlang.core.mem.PrimitiveLayouts.USIZE64, (N).toInt())
+                    ).writeNative(addr + 8L, value.innerStrides.toList())
+                    (
+                        io.github.kotlinmania.rustlang.core.mem
+                            .FixedArrayTypeLayout(io.github.kotlinmania.rustlang.core.mem.PrimitiveLayouts.USIZE64, (MAX_DIMS).toInt())
+                    ).writeNative(addr + off2, value.outerDims.toList())
+                    (
+                        io.github.kotlinmania.rustlang.core.mem
+                            .FixedArrayTypeLayout(
+                                io.github.kotlinmania.rustlang.core.mem
+                                    .FixedArrayTypeLayout(io.github.kotlinmania.rustlang.core.mem.PrimitiveLayouts.USIZE64, (MAX_DIMS).toInt()),
+                                (N).toInt(),
+                            )
+                    ).writeNative(addr + off3, value.outerStrides.map { it.toList() })
+                    (io.github.kotlinmania.rustlang.core.mem.PrimitiveLayouts.USIZE64).writeNative(addr + off4, value.outerLen)
+                    (
+                        io.github.kotlinmania.rustlang.core.mem
+                            .FixedArrayTypeLayout(io.github.kotlinmania.rustlang.core.mem.PrimitiveLayouts.USIZE64, (N).toInt())
+                    ).writeNative(addr + off5, value.startOffsets.toList())
+                    (
+                        io.github.kotlinmania.rustlang.core.mem
+                            .FixedArrayTypeLayout(io.github.kotlinmania.rustlang.core.mem.PrimitiveLayouts.USIZE64, (N).toInt())
+                    ).writeNative(addr + off6, value.offsets.toList())
+                    (
+                        io.github.kotlinmania.rustlang.core.mem
+                            .FixedArrayTypeLayout(io.github.kotlinmania.rustlang.core.mem.PrimitiveLayouts.USIZE64, (MAX_DIMS).toInt())
+                    ).writeNative(addr + off7, value.coords.toList())
+                    (io.github.kotlinmania.rustlang.core.mem.PrimitiveLayouts.USIZE64).writeNative(addr + off8, value.remaining)
+                }
+            }
+
         public fun new(layouts: List<Layout>, n: Int): NdIter {
             val dims = layouts[0].dims()
             check(dims.len() <= MAX_DIMS) { "rank ${dims.len()} exceeds MAX_DIMS=$MAX_DIMS" }
@@ -113,7 +223,11 @@ public open class NdIter(
                     outStrides[n][0] = layouts[n].stride()[0]
                 }
                 outLen = 1
-                for ((i, d) in dims.iter().enumerate().take(rank).skip(1)) {
+                for ((i, d) in dims
+                    .iter()
+                    .enumerate()
+                    .take(rank)
+                    .skip(1)) {
                     val top = outLen - 1
                     val lastD = outDims[top]
                     val (canMerge1, useInner) =
@@ -151,11 +265,11 @@ public open class NdIter(
             // Update outer dims
             val outerLen = innerIdx
             var outerDims = List(MAX_DIMS) { 0 }
-            outerDims[0 until outerLen].copyFromSlice(outDims[0 until outerLen])
+            ((outerDims).slice(0 until outerLen)).copyFromSlice(((outDims).slice(0 until outerLen)))
             // Update outer strides
             var outerStrides = List((N).toInt()) { List(MAX_DIMS) { 0 } }
             for (n4 in 0 until N) {
-                outerStrides[n4][0 until outerLen].copyFromSlice(outStrides[n4][0 until outerLen])
+                ((outerStrides[n4]).slice(0 until outerLen)).copyFromSlice(((outStrides[n4]).slice(0 until outerLen)))
             }
             // Update offsets
             var offsets = List((N).toInt()) { 0 }
@@ -163,8 +277,8 @@ public open class NdIter(
                 offsets[n5] = layouts[n5].startOffset()
             }
             // Number of outer blocks (product of all dims except the innermost).
-            val remaining = outDims[0 until outerLen].iter().product()
-            return NdIter(innerSize = innerSize, innerStrides = innerStrides, outerDims = outerDims, outerStrides = outerStrides, outerLen = outerLen, startOffsets = offsets, offsets = offsets, coords = List(MAX_DIMS) { 0 }, remaining = remaining)
+            val remaining = ((outDims).slice(0 until outerLen)).iter().product()
+            return NdIter(innerSize = innerSize, innerStrides = innerStrides, outerDims = outerDims, outerStrides = outerStrides, outerLen = outerLen, startOffsets = offsets, offsets = offsets, coords = IntArray(MAX_DIMS) { 0 }, remaining = remaining)
         }
     }
 }

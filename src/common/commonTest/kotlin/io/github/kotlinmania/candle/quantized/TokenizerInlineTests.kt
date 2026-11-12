@@ -9,8 +9,15 @@ import io.github.kotlinmania.tokenizers.tokenizer.PreTokenizedString
 public fun splits(pre: String, input: String): List<String> {
     val pipeline = pipelineFromPre(pre).unwrap()
     val preTokenized = PreTokenizedString.from(input)
-    pipeline.pretokenizer.unwrap().preTokenize(preTokenized).unwrap()
-    return preTokenized.getSplits(OffsetReferential.Original, OffsetType.Byte).intoIter().map({ (s, _, _) -> s.toString() }).collect()
+    pipeline.pretokenizer
+        .unwrap()
+        .preTokenize(preTokenized)
+        .unwrap()
+    return preTokenized
+        .getSplits(OffsetReferential.Original, OffsetType.Byte)
+        .intoIter()
+        .map({ (s, _, _) -> s.toString() })
+        .collect()
 }
 
 // Sample made to test negative lookahead like (`\s+(?!\S)`).

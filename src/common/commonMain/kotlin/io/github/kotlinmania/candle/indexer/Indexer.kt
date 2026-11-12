@@ -6,6 +6,11 @@ import io.github.kotlinmania.candle.error.Error
 import io.github.kotlinmania.candle.error.bail
 import io.github.kotlinmania.candle.shape.D
 import io.github.kotlinmania.candle.tensor.Tensor
+import io.github.kotlinmania.rustlang.core.result.Result
+import io.github.kotlinmania.rustlang.core.result.fromResidual
+import io.github.kotlinmania.rustlang.std.ops.Bound
+import io.github.kotlinmania.rustlang.std.ops.RangeBounds
+import io.github.kotlinmania.rustlang.std.ops.bound.*
 
 /**
  * Intended to be use by the trait `.i()`
@@ -22,62 +27,89 @@ import io.github.kotlinmania.candle.tensor.Tensor
  * check(c3.shape().dims() == listOf(2, 3))
  * ```
  */
-public fun Tensor.index(indexers: List<TensorIndexer>): Result<Tensor> {
+public fun Tensor.index(indexers: List<TensorIndexer>): Result<Tensor, Error> {
     var x = this.clone()
     val dims = this.shape().dims()
     var currentDim = 0
     for ((i, indexer) in indexers.enumerate()) {
-        x = when (indexer) {
-            is TensorIndexer.Select -> {
-                val (n) = indexer
-                x.narrow(currentDim, n, 1).getOrElse { return Result.failure(it) }.squeeze(currentDim).getOrElse { return Result.failure(it) }
-            }
-            is TensorIndexer.Narrow -> {
-                val (leftBound, rightBound) = indexer
-                val start =
-                    when (leftBound) {
-                        is Bound.Included -> {
-                            val (n1) = leftBound
-                            n1
-                        }
-                        is Bound.Excluded -> {
-                            val (n2) = leftBound
-                            n2 + 1
-                        }
-                        Bound.Unbounded -> 0
+        x =
+            when (indexer) {
+                is TensorIndexer.Select -> {
+                    val (n) = indexer
+                    when (
+                        val tryResult =
+                            when (val tryResult = x.narrow(currentDim, n, 1)) {
+                                is Result.Ok -> tryResult.value
+                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            }.squeeze(currentDim)
+                    ) {
+                        is Result.Ok -> tryResult.value
+                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
                     }
-                val stop =
-                    when (rightBound) {
-                        is Bound.Included -> {
-                            val (n3) = rightBound
-                            n3 + 1
-                        }
-                        is Bound.Excluded -> {
-                            val (n4) = rightBound
-                            n4
-                        }
-                        Bound.Unbounded -> dims[i]
-                    }
-                val out = x.narrow(currentDim, start, stop.saturatingSub(start)).getOrElse { return Result.failure(it) }
-                currentDim += 1
-                out
-            }
-            is TensorIndexer.IndexSelect -> {
-                val (indexes) = indexer
-                if (indexes.rank() != 1) {
-                    bail("multi-dimensional tensor indexing is not supported")
                 }
-                val out1 = x.indexSelect(indexes.toDevice(x.device()).getOrElse { return Result.failure(it) }, currentDim).getOrElse { return Result.failure(it) }
-                currentDim += 1
-                out1
+                is TensorIndexer.Narrow -> {
+                    val (leftBound, rightBound) = indexer
+                    val start =
+                        when (leftBound) {
+                            is Bound.Included -> {
+                                val (n1) = leftBound
+                                n1
+                            }
+                            is Bound.Excluded -> {
+                                val (n2) = leftBound
+                                n2 + 1
+                            }
+                            Bound.Unbounded -> 0
+                        }
+                    val stop =
+                        when (rightBound) {
+                            is Bound.Included -> {
+                                val (n3) = rightBound
+                                n3 + 1
+                            }
+                            is Bound.Excluded -> {
+                                val (n4) = rightBound
+                                n4
+                            }
+                            Bound.Unbounded -> dims[i]
+                        }
+                    val out =
+                        when (val tryResult = x.narrow(currentDim, start, stop.saturatingSub(start))) {
+                            is Result.Ok -> tryResult.value
+                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        }
+                    currentDim += 1
+                    out
+                }
+                is TensorIndexer.IndexSelect -> {
+                    val (indexes) = indexer
+                    if (indexes.rank() != 1) {
+                        bail("multi-dimensional tensor indexing is not supported")
+                    }
+                    val out1 =
+                        when (
+                            val tryResult =
+                                x.indexSelect(
+                                    when (val tryResult = indexes.toDevice(x.device())) {
+                                        is Result.Ok -> tryResult.value
+                                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                    },
+                                    currentDim,
+                                )
+                        ) {
+                            is Result.Ok -> tryResult.value
+                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        }
+                    currentDim += 1
+                    out1
+                }
+                is TensorIndexer.Err -> {
+                    val (e) = indexer
+                    bail("indexing error {e:?}")
+                }
             }
-            is TensorIndexer.Err -> {
-                val (e) = indexer
-                bail("indexing error {e:?}")
-            }
-        }
     }
-    return Result.success(x)
+    return Ok(x)
 }
 
 /**
@@ -87,16 +119,63 @@ public sealed class TensorIndexer : From<Int> {
     /**
      * This selects the elements for which an index has some specific value.
      */
-    public data class Select(public var value: Int) : TensorIndexer()
+    public data class Select(
+        public var value: Int,
+    ) : TensorIndexer()
+
     /**
      * This is a regular slice, purely indexing a chunk of the tensor
      */
-    public data class Narrow(public var field0: Bound<Int>, public var field1: Bound<Int>) : TensorIndexer()
+    public class Narrow internal constructor(
+        field0CtorArg: Bound<Int>,
+        field1CtorArg: Bound<Int>,
+    ) : TensorIndexer() {
+        public var field0: Bound<Int> = field0CtorArg
+            internal set
+        public var field1: Bound<Int> = field1CtorArg
+            internal set
+
+        public operator fun component1(): Bound<Int> = this.field0
+
+        public operator fun component2(): Bound<Int> = this.field1
+
+        public fun copy(field0: Bound<Int> = this.field0, field1: Bound<Int> = this.field1): Narrow = Narrow(field0CtorArg = field0, field1CtorArg = field1)
+
+        override fun equals(other: Any?): Boolean {
+            if (this === other) return true
+            if (other !is Narrow) return false
+            if (this.field0 != other.field0) return false
+            if (this.field1 != other.field1) return false
+            return true
+        }
+
+        override fun hashCode(): Int {
+            var result = this.field0.hashCode()
+            result = 31 * result + this.field1.hashCode()
+            return result
+        }
+
+        public companion object {
+            public operator fun invoke(
+                field0: Bound<Int>,
+                field1: Bound<Int>,
+            ): Narrow =
+                Narrow(
+                    field0CtorArg = field0,
+                    field1CtorArg = field1,
+                )
+        }
+    }
+
     /**
      * Indexing via a 1d tensor
      */
-    public data class IndexSelect(public var value: Tensor) : TensorIndexer()
-    public data class Err(public var value: Error) : TensorIndexer()
+    public data class IndexSelect(
+        public var value: Tensor,
+    ) : TensorIndexer()
+    public data class Err(
+        public var value: Error,
+    ) : TensorIndexer()
 
     public companion object {
         public fun from(index: ULong): TensorIndexer = TensorIndexer.Select(index)
@@ -104,12 +183,15 @@ public sealed class TensorIndexer : From<Int> {
         public fun from(index: List<UInt>): TensorIndexer =
             run {
                 val matchVal = Tensor.new(index, Device.Cpu)
-                if (matchVal.isSuccess) {
-                    val tensor = matchVal.getOrThrow()
-                    TensorIndexer.IndexSelect(tensor)
-                } else {
-                    val e = matchVal.exceptionOrNull()!!
-                    TensorIndexer.Err(e)
+                when (matchVal) {
+                    is Result.Ok -> {
+                        val tensor = matchVal.value
+                        TensorIndexer.IndexSelect(tensor)
+                    }
+                    is Result.Err -> {
+                        val e = matchVal.value
+                        TensorIndexer.Err(e)
+                    }
                 }
             }
 
@@ -117,12 +199,15 @@ public sealed class TensorIndexer : From<Int> {
             val len = index.size
             return run {
                 val matchVal = Tensor.fromVec(index, len, Device.Cpu)
-                if (matchVal.isSuccess) {
-                    val tensor = matchVal.getOrThrow()
-                    TensorIndexer.IndexSelect(tensor)
-                } else {
-                    val e = matchVal.exceptionOrNull()!!
-                    TensorIndexer.Err(e)
+                when (matchVal) {
+                    is Result.Ok -> {
+                        val tensor = matchVal.value
+                        TensorIndexer.IndexSelect(tensor)
+                    }
+                    is Result.Err -> {
+                        val e = matchVal.value
+                        TensorIndexer.Err(e)
+                    }
                 }
             }
         }
@@ -170,7 +255,7 @@ public interface IndexOp<T> {
      * Returns a slicing iterator which are the chunks of data necessary to
      * reconstruct the desired tensor.
      */
-    public fun i(index: T): Result<Tensor>
+    public fun i(index: T): Result<Tensor, Error>
 }
 
 /**
@@ -192,7 +277,7 @@ public interface IndexOp<T> {
  * check(d.toVec2<Double>().getOrElse { return Result.failure(it) } == listOf(listOf(2.0, 3.0), listOf(4.0, 5.0)))
  * ```
  */
-public fun Tensor.i(index: TensorIndexer): Result<Tensor> = this.index(listOf(index))
+public fun Tensor.i(index: TensorIndexer): Result<Tensor, Error> = this.index(listOf(index))
 
 /**
  * ```kotlin
@@ -213,7 +298,7 @@ public fun Tensor.i(index: TensorIndexer): Result<Tensor> = this.index(listOf(in
  * check(d.toVec2<Float>().getOrElse { return Result.failure(it) } == listOf(listOf(2.0, 3.0), listOf(4.0, 5.0)))
  * ```
  */
-public fun Tensor.iA(tupleArg0: TensorIndexer): Result<Tensor> = this.index(listOf(a.into()))
+public fun Tensor.iA(tupleArg0: TensorIndexer): Result<Tensor, Error> = this.index(listOf(a.into()))
 
 /**
  * ```kotlin
@@ -233,29 +318,29 @@ public fun Tensor.iA(tupleArg0: TensorIndexer): Result<Tensor> = this.index(list
  * check(d.toVec2<Float>().getOrElse { return Result.failure(it) } == listOf(listOf(6.0, 7.0, 8.0)))
  * ```
  */
-public fun Tensor.i(tupleArg0: Pair<TensorIndexer, TensorIndexer>): Result<Tensor> = this.index(listOf(a.into(), b.into()))
+public fun Tensor.i(tupleArg0: Pair<TensorIndexer, TensorIndexer>): Result<Tensor, Error> = this.index(listOf(a.into(), b.into()))
 
 /**
  * see [TensorIndex#method.i]
  */
-public fun Tensor.i(tupleArg0: Triple<TensorIndexer, TensorIndexer, TensorIndexer>): Result<Tensor> = this.index(listOf(A.into(), B.into(), C.into()))
+public fun Tensor.i(tupleArg0: Triple<TensorIndexer, TensorIndexer, TensorIndexer>): Result<Tensor, Error> = this.index(listOf(A.into(), B.into(), C.into()))
 
 /**
  * see [TensorIndex#method.i]
  */
-public fun Tensor.i(tupleArg0: List<Any?>): Result<Tensor> = this.index(listOf(A.into(), B.into(), C.into(), D.into()))
+public fun Tensor.i(tupleArg0: List<Any?>): Result<Tensor, Error> = this.index(listOf(A.into(), B.into(), C.into(), D.into()))
 
 /**
  * see [TensorIndex#method.i]
  */
-public fun Tensor.iABCDE(tupleArg0: List<Any?>): Result<Tensor> = this.index(listOf(A.into(), B.into(), C.into(), D.into(), E.into()))
+public fun Tensor.iABCDE(tupleArg0: List<Any?>): Result<Tensor, Error> = this.index(listOf(A.into(), B.into(), C.into(), D.into(), E.into()))
 
 /**
  * see [TensorIndex#method.i]
  */
-public fun Tensor.iABCDEF(tupleArg0: List<Any?>): Result<Tensor> = this.index(listOf(A.into(), B.into(), C.into(), D.into(), E.into(), F.into()))
+public fun Tensor.iABCDEF(tupleArg0: List<Any?>): Result<Tensor, Error> = this.index(listOf(A.into(), B.into(), C.into(), D.into(), E.into(), F.into()))
 
 /**
  * see [TensorIndex#method.i]
  */
-public fun Tensor.iABCDEFG(tupleArg0: List<Any?>): Result<Tensor> = this.index(listOf(A.into(), B.into(), C.into(), D.into(), E.into(), F.into(), G.into()))
+public fun Tensor.iABCDEFG(tupleArg0: List<Any?>): Result<Tensor, Error> = this.index(listOf(A.into(), B.into(), C.into(), D.into(), E.into(), F.into(), G.into()))
