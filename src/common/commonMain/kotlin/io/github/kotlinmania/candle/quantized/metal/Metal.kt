@@ -586,7 +586,7 @@ public fun <T : GgmlType> loadQuantized(device: MetalDevice, data: List<T>): Res
 }
 
 public fun <T> readToVec(buffer: Buffer, n: Int): List<T> {
-    val ptr = constPtrFromRustCast<T>(buffer.contents())
+    val ptr = constPtrFromRustCast(buffer.contents())
     check(!((ptr).rawAddress == 0L))
     val slice = fromRawParts(ptr, n)
     return slice.toVec()

@@ -2,10 +2,6 @@
 
 package io.github.kotlinmania.candle.accelerate
 
-import io.github.kotlinmania.libc.CChar
-import io.github.kotlinmania.libc.CDouble
-import io.github.kotlinmania.libc.CFloat
-import io.github.kotlinmania.libc.CInt
 import io.github.kotlinmania.libc.CLong
 import io.github.kotlinmania.libc.CUlong
 import io.github.kotlinmania.rustlang.core.ptr.ConstPtr
@@ -95,106 +91,106 @@ private object AccelerateJniBridge {
     external fun candleAccelerateVDspVmax(arg0: Long, arg1: Long, arg2: Long, arg3: Long, arg4: Long, arg5: Long, arg6: Long)
 }
 
-public actual fun sgemmFfi(transa: ConstPtr<CChar>, transb: ConstPtr<CChar>, m: ConstPtr<CInt>, n: ConstPtr<CInt>, k: ConstPtr<CInt>, alpha: ConstPtr<CFloat>, a: ConstPtr<CFloat>, lda: ConstPtr<CInt>, b: ConstPtr<CFloat>, ldb: ConstPtr<CInt>, beta: ConstPtr<CFloat>, c: MutPtr<CFloat>, ldc: ConstPtr<CInt>) {
+public actual fun sgemmFfi(transa: ConstPtr, transb: ConstPtr, m: ConstPtr, n: ConstPtr, k: ConstPtr, alpha: ConstPtr, a: ConstPtr, lda: ConstPtr, b: ConstPtr, ldb: ConstPtr, beta: ConstPtr, c: MutPtr, ldc: ConstPtr) {
     AccelerateJniBridge.candleAccelerateSgemmFfi(transa.rawAddress, transb.rawAddress, m.rawAddress, n.rawAddress, k.rawAddress, alpha.rawAddress, a.rawAddress, lda.rawAddress, b.rawAddress, ldb.rawAddress, beta.rawAddress, c.rawAddress, ldc.rawAddress)
 }
 
-public actual fun dgemmFfi(transa: ConstPtr<CChar>, transb: ConstPtr<CChar>, m: ConstPtr<CInt>, n: ConstPtr<CInt>, k: ConstPtr<CInt>, alpha: ConstPtr<CDouble>, a: ConstPtr<CDouble>, lda: ConstPtr<CInt>, b: ConstPtr<CDouble>, ldb: ConstPtr<CInt>, beta: ConstPtr<CDouble>, c: MutPtr<CDouble>, ldc: ConstPtr<CInt>) {
+public actual fun dgemmFfi(transa: ConstPtr, transb: ConstPtr, m: ConstPtr, n: ConstPtr, k: ConstPtr, alpha: ConstPtr, a: ConstPtr, lda: ConstPtr, b: ConstPtr, ldb: ConstPtr, beta: ConstPtr, c: MutPtr, ldc: ConstPtr) {
     AccelerateJniBridge.candleAccelerateDgemmFfi(transa.rawAddress, transb.rawAddress, m.rawAddress, n.rawAddress, k.rawAddress, alpha.rawAddress, a.rawAddress, lda.rawAddress, b.rawAddress, ldb.rawAddress, beta.rawAddress, c.rawAddress, ldc.rawAddress)
 }
 
-public actual fun vvexpf(dst: MutPtr<CFloat>, src: ConstPtr<CFloat>, len: ConstPtr<CInt>) {
+public actual fun vvexpf(dst: MutPtr, src: ConstPtr, len: ConstPtr) {
     AccelerateJniBridge.candleAccelerateVvexpf(dst.rawAddress, src.rawAddress, len.rawAddress)
 }
 
-public actual fun vvexp(dst: MutPtr<CDouble>, src: ConstPtr<CDouble>, len: ConstPtr<CInt>) {
+public actual fun vvexp(dst: MutPtr, src: ConstPtr, len: ConstPtr) {
     AccelerateJniBridge.candleAccelerateVvexp(dst.rawAddress, src.rawAddress, len.rawAddress)
 }
 
-public actual fun vvsqrtf(dst: MutPtr<CFloat>, src: ConstPtr<CFloat>, len: ConstPtr<CInt>) {
+public actual fun vvsqrtf(dst: MutPtr, src: ConstPtr, len: ConstPtr) {
     AccelerateJniBridge.candleAccelerateVvsqrtf(dst.rawAddress, src.rawAddress, len.rawAddress)
 }
 
-public actual fun vvsqrt(dst: MutPtr<CDouble>, src: ConstPtr<CDouble>, len: ConstPtr<CInt>) {
+public actual fun vvsqrt(dst: MutPtr, src: ConstPtr, len: ConstPtr) {
     AccelerateJniBridge.candleAccelerateVvsqrt(dst.rawAddress, src.rawAddress, len.rawAddress)
 }
 
-public actual fun vvsinf(dst: MutPtr<CFloat>, src: ConstPtr<CFloat>, len: ConstPtr<CInt>) {
+public actual fun vvsinf(dst: MutPtr, src: ConstPtr, len: ConstPtr) {
     AccelerateJniBridge.candleAccelerateVvsinf(dst.rawAddress, src.rawAddress, len.rawAddress)
 }
 
-public actual fun vvsin(dst: MutPtr<CDouble>, src: ConstPtr<CDouble>, len: ConstPtr<CInt>) {
+public actual fun vvsin(dst: MutPtr, src: ConstPtr, len: ConstPtr) {
     AccelerateJniBridge.candleAccelerateVvsin(dst.rawAddress, src.rawAddress, len.rawAddress)
 }
 
-public actual fun vvcosf(dst: MutPtr<CFloat>, src: ConstPtr<CFloat>, len: ConstPtr<CInt>) {
+public actual fun vvcosf(dst: MutPtr, src: ConstPtr, len: ConstPtr) {
     AccelerateJniBridge.candleAccelerateVvcosf(dst.rawAddress, src.rawAddress, len.rawAddress)
 }
 
-public actual fun vvcos(dst: MutPtr<CDouble>, src: ConstPtr<CDouble>, len: ConstPtr<CInt>) {
+public actual fun vvcos(dst: MutPtr, src: ConstPtr, len: ConstPtr) {
     AccelerateJniBridge.candleAccelerateVvcos(dst.rawAddress, src.rawAddress, len.rawAddress)
 }
 
-public actual fun vvlogf(dst: MutPtr<CFloat>, src: ConstPtr<CFloat>, len: ConstPtr<CInt>) {
+public actual fun vvlogf(dst: MutPtr, src: ConstPtr, len: ConstPtr) {
     AccelerateJniBridge.candleAccelerateVvlogf(dst.rawAddress, src.rawAddress, len.rawAddress)
 }
 
-public actual fun vvlog(dst: MutPtr<CDouble>, src: ConstPtr<CDouble>, len: ConstPtr<CInt>) {
+public actual fun vvlog(dst: MutPtr, src: ConstPtr, len: ConstPtr) {
     AccelerateJniBridge.candleAccelerateVvlog(dst.rawAddress, src.rawAddress, len.rawAddress)
 }
 
-public actual fun vvtanhf(dst: MutPtr<CFloat>, src: ConstPtr<CFloat>, len: ConstPtr<CInt>) {
+public actual fun vvtanhf(dst: MutPtr, src: ConstPtr, len: ConstPtr) {
     AccelerateJniBridge.candleAccelerateVvtanhf(dst.rawAddress, src.rawAddress, len.rawAddress)
 }
 
-public actual fun vvtanh(dst: MutPtr<CDouble>, src: ConstPtr<CDouble>, len: ConstPtr<CInt>) {
+public actual fun vvtanh(dst: MutPtr, src: ConstPtr, len: ConstPtr) {
     AccelerateJniBridge.candleAccelerateVvtanh(dst.rawAddress, src.rawAddress, len.rawAddress)
 }
 
-public actual fun vDspVaddD(arg0: ConstPtr<CDouble>, arg1: CLong, arg2: ConstPtr<CDouble>, arg3: CLong, arg4: MutPtr<CDouble>, arg5: CLong, arg6: CUlong) {
+public actual fun vDspVaddD(arg0: ConstPtr, arg1: CLong, arg2: ConstPtr, arg3: CLong, arg4: MutPtr, arg5: CLong, arg6: CUlong) {
     AccelerateJniBridge.candleAccelerateVDspVaddD(arg0.rawAddress, arg1, arg2.rawAddress, arg3, arg4.rawAddress, arg5, arg6.toLong())
 }
 
-public actual fun vDspVadd(arg0: ConstPtr<CFloat>, arg1: CLong, arg2: ConstPtr<CFloat>, arg3: CLong, arg4: MutPtr<CFloat>, arg5: CLong, arg6: CUlong) {
+public actual fun vDspVadd(arg0: ConstPtr, arg1: CLong, arg2: ConstPtr, arg3: CLong, arg4: MutPtr, arg5: CLong, arg6: CUlong) {
     AccelerateJniBridge.candleAccelerateVDspVadd(arg0.rawAddress, arg1, arg2.rawAddress, arg3, arg4.rawAddress, arg5, arg6.toLong())
 }
 
-public actual fun vDspVsubD(arg0: ConstPtr<CDouble>, arg1: CLong, arg2: ConstPtr<CDouble>, arg3: CLong, arg4: MutPtr<CDouble>, arg5: CLong, arg6: CUlong) {
+public actual fun vDspVsubD(arg0: ConstPtr, arg1: CLong, arg2: ConstPtr, arg3: CLong, arg4: MutPtr, arg5: CLong, arg6: CUlong) {
     AccelerateJniBridge.candleAccelerateVDspVsubD(arg0.rawAddress, arg1, arg2.rawAddress, arg3, arg4.rawAddress, arg5, arg6.toLong())
 }
 
-public actual fun vDspVsub(arg0: ConstPtr<CFloat>, arg1: CLong, arg2: ConstPtr<CFloat>, arg3: CLong, arg4: MutPtr<CFloat>, arg5: CLong, arg6: CUlong) {
+public actual fun vDspVsub(arg0: ConstPtr, arg1: CLong, arg2: ConstPtr, arg3: CLong, arg4: MutPtr, arg5: CLong, arg6: CUlong) {
     AccelerateJniBridge.candleAccelerateVDspVsub(arg0.rawAddress, arg1, arg2.rawAddress, arg3, arg4.rawAddress, arg5, arg6.toLong())
 }
 
-public actual fun vDspVmulD(arg0: ConstPtr<CDouble>, arg1: CLong, arg2: ConstPtr<CDouble>, arg3: CLong, arg4: MutPtr<CDouble>, arg5: CLong, arg6: CUlong) {
+public actual fun vDspVmulD(arg0: ConstPtr, arg1: CLong, arg2: ConstPtr, arg3: CLong, arg4: MutPtr, arg5: CLong, arg6: CUlong) {
     AccelerateJniBridge.candleAccelerateVDspVmulD(arg0.rawAddress, arg1, arg2.rawAddress, arg3, arg4.rawAddress, arg5, arg6.toLong())
 }
 
-public actual fun vDspVmul(arg0: ConstPtr<CFloat>, arg1: CLong, arg2: ConstPtr<CFloat>, arg3: CLong, arg4: MutPtr<CFloat>, arg5: CLong, arg6: CUlong) {
+public actual fun vDspVmul(arg0: ConstPtr, arg1: CLong, arg2: ConstPtr, arg3: CLong, arg4: MutPtr, arg5: CLong, arg6: CUlong) {
     AccelerateJniBridge.candleAccelerateVDspVmul(arg0.rawAddress, arg1, arg2.rawAddress, arg3, arg4.rawAddress, arg5, arg6.toLong())
 }
 
-public actual fun vDspVdivD(arg0: ConstPtr<CDouble>, arg1: CLong, arg2: ConstPtr<CDouble>, arg3: CLong, arg4: MutPtr<CDouble>, arg5: CLong, arg6: CUlong) {
+public actual fun vDspVdivD(arg0: ConstPtr, arg1: CLong, arg2: ConstPtr, arg3: CLong, arg4: MutPtr, arg5: CLong, arg6: CUlong) {
     AccelerateJniBridge.candleAccelerateVDspVdivD(arg0.rawAddress, arg1, arg2.rawAddress, arg3, arg4.rawAddress, arg5, arg6.toLong())
 }
 
-public actual fun vDspVdiv(arg0: ConstPtr<CFloat>, arg1: CLong, arg2: ConstPtr<CFloat>, arg3: CLong, arg4: MutPtr<CFloat>, arg5: CLong, arg6: CUlong) {
+public actual fun vDspVdiv(arg0: ConstPtr, arg1: CLong, arg2: ConstPtr, arg3: CLong, arg4: MutPtr, arg5: CLong, arg6: CUlong) {
     AccelerateJniBridge.candleAccelerateVDspVdiv(arg0.rawAddress, arg1, arg2.rawAddress, arg3, arg4.rawAddress, arg5, arg6.toLong())
 }
 
-public actual fun vDspVminD(arg0: ConstPtr<CDouble>, arg1: CLong, arg2: ConstPtr<CDouble>, arg3: CLong, arg4: MutPtr<CDouble>, arg5: CLong, arg6: CUlong) {
+public actual fun vDspVminD(arg0: ConstPtr, arg1: CLong, arg2: ConstPtr, arg3: CLong, arg4: MutPtr, arg5: CLong, arg6: CUlong) {
     AccelerateJniBridge.candleAccelerateVDspVminD(arg0.rawAddress, arg1, arg2.rawAddress, arg3, arg4.rawAddress, arg5, arg6.toLong())
 }
 
-public actual fun vDspVmin(arg0: ConstPtr<CFloat>, arg1: CLong, arg2: ConstPtr<CFloat>, arg3: CLong, arg4: MutPtr<CFloat>, arg5: CLong, arg6: CUlong) {
+public actual fun vDspVmin(arg0: ConstPtr, arg1: CLong, arg2: ConstPtr, arg3: CLong, arg4: MutPtr, arg5: CLong, arg6: CUlong) {
     AccelerateJniBridge.candleAccelerateVDspVmin(arg0.rawAddress, arg1, arg2.rawAddress, arg3, arg4.rawAddress, arg5, arg6.toLong())
 }
 
-public actual fun vDspVmaxD(arg0: ConstPtr<CDouble>, arg1: CLong, arg2: ConstPtr<CDouble>, arg3: CLong, arg4: MutPtr<CDouble>, arg5: CLong, arg6: CUlong) {
+public actual fun vDspVmaxD(arg0: ConstPtr, arg1: CLong, arg2: ConstPtr, arg3: CLong, arg4: MutPtr, arg5: CLong, arg6: CUlong) {
     AccelerateJniBridge.candleAccelerateVDspVmaxD(arg0.rawAddress, arg1, arg2.rawAddress, arg3, arg4.rawAddress, arg5, arg6.toLong())
 }
 
-public actual fun vDspVmax(arg0: ConstPtr<CFloat>, arg1: CLong, arg2: ConstPtr<CFloat>, arg3: CLong, arg4: MutPtr<CFloat>, arg5: CLong, arg6: CUlong) {
+public actual fun vDspVmax(arg0: ConstPtr, arg1: CLong, arg2: ConstPtr, arg3: CLong, arg4: MutPtr, arg5: CLong, arg6: CUlong) {
     AccelerateJniBridge.candleAccelerateVDspVmax(arg0.rawAddress, arg1, arg2.rawAddress, arg3, arg4.rawAddress, arg5, arg6.toLong())
 }

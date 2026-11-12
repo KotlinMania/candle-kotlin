@@ -25,7 +25,6 @@ import io.github.kotlinmania.candle.quantized.repack.BlockQ6Kx8
 import io.github.kotlinmania.candle.quantized.repack.BlockQ80x4
 import io.github.kotlinmania.candle.quantized.repack.BlockQ8Kx4
 import io.github.kotlinmania.candle.utils.barrierPool
-import io.github.kotlinmania.half.F16
 import io.github.kotlinmania.rustlang.core.arch.aarch64.*
 import io.github.kotlinmania.rustlang.core.mem.AddressableArrayLocal
 import io.github.kotlinmania.rustlang.core.mem.FixedArrayTypeLayout
@@ -68,14 +67,14 @@ public fun smmlaS32(acc: Int32x4T, a: Int8x16T, b: Int8x16T): Int32x4T {
     return out
 }
 
-public fun decodeQ4kx8Scales(scalesIn: ConstPtr<UByte>): Pair<Int16x8T, Int16x8T> {
+public fun decodeQ4kx8Scales(scalesIn: ConstPtr): Pair<Int16x8T, Int16x8T> {
     val KMASK1: UInt = 0x3f3f3f3fu
     val KMASK2: UInt = 0x0f0f0f0fu
     val KMASK3: UInt = 0x03030303u
     // Direct unaligned reads avoid the copyNonoverlapping stack round-trip.
-    val sm0 = (PrimitiveLayouts.U32).readNative(((ConstPtr<UInt>(scalesIn.rawAddress, scalesIn.rawMeta))).rawAddress)
-    val sm1 = (PrimitiveLayouts.U32).readNative(((ConstPtr<UInt>(ConstPtr((scalesIn).rawAddress + ((4).toLong() * (PrimitiveLayouts.U8).strideBytes)).rawAddress, ConstPtr((scalesIn).rawAddress + ((4).toLong() * (PrimitiveLayouts.U8).strideBytes)).rawMeta))).rawAddress)
-    val sm2 = (PrimitiveLayouts.U32).readNative(((ConstPtr<UInt>(ConstPtr((scalesIn).rawAddress + ((8).toLong() * (PrimitiveLayouts.U8).strideBytes)).rawAddress, ConstPtr((scalesIn).rawAddress + ((8).toLong() * (PrimitiveLayouts.U8).strideBytes)).rawMeta))).rawAddress)
+    val sm0 = (PrimitiveLayouts.U32).readNative(((ConstPtr(scalesIn.rawAddress, scalesIn.rawMeta))).rawAddress)
+    val sm1 = (PrimitiveLayouts.U32).readNative(((ConstPtr(ConstPtr((scalesIn).rawAddress + ((4).toLong() * (PrimitiveLayouts.U8).strideBytes)).rawAddress, ConstPtr((scalesIn).rawAddress + ((4).toLong() * (PrimitiveLayouts.U8).strideBytes)).rawMeta))).rawAddress)
+    val sm2 = (PrimitiveLayouts.U32).readNative(((ConstPtr(ConstPtr((scalesIn).rawAddress + ((8).toLong() * (PrimitiveLayouts.U8).strideBytes)).rawAddress, ConstPtr((scalesIn).rawAddress + ((8).toLong() * (PrimitiveLayouts.U8).strideBytes)).rawMeta))).rawAddress)
     val mins03 = sm1 and KMASK1
     val mins47 = ((sm2 shr 4) and KMASK2) or (((sm1 shr 6) and KMASK3) shl 4)
     val outMins = vreinterpretqS16U16(vmovlU8(vreinterpretU8U32(vcreateU32((mins03.toULong()) or ((mins47.toULong()) shl 32)))))
@@ -292,10 +291,10 @@ public fun vecDot4Q40x4Q804x8(n: Int, xs: List<BlockQ40x4>, ys: List<BlockQ80>):
     for ((x, y) in (xs.zip(ys))) {
         val bd = loadF16x4(x.d.asPtr())
         val ad = vdupqNF32(y.d.toF32())
-        val a0 = vreinterpretqS8S64(vld1qDupS64(constPtrFromRustCast<Long>(y.qs.asPtr())))
-        val a1 = vreinterpretqS8S64(vld1qDupS64(constPtrFromRustCast<Long>(y.qs.asPtr().add(8))))
-        val a2 = vreinterpretqS8S64(vld1qDupS64(constPtrFromRustCast<Long>(y.qs.asPtr().add(16))))
-        val a3 = vreinterpretqS8S64(vld1qDupS64(constPtrFromRustCast<Long>(y.qs.asPtr().add(24))))
+        val a0 = vreinterpretqS8S64(vld1qDupS64(constPtrFromRustCast(y.qs.asPtr())))
+        val a1 = vreinterpretqS8S64(vld1qDupS64(constPtrFromRustCast(y.qs.asPtr().add(8))))
+        val a2 = vreinterpretqS8S64(vld1qDupS64(constPtrFromRustCast(y.qs.asPtr().add(16))))
+        val a3 = vreinterpretqS8S64(vld1qDupS64(constPtrFromRustCast(y.qs.asPtr().add(24))))
         val b0 = vld1qS8(x.qs.asPtr())
         val b1 = vld1qS8(x.qs.asPtr().add(16))
         val b2 = vld1qS8(x.qs.asPtr().add(32))
@@ -337,7 +336,7 @@ public fun matmulQ40X4Gemv(tupleArg0: Triple<Int, Int, Int>, lhs: List<Float>, r
         if (scratch.len() < requiredLen) {
             scratch.resize(requiredLen, 0)
         }
-        val lhsB: List<BlockQ80> = fromRawPartsMut(mutPtrFromRustCast<BlockQ80>(scratch.asMutPtr()), kInBlocks)
+        val lhsB: List<BlockQ80> = fromRawPartsMut(mutPtrFromRustCast(scratch.asMutPtr()), kInBlocks)
         BlockQ80.fromFloat(lhs, lhsB)
         val pool = barrierPool()
         val lhsPtr = lhsB.asPtr().toInt()
@@ -347,10 +346,10 @@ public fun matmulQ40X4Gemv(tupleArg0: Triple<Int, Int, Int>, lhs: List<Float>, r
         // equal-sized gemv units: a static split skips the shared cursor, which costs
         // several us per small decode matmul
         pool.executeStatic(nGroups, { range ->
-            val lhsRow = fromRawParts(ConstPtr<BlockQ80>(lhsPtr.toLong()), kInBlocks)
-            val dstPtr1 = MutPtr<Float>(dstPtr.toLong())
+            val lhsRow = fromRawParts(ConstPtr(lhsPtr.toLong()), kInBlocks)
+            val dstPtr1 = MutPtr(dstPtr.toLong())
             for (g in range) {
-                val xs = fromRawParts(ConstPtr<BlockQ40x4>((repackedPtr + g * kInBlocks * x4BlockBytes).toLong()), kInBlocks)
+                val xs = fromRawParts(ConstPtr((repackedPtr + g * kInBlocks * x4BlockBytes).toLong()), kInBlocks)
                 val results = vecDot4Q40x4Q80(k, xs, lhsRow)
                 run {
                     copyNonoverlapping(results.asPtr(), MutPtr((dstPtr1).rawAddress + ((g * 4).toLong() * (PrimitiveLayouts.F32).strideBytes)), 4)
@@ -361,7 +360,7 @@ public fun matmulQ40X4Gemv(tupleArg0: Triple<Int, Int, Int>, lhs: List<Float>, r
     })
 }
 
-public fun storeQ40x44x4(dst: MutPtr<Float>, n: Int, row: Int, col: Int, lhs: List<BlockQ80x4>, rhs: List<BlockQ40x4>, kInBlocks: Int) {
+public fun storeQ40x44x4(dst: MutPtr, n: Int, row: Int, col: Int, lhs: List<BlockQ80x4>, rhs: List<BlockQ40x4>, kInBlocks: Int) {
     var sum0 = vdupqNF32(0.0)
     var sum1 = vdupqNF32(0.0)
     var sum2 = vdupqNF32(0.0)
@@ -423,7 +422,7 @@ internal fun matmulQ40X4(tupleArg0: Triple<Int, Int, Int>, lhs: List<Float>, rep
         if (scratch.len() < requiredLen) {
             scratch.resize(requiredLen, 0)
         }
-        val lhsX4: List<BlockQ80x4> = fromRawPartsMut(mutPtrFromRustCast<BlockQ80x4>(scratch.asMutPtr()), rowGroups * kInBlocks)
+        val lhsX4: List<BlockQ80x4> = fromRawPartsMut(mutPtrFromRustCast(scratch.asMutPtr()), rowGroups * kInBlocks)
         for (group in 0 until rowGroups) {
             quantizeQ80x4Interleaved(lhs, k, group * 4, ((lhsX4).slice(group * kInBlocks until (group + 1) * kInBlocks)), 4)
         }
@@ -433,9 +432,9 @@ internal fun matmulQ40X4(tupleArg0: Triple<Int, Int, Int>, lhs: List<Float>, rep
         val repackedPtr = repacked.asPtr().toInt()
         val dstPtr = dst.asMutPtr().toInt()
         pool.executeChunked(tilesTotal, { range ->
-            val lhsPtr1 = ConstPtr<BlockQ80x4>(lhsPtr.toLong())
-            val repackedPtr1 = ConstPtr<BlockQ40x4>(repackedPtr.toLong())
-            val dstPtr1 = MutPtr<Float>(dstPtr.toLong())
+            val lhsPtr1 = ConstPtr(lhsPtr.toLong())
+            val repackedPtr1 = ConstPtr(repackedPtr.toLong())
+            val dstPtr1 = MutPtr(dstPtr.toLong())
             for (tile in range) {
                 val rowGroup = tile / nGroups
                 val colGroup = tile - rowGroup * nGroups
@@ -450,7 +449,7 @@ internal fun matmulQ40X4(tupleArg0: Triple<Int, Int, Int>, lhs: List<Float>, rep
     })
 }
 
-public fun storeQ40x44x4I8mm(dst: MutPtr<Float>, n: Int, row: Int, col: Int, lhs: List<BlockQ80x4>, rhs: List<BlockQ40x4>, kInBlocks: Int) {
+public fun storeQ40x44x4I8mm(dst: MutPtr, n: Int, row: Int, col: Int, lhs: List<BlockQ80x4>, rhs: List<BlockQ40x4>, kInBlocks: Int) {
     val highMask = vdupqNU8(0xf0)
     var sum0 = vdupqNF32(0.0)
     var sum1 = vdupqNF32(0.0)
@@ -519,7 +518,7 @@ internal fun matmulQ40X4I8mm(tupleArg0: Triple<Int, Int, Int>, lhs: List<Float>,
         if (scratch.len() < requiredLen) {
             scratch.resize(requiredLen, 0)
         }
-        val lhsX4: List<BlockQ80x4> = fromRawPartsMut(mutPtrFromRustCast<BlockQ80x4>(scratch.asMutPtr()), rowGroups * kInBlocks)
+        val lhsX4: List<BlockQ80x4> = fromRawPartsMut(mutPtrFromRustCast(scratch.asMutPtr()), rowGroups * kInBlocks)
         for (group in 0 until rowGroups) {
             quantizeQ80x4Interleaved(lhs, k, group * 4, ((lhsX4).slice(group * kInBlocks until (group + 1) * kInBlocks)), 8)
         }
@@ -529,9 +528,9 @@ internal fun matmulQ40X4I8mm(tupleArg0: Triple<Int, Int, Int>, lhs: List<Float>,
         val repackedPtr = repacked.asPtr().toInt()
         val dstPtr = dst.asMutPtr().toInt()
         pool.executeChunked(tilesTotal, { range ->
-            val lhsPtr1 = ConstPtr<BlockQ80x4>(lhsPtr.toLong())
-            val repackedPtr1 = ConstPtr<BlockQ40x4>(repackedPtr.toLong())
-            val dstPtr1 = MutPtr<Float>(dstPtr.toLong())
+            val lhsPtr1 = ConstPtr(lhsPtr.toLong())
+            val repackedPtr1 = ConstPtr(repackedPtr.toLong())
+            val dstPtr1 = MutPtr(dstPtr.toLong())
             for (tile in range) {
                 val rowGroup = tile / nGroups
                 val colGroup = tile - rowGroup * nGroups
@@ -593,7 +592,7 @@ public fun quantizeQ8kX4Interleaved(lhs: List<Float>, k: Int, row: Int, out: Lis
     }
 }
 
-public fun storeQ4kx84x8I8mm(dst: MutPtr<Float>, n: Int, row: Int, col: Int, lhs: List<BlockQ8Kx4>, rhs: List<BlockQ4Kx8>, kInBlocks: Int) {
+public fun storeQ4kx84x8I8mm(dst: MutPtr, n: Int, row: Int, col: Int, lhs: List<BlockQ8Kx4>, rhs: List<BlockQ4Kx8>, kInBlocks: Int) {
     val m4b = vdupqNU8(0x0f)
     val accF32 = List(8) { vdupqNF32(0.0) }
     for (b in 0 until kInBlocks) {
@@ -693,7 +692,7 @@ internal fun matmulQ4kX8I8mm(tupleArg0: Triple<Int, Int, Int>, lhs: List<Float>,
         if (scratch.len() < requiredLen) {
             scratch.resize(requiredLen, 0)
         }
-        val lhsX4: List<BlockQ8Kx4> = fromRawPartsMut(mutPtrFromRustCast<BlockQ8Kx4>(scratch.asMutPtr()), rowGroups * kInBlocks)
+        val lhsX4: List<BlockQ8Kx4> = fromRawPartsMut(mutPtrFromRustCast(scratch.asMutPtr()), rowGroups * kInBlocks)
         for (group in 0 until rowGroups) {
             quantizeQ8kX4Interleaved(lhs, k, group * 4, ((lhsX4).slice(group * kInBlocks until (group + 1) * kInBlocks)), 8)
         }
@@ -703,9 +702,9 @@ internal fun matmulQ4kX8I8mm(tupleArg0: Triple<Int, Int, Int>, lhs: List<Float>,
         val repackedPtr = repacked.asPtr().toInt()
         val dstPtr = dst.asMutPtr().toInt()
         pool.executeChunked(tilesTotal, { range ->
-            val lhsPtr1 = ConstPtr<BlockQ8Kx4>(lhsPtr.toLong())
-            val repackedPtr1 = ConstPtr<BlockQ4Kx8>(repackedPtr.toLong())
-            val dstPtr1 = MutPtr<Float>(dstPtr.toLong())
+            val lhsPtr1 = ConstPtr(lhsPtr.toLong())
+            val repackedPtr1 = ConstPtr(repackedPtr.toLong())
+            val dstPtr1 = MutPtr(dstPtr.toLong())
             for (tile in range) {
                 val rowGroup = tile / nGroups
                 val colGroup = tile - rowGroup * nGroups
@@ -720,7 +719,7 @@ internal fun matmulQ4kX8I8mm(tupleArg0: Triple<Int, Int, Int>, lhs: List<Float>,
     })
 }
 
-public fun storeQ5kx84x8(dst: MutPtr<Float>, n: Int, row: Int, col: Int, lhs: List<BlockQ8Kx4>, rhs: List<BlockQ5Kx8>, kInBlocks: Int) {
+public fun storeQ5kx84x8(dst: MutPtr, n: Int, row: Int, col: Int, lhs: List<BlockQ8Kx4>, rhs: List<BlockQ5Kx8>, kInBlocks: Int) {
     val m4b = vdupqNU8(0x0f)
     val mone = vdupqNU8(1)
     val mtwo = vdupqNU8(2)
@@ -818,7 +817,7 @@ public fun storeQ5kx84x8(dst: MutPtr<Float>, n: Int, row: Int, col: Int, lhs: Li
     }
 }
 
-public fun storeQ5kx84x8I8mm(dst: MutPtr<Float>, n: Int, row: Int, col: Int, lhs: List<BlockQ8Kx4>, rhs: List<BlockQ5Kx8>, kInBlocks: Int) {
+public fun storeQ5kx84x8I8mm(dst: MutPtr, n: Int, row: Int, col: Int, lhs: List<BlockQ8Kx4>, rhs: List<BlockQ5Kx8>, kInBlocks: Int) {
     val m4b = vdupqNU8(0x0f)
     val mone = vdupqNU8(1)
     val mtwo = vdupqNU8(2)
@@ -1043,7 +1042,7 @@ public fun vecDot8Q5kx8Q8k8x8(n: Int, xs: List<BlockQ5Kx8>, ys: List<BlockQ8K>):
             val q5sbMins = listOf(mins0, mins1)
             val q5sbScales = listOf(scales0, scales1)
             val q8Base = q8.qs.asPtr().add(sb * 64)
-            val q8Qs = listOf(vreinterpretqS8S64(vld1qDupS64(constPtrFromRustCast<Long>(q8Base))), vreinterpretqS8S64(vld1qDupS64(constPtrFromRustCast<Long>(q8Base.add(8)))), vreinterpretqS8S64(vld1qDupS64(constPtrFromRustCast<Long>(q8Base.add(16)))), vreinterpretqS8S64(vld1qDupS64(constPtrFromRustCast<Long>(q8Base.add(24)))), vreinterpretqS8S64(vld1qDupS64(constPtrFromRustCast<Long>(q8Base.add(32)))), vreinterpretqS8S64(vld1qDupS64(constPtrFromRustCast<Long>(q8Base.add(40)))), vreinterpretqS8S64(vld1qDupS64(constPtrFromRustCast<Long>(q8Base.add(48)))), vreinterpretqS8S64(vld1qDupS64(constPtrFromRustCast<Long>(q8Base.add(56)))))
+            val q8Qs = listOf(vreinterpretqS8S64(vld1qDupS64(constPtrFromRustCast(q8Base))), vreinterpretqS8S64(vld1qDupS64(constPtrFromRustCast(q8Base.add(8)))), vreinterpretqS8S64(vld1qDupS64(constPtrFromRustCast(q8Base.add(16)))), vreinterpretqS8S64(vld1qDupS64(constPtrFromRustCast(q8Base.add(24)))), vreinterpretqS8S64(vld1qDupS64(constPtrFromRustCast(q8Base.add(32)))), vreinterpretqS8S64(vld1qDupS64(constPtrFromRustCast(q8Base.add(40)))), vreinterpretqS8S64(vld1qDupS64(constPtrFromRustCast(q8Base.add(48)))), vreinterpretqS8S64(vld1qDupS64(constPtrFromRustCast(q8Base.add(56)))))
             for (cp1 in 0 until 4) {
                 for (i in 0 until 4) {
                     val q5Col = vld1qU8(q5.qs.asPtr().add(sb * QK_K + i * 64 + 16 * cp1))
@@ -1095,7 +1094,7 @@ public fun matmulQ5kX8Gemv(tupleArg0: Triple<Int, Int, Int>, lhs: List<Float>, r
         if (scratch.len() < requiredLen) {
             scratch.resize(requiredLen, 0)
         }
-        val lhsB: List<BlockQ8K> = fromRawPartsMut(mutPtrFromRustCast<BlockQ8K>(scratch.asMutPtr()), kInBlocks)
+        val lhsB: List<BlockQ8K> = fromRawPartsMut(mutPtrFromRustCast(scratch.asMutPtr()), kInBlocks)
         BlockQ8K.fromFloat(lhs, lhsB)
         val pool = barrierPool()
         val lhsPtr = lhsB.asPtr().toInt()
@@ -1105,10 +1104,10 @@ public fun matmulQ5kX8Gemv(tupleArg0: Triple<Int, Int, Int>, lhs: List<Float>, r
         // equal-sized gemv units: a static split skips the shared cursor, which costs
         // several us per small decode matmul
         pool.executeStatic(nGroups, { range ->
-            val lhsRow = fromRawParts(ConstPtr<BlockQ8K>(lhsPtr.toLong()), kInBlocks)
-            val dstPtr1 = MutPtr<Float>(dstPtr.toLong())
+            val lhsRow = fromRawParts(ConstPtr(lhsPtr.toLong()), kInBlocks)
+            val dstPtr1 = MutPtr(dstPtr.toLong())
             for (g in range) {
-                val xs = fromRawParts(ConstPtr<BlockQ5Kx8>((repackedPtr + g * kInBlocks * x8BlockBytes).toLong()), kInBlocks)
+                val xs = fromRawParts(ConstPtr((repackedPtr + g * kInBlocks * x8BlockBytes).toLong()), kInBlocks)
                 val results = vecDot8Q5kx8Q8k(k, xs, lhsRow)
                 run {
                     copyNonoverlapping(results.asPtr(), MutPtr((dstPtr1).rawAddress + ((g * 8).toLong() * (PrimitiveLayouts.F32).strideBytes)), 8)
@@ -1139,7 +1138,7 @@ internal fun matmulQ5kX8(tupleArg0: Triple<Int, Int, Int>, lhs: List<Float>, rep
         if (scratch.len() < requiredLen) {
             scratch.resize(requiredLen, 0)
         }
-        val lhsX4: List<BlockQ8Kx4> = fromRawPartsMut(mutPtrFromRustCast<BlockQ8Kx4>(scratch.asMutPtr()), rowGroups * kInBlocks)
+        val lhsX4: List<BlockQ8Kx4> = fromRawPartsMut(mutPtrFromRustCast(scratch.asMutPtr()), rowGroups * kInBlocks)
         for (group in 0 until rowGroups) {
             if (useI8mm) {
                 quantizeQ8kX4Interleaved(lhs, k, group * 4, ((lhsX4).slice(group * kInBlocks until (group + 1) * kInBlocks)), 8)
@@ -1153,9 +1152,9 @@ internal fun matmulQ5kX8(tupleArg0: Triple<Int, Int, Int>, lhs: List<Float>, rep
         val repackedPtr = repacked.asPtr().toInt()
         val dstPtr = dst.asMutPtr().toInt()
         pool.executeChunked(tilesTotal, { range ->
-            val lhsPtr1 = ConstPtr<BlockQ8Kx4>(lhsPtr.toLong())
-            val repackedPtr1 = ConstPtr<BlockQ5Kx8>(repackedPtr.toLong())
-            val dstPtr1 = MutPtr<Float>(dstPtr.toLong())
+            val lhsPtr1 = ConstPtr(lhsPtr.toLong())
+            val repackedPtr1 = ConstPtr(repackedPtr.toLong())
+            val dstPtr1 = MutPtr(dstPtr.toLong())
             for (tile in range) {
                 val rowGroup = tile / nGroups
                 val colGroup = tile - rowGroup * nGroups
@@ -1174,7 +1173,7 @@ internal fun matmulQ5kX8(tupleArg0: Triple<Int, Int, Int>, lhs: List<Float>, rep
     })
 }
 
-public fun storeQ6kx84x8(dst: MutPtr<Float>, n: Int, row: Int, col: Int, lhs: List<BlockQ8Kx4>, rhs: List<BlockQ6Kx8>, kInBlocks: Int) {
+public fun storeQ6kx84x8(dst: MutPtr, n: Int, row: Int, col: Int, lhs: List<BlockQ8Kx4>, rhs: List<BlockQ6Kx8>, kInBlocks: Int) {
     val m4b = vdupqNU8(0x0f)
     val maskLo = vdupqNU8(0x03)
     val maskHi = vdupqNU8(0x30)
@@ -1263,7 +1262,7 @@ public fun storeQ6kx84x8(dst: MutPtr<Float>, n: Int, row: Int, col: Int, lhs: Li
     }
 }
 
-public fun storeQ6kx84x8I8mm(dst: MutPtr<Float>, n: Int, row: Int, col: Int, lhs: List<BlockQ8Kx4>, rhs: List<BlockQ6Kx8>, kInBlocks: Int) {
+public fun storeQ6kx84x8I8mm(dst: MutPtr, n: Int, row: Int, col: Int, lhs: List<BlockQ8Kx4>, rhs: List<BlockQ6Kx8>, kInBlocks: Int) {
     val m4b = vdupqNU8(0x0f)
     val maskLo = vdupqNU8(0x03)
     val maskHi = vdupqNU8(0x30)
@@ -1341,8 +1340,8 @@ public fun storeQ6kx84x8I8mm(dst: MutPtr<Float>, n: Int, row: Int, col: Int, lhs
     }
 }
 
-public fun loadF16x4(ptr: ConstPtr<F16>): Float32x4T {
-    val raw = vld1U64(ConstPtr<ULong>(ptr.rawAddress, ptr.rawMeta))
+public fun loadF16x4(ptr: ConstPtr): Float32x4T {
+    val raw = vld1U64(ConstPtr(ptr.rawAddress, ptr.rawMeta))
     var result: Float32x4T
     asm("fcvtl {out:v}.4s, {inp:v}.4h", inp, vreg, raw, out, out, vreg, result, options(nostack, nomem))
     return result
@@ -1383,8 +1382,8 @@ public fun vecDot8Q6kx8Q8k8x8(n: Int, xs: List<BlockQ6Kx8>, ys: List<BlockQ8K>):
             for (sb in 0 until QK_K / 64) {
                 val q8BaseL = q8.qs.asPtr().add(half * 128 + sb * 16)
                 val q8BaseH = q8BaseL.add(64)
-                val q8L = listOf(vreinterpretqS8S64(vld1qDupS64(constPtrFromRustCast<Long>(q8BaseL))), vreinterpretqS8S64(vld1qDupS64(constPtrFromRustCast<Long>(q8BaseL.add(8)))))
-                val q8H = listOf(vreinterpretqS8S64(vld1qDupS64(constPtrFromRustCast<Long>(q8BaseH))), vreinterpretqS8S64(vld1qDupS64(constPtrFromRustCast<Long>(q8BaseH.add(8)))))
+                val q8L = listOf(vreinterpretqS8S64(vld1qDupS64(constPtrFromRustCast(q8BaseL))), vreinterpretqS8S64(vld1qDupS64(constPtrFromRustCast(q8BaseL.add(8)))))
+                val q8H = listOf(vreinterpretqS8S64(vld1qDupS64(constPtrFromRustCast(q8BaseH))), vreinterpretqS8S64(vld1qDupS64(constPtrFromRustCast(q8BaseH.add(8)))))
                 val qlOffBase = sb * QK_K / 2
                 val qhOffBase = qlOffBase and 255
                 val q6Ql0 = vld1qU8X4(qlBase.add(qlOffBase))
@@ -1474,8 +1473,8 @@ public fun vecDot8Q6kx8Q8k8x4(n: Int, xs: List<BlockQ6Kx8>, ys: List<BlockQ8K>):
             for (sb in 0 until QK_K / 64) {
                 val q8BaseL = q8.qs.asPtr().add(half * 128 + sb * 16)
                 val q8BaseH = q8BaseL.add(64)
-                val q8L = listOf(vreinterpretqS8S32(vld1qDupS32(constPtrFromRustCast<Int>(q8BaseL))), vreinterpretqS8S32(vld1qDupS32(constPtrFromRustCast<Int>(q8BaseL.add(4)))), vreinterpretqS8S32(vld1qDupS32(constPtrFromRustCast<Int>(q8BaseL.add(8)))), vreinterpretqS8S32(vld1qDupS32(constPtrFromRustCast<Int>(q8BaseL.add(12)))))
-                val q8H = listOf(vreinterpretqS8S32(vld1qDupS32(constPtrFromRustCast<Int>(q8BaseH))), vreinterpretqS8S32(vld1qDupS32(constPtrFromRustCast<Int>(q8BaseH.add(4)))), vreinterpretqS8S32(vld1qDupS32(constPtrFromRustCast<Int>(q8BaseH.add(8)))), vreinterpretqS8S32(vld1qDupS32(constPtrFromRustCast<Int>(q8BaseH.add(12)))))
+                val q8L = listOf(vreinterpretqS8S32(vld1qDupS32(constPtrFromRustCast(q8BaseL))), vreinterpretqS8S32(vld1qDupS32(constPtrFromRustCast(q8BaseL.add(4)))), vreinterpretqS8S32(vld1qDupS32(constPtrFromRustCast(q8BaseL.add(8)))), vreinterpretqS8S32(vld1qDupS32(constPtrFromRustCast(q8BaseL.add(12)))))
+                val q8H = listOf(vreinterpretqS8S32(vld1qDupS32(constPtrFromRustCast(q8BaseH))), vreinterpretqS8S32(vld1qDupS32(constPtrFromRustCast(q8BaseH.add(4)))), vreinterpretqS8S32(vld1qDupS32(constPtrFromRustCast(q8BaseH.add(8)))), vreinterpretqS8S32(vld1qDupS32(constPtrFromRustCast(q8BaseH.add(12)))))
                 val qlOffBase = sb * QK_K / 2
                 val qhOffBase = qlOffBase and 255
                 val q6Ql0 = vld1qU8X4(qlBase.add(qlOffBase))
@@ -1546,7 +1545,7 @@ public fun matmulQ6kX8Gemv(tupleArg0: Triple<Int, Int, Int>, lhs: List<Float>, r
         if (scratch.len() < requiredLen) {
             scratch.resize(requiredLen, 0)
         }
-        val lhsB: List<BlockQ8K> = fromRawPartsMut(mutPtrFromRustCast<BlockQ8K>(scratch.asMutPtr()), kInBlocks)
+        val lhsB: List<BlockQ8K> = fromRawPartsMut(mutPtrFromRustCast(scratch.asMutPtr()), kInBlocks)
         BlockQ8K.fromFloat(lhs, lhsB)
         val pool = barrierPool()
         val lhsPtr = lhsB.asPtr().toInt()
@@ -1556,10 +1555,10 @@ public fun matmulQ6kX8Gemv(tupleArg0: Triple<Int, Int, Int>, lhs: List<Float>, r
         // equal-sized gemv units: a static split skips the shared cursor, which costs
         // several us per small decode matmul
         pool.executeStatic(nGroups, { range ->
-            val lhsRow = fromRawParts(ConstPtr<BlockQ8K>(lhsPtr.toLong()), kInBlocks)
-            val dstPtr1 = MutPtr<Float>(dstPtr.toLong())
+            val lhsRow = fromRawParts(ConstPtr(lhsPtr.toLong()), kInBlocks)
+            val dstPtr1 = MutPtr(dstPtr.toLong())
             for (g in range) {
-                val xs = fromRawParts(ConstPtr<BlockQ6Kx8>((repackedPtr + g * kInBlocks * x8BlockBytes).toLong()), kInBlocks)
+                val xs = fromRawParts(ConstPtr((repackedPtr + g * kInBlocks * x8BlockBytes).toLong()), kInBlocks)
                 val results = vecDot8Q6kx8Q8k(k, xs, lhsRow)
                 run {
                     copyNonoverlapping(results.asPtr(), MutPtr((dstPtr1).rawAddress + ((g * 8).toLong() * (PrimitiveLayouts.F32).strideBytes)), 8)
@@ -1590,7 +1589,7 @@ internal fun matmulQ6kX8(tupleArg0: Triple<Int, Int, Int>, lhs: List<Float>, rep
         if (scratch.len() < requiredLen) {
             scratch.resize(requiredLen, 0)
         }
-        val lhsX4: List<BlockQ8Kx4> = fromRawPartsMut(mutPtrFromRustCast<BlockQ8Kx4>(scratch.asMutPtr()), rowGroups * kInBlocks)
+        val lhsX4: List<BlockQ8Kx4> = fromRawPartsMut(mutPtrFromRustCast(scratch.asMutPtr()), rowGroups * kInBlocks)
         for (group in 0 until rowGroups) {
             if (useI8mm) {
                 quantizeQ8kX4Interleaved(lhs, k, group * 4, ((lhsX4).slice(group * kInBlocks until (group + 1) * kInBlocks)), 8)
@@ -1604,9 +1603,9 @@ internal fun matmulQ6kX8(tupleArg0: Triple<Int, Int, Int>, lhs: List<Float>, rep
         val repackedPtr = repacked.asPtr().toInt()
         val dstPtr = dst.asMutPtr().toInt()
         pool.executeChunked(tilesTotal, { range ->
-            val lhsPtr1 = ConstPtr<BlockQ8Kx4>(lhsPtr.toLong())
-            val repackedPtr1 = ConstPtr<BlockQ6Kx8>(repackedPtr.toLong())
-            val dstPtr1 = MutPtr<Float>(dstPtr.toLong())
+            val lhsPtr1 = ConstPtr(lhsPtr.toLong())
+            val repackedPtr1 = ConstPtr(repackedPtr.toLong())
+            val dstPtr1 = MutPtr(dstPtr.toLong())
             for (tile in range) {
                 val rowGroup = tile / nGroups
                 val colGroup = tile - rowGroup * nGroups
@@ -1625,7 +1624,7 @@ internal fun matmulQ6kX8(tupleArg0: Triple<Int, Int, Int>, lhs: List<Float>, rep
     })
 }
 
-public fun storeQ80x44x4(dst: MutPtr<Float>, n: Int, row: Int, col: Int, lhs: List<BlockQ80x4>, rhs: List<BlockQ80x4>, kInBlocks: Int) {
+public fun storeQ80x44x4(dst: MutPtr, n: Int, row: Int, col: Int, lhs: List<BlockQ80x4>, rhs: List<BlockQ80x4>, kInBlocks: Int) {
     var sum0 = vdupqNF32(0.0)
     var sum1 = vdupqNF32(0.0)
     var sum2 = vdupqNF32(0.0)
@@ -1736,10 +1735,10 @@ public fun vecDot4Q80x4Q804x8(n: Int, xs: List<BlockQ80x4>, ys: List<BlockQ80>):
     for ((x, y) in (xs.zip(ys))) {
         val bd = loadF16x4(x.d.asPtr())
         val ad = vdupqNF32(y.d.toF32())
-        val a0 = vreinterpretqS8S64(vld1qDupS64(constPtrFromRustCast<Long>(y.qs.asPtr())))
-        val a1 = vreinterpretqS8S64(vld1qDupS64(constPtrFromRustCast<Long>(y.qs.asPtr().add(8))))
-        val a2 = vreinterpretqS8S64(vld1qDupS64(constPtrFromRustCast<Long>(y.qs.asPtr().add(16))))
-        val a3 = vreinterpretqS8S64(vld1qDupS64(constPtrFromRustCast<Long>(y.qs.asPtr().add(24))))
+        val a0 = vreinterpretqS8S64(vld1qDupS64(constPtrFromRustCast(y.qs.asPtr())))
+        val a1 = vreinterpretqS8S64(vld1qDupS64(constPtrFromRustCast(y.qs.asPtr().add(8))))
+        val a2 = vreinterpretqS8S64(vld1qDupS64(constPtrFromRustCast(y.qs.asPtr().add(16))))
+        val a3 = vreinterpretqS8S64(vld1qDupS64(constPtrFromRustCast(y.qs.asPtr().add(24))))
         val x0 = vld1qS8X4(x.qs.asPtr())
         val x1 = vld1qS8X4(x.qs.asPtr().add(64))
         var ret0 = vdupqNS32(0)
@@ -1779,7 +1778,7 @@ public fun matmulQ80X4Gemv(tupleArg0: Triple<Int, Int, Int>, lhs: List<Float>, r
         if (scratch.len() < requiredLen) {
             scratch.resize(requiredLen, 0)
         }
-        val lhsB: List<BlockQ80> = fromRawPartsMut(mutPtrFromRustCast<BlockQ80>(scratch.asMutPtr()), kInBlocks)
+        val lhsB: List<BlockQ80> = fromRawPartsMut(mutPtrFromRustCast(scratch.asMutPtr()), kInBlocks)
         BlockQ80.fromFloat(lhs, lhsB)
         val pool = barrierPool()
         val lhsPtr = lhsB.asPtr().toInt()
@@ -1789,10 +1788,10 @@ public fun matmulQ80X4Gemv(tupleArg0: Triple<Int, Int, Int>, lhs: List<Float>, r
         // equal-sized gemv units: a static split skips the shared cursor, which costs
         // several us per small decode matmul
         pool.executeStatic(nGroups, { range ->
-            val lhsRow = fromRawParts(ConstPtr<BlockQ80>(lhsPtr.toLong()), kInBlocks)
-            val dstPtr1 = MutPtr<Float>(dstPtr.toLong())
+            val lhsRow = fromRawParts(ConstPtr(lhsPtr.toLong()), kInBlocks)
+            val dstPtr1 = MutPtr(dstPtr.toLong())
             for (g in range) {
-                val xs = fromRawParts(ConstPtr<BlockQ80x4>((repackedPtr + g * kInBlocks * x4BlockBytes).toLong()), kInBlocks)
+                val xs = fromRawParts(ConstPtr((repackedPtr + g * kInBlocks * x4BlockBytes).toLong()), kInBlocks)
                 val results = vecDot4Q80x4Q80(k, xs, lhsRow)
                 run {
                     copyNonoverlapping(results.asPtr(), MutPtr((dstPtr1).rawAddress + ((g * 4).toLong() * (PrimitiveLayouts.F32).strideBytes)), 4)
@@ -1821,7 +1820,7 @@ internal fun matmulQ80X4(tupleArg0: Triple<Int, Int, Int>, lhs: List<Float>, rep
         if (scratch.len() < requiredLen) {
             scratch.resize(requiredLen, 0)
         }
-        val lhsX4: List<BlockQ80x4> = fromRawPartsMut(mutPtrFromRustCast<BlockQ80x4>(scratch.asMutPtr()), rowGroups * kInBlocks)
+        val lhsX4: List<BlockQ80x4> = fromRawPartsMut(mutPtrFromRustCast(scratch.asMutPtr()), rowGroups * kInBlocks)
         for (group in 0 until rowGroups) {
             quantizeQ80x4Interleaved(lhs, k, group * 4, ((lhsX4).slice(group * kInBlocks until (group + 1) * kInBlocks)), 4)
         }
@@ -1831,9 +1830,9 @@ internal fun matmulQ80X4(tupleArg0: Triple<Int, Int, Int>, lhs: List<Float>, rep
         val repackedPtr = repacked.asPtr().toInt()
         val dstPtr = dst.asMutPtr().toInt()
         pool.executeChunked(tilesTotal, { range ->
-            val lhsPtr1 = ConstPtr<BlockQ80x4>(lhsPtr.toLong())
-            val repackedPtr1 = ConstPtr<BlockQ80x4>(repackedPtr.toLong())
-            val dstPtr1 = MutPtr<Float>(dstPtr.toLong())
+            val lhsPtr1 = ConstPtr(lhsPtr.toLong())
+            val repackedPtr1 = ConstPtr(repackedPtr.toLong())
+            val dstPtr1 = MutPtr(dstPtr.toLong())
             for (tile in range) {
                 val rowGroup = tile / nGroups
                 val colGroup = tile - rowGroup * nGroups
@@ -1848,7 +1847,7 @@ internal fun matmulQ80X4(tupleArg0: Triple<Int, Int, Int>, lhs: List<Float>, rep
     })
 }
 
-public fun storeQ80x44x4I8mm(dst: MutPtr<Float>, n: Int, row: Int, col: Int, lhs: List<BlockQ80x4>, rhs: List<BlockQ80x4>, kInBlocks: Int) {
+public fun storeQ80x44x4I8mm(dst: MutPtr, n: Int, row: Int, col: Int, lhs: List<BlockQ80x4>, rhs: List<BlockQ80x4>, kInBlocks: Int) {
     var sum0 = vdupqNF32(0.0)
     var sum1 = vdupqNF32(0.0)
     var sum2 = vdupqNF32(0.0)
@@ -1904,7 +1903,7 @@ internal fun matmulQ80X4I8mm(tupleArg0: Triple<Int, Int, Int>, lhs: List<Float>,
         if (scratch.len() < requiredLen) {
             scratch.resize(requiredLen, 0)
         }
-        val lhsX4: List<BlockQ80x4> = fromRawPartsMut(mutPtrFromRustCast<BlockQ80x4>(scratch.asMutPtr()), rowGroups * kInBlocks)
+        val lhsX4: List<BlockQ80x4> = fromRawPartsMut(mutPtrFromRustCast(scratch.asMutPtr()), rowGroups * kInBlocks)
         for (group in 0 until rowGroups) {
             quantizeQ80x4Interleaved(lhs, k, group * 4, ((lhsX4).slice(group * kInBlocks until (group + 1) * kInBlocks)), 8)
         }
@@ -1914,9 +1913,9 @@ internal fun matmulQ80X4I8mm(tupleArg0: Triple<Int, Int, Int>, lhs: List<Float>,
         val repackedPtr = repacked.asPtr().toInt()
         val dstPtr = dst.asMutPtr().toInt()
         pool.executeChunked(tilesTotal, { range ->
-            val lhsPtr1 = ConstPtr<BlockQ80x4>(lhsPtr.toLong())
-            val repackedPtr1 = ConstPtr<BlockQ80x4>(repackedPtr.toLong())
-            val dstPtr1 = MutPtr<Float>(dstPtr.toLong())
+            val lhsPtr1 = ConstPtr(lhsPtr.toLong())
+            val repackedPtr1 = ConstPtr(repackedPtr.toLong())
+            val dstPtr1 = MutPtr(dstPtr.toLong())
             for (tile in range) {
                 val rowGroup = tile / nGroups
                 val colGroup = tile - rowGroup * nGroups
@@ -2274,11 +2273,11 @@ internal fun vecDotQ5kQ8k(n: Int, xs: List<BlockQ5K>, ys: List<BlockQ8K>): Float
             utmp[1] = (utmp[2] and KMASK2) or (((utmp[0] shr 6) and KMASK3) shl 4)
             utmp[2] = uaux
             utmp[0] = utmp[0] and KMASK1
-            val mins8 = vld1U8(ConstPtr(((ConstPtr<UByte>(localStorageL3483C4.elementConstPtr(0).rawAddress, localStorageL3483C4.elementConstPtr(0).rawMeta))).rawAddress + ((8).toLong() * (PrimitiveLayouts.U8).strideBytes)))
+            val mins8 = vld1U8(ConstPtr(((ConstPtr(localStorageL3483C4.elementConstPtr(0).rawAddress, localStorageL3483C4.elementConstPtr(0).rawMeta))).rawAddress + ((8).toLong() * (PrimitiveLayouts.U8).strideBytes)))
             val mins = vreinterpretqS16U16(vmovlU8(mins8))
             val prod = vaddqS32(vmullS16(vgetLowS16(q8sums), vgetLowS16(mins)), vmullS16(vgetHighS16(q8sums), vgetHighS16(mins)))
             val sumiMins = vaddvqS32(prod)
-            var scales = ConstPtr<UByte>(localStorageL3483C4.elementConstPtr(0).rawAddress, localStorageL3483C4.elementConstPtr(0).rawMeta)
+            var scales = ConstPtr(localStorageL3483C4.elementConstPtr(0).rawAddress, localStorageL3483C4.elementConstPtr(0).rawMeta)
             var q5 = x.qs.asPtr()
             var q8 = y.qs.asPtr()
             val qhbits = vld1qU8X2(x.qh.asPtr())
@@ -2517,7 +2516,7 @@ internal fun vecDotQ3kQ8k(n: Int, xs: List<BlockQ3K>, ys: List<BlockQ8K>): Float
             utmp[2] = ((aux[0] shr 4) and KMASK2) or (((aux[2] shr 4) and KMASK1) shl 4)
             utmp[1] = (aux[1] and KMASK2) or (((aux[2] shr 2) and KMASK1) shl 4)
             utmp[0] = (aux[0] and KMASK2) or ((aux[2] and KMASK1) shl 4)
-            var scale = MutPtr<Byte>(localStorageL3806C4.elementMutPtr(0).rawAddress, localStorageL3806C4.elementMutPtr(0).rawMeta)
+            var scale = MutPtr(localStorageL3806C4.elementMutPtr(0).rawAddress, localStorageL3806C4.elementMutPtr(0).rawMeta)
             for (j in 0 until 16) {
                 (MutPtr((scale).rawAddress + ((j).toLong() * (PrimitiveLayouts.I8).strideBytes))).let { targetPtr ->
                     val targetLayout = PrimitiveLayouts.I8
@@ -2701,8 +2700,8 @@ public fun multiplyAccumWithScale(aux: UByteArray, isMatch: Int, index: Int, q2b
 }
 
 internal fun vecDot8Q4kQ8k(n: Int, xs: List<BlockQ4Kx8>, ys: List<BlockQ8K>): FloatArray {
-    fun loadF16x4(ptr: ConstPtr<F16>): Float32x4T {
-        val raw = vld1U64(ConstPtr<ULong>(ptr.rawAddress, ptr.rawMeta))
+    fun loadF16x4(ptr: ConstPtr): Float32x4T {
+        val raw = vld1U64(ConstPtr(ptr.rawAddress, ptr.rawMeta))
         var result: Float32x4T
         asm("fcvtl {out:v}.4s, {inp:v}.4h", inp, vreg, raw, out, out, vreg, result, options(nostack, nomem))
         return result
@@ -2727,14 +2726,14 @@ internal fun vecDot8Q4kQ8k(n: Int, xs: List<BlockQ4Kx8>, ys: List<BlockQ8K>): Fl
                 val (mins0, sc0) = decodeQ4kx8Scales(q4.scales.asPtr().add(0 * 24))
                 val (mins1, sc1) = decodeQ4kx8Scales(q4.scales.asPtr().add(0 * 24 + 12))
                 val q8p = q8.qs.asPtr().add(0 * 64)
-                val q80 = vreinterpretqS8S64(vld1qDupS64(constPtrFromRustCast<Long>(q8p)))
-                val q81 = vreinterpretqS8S64(vld1qDupS64(constPtrFromRustCast<Long>(q8p.add(8))))
-                val q82 = vreinterpretqS8S64(vld1qDupS64(constPtrFromRustCast<Long>(q8p.add(16))))
-                val q83 = vreinterpretqS8S64(vld1qDupS64(constPtrFromRustCast<Long>(q8p.add(24))))
-                val q84 = vreinterpretqS8S64(vld1qDupS64(constPtrFromRustCast<Long>(q8p.add(32))))
-                val q85 = vreinterpretqS8S64(vld1qDupS64(constPtrFromRustCast<Long>(q8p.add(40))))
-                val q86 = vreinterpretqS8S64(vld1qDupS64(constPtrFromRustCast<Long>(q8p.add(48))))
-                val q87 = vreinterpretqS8S64(vld1qDupS64(constPtrFromRustCast<Long>(q8p.add(56))))
+                val q80 = vreinterpretqS8S64(vld1qDupS64(constPtrFromRustCast(q8p)))
+                val q81 = vreinterpretqS8S64(vld1qDupS64(constPtrFromRustCast(q8p.add(8))))
+                val q82 = vreinterpretqS8S64(vld1qDupS64(constPtrFromRustCast(q8p.add(16))))
+                val q83 = vreinterpretqS8S64(vld1qDupS64(constPtrFromRustCast(q8p.add(24))))
+                val q84 = vreinterpretqS8S64(vld1qDupS64(constPtrFromRustCast(q8p.add(32))))
+                val q85 = vreinterpretqS8S64(vld1qDupS64(constPtrFromRustCast(q8p.add(40))))
+                val q86 = vreinterpretqS8S64(vld1qDupS64(constPtrFromRustCast(q8p.add(48))))
+                val q87 = vreinterpretqS8S64(vld1qDupS64(constPtrFromRustCast(q8p.add(56))))
                 val q4p = q4.qs.asPtr().add(0 * QK_K)
                 val s0 = vld1qU8X2(q4p)
                 val s0h = vld1qU8X2(q4p.add(32))
@@ -2811,14 +2810,14 @@ internal fun vecDot8Q4kQ8k(n: Int, xs: List<BlockQ4Kx8>, ys: List<BlockQ8K>): Fl
                 val (mins01, sc01) = decodeQ4kx8Scales(q4.scales.asPtr().add(1 * 24))
                 val (mins11, sc11) = decodeQ4kx8Scales(q4.scales.asPtr().add(1 * 24 + 12))
                 val q8p1 = q8.qs.asPtr().add(1 * 64)
-                val q801 = vreinterpretqS8S64(vld1qDupS64(constPtrFromRustCast<Long>(q8p1)))
-                val q811 = vreinterpretqS8S64(vld1qDupS64(constPtrFromRustCast<Long>(q8p1.add(8))))
-                val q821 = vreinterpretqS8S64(vld1qDupS64(constPtrFromRustCast<Long>(q8p1.add(16))))
-                val q831 = vreinterpretqS8S64(vld1qDupS64(constPtrFromRustCast<Long>(q8p1.add(24))))
-                val q841 = vreinterpretqS8S64(vld1qDupS64(constPtrFromRustCast<Long>(q8p1.add(32))))
-                val q851 = vreinterpretqS8S64(vld1qDupS64(constPtrFromRustCast<Long>(q8p1.add(40))))
-                val q861 = vreinterpretqS8S64(vld1qDupS64(constPtrFromRustCast<Long>(q8p1.add(48))))
-                val q871 = vreinterpretqS8S64(vld1qDupS64(constPtrFromRustCast<Long>(q8p1.add(56))))
+                val q801 = vreinterpretqS8S64(vld1qDupS64(constPtrFromRustCast(q8p1)))
+                val q811 = vreinterpretqS8S64(vld1qDupS64(constPtrFromRustCast(q8p1.add(8))))
+                val q821 = vreinterpretqS8S64(vld1qDupS64(constPtrFromRustCast(q8p1.add(16))))
+                val q831 = vreinterpretqS8S64(vld1qDupS64(constPtrFromRustCast(q8p1.add(24))))
+                val q841 = vreinterpretqS8S64(vld1qDupS64(constPtrFromRustCast(q8p1.add(32))))
+                val q851 = vreinterpretqS8S64(vld1qDupS64(constPtrFromRustCast(q8p1.add(40))))
+                val q861 = vreinterpretqS8S64(vld1qDupS64(constPtrFromRustCast(q8p1.add(48))))
+                val q871 = vreinterpretqS8S64(vld1qDupS64(constPtrFromRustCast(q8p1.add(56))))
                 val q4p1 = q4.qs.asPtr().add(1 * QK_K)
                 val s01 = vld1qU8X2(q4p1)
                 val s0h1 = vld1qU8X2(q4p1.add(32))
@@ -2895,14 +2894,14 @@ internal fun vecDot8Q4kQ8k(n: Int, xs: List<BlockQ4Kx8>, ys: List<BlockQ8K>): Fl
                 val (mins02, sc02) = decodeQ4kx8Scales(q4.scales.asPtr().add(2 * 24))
                 val (mins12, sc12) = decodeQ4kx8Scales(q4.scales.asPtr().add(2 * 24 + 12))
                 val q8p2 = q8.qs.asPtr().add(2 * 64)
-                val q802 = vreinterpretqS8S64(vld1qDupS64(constPtrFromRustCast<Long>(q8p2)))
-                val q812 = vreinterpretqS8S64(vld1qDupS64(constPtrFromRustCast<Long>(q8p2.add(8))))
-                val q822 = vreinterpretqS8S64(vld1qDupS64(constPtrFromRustCast<Long>(q8p2.add(16))))
-                val q832 = vreinterpretqS8S64(vld1qDupS64(constPtrFromRustCast<Long>(q8p2.add(24))))
-                val q842 = vreinterpretqS8S64(vld1qDupS64(constPtrFromRustCast<Long>(q8p2.add(32))))
-                val q852 = vreinterpretqS8S64(vld1qDupS64(constPtrFromRustCast<Long>(q8p2.add(40))))
-                val q862 = vreinterpretqS8S64(vld1qDupS64(constPtrFromRustCast<Long>(q8p2.add(48))))
-                val q872 = vreinterpretqS8S64(vld1qDupS64(constPtrFromRustCast<Long>(q8p2.add(56))))
+                val q802 = vreinterpretqS8S64(vld1qDupS64(constPtrFromRustCast(q8p2)))
+                val q812 = vreinterpretqS8S64(vld1qDupS64(constPtrFromRustCast(q8p2.add(8))))
+                val q822 = vreinterpretqS8S64(vld1qDupS64(constPtrFromRustCast(q8p2.add(16))))
+                val q832 = vreinterpretqS8S64(vld1qDupS64(constPtrFromRustCast(q8p2.add(24))))
+                val q842 = vreinterpretqS8S64(vld1qDupS64(constPtrFromRustCast(q8p2.add(32))))
+                val q852 = vreinterpretqS8S64(vld1qDupS64(constPtrFromRustCast(q8p2.add(40))))
+                val q862 = vreinterpretqS8S64(vld1qDupS64(constPtrFromRustCast(q8p2.add(48))))
+                val q872 = vreinterpretqS8S64(vld1qDupS64(constPtrFromRustCast(q8p2.add(56))))
                 val q4p2 = q4.qs.asPtr().add(2 * QK_K)
                 val s02 = vld1qU8X2(q4p2)
                 val s0h2 = vld1qU8X2(q4p2.add(32))
@@ -2979,14 +2978,14 @@ internal fun vecDot8Q4kQ8k(n: Int, xs: List<BlockQ4Kx8>, ys: List<BlockQ8K>): Fl
                 val (mins03, sc03) = decodeQ4kx8Scales(q4.scales.asPtr().add(3 * 24))
                 val (mins13, sc13) = decodeQ4kx8Scales(q4.scales.asPtr().add(3 * 24 + 12))
                 val q8p3 = q8.qs.asPtr().add(3 * 64)
-                val q803 = vreinterpretqS8S64(vld1qDupS64(constPtrFromRustCast<Long>(q8p3)))
-                val q813 = vreinterpretqS8S64(vld1qDupS64(constPtrFromRustCast<Long>(q8p3.add(8))))
-                val q823 = vreinterpretqS8S64(vld1qDupS64(constPtrFromRustCast<Long>(q8p3.add(16))))
-                val q833 = vreinterpretqS8S64(vld1qDupS64(constPtrFromRustCast<Long>(q8p3.add(24))))
-                val q843 = vreinterpretqS8S64(vld1qDupS64(constPtrFromRustCast<Long>(q8p3.add(32))))
-                val q853 = vreinterpretqS8S64(vld1qDupS64(constPtrFromRustCast<Long>(q8p3.add(40))))
-                val q863 = vreinterpretqS8S64(vld1qDupS64(constPtrFromRustCast<Long>(q8p3.add(48))))
-                val q873 = vreinterpretqS8S64(vld1qDupS64(constPtrFromRustCast<Long>(q8p3.add(56))))
+                val q803 = vreinterpretqS8S64(vld1qDupS64(constPtrFromRustCast(q8p3)))
+                val q813 = vreinterpretqS8S64(vld1qDupS64(constPtrFromRustCast(q8p3.add(8))))
+                val q823 = vreinterpretqS8S64(vld1qDupS64(constPtrFromRustCast(q8p3.add(16))))
+                val q833 = vreinterpretqS8S64(vld1qDupS64(constPtrFromRustCast(q8p3.add(24))))
+                val q843 = vreinterpretqS8S64(vld1qDupS64(constPtrFromRustCast(q8p3.add(32))))
+                val q853 = vreinterpretqS8S64(vld1qDupS64(constPtrFromRustCast(q8p3.add(40))))
+                val q863 = vreinterpretqS8S64(vld1qDupS64(constPtrFromRustCast(q8p3.add(48))))
+                val q873 = vreinterpretqS8S64(vld1qDupS64(constPtrFromRustCast(q8p3.add(56))))
                 val q4p3 = q4.qs.asPtr().add(3 * QK_K)
                 val s03 = vld1qU8X2(q4p3)
                 val s0h3 = vld1qU8X2(q4p3.add(32))

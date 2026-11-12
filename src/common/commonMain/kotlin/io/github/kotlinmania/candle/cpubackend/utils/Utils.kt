@@ -811,7 +811,7 @@ public fun <T, U> unaryMapVecPar(vs: List<T>, layout: Layout, f: (T) -> U, fVec:
                 val ysPtr = ys.asMutPtr().toInt()
                 val nUnits = len.divCeil(PAR_ELEMWISE_CHUNK)
                 barrierPool().executeChunked(nUnits, { range ->
-                    val ysPtr1 = MutPtr<U>(ysPtr.toLong())
+                    val ysPtr1 = MutPtr(ysPtr.toLong())
                     for (unit in range) {
                         val lo = unit * PAR_ELEMWISE_CHUNK
                         val hi = len.min(lo + PAR_ELEMWISE_CHUNK)
@@ -842,7 +842,7 @@ public fun <T> binaryMapVecPar(lhsL: Layout, rhsL: Layout, lhs: List<T>, rhs: Li
     val ysPtr = ys.asMutPtr().toInt()
     val nUnits = elCount.divCeil(PAR_ELEMWISE_CHUNK)
     barrierPool().executeChunked(nUnits, { range ->
-        val ysPtr1 = MutPtr<T>(ysPtr.toLong())
+        val ysPtr1 = MutPtr(ysPtr.toLong())
         for (unit in range) {
             var dstOffset = unit * PAR_ELEMWISE_CHUNK
             val hi = elCount.min(dstOffset + PAR_ELEMWISE_CHUNK)

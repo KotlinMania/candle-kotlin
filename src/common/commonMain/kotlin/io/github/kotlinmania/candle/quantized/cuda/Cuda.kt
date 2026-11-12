@@ -113,8 +113,8 @@ public data class QCudaStorage(
     }
 
     public fun dequantize(elemCount: Int): Result<CudaStorage> {
-        fun <T : GgmlType> deq(buffer: List<UByte>, n: Int, dst: List<Float>, toFloatTFn: (Any?) -> Any?) {
-            val slice = fromRawParts(constPtrFromRustCast<T>(buffer.asPtr()), n)
+        fun deq(buffer: List<UByte>, n: Int, dst: List<Float>, toFloatTFn: (Any?) -> Any?) {
+            val slice = fromRawParts(constPtrFromRustCast(buffer.asPtr()), n)
             val vec = slice.toVec()
             toFloatTFn(vec, dst)
         }
@@ -426,18 +426,18 @@ public data class QCudaStorage(
         }
     }
 
-    public fun devicePtr(): Result<ConstPtr<UByte>> =
+    public fun devicePtr(): Result<ConstPtr> =
         Ok(
-            constPtrFromRustCast<UByte>(
+            constPtrFromRustCast(
                 this.data.inner
                     .devicePtr(this.data.inner.stream())
                     .first,
             ),
         )
 
-    public fun devicePtrWithGuard(stream: CudaStream): Result<Pair<ConstPtr<UByte>, SyncOnDrop>> {
+    public fun devicePtrWithGuard(stream: CudaStream): Result<Pair<ConstPtr, SyncOnDrop>> {
         val (ptr, guard) = this.data.inner.devicePtr(stream)
-        return Ok(Pair(constPtrFromRustCast<UByte>(ptr), guard))
+        return Ok(Pair(constPtrFromRustCast(ptr), guard))
     }
 
     public fun dequantizeMatmulVec(selfShape: Shape, rhs: CudaStorage, rhsL: Layout): Result<Pair<CudaStorage, Shape>> {
@@ -1087,7 +1087,7 @@ public fun indexedMoeForwardFusedQ81Input(weight: CudaView<UByte>, wShape: Shape
 }
 
 public fun <T : GgmlType> loadQuantized(device: CudaDevice, data: List<T>): Result<QStorage> {
-    val data1 = fromRawParts(constPtrFromRustCast<UByte>(data.asPtr()), sizeOfVal(data))
+    val data1 = fromRawParts(constPtrFromRustCast(data.asPtr()), sizeOfVal(data))
     val dtype = T.DTYPE
     val paddedLen = data1.len() + MATRIX_ROW_PADDING * dtype.typeSize() / dtype.blockSize()
     var inner =

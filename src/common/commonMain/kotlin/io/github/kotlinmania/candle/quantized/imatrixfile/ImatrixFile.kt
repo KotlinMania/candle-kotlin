@@ -8,7 +8,6 @@ import io.github.kotlinmania.candle.error.bail
 import io.github.kotlinmania.rustlang.core.result.fromResidual
 import io.github.kotlinmania.rustlang.std.fs.File
 import io.github.kotlinmania.rustlang.std.io.Cursor
-import io.github.kotlinmania.rustlang.std.io.Read
 import io.github.kotlinmania.rustlang.std.path.Path
 
 public fun <P : AsRef<Path>> loadImatrix(fname: P): Result<Map<String, List<Float>>> {

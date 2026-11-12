@@ -29,120 +29,116 @@ import io.github.kotlinmania.candle.mkl.cinterop.candleMklVsSin
 import io.github.kotlinmania.candle.mkl.cinterop.candleMklVsSqrt
 import io.github.kotlinmania.candle.mkl.cinterop.candleMklVsSub
 import io.github.kotlinmania.candle.mkl.cinterop.candleMklVsTanh
-import io.github.kotlinmania.half.F16
-import io.github.kotlinmania.libc.CChar
-import io.github.kotlinmania.libc.CDouble
-import io.github.kotlinmania.libc.CFloat
 import io.github.kotlinmania.libc.CInt
 import io.github.kotlinmania.rustlang.core.ptr.ConstPtr
 import io.github.kotlinmania.rustlang.core.ptr.MutPtr
 import kotlinx.cinterop.ByteVar
 import kotlinx.cinterop.toCPointer
 
-public actual fun vsTanh(n: CInt, a: ConstPtr<CFloat>, y: MutPtr<CFloat>) {
+public actual fun vsTanh(n: CInt, a: ConstPtr, y: MutPtr) {
     candleMklVsTanh(n, a.rawAddress.toCPointer<ByteVar>(), y.rawAddress.toCPointer<ByteVar>())
 }
 
-public actual fun vdTanh(n: CInt, a: ConstPtr<CDouble>, y: MutPtr<CDouble>) {
+public actual fun vdTanh(n: CInt, a: ConstPtr, y: MutPtr) {
     candleMklVdTanh(n, a.rawAddress.toCPointer<ByteVar>(), y.rawAddress.toCPointer<ByteVar>())
 }
 
-public actual fun vsExp(n: CInt, a: ConstPtr<CFloat>, y: MutPtr<CFloat>) {
+public actual fun vsExp(n: CInt, a: ConstPtr, y: MutPtr) {
     candleMklVsExp(n, a.rawAddress.toCPointer<ByteVar>(), y.rawAddress.toCPointer<ByteVar>())
 }
 
-public actual fun vdExp(n: CInt, a: ConstPtr<CDouble>, y: MutPtr<CDouble>) {
+public actual fun vdExp(n: CInt, a: ConstPtr, y: MutPtr) {
     candleMklVdExp(n, a.rawAddress.toCPointer<ByteVar>(), y.rawAddress.toCPointer<ByteVar>())
 }
 
-public actual fun vsLn(n: CInt, a: ConstPtr<CFloat>, y: MutPtr<CFloat>) {
+public actual fun vsLn(n: CInt, a: ConstPtr, y: MutPtr) {
     candleMklVsLn(n, a.rawAddress.toCPointer<ByteVar>(), y.rawAddress.toCPointer<ByteVar>())
 }
 
-public actual fun vdLn(n: CInt, a: ConstPtr<CDouble>, y: MutPtr<CDouble>) {
+public actual fun vdLn(n: CInt, a: ConstPtr, y: MutPtr) {
     candleMklVdLn(n, a.rawAddress.toCPointer<ByteVar>(), y.rawAddress.toCPointer<ByteVar>())
 }
 
-public actual fun vsSin(n: CInt, a: ConstPtr<CFloat>, y: MutPtr<CFloat>) {
+public actual fun vsSin(n: CInt, a: ConstPtr, y: MutPtr) {
     candleMklVsSin(n, a.rawAddress.toCPointer<ByteVar>(), y.rawAddress.toCPointer<ByteVar>())
 }
 
-public actual fun vdSin(n: CInt, a: ConstPtr<CDouble>, y: MutPtr<CDouble>) {
+public actual fun vdSin(n: CInt, a: ConstPtr, y: MutPtr) {
     candleMklVdSin(n, a.rawAddress.toCPointer<ByteVar>(), y.rawAddress.toCPointer<ByteVar>())
 }
 
-public actual fun vsCos(n: CInt, a: ConstPtr<CFloat>, y: MutPtr<CFloat>) {
+public actual fun vsCos(n: CInt, a: ConstPtr, y: MutPtr) {
     candleMklVsCos(n, a.rawAddress.toCPointer<ByteVar>(), y.rawAddress.toCPointer<ByteVar>())
 }
 
-public actual fun vdCos(n: CInt, a: ConstPtr<CDouble>, y: MutPtr<CDouble>) {
+public actual fun vdCos(n: CInt, a: ConstPtr, y: MutPtr) {
     candleMklVdCos(n, a.rawAddress.toCPointer<ByteVar>(), y.rawAddress.toCPointer<ByteVar>())
 }
 
-public actual fun vsSqrt(n: CInt, a: ConstPtr<CFloat>, y: MutPtr<CFloat>) {
+public actual fun vsSqrt(n: CInt, a: ConstPtr, y: MutPtr) {
     candleMklVsSqrt(n, a.rawAddress.toCPointer<ByteVar>(), y.rawAddress.toCPointer<ByteVar>())
 }
 
-public actual fun vdSqrt(n: CInt, a: ConstPtr<CDouble>, y: MutPtr<CDouble>) {
+public actual fun vdSqrt(n: CInt, a: ConstPtr, y: MutPtr) {
     candleMklVdSqrt(n, a.rawAddress.toCPointer<ByteVar>(), y.rawAddress.toCPointer<ByteVar>())
 }
 
-public actual fun vsAdd(n: CInt, a: ConstPtr<CFloat>, b: ConstPtr<CFloat>, y: MutPtr<CFloat>) {
+public actual fun vsAdd(n: CInt, a: ConstPtr, b: ConstPtr, y: MutPtr) {
     candleMklVsAdd(n, a.rawAddress.toCPointer<ByteVar>(), b.rawAddress.toCPointer<ByteVar>(), y.rawAddress.toCPointer<ByteVar>())
 }
 
-public actual fun vdAdd(n: CInt, a: ConstPtr<CDouble>, b: ConstPtr<CDouble>, y: MutPtr<CDouble>) {
+public actual fun vdAdd(n: CInt, a: ConstPtr, b: ConstPtr, y: MutPtr) {
     candleMklVdAdd(n, a.rawAddress.toCPointer<ByteVar>(), b.rawAddress.toCPointer<ByteVar>(), y.rawAddress.toCPointer<ByteVar>())
 }
 
-public actual fun vsSub(n: CInt, a: ConstPtr<CFloat>, b: ConstPtr<CFloat>, y: MutPtr<CFloat>) {
+public actual fun vsSub(n: CInt, a: ConstPtr, b: ConstPtr, y: MutPtr) {
     candleMklVsSub(n, a.rawAddress.toCPointer<ByteVar>(), b.rawAddress.toCPointer<ByteVar>(), y.rawAddress.toCPointer<ByteVar>())
 }
 
-public actual fun vdSub(n: CInt, a: ConstPtr<CDouble>, b: ConstPtr<CDouble>, y: MutPtr<CDouble>) {
+public actual fun vdSub(n: CInt, a: ConstPtr, b: ConstPtr, y: MutPtr) {
     candleMklVdSub(n, a.rawAddress.toCPointer<ByteVar>(), b.rawAddress.toCPointer<ByteVar>(), y.rawAddress.toCPointer<ByteVar>())
 }
 
-public actual fun vsMul(n: CInt, a: ConstPtr<CFloat>, b: ConstPtr<CFloat>, y: MutPtr<CFloat>) {
+public actual fun vsMul(n: CInt, a: ConstPtr, b: ConstPtr, y: MutPtr) {
     candleMklVsMul(n, a.rawAddress.toCPointer<ByteVar>(), b.rawAddress.toCPointer<ByteVar>(), y.rawAddress.toCPointer<ByteVar>())
 }
 
-public actual fun vdMul(n: CInt, a: ConstPtr<CDouble>, b: ConstPtr<CDouble>, y: MutPtr<CDouble>) {
+public actual fun vdMul(n: CInt, a: ConstPtr, b: ConstPtr, y: MutPtr) {
     candleMklVdMul(n, a.rawAddress.toCPointer<ByteVar>(), b.rawAddress.toCPointer<ByteVar>(), y.rawAddress.toCPointer<ByteVar>())
 }
 
-public actual fun vsDiv(n: CInt, a: ConstPtr<CFloat>, b: ConstPtr<CFloat>, y: MutPtr<CFloat>) {
+public actual fun vsDiv(n: CInt, a: ConstPtr, b: ConstPtr, y: MutPtr) {
     candleMklVsDiv(n, a.rawAddress.toCPointer<ByteVar>(), b.rawAddress.toCPointer<ByteVar>(), y.rawAddress.toCPointer<ByteVar>())
 }
 
-public actual fun vdDiv(n: CInt, a: ConstPtr<CDouble>, b: ConstPtr<CDouble>, y: MutPtr<CDouble>) {
+public actual fun vdDiv(n: CInt, a: ConstPtr, b: ConstPtr, y: MutPtr) {
     candleMklVdDiv(n, a.rawAddress.toCPointer<ByteVar>(), b.rawAddress.toCPointer<ByteVar>(), y.rawAddress.toCPointer<ByteVar>())
 }
 
-public actual fun vsFmax(n: CInt, a: ConstPtr<CFloat>, b: ConstPtr<CFloat>, y: MutPtr<CFloat>) {
+public actual fun vsFmax(n: CInt, a: ConstPtr, b: ConstPtr, y: MutPtr) {
     candleMklVsFmax(n, a.rawAddress.toCPointer<ByteVar>(), b.rawAddress.toCPointer<ByteVar>(), y.rawAddress.toCPointer<ByteVar>())
 }
 
-public actual fun vdFmax(n: CInt, a: ConstPtr<CDouble>, b: ConstPtr<CDouble>, y: MutPtr<CDouble>) {
+public actual fun vdFmax(n: CInt, a: ConstPtr, b: ConstPtr, y: MutPtr) {
     candleMklVdFmax(n, a.rawAddress.toCPointer<ByteVar>(), b.rawAddress.toCPointer<ByteVar>(), y.rawAddress.toCPointer<ByteVar>())
 }
 
-public actual fun vsFmin(n: CInt, a: ConstPtr<CFloat>, b: ConstPtr<CFloat>, y: MutPtr<CFloat>) {
+public actual fun vsFmin(n: CInt, a: ConstPtr, b: ConstPtr, y: MutPtr) {
     candleMklVsFmin(n, a.rawAddress.toCPointer<ByteVar>(), b.rawAddress.toCPointer<ByteVar>(), y.rawAddress.toCPointer<ByteVar>())
 }
 
-public actual fun vdFmin(n: CInt, a: ConstPtr<CDouble>, b: ConstPtr<CDouble>, y: MutPtr<CDouble>) {
+public actual fun vdFmin(n: CInt, a: ConstPtr, b: ConstPtr, y: MutPtr) {
     candleMklVdFmin(n, a.rawAddress.toCPointer<ByteVar>(), b.rawAddress.toCPointer<ByteVar>(), y.rawAddress.toCPointer<ByteVar>())
 }
 
-public actual fun sgemm(transa: ConstPtr<CChar>, transb: ConstPtr<CChar>, m: ConstPtr<CInt>, n: ConstPtr<CInt>, k: ConstPtr<CInt>, alpha: ConstPtr<CFloat>, a: ConstPtr<CFloat>, lda: ConstPtr<CInt>, b: ConstPtr<CFloat>, ldb: ConstPtr<CInt>, beta: ConstPtr<CFloat>, c: MutPtr<CFloat>, ldc: ConstPtr<CInt>) {
+public actual fun sgemm(transa: ConstPtr, transb: ConstPtr, m: ConstPtr, n: ConstPtr, k: ConstPtr, alpha: ConstPtr, a: ConstPtr, lda: ConstPtr, b: ConstPtr, ldb: ConstPtr, beta: ConstPtr, c: MutPtr, ldc: ConstPtr) {
     candleMklSgemm(transa.rawAddress.toCPointer<ByteVar>(), transb.rawAddress.toCPointer<ByteVar>(), m.rawAddress.toCPointer<ByteVar>(), n.rawAddress.toCPointer<ByteVar>(), k.rawAddress.toCPointer<ByteVar>(), alpha.rawAddress.toCPointer<ByteVar>(), a.rawAddress.toCPointer<ByteVar>(), lda.rawAddress.toCPointer<ByteVar>(), b.rawAddress.toCPointer<ByteVar>(), ldb.rawAddress.toCPointer<ByteVar>(), beta.rawAddress.toCPointer<ByteVar>(), c.rawAddress.toCPointer<ByteVar>(), ldc.rawAddress.toCPointer<ByteVar>())
 }
 
-public actual fun dgemm(transa: ConstPtr<CChar>, transb: ConstPtr<CChar>, m: ConstPtr<CInt>, n: ConstPtr<CInt>, k: ConstPtr<CInt>, alpha: ConstPtr<CDouble>, a: ConstPtr<CDouble>, lda: ConstPtr<CInt>, b: ConstPtr<CDouble>, ldb: ConstPtr<CInt>, beta: ConstPtr<CDouble>, c: MutPtr<CDouble>, ldc: ConstPtr<CInt>) {
+public actual fun dgemm(transa: ConstPtr, transb: ConstPtr, m: ConstPtr, n: ConstPtr, k: ConstPtr, alpha: ConstPtr, a: ConstPtr, lda: ConstPtr, b: ConstPtr, ldb: ConstPtr, beta: ConstPtr, c: MutPtr, ldc: ConstPtr) {
     candleMklDgemm(transa.rawAddress.toCPointer<ByteVar>(), transb.rawAddress.toCPointer<ByteVar>(), m.rawAddress.toCPointer<ByteVar>(), n.rawAddress.toCPointer<ByteVar>(), k.rawAddress.toCPointer<ByteVar>(), alpha.rawAddress.toCPointer<ByteVar>(), a.rawAddress.toCPointer<ByteVar>(), lda.rawAddress.toCPointer<ByteVar>(), b.rawAddress.toCPointer<ByteVar>(), ldb.rawAddress.toCPointer<ByteVar>(), beta.rawAddress.toCPointer<ByteVar>(), c.rawAddress.toCPointer<ByteVar>(), ldc.rawAddress.toCPointer<ByteVar>())
 }
 
-public actual fun hgemm(transa: ConstPtr<CChar>, transb: ConstPtr<CChar>, m: ConstPtr<CInt>, n: ConstPtr<CInt>, k: ConstPtr<CInt>, alpha: ConstPtr<F16>, a: ConstPtr<F16>, lda: ConstPtr<CInt>, b: ConstPtr<F16>, ldb: ConstPtr<CInt>, beta: ConstPtr<F16>, c: MutPtr<F16>, ldc: ConstPtr<CInt>) {
+public actual fun hgemm(transa: ConstPtr, transb: ConstPtr, m: ConstPtr, n: ConstPtr, k: ConstPtr, alpha: ConstPtr, a: ConstPtr, lda: ConstPtr, b: ConstPtr, ldb: ConstPtr, beta: ConstPtr, c: MutPtr, ldc: ConstPtr) {
     candleMklHgemm(transa.rawAddress.toCPointer<ByteVar>(), transb.rawAddress.toCPointer<ByteVar>(), m.rawAddress.toCPointer<ByteVar>(), n.rawAddress.toCPointer<ByteVar>(), k.rawAddress.toCPointer<ByteVar>(), alpha.rawAddress.toCPointer<ByteVar>(), a.rawAddress.toCPointer<ByteVar>(), lda.rawAddress.toCPointer<ByteVar>(), b.rawAddress.toCPointer<ByteVar>(), ldb.rawAddress.toCPointer<ByteVar>(), beta.rawAddress.toCPointer<ByteVar>(), c.rawAddress.toCPointer<ByteVar>(), ldc.rawAddress.toCPointer<ByteVar>())
 }

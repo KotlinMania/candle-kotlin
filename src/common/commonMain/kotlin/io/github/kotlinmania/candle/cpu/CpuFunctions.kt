@@ -17,7 +17,7 @@ import io.github.kotlinmania.rustlang.core.mem.PrimitiveLayouts
 import io.github.kotlinmania.rustlang.core.ptr.ConstPtr
 import io.github.kotlinmania.rustlang.core.ptr.MutPtr
 
-public fun scalarVecDotF32(aRow: ConstPtr<Float>, bRow: ConstPtr<Float>, c: MutPtr<Float>, k: Int) {
+public fun scalarVecDotF32(aRow: ConstPtr, bRow: ConstPtr, c: MutPtr, k: Int) {
     val c1 = c
     for (i in 0 until k) {
         (c1).let { targetPtr ->
@@ -29,7 +29,7 @@ public fun scalarVecDotF32(aRow: ConstPtr<Float>, bRow: ConstPtr<Float>, c: MutP
     }
 }
 
-public fun scalarVecSum(row: ConstPtr<Float>, b: MutPtr<Float>, k: Int) {
+public fun scalarVecSum(row: ConstPtr, b: MutPtr, k: Int) {
     val b1 = b
     (PrimitiveLayouts.F32).writeNative((b1).rawAddress, 0.0f)
     for (i in 0 until k) {
@@ -42,7 +42,7 @@ public fun scalarVecSum(row: ConstPtr<Float>, b: MutPtr<Float>, k: Int) {
     }
 }
 
-public fun scalarVecDotF16(aRow: ConstPtr<F16>, bRow: ConstPtr<F16>, c: MutPtr<Float>, k: Int) {
+public fun scalarVecDotF16(aRow: ConstPtr, bRow: ConstPtr, c: MutPtr, k: Int) {
     val c1 = c
     var sum = 0.0
     for (i in 0 until k) {
@@ -51,7 +51,7 @@ public fun scalarVecDotF16(aRow: ConstPtr<F16>, bRow: ConstPtr<F16>, c: MutPtr<F
     (PrimitiveLayouts.F32).writeNative((c1).rawAddress, sum)
 }
 
-public fun scalarVecDotBf16(aRow: ConstPtr<Bf16>, bRow: ConstPtr<Bf16>, c: MutPtr<Float>, k: Int) {
+public fun scalarVecDotBf16(aRow: ConstPtr, bRow: ConstPtr, c: MutPtr, k: Int) {
     val c1 = c
     var sum = 0.0
     for (i in 0 until k) {
@@ -60,25 +60,25 @@ public fun scalarVecDotBf16(aRow: ConstPtr<Bf16>, bRow: ConstPtr<Bf16>, c: MutPt
     (PrimitiveLayouts.F32).writeNative((c1).rawAddress, sum)
 }
 
-public fun scalarVecAddF16(aRow: ConstPtr<F16>, bRow: ConstPtr<F16>, c: MutPtr<F16>, k: Int) {
+public fun scalarVecAddF16(aRow: ConstPtr, bRow: ConstPtr, c: MutPtr, k: Int) {
     for (i in 0 until k) {
         (ObjectSlotLayout<F16>()).writeNative((MutPtr((c).rawAddress + ((i).toLong() * (ObjectSlotLayout<F16>()).strideBytes))).rawAddress, (ObjectSlotLayout<F16>()).readNative((ConstPtr((aRow).rawAddress + ((i).toLong() * (ObjectSlotLayout<F16>()).strideBytes))).rawAddress) + (ObjectSlotLayout<F16>()).readNative((ConstPtr((bRow).rawAddress + ((i).toLong() * (ObjectSlotLayout<F16>()).strideBytes))).rawAddress))
     }
 }
 
-public fun scalarVecAddBf16(aRow: ConstPtr<Bf16>, bRow: ConstPtr<Bf16>, c: MutPtr<Bf16>, k: Int) {
+public fun scalarVecAddBf16(aRow: ConstPtr, bRow: ConstPtr, c: MutPtr, k: Int) {
     for (i in 0 until k) {
         (ObjectSlotLayout<Bf16>()).writeNative((MutPtr((c).rawAddress + ((i).toLong() * (ObjectSlotLayout<Bf16>()).strideBytes))).rawAddress, (ObjectSlotLayout<Bf16>()).readNative((ConstPtr((aRow).rawAddress + ((i).toLong() * (ObjectSlotLayout<Bf16>()).strideBytes))).rawAddress) + (ObjectSlotLayout<Bf16>()).readNative((ConstPtr((bRow).rawAddress + ((i).toLong() * (ObjectSlotLayout<Bf16>()).strideBytes))).rawAddress))
     }
 }
 
-public fun scalarVecScalarAddF16(scalar: F16, xs: ConstPtr<F16>, ys: MutPtr<F16>, k: Int) {
+public fun scalarVecScalarAddF16(scalar: F16, xs: ConstPtr, ys: MutPtr, k: Int) {
     for (i in 0 until k) {
         (ObjectSlotLayout<F16>()).writeNative((MutPtr((ys).rawAddress + ((i).toLong() * (ObjectSlotLayout<F16>()).strideBytes))).rawAddress, (ObjectSlotLayout<F16>()).readNative((ConstPtr((xs).rawAddress + ((i).toLong() * (ObjectSlotLayout<F16>()).strideBytes))).rawAddress) + scalar)
     }
 }
 
-public fun scalarVecScalarAddBf16(scalar: Bf16, xs: ConstPtr<Bf16>, ys: MutPtr<Bf16>, k: Int) {
+public fun scalarVecScalarAddBf16(scalar: Bf16, xs: ConstPtr, ys: MutPtr, k: Int) {
     for (i in 0 until k) {
         (ObjectSlotLayout<Bf16>()).writeNative((MutPtr((ys).rawAddress + ((i).toLong() * (ObjectSlotLayout<Bf16>()).strideBytes))).rawAddress, (ObjectSlotLayout<Bf16>()).readNative((ConstPtr((xs).rawAddress + ((i).toLong() * (ObjectSlotLayout<Bf16>()).strideBytes))).rawAddress) + scalar)
     }
@@ -103,7 +103,7 @@ public fun useNeonBf16(): Boolean {
     return features.neon && (!false || features.bf16)
 }
 
-internal fun vecDotF32(aRow: ConstPtr<Float>, bRow: ConstPtr<Float>, c: MutPtr<Float>, k: Int) {
+internal fun vecDotF32(aRow: ConstPtr, bRow: ConstPtr, c: MutPtr, k: Int) {
     if (useAvx2()) {
         return vecDotF32(aRow, bRow, c, k)
     }
@@ -114,7 +114,7 @@ internal fun vecDotF32(aRow: ConstPtr<Float>, bRow: ConstPtr<Float>, c: MutPtr<F
     vecDotF32(aRow, bRow, c, k)
 }
 
-internal fun vecSum(row: ConstPtr<Float>, b: MutPtr<Float>, k: Int) {
+internal fun vecSum(row: ConstPtr, b: MutPtr, k: Int) {
     if (useAvx2()) {
         return vecSum(row, b, k)
     }
@@ -125,7 +125,7 @@ internal fun vecSum(row: ConstPtr<Float>, b: MutPtr<Float>, k: Int) {
     vecSum(row, b, k)
 }
 
-internal fun vecDotF16(aRow: ConstPtr<F16>, bRow: ConstPtr<F16>, c: MutPtr<Float>, k: Int) {
+internal fun vecDotF16(aRow: ConstPtr, bRow: ConstPtr, c: MutPtr, k: Int) {
     if (useAvx2F16()) {
         return vecDotF16(aRow, bRow, c, k)
     }
@@ -136,7 +136,7 @@ internal fun vecDotF16(aRow: ConstPtr<F16>, bRow: ConstPtr<F16>, c: MutPtr<Float
     scalarVecDotF16(aRow, bRow, c, k)
 }
 
-internal fun vecDotBf16(aRow: ConstPtr<Bf16>, bRow: ConstPtr<Bf16>, c: MutPtr<Float>, k: Int) {
+internal fun vecDotBf16(aRow: ConstPtr, bRow: ConstPtr, c: MutPtr, k: Int) {
     if (useAvx2()) {
         return vecDotBf16(aRow, bRow, c, k)
     }
@@ -147,7 +147,7 @@ internal fun vecDotBf16(aRow: ConstPtr<Bf16>, bRow: ConstPtr<Bf16>, c: MutPtr<Fl
     scalarVecDotBf16(aRow, bRow, c, k)
 }
 
-internal fun vecAddF16(aRow: ConstPtr<F16>, bRow: ConstPtr<F16>, c: MutPtr<F16>, k: Int) {
+internal fun vecAddF16(aRow: ConstPtr, bRow: ConstPtr, c: MutPtr, k: Int) {
     if (useAvx2F16()) {
         return vecAddF16(aRow, bRow, c, k)
     }
@@ -158,7 +158,7 @@ internal fun vecAddF16(aRow: ConstPtr<F16>, bRow: ConstPtr<F16>, c: MutPtr<F16>,
     vecAddF16(aRow, bRow, c, k)
 }
 
-internal fun vecAddBf16(aRow: ConstPtr<Bf16>, bRow: ConstPtr<Bf16>, c: MutPtr<Bf16>, k: Int) {
+internal fun vecAddBf16(aRow: ConstPtr, bRow: ConstPtr, c: MutPtr, k: Int) {
     if (useAvx2()) {
         return vecAddBf16(aRow, bRow, c, k)
     }
@@ -169,7 +169,7 @@ internal fun vecAddBf16(aRow: ConstPtr<Bf16>, bRow: ConstPtr<Bf16>, c: MutPtr<Bf
     vecAddBf16(aRow, bRow, c, k)
 }
 
-internal fun vecScalarAddF16(scalar: F16, xs: ConstPtr<F16>, ys: MutPtr<F16>, k: Int) {
+internal fun vecScalarAddF16(scalar: F16, xs: ConstPtr, ys: MutPtr, k: Int) {
     if (useAvx2F16()) {
         return vecScalarAddF16(scalar, xs, ys, k)
     }
@@ -180,7 +180,7 @@ internal fun vecScalarAddF16(scalar: F16, xs: ConstPtr<F16>, ys: MutPtr<F16>, k:
     vecScalarAddF16(scalar, xs, ys, k)
 }
 
-internal fun vecMulBf16(aRow: ConstPtr<Bf16>, bRow: ConstPtr<Bf16>, c: MutPtr<Bf16>, k: Int) {
+internal fun vecMulBf16(aRow: ConstPtr, bRow: ConstPtr, c: MutPtr, k: Int) {
     if (useNeonBf16()) {
         return vecMulBf16(aRow, bRow, c, k)
     }
@@ -189,7 +189,7 @@ internal fun vecMulBf16(aRow: ConstPtr<Bf16>, bRow: ConstPtr<Bf16>, c: MutPtr<Bf
     }
 }
 
-internal fun vecScalarAddBf16(scalar: Bf16, xs: ConstPtr<Bf16>, ys: MutPtr<Bf16>, k: Int) {
+internal fun vecScalarAddBf16(scalar: Bf16, xs: ConstPtr, ys: MutPtr, k: Int) {
     if (useAvx2()) {
         return vecScalarAddBf16(scalar, xs, ys, k)
     }

@@ -22,7 +22,6 @@ import io.github.kotlinmania.candlemetalkernels.metal.Commands
 import io.github.kotlinmania.candlemetalkernels.metal.ResidencySet
 import io.github.kotlinmania.objc2foundation.NSRange
 import io.github.kotlinmania.objc2foundation.NSString
-import io.github.kotlinmania.rustlang.core.ffi.CVoid
 import io.github.kotlinmania.rustlang.core.mem.PrimitiveLayouts
 import io.github.kotlinmania.rustlang.core.mem.constPtrFromRustCast
 import io.github.kotlinmania.rustlang.core.mem.mutPtrFromRustCast
@@ -35,7 +34,7 @@ public typealias Storage = MetalStorage
 public fun bufferO(buffer: Buffer, l: Layout, dtype: DType): BufferOffset = BufferOffset(buffer = buffer, offsetInBytes = l.startOffset() * dtype.sizeInBytes())
 
 public fun <T> readToVec(buffer: Buffer, n: Int): List<T> {
-    val ptr = constPtrFromRustCast<T>(buffer.contents())
+    val ptr = constPtrFromRustCast(buffer.contents())
     check(!((ptr).rawAddress == 0L))
     val slice = fromRawParts(ptr, n)
     return slice.toVec()
@@ -52,7 +51,7 @@ public fun backendDeviceMetalDevice(ordinal: Int): Result<MetalDevice> {
     val kernels = Kernels.new()
     val residencySet = ResidencySet.new(device)
     val seedBuf =
-        when (val tryResult = device.newBufferWithData(constPtrFromRustCast<CVoid>(listOf(299792458uL).asPtr()), sizeOf<ULong>(typeLayoutT = PrimitiveLayouts.U64), RESOURCE_OPTIONS).mapErr(MetalError::from)) {
+        when (val tryResult = device.newBufferWithData(constPtrFromRustCast(listOf(299792458uL).asPtr()), sizeOf<ULong>(typeLayoutT = PrimitiveLayouts.U64), RESOURCE_OPTIONS).mapErr(MetalError::from)) {
             is Result.Ok -> tryResult.value
             is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
         }
@@ -465,7 +464,7 @@ public fun MetalDevice.setSeed(seed: ULong): Result<Unit> {
         }
     val contents = seedBuffer.data()
     run {
-        copyNonoverlapping(listOf(seed).asPtr(), mutPtrFromRustCast<ULong>(contents), 1)
+        copyNonoverlapping(listOf(seed).asPtr(), mutPtrFromRustCast(contents), 1)
     }
     seedBuffer.didModifyRange(NSRange.new(0, 8))
     return Ok(Unit)

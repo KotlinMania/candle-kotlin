@@ -1373,7 +1373,7 @@ public class Conv1D(
                         // the different tasks so no two threads can try to write at the same
                         // location.
                         run {
-                            val ptr = mutPtrFromRustCast<T>(dstP.add(dstIdx2))
+                            val ptr = mutPtrFromRustCast(dstP.add(dstIdx2))
                             (ptr).let { targetPtr ->
                                 val targetLayout = ObjectSlotLayout<T>()
                                 var currentValue = targetLayout.readNative(targetPtr.rawAddress)
@@ -1675,7 +1675,7 @@ public class ConvTranspose1D(
                             // parallelise the different tasks so no two threads can try to
                             // write at the same location.
                             run {
-                                val ptr = mutPtrFromRustCast<T>(dstP.add(dstIdx1))
+                                val ptr = mutPtrFromRustCast(dstP.add(dstIdx1))
                                 (ptr).let { targetPtr ->
                                     val targetLayout = ObjectSlotLayout<T>()
                                     var currentValue = targetLayout.readNative(targetPtr.rawAddress)
@@ -1771,7 +1771,7 @@ public class ConvTranspose2D(
                                     // parallelise the different tasks so no two threads can try to
                                     // write at the same location.
                                     run {
-                                        val ptr = mutPtrFromRustCast<T>(dstP.add(dstIdx1))
+                                        val ptr = mutPtrFromRustCast(dstP.add(dstIdx1))
                                         (ptr).let { targetPtr ->
                                             val targetLayout = ObjectSlotLayout<T>()
                                             var currentValue = targetLayout.readNative(targetPtr.rawAddress)
@@ -1982,9 +1982,9 @@ public class MatMul(
                     val rhsP = ((rhs1).slice(step * bSkip until rhs1.size))
                     val dstP = ((dst).slice(step * cSkip until dst.size))
                     run {
-                        val a = constPtrFromRustCast<Float>(rhsP.asPtr())
-                        val b1 = constPtrFromRustCast<Float>(lhsP.asPtr())
-                        val c = mutPtrFromRustCast<Float>(dstP.asMutPtr())
+                        val a = constPtrFromRustCast(rhsP.asPtr())
+                        val b1 = constPtrFromRustCast(lhsP.asPtr())
+                        val c = mutPtrFromRustCast(dstP.asMutPtr())
                         val a1 = fromRawParts(a, aSkip)
                         val b2 = fromRawParts(b1, bSkip)
                         val c1 = fromRawPartsMut(c, cSkip)
@@ -1998,9 +1998,9 @@ public class MatMul(
                     val rhsP1 = ((rhs1).slice(step1 * bSkip until rhs1.size))
                     val dstP1 = ((dst).slice(step1 * cSkip until dst.size))
                     run {
-                        val a2 = constPtrFromRustCast<Double>(rhsP1.asPtr())
-                        val b3 = constPtrFromRustCast<Double>(lhsP1.asPtr())
-                        val c2 = mutPtrFromRustCast<Double>(dstP1.asMutPtr())
+                        val a2 = constPtrFromRustCast(rhsP1.asPtr())
+                        val b3 = constPtrFromRustCast(lhsP1.asPtr())
+                        val c2 = mutPtrFromRustCast(dstP1.asMutPtr())
                         val a3 = fromRawParts(a2, aSkip)
                         val b4 = fromRawParts(b3, bSkip)
                         val c3 = fromRawPartsMut(c2, cSkip)
@@ -2066,9 +2066,9 @@ public class MatMul(
                     val rhsP = ((rhs1).slice(step * bSkip until rhs1.size))
                     val dstP = ((dst).slice(step * cSkip until dst.size))
                     run {
-                        val a = constPtrFromRustCast<F16>(rhsP.asPtr())
-                        val b1 = constPtrFromRustCast<F16>(lhsP.asPtr())
-                        val c = mutPtrFromRustCast<F16>(dstP.asMutPtr())
+                        val a = constPtrFromRustCast(rhsP.asPtr())
+                        val b1 = constPtrFromRustCast(lhsP.asPtr())
+                        val c = mutPtrFromRustCast(dstP.asMutPtr())
                         val a1 = fromRawParts(a, aSkip)
                         val b2 = fromRawParts(b1, bSkip)
                         val c1 = fromRawPartsMut(c, cSkip)
@@ -2082,9 +2082,9 @@ public class MatMul(
                     val rhsP1 = ((rhs1).slice(step1 * bSkip until rhs1.size))
                     val dstP1 = ((dst).slice(step1 * cSkip until dst.size))
                     run {
-                        val a2 = constPtrFromRustCast<Float>(rhsP1.asPtr())
-                        val b3 = constPtrFromRustCast<Float>(lhsP1.asPtr())
-                        val c2 = mutPtrFromRustCast<Float>(dstP1.asMutPtr())
+                        val a2 = constPtrFromRustCast(rhsP1.asPtr())
+                        val b3 = constPtrFromRustCast(lhsP1.asPtr())
+                        val c2 = mutPtrFromRustCast(dstP1.asMutPtr())
                         val a3 = fromRawParts(a2, aSkip)
                         val b4 = fromRawParts(b3, bSkip)
                         val c3 = fromRawPartsMut(c2, cSkip)
@@ -2099,9 +2099,9 @@ public class MatMul(
                     val rhsP2 = ((rhs1).slice(step2 * bSkip until rhs1.size))
                     val dstP2 = ((dst).slice(step2 * cSkip until dst.size))
                     run {
-                        val a4 = constPtrFromRustCast<Double>(rhsP2.asPtr())
-                        val b5 = constPtrFromRustCast<Double>(lhsP2.asPtr())
-                        val c4 = mutPtrFromRustCast<Double>(dstP2.asMutPtr())
+                        val a4 = constPtrFromRustCast(rhsP2.asPtr())
+                        val b5 = constPtrFromRustCast(lhsP2.asPtr())
+                        val c4 = mutPtrFromRustCast(dstP2.asMutPtr())
                         val a5 = fromRawParts(a4, aSkip)
                         val b6 = fromRawParts(b5, bSkip)
                         val c5 = fromRawPartsMut(c4, cSkip)

@@ -27,7 +27,7 @@ public data class QCudaStorage(
 
     public fun quantizeOnto(src: CpuStorage): Result<Unit> = Err(Error.NotCompiledWithCudaSupport)
 
-    public fun devicePtr(): Result<ConstPtr<UByte>> = Err(Error.NotCompiledWithCudaSupport)
+    public fun devicePtr(): Result<ConstPtr> = Err(Error.NotCompiledWithCudaSupport)
 
     public fun storageSizeInBytes(): Int = 0
 

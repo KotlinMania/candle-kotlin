@@ -14,7 +14,6 @@ import io.github.kotlinmania.candle.shape.Shape
 import io.github.kotlinmania.candlekernels.ffi
 import io.github.kotlinmania.cudarc.driver.CudaSlice
 import io.github.kotlinmania.cudarc.driver.sys
-import io.github.kotlinmania.rustlang.core.ffi.CVoid
 import io.github.kotlinmania.rustlang.core.mem.PrimitiveLayouts
 import io.github.kotlinmania.rustlang.core.mem.TypeLayout
 import io.github.kotlinmania.rustlang.core.mem.constPtrFromRustCast
@@ -29,7 +28,7 @@ import io.github.kotlinmania.rustlang.std.sync.OnceLock
 // Handles batch > 8 (complement to fastMmvq which handles batch 1-8).
 
 public fun interface FnCallback {
-    public operator fun invoke(x: ConstPtr<ffi.CVoid>, ids: ConstPtr<Int>, vy: MutPtr<ffi.CVoid>, typeX: Int, ne00: Long, s01: Long, s02: Long, s03: Long, ne0: Long, ne1: Long, ne2: Long, ne3: Long, stream: MutPtr<ffi.CVoid>)
+    public operator fun invoke(x: ConstPtr, ids: ConstPtr, vy: MutPtr, typeX: Int, ne00: Long, s01: Long, s02: Long, s03: Long, ne0: Long, ne1: Long, ne2: Long, ne3: Long, stream: MutPtr)
 }
 
 public val QK8_1: Int = 32
@@ -83,7 +82,7 @@ public fun dsLayoutFor(dtype: GgmlDType): DsLayout =
     }
 
 public fun interface QuantizeLauncher {
-    public operator fun invoke(x: ConstPtr<CVoid>, ids: ConstPtr<Int>, vy: MutPtr<CVoid>, typeX: Int, ne00: Long, s01: Long, s02: Long, s03: Long, ne0: Long, ne1: Long, ne2: Long, ne3: Long, stream: MutPtr<CVoid>)
+    public operator fun invoke(x: ConstPtr, ids: ConstPtr, vy: MutPtr, typeX: Int, ne00: Long, s01: Long, s02: Long, s03: Long, ne0: Long, ne1: Long, ne2: Long, ne3: Long, stream: MutPtr)
 }
 
 public fun quantizeLauncher(layout: DsLayout): QuantizeLauncher =
@@ -94,7 +93,7 @@ public fun quantizeLauncher(layout: DsLayout): QuantizeLauncher =
     }
 
 public fun interface MmqLauncher {
-    public operator fun invoke(tmpFixup: MutPtr<ffi.CVoid>, x: ConstPtr<ffi.CVoid>, y: ConstPtr<ffi.CVoid>, dst: MutPtr<ffi.CVoid>, ncolsX: Long, nrowsX: Long, ncolsY: Long, strideRowX: Long, strideColDst: Long, cc: Int, nsm: Int, smpbo: Long, warpSize: Int, stream: MutPtr<ffi.CVoid>)
+    public operator fun invoke(tmpFixup: MutPtr, x: ConstPtr, y: ConstPtr, dst: MutPtr, ncolsX: Long, nrowsX: Long, ncolsY: Long, strideRowX: Long, strideColDst: Long, cc: Int, nsm: Int, smpbo: Long, warpSize: Int, stream: MutPtr)
 }
 
 public fun mmqLauncher(dtype: GgmlDType): MmqLauncher? {
@@ -336,7 +335,7 @@ public fun tryFwd(qstorage: QCudaStorage, selfShape: Shape, rhs: CudaStorage, rh
         }
     val dev = qstorage.device()
     val stream = dev.cudaStream()
-    val streamPtr = mutPtrFromRustCast<ffi.CVoid>(stream.cuStream())
+    val streamPtr = mutPtrFromRustCast(stream.cuStream())
     // MMQ quantize expects f32 input. Convert if needed.
     val rhsF32Storage: CudaStorage? =
         if (inputDtype != DType.F32) {
@@ -363,7 +362,7 @@ public fun tryFwd(qstorage: QCudaStorage, selfShape: Shape, rhs: CudaStorage, rh
         } else {
             rhsF32Slice.slice(o1 until o2)
         }
-    val rhsPtr = constPtrFromRustCast<ffi.CVoid>(rhsF32Slice1.devicePtr(stream).first)
+    val rhsPtr = constPtrFromRustCast(rhsF32Slice1.devicePtr(stream).first)
     // Compute padded dimensions
     val kPadded = pad(k2, MATRIX_ROW_PADDING)
     // Must also be multiple of 4*QK8_1 = 128 for blockQ81Mmq
@@ -379,16 +378,16 @@ public fun tryFwd(qstorage: QCudaStorage, selfShape: Shape, rhs: CudaStorage, rh
             is Result.Ok -> tryResult.value
             is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
         }
-    val scratchPtr1 = mutPtrFromRustCast<ffi.CVoid>(scratchPtr)
+    val scratchPtr1 = mutPtrFromRustCast(scratchPtr)
     val fixupBytes = MAX_SMS * MMQ_X_MAX * MMQ_Y_MAX * sizeOf<Float>(typeLayoutT = PrimitiveLayouts.F32)
     val (fixupPtr, fixupGuard) =
         when (val tryResult = workspaceEnsure(FIXUP_WORKSPACE, dev, fixupBytes)) {
             is Result.Ok -> tryResult.value
             is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
         }
-    val fixupPtr1 = mutPtrFromRustCast<ffi.CVoid>(fixupPtr)
+    val fixupPtr1 = mutPtrFromRustCast(fixupPtr)
     val weightPtr =
-        constPtrFromRustCast<ffi.CVoid>(
+        constPtrFromRustCast(
             when (val tryResult = qstorage.devicePtr()) {
                 is Result.Ok -> tryResult.value
                 is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
@@ -402,12 +401,12 @@ public fun tryFwd(qstorage: QCudaStorage, selfShape: Shape, rhs: CudaStorage, rh
             is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
         }
     val strideColDst = nrows.toLong()
-    val outPtr = mutPtrFromRustCast<ffi.CVoid>(out.devicePtr(stream).first)
+    val outPtr = mutPtrFromRustCast(out.devicePtr(stream).first)
     run {
         val quantize = quantizeLauncher(dsLayoutFor(wDtype))
         quantize(rhsPtr, ConstPtr(0L), scratchPtr1, 0, k2.toLong(), k2.toLong(), 0, 0, kPadded1.toLong(), bSize.toLong(), 1, 1, streamPtr)
         val launcher = mmqLauncher(wDtype).expect("supports() checked")
-        launcher(fixupPtr1, weightPtr, ConstPtr<ffi.CVoid>(scratchPtr1.rawAddress, scratchPtr1.rawMeta), outPtr, k2.toLong(), nrows.toLong(), bSize.toLong(), strideRowX, strideColDst, di.cc, di.nsm, di.smpbo, di.warpSize, streamPtr)
+        launcher(fixupPtr1, weightPtr, ConstPtr(scratchPtr1.rawAddress, scratchPtr1.rawMeta), outPtr, k2.toLong(), nrows.toLong(), bSize.toLong(), strideRowX, strideColDst, di.cc, di.nsm, di.smpbo, di.warpSize, streamPtr)
     }
     val outShape = rhsL.shape().dims().toVec()
     outShape.pop()

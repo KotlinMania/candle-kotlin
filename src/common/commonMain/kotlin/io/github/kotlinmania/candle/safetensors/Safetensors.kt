@@ -116,7 +116,7 @@ public fun <T : WithDType> convertSlice(data: List<UByte>, shape: List<Int>, dev
     return if ((data.asPtr().toInt()).isMultipleOf(sizeInBytes)) {
         // SAFETY This is safe because we just checked that this
         // was correctly aligned.
-        val data1: List<T> = fromRawParts(constPtrFromRustCast<T>(data.asPtr()), elemCount)
+        val data1: List<T> = fromRawParts(constPtrFromRustCast(data.asPtr()), elemCount)
         Tensor.fromSlice(data1, shape, device)
     } else {
         // Note: We need to specify `T` here, otherwise the compiler will infer u8 because of the following cast
@@ -127,7 +127,7 @@ public fun <T : WithDType> convertSlice(data: List<UByte>, shape: List<Int>, dev
         // We're downgrading the `c` pointer from T to u8, which removes alignment
         // constraints.
         run {
-            copyNonoverlapping(data.asPtr(), mutPtrFromRustCast<UByte>(c.asMutPtr()), data.size)
+            copyNonoverlapping(data.asPtr(), mutPtrFromRustCast(c.asMutPtr()), data.size)
             c.setLen(elemCount)
         }
         Tensor.fromSlice(c, shape, device)
@@ -140,7 +140,7 @@ public fun <T, U : WithDType> convertSliceWithCast(data: List<UByte>, shape: Lis
     return if ((data.asPtr().toInt()).isMultipleOf(sizeInBytes)) {
         // SAFETY This is safe because we just checked that this
         // was correctly aligned.
-        val data1: List<T> = fromRawParts(constPtrFromRustCast<T>(data.asPtr()), elemCount)
+        val data1: List<T> = fromRawParts(constPtrFromRustCast(data.asPtr()), elemCount)
         val data2 =
             when (val tryResult = data1.map({ t -> conv(t) }).collect<Result<Vec>>()) {
                 is Result.Ok -> tryResult.value
@@ -156,7 +156,7 @@ public fun <T, U : WithDType> convertSliceWithCast(data: List<UByte>, shape: Lis
         // We're downgrading the `c` pointer from T to u8, which removes alignment
         // constraints.
         run {
-            copyNonoverlapping(data.asPtr(), mutPtrFromRustCast<UByte>(c.asMutPtr()), data.size)
+            copyNonoverlapping(data.asPtr(), mutPtrFromRustCast(c.asMutPtr()), data.size)
             c.setLen(elemCount)
         }
         val c1 =
@@ -176,7 +176,7 @@ public fun <T : WithDType> convertBack(vs: List<T>): List<UByte> {
     val sizeInBytes = T.DTYPE.sizeInBytes()
     val length = vs.size * sizeInBytes
     val capacity = vs.capacity() * sizeInBytes
-    val ptr = mutPtrFromRustCast<UByte>(vs.asMutPtr())
+    val ptr = mutPtrFromRustCast(vs.asMutPtr())
     // Don't run the destructor for Vec<T>
     forget(vs)
     // SAFETY:

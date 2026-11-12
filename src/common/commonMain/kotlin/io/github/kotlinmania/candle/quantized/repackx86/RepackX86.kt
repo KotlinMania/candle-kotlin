@@ -25,7 +25,6 @@ import io.github.kotlinmania.rustlang.core.mem.constPtrFromRustCast
 import io.github.kotlinmania.rustlang.core.mem.mutPtrFromRustCast
 import io.github.kotlinmania.rustlang.core.ptr.ConstPtr
 import io.github.kotlinmania.rustlang.core.ptr.MutPtr
-import io.github.kotlinmania.rustlang.core.result.Result
 import io.github.kotlinmania.rustlang.std.sync.OnceLock
 import io.github.kotlinmania.candle.quantized.GgmlDType as D
 
@@ -264,19 +263,19 @@ internal fun select(dtype: GgmlDType, m: Int, n: Int, k: Int): Boolean {
 
 public fun q4kBlocks(storage: QuantizedType): List<BlockQ4K> {
     val data = storage.storageSizeInBytes()
-    val ptr = constPtrFromRustCast<BlockQ4K>(storage.asPtr())
+    val ptr = constPtrFromRustCast(storage.asPtr())
     return fromRawParts(ptr, data / sizeOf<BlockQ4K>(typeLayoutT = ObjectSlotLayout<BlockQ4K>()))
 }
 
 public fun q6kBlocks(storage: QuantizedType): List<BlockQ6K> {
     val data = storage.storageSizeInBytes()
-    val ptr = constPtrFromRustCast<BlockQ6K>(storage.asPtr())
+    val ptr = constPtrFromRustCast(storage.asPtr())
     return fromRawParts(ptr, data / sizeOf<BlockQ6K>(typeLayoutT = ObjectSlotLayout<BlockQ6K>()))
 }
 
 public fun q80Blocks(storage: QuantizedType): List<BlockQ80> {
     val data = storage.storageSizeInBytes()
-    val ptr = constPtrFromRustCast<BlockQ80>(storage.asPtr())
+    val ptr = constPtrFromRustCast(storage.asPtr())
     return fromRawParts(ptr, data / sizeOf<BlockQ80>(typeLayoutT = ObjectSlotLayout<BlockQ80>()))
 }
 
@@ -391,7 +390,7 @@ internal fun packQ80(storage: QuantizedType, n: Int, k: Int): PackedX86 {
 // acc[m][16] f32 for up to MT activation rows against one 16-row weight tile
 internal val MAX_MT: Int = 4
 
-public fun bcast4(act: List<Byte>, off: ULong): M512i = mm512Set1Epi32(readUnaligned(constPtrFromRustCast<Int>(act.asPtr().add(off)), typeLayoutT = PrimitiveLayouts.I32))
+public fun bcast4(act: List<Byte>, off: ULong): M512i = mm512Set1Epi32(readUnaligned(constPtrFromRustCast(act.asPtr().add(off)), typeLayoutT = PrimitiveLayouts.I32))
 
 // q4k: one superblock tile against `mt` q8k activation blocks. Subblocks are
 // processed in pairs with independent integer accumulators to break the dpbusd
@@ -406,8 +405,8 @@ internal fun q4kTile(tile: TileQ4K, acts: List<BlockQ8K>, acc: List<List<M512>>)
         for (g4 in 0 until 4) {
             val ga = sa * 4 + g4
             val gb = sb * 4 + g4
-            val wa = mm512LoaduSi512(constPtrFromRustCast<UByte>(tile.qs.asPtr().add(ga * TILE_N * 4)))
-            val wb = mm512LoaduSi512(constPtrFromRustCast<UByte>(tile.qs.asPtr().add(gb * TILE_N * 4)))
+            val wa = mm512LoaduSi512(constPtrFromRustCast(tile.qs.asPtr().add(ga * TILE_N * 4)))
+            val wb = mm512LoaduSi512(constPtrFromRustCast(tile.qs.asPtr().add(gb * TILE_N * 4)))
             val loA = mm512AndSi512(wa, mask)
             val hiA = mm512AndSi512(mm512SrliEpi16(wa, 4), mask)
             val loB = mm512AndSi512(wb, mask)
@@ -440,7 +439,7 @@ internal fun q6kTile(tile: TileQ6K, acts: List<BlockQ8K>, acc: List<List<M512>>)
         // subblock = 16 k-values = 4 k4-groups
         for (g4 in 0 until 4) {
             val g = sub * 4 + g4
-            val w = mm512LoaduSi512(constPtrFromRustCast<UByte>(tile.qs.asPtr().add(g * TILE_N * 4)))
+            val w = mm512LoaduSi512(constPtrFromRustCast(tile.qs.asPtr().add(g * TILE_N * 4)))
             for ((m, act) in acts.enumerate()) {
                 val a = bcast4(act.qs, sub * 16 + g4 * 4)
                 isum[m] = mm512DpbusdEpi32(isum[m], w, a)
@@ -462,15 +461,15 @@ internal fun q80Tile2(t0: TileQ80, t1: TileQ80, acts: List<BlockQ8K>, sub32: Int
     val isumA = List(MAX_MT) { mm512SetzeroSi512() }
     val isumB = List(MAX_MT) { mm512SetzeroSi512() }
     for (g4 in 0 until 8) {
-        val wa = mm512LoaduSi512(constPtrFromRustCast<UByte>(t0.qs.asPtr().add(g4 * TILE_N * 4)))
-        val wb = mm512LoaduSi512(constPtrFromRustCast<UByte>(t1.qs.asPtr().add(g4 * TILE_N * 4)))
+        val wa = mm512LoaduSi512(constPtrFromRustCast(t0.qs.asPtr().add(g4 * TILE_N * 4)))
+        val wb = mm512LoaduSi512(constPtrFromRustCast(t1.qs.asPtr().add(g4 * TILE_N * 4)))
         for ((m, act) in acts.enumerate()) {
             isumA[m] = mm512DpbusdEpi32(isumA[m], wa, bcast4(act.qs, sub32 * 32 + g4 * 4))
             isumB[m] = mm512DpbusdEpi32(isumB[m], wb, bcast4(act.qs, (sub32 + 1) * 32 + g4 * 4))
         }
     }
     for ((blk, isum, tile) in listOf(Triple(sub32, isumA, t0), Triple(sub32 + 1, isumB, t1))) {
-        val dw = mm512CvtphPs(mm256LoaduSi256(constPtrFromRustCast<UByte>(tile.d.asPtr())))
+        val dw = mm512CvtphPs(mm256LoaduSi256(constPtrFromRustCast(tile.d.asPtr())))
         for ((m1, act1) in acts.enumerate()) {
             val bsum = (act1.bsums[blk * 2].toInt() + act1.bsums[blk * 2 + 1].toInt()).toFloat()
             val f = mm512SubPs(mm512Cvtepi32Ps(isum[m1]), mm512Set1Ps(128.0f * bsum))
@@ -483,7 +482,7 @@ internal fun q80Tile2(t0: TileQ80, t1: TileQ80, acts: List<BlockQ8K>, sub32: Int
 // parallelized over (m-tiles x n-tiles) on the barrier pool by the caller's chunker.
 // Per-unit bodies live in @targetFeature fns so intrinsics inline under portable
 // (target-cpu=generic) release builds; closures cannot carry the attribute.
-public fun matmulUnit512(packed: PackedX86, lhsQ: List<BlockQ8K>, kb: Int, nt: Int, m0: Int, mt: Int, dstPtr: MutPtr<Float>, n: Int) {
+public fun matmulUnit512(packed: PackedX86, lhsQ: List<BlockQ8K>, kb: Int, nt: Int, m0: Int, mt: Int, dstPtr: MutPtr, n: Int) {
     val actRefs: List<BlockQ8K> = List((MAX_MT).toInt()) { lhsQ[m0 * kb] }
     val acc = List((MAX_MT).toInt()) { List(1) { mm512SetzeroPs() } }
     for (b in 0 until kb) {
@@ -513,7 +512,7 @@ public fun matmulUnit512(packed: PackedX86, lhsQ: List<BlockQ8K>, kb: Int, nt: I
     }
 }
 
-public fun matmulUnit256(packed: PackedX86, lhsQ: List<BlockQ8K>, kb: Int, nt: Int, m0: Int, mt: Int, dstPtr: MutPtr<Float>, n: Int, vnni: Boolean) {
+public fun matmulUnit256(packed: PackedX86, lhsQ: List<BlockQ8K>, kb: Int, nt: Int, m0: Int, mt: Int, dstPtr: MutPtr, n: Int, vnni: Boolean) {
     val actRefs: List<BlockQ8K> = List((MAX_MT).toInt()) { lhsQ[m0 * kb] }
     val acc = List((MAX_MT).toInt()) { List(2) { mm256SetzeroPs() } }
     for (b in 0 until kb) {
@@ -563,7 +562,7 @@ internal fun matmulTiles(packed: PackedX86, lhsQ: List<BlockQ8K>, m: Int, k: Int
         val totalUnits = nTiles * m.divCeil(mtStep)
         val mUnits = m.divCeil(mtStep)
         barrierPool().executeChunked(totalUnits, { range ->
-            val dstPtr1 = MutPtr<Float>(dstPtr.toLong())
+            val dstPtr1 = MutPtr(dstPtr.toLong())
             for (unit in range) {
                 val nt = unit / mUnits
                 val m0 = (unit % mUnits) * mtStep
@@ -596,7 +595,7 @@ internal fun quantizeLhs(lhs: List<Float>, m: Int, k: Int): List<BlockQ8K> {
     }
     val outPtr = out.asMutPtr().toInt()
     barrierPool().executeChunked(m, { range ->
-        val outPtr1 = MutPtr<BlockQ8K>(outPtr.toLong())
+        val outPtr1 = MutPtr(outPtr.toLong())
         for (r in range) {
             val row = ((lhs).slice(r * k until (r + 1) * k))
             val dst = fromRawPartsMut(MutPtr((outPtr1).rawAddress + ((r * kb).toLong() * (ObjectSlotLayout<BlockQ8K>()).strideBytes)), kb)
@@ -631,7 +630,7 @@ internal fun gemvFused(parts: List<Pair<PackedX86, Int>>, lhsQ: List<BlockQ8K>, 
                 val m0 = (local % mUnits) * mtStep
                 val mt = (m - m0).min(mtStep)
                 run {
-                    matmulUnit512(partsRef[pi].first, lhsQ, kb, nt, m0, mt, mutPtrFromRustCast<Float>(dstPtr), n1)
+                    matmulUnit512(partsRef[pi].first, lhsQ, kb, nt, m0, mt, mutPtrFromRustCast(dstPtr), n1)
                 }
             }
         })
@@ -917,7 +916,7 @@ public fun ensureConfigured() {
 // aPack: [kb][8 subs][16 rows * 32 bytes]; returns via dst rows of n floats.
 // 32m x 32n macro-tile: 4 C tiles per (2 A, 2 B) loads so tdp throughput is not
 // gated on tile loads. aPack holds 32 m-rows (two 16-row halves interleaved by sub).
-internal fun q4kM32(tiles: List<TileQ4KAmx>, nt0: Int, nTiles: Int, kb: Int, aPack: List<Byte>, acts: List<List<BlockQ8K>>, mt: Int, dst: MutPtr<Float>, n: Int) {
+internal fun q4kM32(tiles: List<TileQ4KAmx>, nt0: Int, nTiles: Int, kb: Int, aPack: List<Byte>, acts: List<List<BlockQ8K>>, mt: Int, dst: MutPtr, n: Int) {
     ensureConfigured()
     val twoN = nt0 + 1 < nTiles
     val localStorageL737C8 = AddressableArrayLocal(IntArray((4 * 16 * 16).toInt()) { 0 }, FixedArrayTypeLayout(PrimitiveLayouts.I32, (4 * 16 * 16).toInt()))
@@ -986,7 +985,7 @@ internal fun matmulAmxQ4k(tiles: List<TileQ4KAmx>, lhsQ: List<BlockQ8K>, m: Int,
         val dstPtr = dst.asMutPtr().toInt()
         val lhsRef = lhsQ
         barrierPool().executeChunked(mBlocks, { range ->
-            val dstPtr1 = MutPtr<Float>(dstPtr.toLong())
+            val dstPtr1 = MutPtr(dstPtr.toLong())
             // per-thread activation repack buffer (two 16-row halves), reused across n
             val aHalf = kb * 8 * 16 * 32
             var aPack = mutableListOf(0, 2 * aHalf)
@@ -1051,7 +1050,7 @@ internal fun level(): X86Level? {
     )
 }
 
-public fun bcast4256(act: List<Byte>, off: ULong): M256i = mm256Set1Epi32(readUnaligned(constPtrFromRustCast<Int>(act.asPtr().add(off)), typeLayoutT = PrimitiveLayouts.I32))
+public fun bcast4256(act: List<Byte>, off: ULong): M256i = mm256Set1Epi32(readUnaligned(constPtrFromRustCast(act.asPtr().add(off)), typeLayoutT = PrimitiveLayouts.I32))
 
 public fun dpVnni(acc: M256i, wU8: M256i, aI8: M256i): M256i = mm256DpbusdAvxEpi32(acc, wU8, aI8)
 
@@ -1068,7 +1067,7 @@ internal fun q4kTileAvxvnni(tile: TileQ4K, acts: List<BlockQ8K>, acc: List<List<
         for (g4 in 0 until 4) {
             val g = sub * 4 + g4
             for (h in 0 until 2) {
-                val w = mm256LoaduSi256(constPtrFromRustCast<UByte>(tile.qs.asPtr().add(g * TILE_N * 4 + h * 32)))
+                val w = mm256LoaduSi256(constPtrFromRustCast(tile.qs.asPtr().add(g * TILE_N * 4 + h * 32)))
                 val lo = mm256AndSi256(w, mask)
                 val hi = mm256AndSi256(mm256SrliEpi16(w, 4), mask)
                 for ((m, act) in acts.enumerate()) {
@@ -1100,7 +1099,7 @@ internal fun q4kTileAvx2(tile: TileQ4K, acts: List<BlockQ8K>, acc: List<List<M25
         for (g4 in 0 until 4) {
             val g = sub * 4 + g4
             for (h in 0 until 2) {
-                val w = mm256LoaduSi256(constPtrFromRustCast<UByte>(tile.qs.asPtr().add(g * TILE_N * 4 + h * 32)))
+                val w = mm256LoaduSi256(constPtrFromRustCast(tile.qs.asPtr().add(g * TILE_N * 4 + h * 32)))
                 val lo = mm256AndSi256(w, mask)
                 val hi = mm256AndSi256(mm256SrliEpi16(w, 4), mask)
                 for ((m, act) in acts.enumerate()) {
@@ -1131,7 +1130,7 @@ internal fun q6kTileAvxvnni(tile: TileQ6K, acts: List<BlockQ8K>, acc: List<List<
         for (g4 in 0 until 4) {
             val g = sub * 4 + g4
             for (h in 0 until 2) {
-                val w = mm256LoaduSi256(constPtrFromRustCast<UByte>(tile.qs.asPtr().add(g * TILE_N * 4 + h * 32)))
+                val w = mm256LoaduSi256(constPtrFromRustCast(tile.qs.asPtr().add(g * TILE_N * 4 + h * 32)))
                 for ((m, act) in acts.enumerate()) {
                     val a = bcast4256(act.qs, sub * 16 + g4 * 4)
                     isum[m][h] = dpVnni(isum[m][h], w, a)
@@ -1156,7 +1155,7 @@ internal fun q6kTileAvx2(tile: TileQ6K, acts: List<BlockQ8K>, acc: List<List<M25
         for (g4 in 0 until 4) {
             val g = sub * 4 + g4
             for (h in 0 until 2) {
-                val w = mm256LoaduSi256(constPtrFromRustCast<UByte>(tile.qs.asPtr().add(g * TILE_N * 4 + h * 32)))
+                val w = mm256LoaduSi256(constPtrFromRustCast(tile.qs.asPtr().add(g * TILE_N * 4 + h * 32)))
                 for ((m, act) in acts.enumerate()) {
                     val a = bcast4256(act.qs, sub * 16 + g4 * 4)
                     isum[m][h] = dpAvx2(isum[m][h], w, a)
@@ -1181,8 +1180,8 @@ internal fun q80Tile2Avxvnni(t0: TileQ80, t1: TileQ80, acts: List<BlockQ8K>, sub
     val isumB = List(MAX_MT) { List(2) { mm256SetzeroSi256() } }
     for (g4 in 0 until 8) {
         for (h in 0 until 2) {
-            val wa = mm256LoaduSi256(constPtrFromRustCast<UByte>(t0.qs.asPtr().add(g4 * TILE_N * 4 + h * 32)))
-            val wb = mm256LoaduSi256(constPtrFromRustCast<UByte>(t1.qs.asPtr().add(g4 * TILE_N * 4 + h * 32)))
+            val wa = mm256LoaduSi256(constPtrFromRustCast(t0.qs.asPtr().add(g4 * TILE_N * 4 + h * 32)))
+            val wb = mm256LoaduSi256(constPtrFromRustCast(t1.qs.asPtr().add(g4 * TILE_N * 4 + h * 32)))
             for ((m, act) in acts.enumerate()) {
                 isumA[m][h] = mm256DpbusdAvxEpi32(isumA[m][h], wa, bcast4256(act.qs, sub32 * 32 + g4 * 4))
                 isumB[m][h] = mm256DpbusdAvxEpi32(isumB[m][h], wb, bcast4256(act.qs, (sub32 + 1) * 32 + g4 * 4))
@@ -1191,7 +1190,7 @@ internal fun q80Tile2Avxvnni(t0: TileQ80, t1: TileQ80, acts: List<BlockQ8K>, sub
     }
     for ((blk, isum, tile) in listOf(Triple(sub32, isumA, t0), Triple(sub32 + 1, isumB, t1))) {
         for (h1 in 0 until 2) {
-            val dw = mm256CvtphPs(mmLoaduSi128(constPtrFromRustCast<UByte>(tile.d.asPtr().add(h1 * 8))))
+            val dw = mm256CvtphPs(mmLoaduSi128(constPtrFromRustCast(tile.d.asPtr().add(h1 * 8))))
             for ((m1, act1) in acts.enumerate()) {
                 val bsum = (act1.bsums[blk * 2].toInt() + act1.bsums[blk * 2 + 1].toInt()).toFloat()
                 val f = mm256SubPs(mm256Cvtepi32Ps(isum[m1][h1]), mm256Set1Ps(128.0f * bsum))

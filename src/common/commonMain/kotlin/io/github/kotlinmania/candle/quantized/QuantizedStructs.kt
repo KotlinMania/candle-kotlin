@@ -207,7 +207,7 @@ public class QTensor(
         }
     }
 
-    public fun devicePtr(): Result<ConstPtr<UByte>> =
+    public fun devicePtr(): Result<ConstPtr> =
         when (val matchVal = this.storage) {
             is QStorage.Cuda -> {
                 val (storage) = matchVal
@@ -221,7 +221,7 @@ public class QTensor(
             }
         }
 
-    public fun devicePtrWithGuard(stream: CudaStream): Result<Pair<ConstPtr<UByte>, SyncOnDrop>> = this.storage.devicePtrWithGuard(stream)
+    public fun devicePtrWithGuard(stream: CudaStream): Result<Pair<ConstPtr, SyncOnDrop>> = this.storage.devicePtrWithGuard(stream)
 
     internal fun storageRef(): QuantizedType =
         when (val matchVal = this.storage) {

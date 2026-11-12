@@ -50,7 +50,7 @@ internal fun getScaleMinK4(j: Int, q: List<UByte>): Pair<UByte, UByte> =
         Pair(d1, m1)
     }
 
-internal fun makeQxQuants(n: Int, nmax: Int, x: ConstPtr<Float>, ls: MutPtr<Byte>, rmseType: Int, qw: ConstPtr<Float>): Float {
+internal fun makeQxQuants(n: Int, nmax: Int, x: ConstPtr, ls: MutPtr, rmseType: Int, qw: ConstPtr): Float {
     var max = 0.0f
     var amax = 0.0f
     for (i in 0 until n) {

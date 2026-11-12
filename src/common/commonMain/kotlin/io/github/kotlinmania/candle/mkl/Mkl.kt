@@ -2,66 +2,63 @@
 package io.github.kotlinmania.candle.mkl
 
 import io.github.kotlinmania.half.F16
-import io.github.kotlinmania.libc.CChar
-import io.github.kotlinmania.libc.CDouble
-import io.github.kotlinmania.libc.CFloat
 import io.github.kotlinmania.libc.CInt
 import io.github.kotlinmania.rustlang.core.ptr.ConstPtr
 import io.github.kotlinmania.rustlang.core.ptr.MutPtr
 
-public expect fun vsTanh(n: CInt, a: ConstPtr<CFloat>, y: MutPtr<CFloat>)
+public expect fun vsTanh(n: CInt, a: ConstPtr, y: MutPtr)
 
-public expect fun vdTanh(n: CInt, a: ConstPtr<CDouble>, y: MutPtr<CDouble>)
+public expect fun vdTanh(n: CInt, a: ConstPtr, y: MutPtr)
 
-public expect fun vsExp(n: CInt, a: ConstPtr<CFloat>, y: MutPtr<CFloat>)
+public expect fun vsExp(n: CInt, a: ConstPtr, y: MutPtr)
 
-public expect fun vdExp(n: CInt, a: ConstPtr<CDouble>, y: MutPtr<CDouble>)
+public expect fun vdExp(n: CInt, a: ConstPtr, y: MutPtr)
 
-public expect fun vsLn(n: CInt, a: ConstPtr<CFloat>, y: MutPtr<CFloat>)
+public expect fun vsLn(n: CInt, a: ConstPtr, y: MutPtr)
 
-public expect fun vdLn(n: CInt, a: ConstPtr<CDouble>, y: MutPtr<CDouble>)
+public expect fun vdLn(n: CInt, a: ConstPtr, y: MutPtr)
 
-public expect fun vsSin(n: CInt, a: ConstPtr<CFloat>, y: MutPtr<CFloat>)
+public expect fun vsSin(n: CInt, a: ConstPtr, y: MutPtr)
 
-public expect fun vdSin(n: CInt, a: ConstPtr<CDouble>, y: MutPtr<CDouble>)
+public expect fun vdSin(n: CInt, a: ConstPtr, y: MutPtr)
 
-public expect fun vsCos(n: CInt, a: ConstPtr<CFloat>, y: MutPtr<CFloat>)
+public expect fun vsCos(n: CInt, a: ConstPtr, y: MutPtr)
 
-public expect fun vdCos(n: CInt, a: ConstPtr<CDouble>, y: MutPtr<CDouble>)
+public expect fun vdCos(n: CInt, a: ConstPtr, y: MutPtr)
 
-public expect fun vsSqrt(n: CInt, a: ConstPtr<CFloat>, y: MutPtr<CFloat>)
+public expect fun vsSqrt(n: CInt, a: ConstPtr, y: MutPtr)
 
-public expect fun vdSqrt(n: CInt, a: ConstPtr<CDouble>, y: MutPtr<CDouble>)
+public expect fun vdSqrt(n: CInt, a: ConstPtr, y: MutPtr)
 
-public expect fun vsAdd(n: CInt, a: ConstPtr<CFloat>, b: ConstPtr<CFloat>, y: MutPtr<CFloat>)
+public expect fun vsAdd(n: CInt, a: ConstPtr, b: ConstPtr, y: MutPtr)
 
-public expect fun vdAdd(n: CInt, a: ConstPtr<CDouble>, b: ConstPtr<CDouble>, y: MutPtr<CDouble>)
+public expect fun vdAdd(n: CInt, a: ConstPtr, b: ConstPtr, y: MutPtr)
 
-public expect fun vsSub(n: CInt, a: ConstPtr<CFloat>, b: ConstPtr<CFloat>, y: MutPtr<CFloat>)
+public expect fun vsSub(n: CInt, a: ConstPtr, b: ConstPtr, y: MutPtr)
 
-public expect fun vdSub(n: CInt, a: ConstPtr<CDouble>, b: ConstPtr<CDouble>, y: MutPtr<CDouble>)
+public expect fun vdSub(n: CInt, a: ConstPtr, b: ConstPtr, y: MutPtr)
 
-public expect fun vsMul(n: CInt, a: ConstPtr<CFloat>, b: ConstPtr<CFloat>, y: MutPtr<CFloat>)
+public expect fun vsMul(n: CInt, a: ConstPtr, b: ConstPtr, y: MutPtr)
 
-public expect fun vdMul(n: CInt, a: ConstPtr<CDouble>, b: ConstPtr<CDouble>, y: MutPtr<CDouble>)
+public expect fun vdMul(n: CInt, a: ConstPtr, b: ConstPtr, y: MutPtr)
 
-public expect fun vsDiv(n: CInt, a: ConstPtr<CFloat>, b: ConstPtr<CFloat>, y: MutPtr<CFloat>)
+public expect fun vsDiv(n: CInt, a: ConstPtr, b: ConstPtr, y: MutPtr)
 
-public expect fun vdDiv(n: CInt, a: ConstPtr<CDouble>, b: ConstPtr<CDouble>, y: MutPtr<CDouble>)
+public expect fun vdDiv(n: CInt, a: ConstPtr, b: ConstPtr, y: MutPtr)
 
-public expect fun vsFmax(n: CInt, a: ConstPtr<CFloat>, b: ConstPtr<CFloat>, y: MutPtr<CFloat>)
+public expect fun vsFmax(n: CInt, a: ConstPtr, b: ConstPtr, y: MutPtr)
 
-public expect fun vdFmax(n: CInt, a: ConstPtr<CDouble>, b: ConstPtr<CDouble>, y: MutPtr<CDouble>)
+public expect fun vdFmax(n: CInt, a: ConstPtr, b: ConstPtr, y: MutPtr)
 
-public expect fun vsFmin(n: CInt, a: ConstPtr<CFloat>, b: ConstPtr<CFloat>, y: MutPtr<CFloat>)
+public expect fun vsFmin(n: CInt, a: ConstPtr, b: ConstPtr, y: MutPtr)
 
-public expect fun vdFmin(n: CInt, a: ConstPtr<CDouble>, b: ConstPtr<CDouble>, y: MutPtr<CDouble>)
+public expect fun vdFmin(n: CInt, a: ConstPtr, b: ConstPtr, y: MutPtr)
 
-public expect fun sgemm(transa: ConstPtr<CChar>, transb: ConstPtr<CChar>, m: ConstPtr<CInt>, n: ConstPtr<CInt>, k: ConstPtr<CInt>, alpha: ConstPtr<CFloat>, a: ConstPtr<CFloat>, lda: ConstPtr<CInt>, b: ConstPtr<CFloat>, ldb: ConstPtr<CInt>, beta: ConstPtr<CFloat>, c: MutPtr<CFloat>, ldc: ConstPtr<CInt>)
+public expect fun sgemm(transa: ConstPtr, transb: ConstPtr, m: ConstPtr, n: ConstPtr, k: ConstPtr, alpha: ConstPtr, a: ConstPtr, lda: ConstPtr, b: ConstPtr, ldb: ConstPtr, beta: ConstPtr, c: MutPtr, ldc: ConstPtr)
 
-public expect fun dgemm(transa: ConstPtr<CChar>, transb: ConstPtr<CChar>, m: ConstPtr<CInt>, n: ConstPtr<CInt>, k: ConstPtr<CInt>, alpha: ConstPtr<CDouble>, a: ConstPtr<CDouble>, lda: ConstPtr<CInt>, b: ConstPtr<CDouble>, ldb: ConstPtr<CInt>, beta: ConstPtr<CDouble>, c: MutPtr<CDouble>, ldc: ConstPtr<CInt>)
+public expect fun dgemm(transa: ConstPtr, transb: ConstPtr, m: ConstPtr, n: ConstPtr, k: ConstPtr, alpha: ConstPtr, a: ConstPtr, lda: ConstPtr, b: ConstPtr, ldb: ConstPtr, beta: ConstPtr, c: MutPtr, ldc: ConstPtr)
 
-public expect fun hgemm(transa: ConstPtr<CChar>, transb: ConstPtr<CChar>, m: ConstPtr<CInt>, n: ConstPtr<CInt>, k: ConstPtr<CInt>, alpha: ConstPtr<F16>, a: ConstPtr<F16>, lda: ConstPtr<CInt>, b: ConstPtr<F16>, ldb: ConstPtr<CInt>, beta: ConstPtr<F16>, c: MutPtr<F16>, ldc: ConstPtr<CInt>)
+public expect fun hgemm(transa: ConstPtr, transb: ConstPtr, m: ConstPtr, n: ConstPtr, k: ConstPtr, alpha: ConstPtr, a: ConstPtr, lda: ConstPtr, b: ConstPtr, ldb: ConstPtr, beta: ConstPtr, c: MutPtr, ldc: ConstPtr)
 
 public fun sgemm(transa: UByte, transb: UByte, m: Int, n: Int, k: Int, alpha: Float, a: List<Float>, lda: Int, b: List<Float>, ldb: Int, beta: Float, c: List<Float>, ldc: Int) {
     sgemm((transa.toByte()), (transb.toByte()), m, n, k, alpha, a.asPtr(), lda, b.asPtr(), ldb, beta, c.asMutPtr(), ldc)

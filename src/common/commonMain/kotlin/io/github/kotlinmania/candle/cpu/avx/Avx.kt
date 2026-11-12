@@ -38,17 +38,17 @@ public class CurrentCpu : Cpu {
 
         public fun fromF32(v: Float): M256 = mm256Set1Ps(v)
 
-        public fun load(memAddr: ConstPtr<Float>): M256 = mm256LoaduPs(memAddr)
+        public fun load(memAddr: ConstPtr): M256 = mm256LoaduPs(memAddr)
 
         public fun vecAdd(a: M256, b: M256): M256 = mm256AddPs(a, b)
 
         public fun vecFma(a: M256, b: M256, c: M256): M256 = mm256AddPs(mm256MulPs(b, c), a)
 
-        public fun vecStore(memAddr: MutPtr<Float>, a: M256) {
+        public fun vecStore(memAddr: MutPtr, a: M256) {
             mm256StoreuPs(memAddr, a)
         }
 
-        public fun vecReduce(x: List<M256>, y: MutPtr<Float>) {
+        public fun vecReduce(x: List<M256>, y: MutPtr) {
             val y1 = y
             for (i in 0 until ARR / 2) {
                 x[2 * i] = mm256AddPs(x[2 * i], x[2 * i + 1])
@@ -96,9 +96,9 @@ public class CurrentCpuF16 : CpuF16 {
 
         public fun fromF32(v: Float): M256 = mm256Set1Ps(v)
 
-        public fun load(memAddr: ConstPtr<F16>): M256 = mm256CvtphPs(mmLoaduSi128(ConstPtr<M128i>(memAddr.rawAddress, memAddr.rawMeta)))
+        public fun load(memAddr: ConstPtr): M256 = mm256CvtphPs(mmLoaduSi128(ConstPtr(memAddr.rawAddress, memAddr.rawMeta)))
 
-        public fun loadCpuF16(memAddr: ConstPtr<F16>): M256 {
+        public fun loadCpuF16(memAddr: ConstPtr): M256 {
             val tmp = List(8) { 0.0f }
             for (i in 0 until 8) {
                 tmp[i] = (ObjectSlotLayout<F16>()).readNative((ConstPtr((memAddr).rawAddress + ((i).toLong() * (ObjectSlotLayout<F16>()).strideBytes))).rawAddress).toF32()
@@ -110,11 +110,11 @@ public class CurrentCpuF16 : CpuF16 {
 
         public fun vecFma(a: M256, b: M256, c: M256): M256 = mm256AddPs(mm256MulPs(b, c), a)
 
-        public fun vecStore(memAddr: MutPtr<F16>, a: M256) {
-            mmStoreuSi128(MutPtr<M128i>(memAddr.rawAddress, memAddr.rawMeta), mm256CvtpsPh(a, 0))
+        public fun vecStore(memAddr: MutPtr, a: M256) {
+            mmStoreuSi128(MutPtr(memAddr.rawAddress, memAddr.rawMeta), mm256CvtpsPh(a, 0))
         }
 
-        public fun vecStoreCpuF16(memAddr: MutPtr<F16>, a: M256) {
+        public fun vecStoreCpuF16(memAddr: MutPtr, a: M256) {
             val tmp = List(8) { 0.0f }
             mm256StoreuPs(tmp.asMutPtr(), a)
             for (i in 0 until 8) {
@@ -122,7 +122,7 @@ public class CurrentCpuF16 : CpuF16 {
             }
         }
 
-        public fun vecReduce(x: List<M256>, y: MutPtr<Float>) {
+        public fun vecReduce(x: List<M256>, y: MutPtr) {
             val y1 = y
             var offset = ARR shr 1
             for (i in 0 until offset) {
@@ -167,9 +167,9 @@ public class CurrentCpuBF16 : CpuBF16 {
 
         public fun fromF32(v: Float): M256 = mm256Set1Ps(v)
 
-        public fun load(memAddr: ConstPtr<Bf16>): M256 =
+        public fun load(memAddr: ConstPtr): M256 =
             if (isX86FeatureDetected("avx512bf16") && isX86FeatureDetected("avx512vl")) {
-                mm256CvtpbhPs(transmute<M128i, M128bh>(mmLoaduSi128(ConstPtr<M128i>(memAddr.rawAddress, memAddr.rawMeta))))
+                mm256CvtpbhPs(transmute<M128i, M128bh>(mmLoaduSi128(ConstPtr(memAddr.rawAddress, memAddr.rawMeta))))
             } else {
                 val tmp = List(8) { 0.0f }
                 for (i in 0 until 8) {
@@ -182,9 +182,9 @@ public class CurrentCpuBF16 : CpuBF16 {
 
         public fun vecFma(a: M256, b: M256, c: M256): M256 = mm256AddPs(mm256MulPs(b, c), a)
 
-        public fun vecStore(memAddr: MutPtr<Bf16>, a: M256) {
+        public fun vecStore(memAddr: MutPtr, a: M256) {
             if (isX86FeatureDetected("avx512bf16") && isX86FeatureDetected("avx512vl")) {
-                mmStoreuSi128(MutPtr<M128i>(memAddr.rawAddress, memAddr.rawMeta), transmute<M128bh, M128i>(mm256CvtnepsPbh(a)))
+                mmStoreuSi128(MutPtr(memAddr.rawAddress, memAddr.rawMeta), transmute<M128bh, M128i>(mm256CvtnepsPbh(a)))
             } else {
                 val tmp = List(8) { 0.0f }
                 mm256StoreuPs(tmp.asMutPtr(), a)
@@ -194,7 +194,7 @@ public class CurrentCpuBF16 : CpuBF16 {
             }
         }
 
-        public fun vecReduce(x: List<M256>, y: MutPtr<Float>) {
+        public fun vecReduce(x: List<M256>, y: MutPtr) {
             val y1 = y
             var offset = ARR shr 1
             for (i in 0 until offset) {
@@ -215,7 +215,7 @@ public class CurrentCpuBF16 : CpuBF16 {
     }
 }
 
-internal fun vecDotF32(aRow: ConstPtr<Float>, bRow: ConstPtr<Float>, c: MutPtr<Float>, k: Int) {
+internal fun vecDotF32(aRow: ConstPtr, bRow: ConstPtr, c: MutPtr, k: Int) {
     val c1 = c
     val sum = CurrentCpu.zeroArray()
     var i = 0
@@ -237,7 +237,7 @@ internal fun vecDotF32(aRow: ConstPtr<Float>, bRow: ConstPtr<Float>, c: MutPtr<F
     }
 }
 
-internal fun vecSum(row: ConstPtr<Float>, b: MutPtr<Float>, k: Int) {
+internal fun vecSum(row: ConstPtr, b: MutPtr, k: Int) {
     val b1 = b
     val np = k and (CurrentCpu.STEP - 1).inv()
     val sum = CurrentCpu.zeroArray()
@@ -259,7 +259,7 @@ internal fun vecSum(row: ConstPtr<Float>, b: MutPtr<Float>, k: Int) {
     }
 }
 
-internal fun vecDotF16(aRow: ConstPtr<F16>, bRow: ConstPtr<F16>, c: MutPtr<Float>, k: Int) {
+internal fun vecDotF16(aRow: ConstPtr, bRow: ConstPtr, c: MutPtr, k: Int) {
     val c1 = c
     var sumf = 0.0f
     var sum = CurrentCpuF16.zeroArray()
@@ -289,7 +289,7 @@ internal fun vecDotF16(aRow: ConstPtr<F16>, bRow: ConstPtr<F16>, c: MutPtr<Float
     (PrimitiveLayouts.F32).writeNative((c1).rawAddress, sumf)
 }
 
-internal fun vecDotBf16(aRow: ConstPtr<Bf16>, bRow: ConstPtr<Bf16>, c: MutPtr<Float>, k: Int) {
+internal fun vecDotBf16(aRow: ConstPtr, bRow: ConstPtr, c: MutPtr, k: Int) {
     val c1 = c
     val sum = CurrentCpuBF16.zeroArray()
     var i = 0
@@ -311,7 +311,7 @@ internal fun vecDotBf16(aRow: ConstPtr<Bf16>, bRow: ConstPtr<Bf16>, c: MutPtr<Fl
     }
 }
 
-internal fun vecAddF16(aRow: ConstPtr<F16>, bRow: ConstPtr<F16>, c: MutPtr<F16>, k: Int) {
+internal fun vecAddF16(aRow: ConstPtr, bRow: ConstPtr, c: MutPtr, k: Int) {
     var i = 0
     while (i + CurrentCpuF16.STEP <= k) {
         for (j in 0 until CurrentCpuF16.ARR) {
@@ -324,7 +324,7 @@ internal fun vecAddF16(aRow: ConstPtr<F16>, bRow: ConstPtr<F16>, c: MutPtr<F16>,
     }
 }
 
-internal fun vecAddBf16(aRow: ConstPtr<Bf16>, bRow: ConstPtr<Bf16>, c: MutPtr<Bf16>, k: Int) {
+internal fun vecAddBf16(aRow: ConstPtr, bRow: ConstPtr, c: MutPtr, k: Int) {
     var i = 0
     while (i + CurrentCpuBF16.STEP <= k) {
         for (j in 0 until CurrentCpuBF16.ARR) {
@@ -337,7 +337,7 @@ internal fun vecAddBf16(aRow: ConstPtr<Bf16>, bRow: ConstPtr<Bf16>, c: MutPtr<Bf
     }
 }
 
-internal fun vecScalarAddF16(scalar: F16, xs: ConstPtr<F16>, ys: MutPtr<F16>, k: Int) {
+internal fun vecScalarAddF16(scalar: F16, xs: ConstPtr, ys: MutPtr, k: Int) {
     val sv = CurrentCpuF16.fromF32(scalar.toF32())
     var i = 0
     while (i + CurrentCpuF16.STEP <= k) {
@@ -351,7 +351,7 @@ internal fun vecScalarAddF16(scalar: F16, xs: ConstPtr<F16>, ys: MutPtr<F16>, k:
     }
 }
 
-internal fun vecScalarAddBf16(scalar: Bf16, xs: ConstPtr<Bf16>, ys: MutPtr<Bf16>, k: Int) {
+internal fun vecScalarAddBf16(scalar: Bf16, xs: ConstPtr, ys: MutPtr, k: Int) {
     val sv = CurrentCpuBF16.fromF32(scalar.toF32())
     var i = 0
     while (i + CurrentCpuBF16.STEP <= k) {

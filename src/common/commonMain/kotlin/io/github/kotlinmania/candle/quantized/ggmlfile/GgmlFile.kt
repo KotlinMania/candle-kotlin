@@ -3,7 +3,6 @@ package io.github.kotlinmania.candle.quantized.ggmlfile
 
 import io.github.kotlinmania.byteorder.LittleEndian
 import io.github.kotlinmania.candle.device.Device
-import io.github.kotlinmania.candle.error.Error
 import io.github.kotlinmania.candle.error.Result
 import io.github.kotlinmania.candle.error.bail
 import io.github.kotlinmania.candle.quantized.GgmlDType
@@ -220,7 +219,7 @@ public data class Vocab(
 public fun <T : GgmlType> fromRawData(rawData: List<UByte>, sizeInBytes: Int, dims: List<Int>, device: Device, typeLayoutT: TypeLayout<T>): Result<QTensor> {
     val rawDataPtr = rawData.asPtr()
     val nBlocks = sizeInBytes / sizeOf<T>(typeLayoutT = typeLayoutT)
-    val data = fromRawParts(constPtrFromRustCast<T>(rawDataPtr), nBlocks)
+    val data = fromRawParts(constPtrFromRustCast(rawDataPtr), nBlocks)
     val data1: QStorage =
         when (device) {
             Device.Cpu -> QStorage.Cpu(data.toVec())

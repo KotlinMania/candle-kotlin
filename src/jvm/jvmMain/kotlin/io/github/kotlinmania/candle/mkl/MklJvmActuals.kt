@@ -2,10 +2,6 @@
 
 package io.github.kotlinmania.candle.mkl
 
-import io.github.kotlinmania.half.F16
-import io.github.kotlinmania.libc.CChar
-import io.github.kotlinmania.libc.CDouble
-import io.github.kotlinmania.libc.CFloat
 import io.github.kotlinmania.libc.CInt
 import io.github.kotlinmania.rustlang.core.ptr.ConstPtr
 import io.github.kotlinmania.rustlang.core.ptr.MutPtr
@@ -148,110 +144,110 @@ private object MklJniBridge {
     external fun candleMklHgemm(transa: Long, transb: Long, m: Long, n: Long, k: Long, alpha: Long, a: Long, lda: Long, b: Long, ldb: Long, beta: Long, c: Long, ldc: Long)
 }
 
-public actual fun vsTanh(n: CInt, a: ConstPtr<CFloat>, y: MutPtr<CFloat>) {
+public actual fun vsTanh(n: CInt, a: ConstPtr, y: MutPtr) {
     MklJniBridge.candleMklVsTanh(n, a.rawAddress, y.rawAddress)
 }
 
-public actual fun vdTanh(n: CInt, a: ConstPtr<CDouble>, y: MutPtr<CDouble>) {
+public actual fun vdTanh(n: CInt, a: ConstPtr, y: MutPtr) {
     MklJniBridge.candleMklVdTanh(n, a.rawAddress, y.rawAddress)
 }
 
-public actual fun vsExp(n: CInt, a: ConstPtr<CFloat>, y: MutPtr<CFloat>) {
+public actual fun vsExp(n: CInt, a: ConstPtr, y: MutPtr) {
     MklJniBridge.candleMklVsExp(n, a.rawAddress, y.rawAddress)
 }
 
-public actual fun vdExp(n: CInt, a: ConstPtr<CDouble>, y: MutPtr<CDouble>) {
+public actual fun vdExp(n: CInt, a: ConstPtr, y: MutPtr) {
     MklJniBridge.candleMklVdExp(n, a.rawAddress, y.rawAddress)
 }
 
-public actual fun vsLn(n: CInt, a: ConstPtr<CFloat>, y: MutPtr<CFloat>) {
+public actual fun vsLn(n: CInt, a: ConstPtr, y: MutPtr) {
     MklJniBridge.candleMklVsLn(n, a.rawAddress, y.rawAddress)
 }
 
-public actual fun vdLn(n: CInt, a: ConstPtr<CDouble>, y: MutPtr<CDouble>) {
+public actual fun vdLn(n: CInt, a: ConstPtr, y: MutPtr) {
     MklJniBridge.candleMklVdLn(n, a.rawAddress, y.rawAddress)
 }
 
-public actual fun vsSin(n: CInt, a: ConstPtr<CFloat>, y: MutPtr<CFloat>) {
+public actual fun vsSin(n: CInt, a: ConstPtr, y: MutPtr) {
     MklJniBridge.candleMklVsSin(n, a.rawAddress, y.rawAddress)
 }
 
-public actual fun vdSin(n: CInt, a: ConstPtr<CDouble>, y: MutPtr<CDouble>) {
+public actual fun vdSin(n: CInt, a: ConstPtr, y: MutPtr) {
     MklJniBridge.candleMklVdSin(n, a.rawAddress, y.rawAddress)
 }
 
-public actual fun vsCos(n: CInt, a: ConstPtr<CFloat>, y: MutPtr<CFloat>) {
+public actual fun vsCos(n: CInt, a: ConstPtr, y: MutPtr) {
     MklJniBridge.candleMklVsCos(n, a.rawAddress, y.rawAddress)
 }
 
-public actual fun vdCos(n: CInt, a: ConstPtr<CDouble>, y: MutPtr<CDouble>) {
+public actual fun vdCos(n: CInt, a: ConstPtr, y: MutPtr) {
     MklJniBridge.candleMklVdCos(n, a.rawAddress, y.rawAddress)
 }
 
-public actual fun vsSqrt(n: CInt, a: ConstPtr<CFloat>, y: MutPtr<CFloat>) {
+public actual fun vsSqrt(n: CInt, a: ConstPtr, y: MutPtr) {
     MklJniBridge.candleMklVsSqrt(n, a.rawAddress, y.rawAddress)
 }
 
-public actual fun vdSqrt(n: CInt, a: ConstPtr<CDouble>, y: MutPtr<CDouble>) {
+public actual fun vdSqrt(n: CInt, a: ConstPtr, y: MutPtr) {
     MklJniBridge.candleMklVdSqrt(n, a.rawAddress, y.rawAddress)
 }
 
-public actual fun vsAdd(n: CInt, a: ConstPtr<CFloat>, b: ConstPtr<CFloat>, y: MutPtr<CFloat>) {
+public actual fun vsAdd(n: CInt, a: ConstPtr, b: ConstPtr, y: MutPtr) {
     MklJniBridge.candleMklVsAdd(n, a.rawAddress, b.rawAddress, y.rawAddress)
 }
 
-public actual fun vdAdd(n: CInt, a: ConstPtr<CDouble>, b: ConstPtr<CDouble>, y: MutPtr<CDouble>) {
+public actual fun vdAdd(n: CInt, a: ConstPtr, b: ConstPtr, y: MutPtr) {
     MklJniBridge.candleMklVdAdd(n, a.rawAddress, b.rawAddress, y.rawAddress)
 }
 
-public actual fun vsSub(n: CInt, a: ConstPtr<CFloat>, b: ConstPtr<CFloat>, y: MutPtr<CFloat>) {
+public actual fun vsSub(n: CInt, a: ConstPtr, b: ConstPtr, y: MutPtr) {
     MklJniBridge.candleMklVsSub(n, a.rawAddress, b.rawAddress, y.rawAddress)
 }
 
-public actual fun vdSub(n: CInt, a: ConstPtr<CDouble>, b: ConstPtr<CDouble>, y: MutPtr<CDouble>) {
+public actual fun vdSub(n: CInt, a: ConstPtr, b: ConstPtr, y: MutPtr) {
     MklJniBridge.candleMklVdSub(n, a.rawAddress, b.rawAddress, y.rawAddress)
 }
 
-public actual fun vsMul(n: CInt, a: ConstPtr<CFloat>, b: ConstPtr<CFloat>, y: MutPtr<CFloat>) {
+public actual fun vsMul(n: CInt, a: ConstPtr, b: ConstPtr, y: MutPtr) {
     MklJniBridge.candleMklVsMul(n, a.rawAddress, b.rawAddress, y.rawAddress)
 }
 
-public actual fun vdMul(n: CInt, a: ConstPtr<CDouble>, b: ConstPtr<CDouble>, y: MutPtr<CDouble>) {
+public actual fun vdMul(n: CInt, a: ConstPtr, b: ConstPtr, y: MutPtr) {
     MklJniBridge.candleMklVdMul(n, a.rawAddress, b.rawAddress, y.rawAddress)
 }
 
-public actual fun vsDiv(n: CInt, a: ConstPtr<CFloat>, b: ConstPtr<CFloat>, y: MutPtr<CFloat>) {
+public actual fun vsDiv(n: CInt, a: ConstPtr, b: ConstPtr, y: MutPtr) {
     MklJniBridge.candleMklVsDiv(n, a.rawAddress, b.rawAddress, y.rawAddress)
 }
 
-public actual fun vdDiv(n: CInt, a: ConstPtr<CDouble>, b: ConstPtr<CDouble>, y: MutPtr<CDouble>) {
+public actual fun vdDiv(n: CInt, a: ConstPtr, b: ConstPtr, y: MutPtr) {
     MklJniBridge.candleMklVdDiv(n, a.rawAddress, b.rawAddress, y.rawAddress)
 }
 
-public actual fun vsFmax(n: CInt, a: ConstPtr<CFloat>, b: ConstPtr<CFloat>, y: MutPtr<CFloat>) {
+public actual fun vsFmax(n: CInt, a: ConstPtr, b: ConstPtr, y: MutPtr) {
     MklJniBridge.candleMklVsFmax(n, a.rawAddress, b.rawAddress, y.rawAddress)
 }
 
-public actual fun vdFmax(n: CInt, a: ConstPtr<CDouble>, b: ConstPtr<CDouble>, y: MutPtr<CDouble>) {
+public actual fun vdFmax(n: CInt, a: ConstPtr, b: ConstPtr, y: MutPtr) {
     MklJniBridge.candleMklVdFmax(n, a.rawAddress, b.rawAddress, y.rawAddress)
 }
 
-public actual fun vsFmin(n: CInt, a: ConstPtr<CFloat>, b: ConstPtr<CFloat>, y: MutPtr<CFloat>) {
+public actual fun vsFmin(n: CInt, a: ConstPtr, b: ConstPtr, y: MutPtr) {
     MklJniBridge.candleMklVsFmin(n, a.rawAddress, b.rawAddress, y.rawAddress)
 }
 
-public actual fun vdFmin(n: CInt, a: ConstPtr<CDouble>, b: ConstPtr<CDouble>, y: MutPtr<CDouble>) {
+public actual fun vdFmin(n: CInt, a: ConstPtr, b: ConstPtr, y: MutPtr) {
     MklJniBridge.candleMklVdFmin(n, a.rawAddress, b.rawAddress, y.rawAddress)
 }
 
-public actual fun sgemm(transa: ConstPtr<CChar>, transb: ConstPtr<CChar>, m: ConstPtr<CInt>, n: ConstPtr<CInt>, k: ConstPtr<CInt>, alpha: ConstPtr<CFloat>, a: ConstPtr<CFloat>, lda: ConstPtr<CInt>, b: ConstPtr<CFloat>, ldb: ConstPtr<CInt>, beta: ConstPtr<CFloat>, c: MutPtr<CFloat>, ldc: ConstPtr<CInt>) {
+public actual fun sgemm(transa: ConstPtr, transb: ConstPtr, m: ConstPtr, n: ConstPtr, k: ConstPtr, alpha: ConstPtr, a: ConstPtr, lda: ConstPtr, b: ConstPtr, ldb: ConstPtr, beta: ConstPtr, c: MutPtr, ldc: ConstPtr) {
     MklJniBridge.candleMklSgemm(transa.rawAddress, transb.rawAddress, m.rawAddress, n.rawAddress, k.rawAddress, alpha.rawAddress, a.rawAddress, lda.rawAddress, b.rawAddress, ldb.rawAddress, beta.rawAddress, c.rawAddress, ldc.rawAddress)
 }
 
-public actual fun dgemm(transa: ConstPtr<CChar>, transb: ConstPtr<CChar>, m: ConstPtr<CInt>, n: ConstPtr<CInt>, k: ConstPtr<CInt>, alpha: ConstPtr<CDouble>, a: ConstPtr<CDouble>, lda: ConstPtr<CInt>, b: ConstPtr<CDouble>, ldb: ConstPtr<CInt>, beta: ConstPtr<CDouble>, c: MutPtr<CDouble>, ldc: ConstPtr<CInt>) {
+public actual fun dgemm(transa: ConstPtr, transb: ConstPtr, m: ConstPtr, n: ConstPtr, k: ConstPtr, alpha: ConstPtr, a: ConstPtr, lda: ConstPtr, b: ConstPtr, ldb: ConstPtr, beta: ConstPtr, c: MutPtr, ldc: ConstPtr) {
     MklJniBridge.candleMklDgemm(transa.rawAddress, transb.rawAddress, m.rawAddress, n.rawAddress, k.rawAddress, alpha.rawAddress, a.rawAddress, lda.rawAddress, b.rawAddress, ldb.rawAddress, beta.rawAddress, c.rawAddress, ldc.rawAddress)
 }
 
-public actual fun hgemm(transa: ConstPtr<CChar>, transb: ConstPtr<CChar>, m: ConstPtr<CInt>, n: ConstPtr<CInt>, k: ConstPtr<CInt>, alpha: ConstPtr<F16>, a: ConstPtr<F16>, lda: ConstPtr<CInt>, b: ConstPtr<F16>, ldb: ConstPtr<CInt>, beta: ConstPtr<F16>, c: MutPtr<F16>, ldc: ConstPtr<CInt>) {
+public actual fun hgemm(transa: ConstPtr, transb: ConstPtr, m: ConstPtr, n: ConstPtr, k: ConstPtr, alpha: ConstPtr, a: ConstPtr, lda: ConstPtr, b: ConstPtr, ldb: ConstPtr, beta: ConstPtr, c: MutPtr, ldc: ConstPtr) {
     MklJniBridge.candleMklHgemm(transa.rawAddress, transb.rawAddress, m.rawAddress, n.rawAddress, k.rawAddress, alpha.rawAddress, a.rawAddress, lda.rawAddress, b.rawAddress, ldb.rawAddress, beta.rawAddress, c.rawAddress, ldc.rawAddress)
 }

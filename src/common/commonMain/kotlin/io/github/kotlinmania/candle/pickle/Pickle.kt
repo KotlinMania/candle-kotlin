@@ -11,7 +11,6 @@ import io.github.kotlinmania.candle.shape.Shape
 import io.github.kotlinmania.candle.tensor.Tensor
 import io.github.kotlinmania.rustlang.core.result.fromResidual
 import io.github.kotlinmania.rustlang.std.io.BufRead
-import io.github.kotlinmania.rustlang.std.io.Read
 import io.github.kotlinmania.candle.error.Error as E
 
 // Just enough pickle support to be able to read PyTorch checkpoints.

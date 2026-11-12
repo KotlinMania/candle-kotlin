@@ -117,7 +117,7 @@ public fun <T> conv2d1x1(p: ParamsConv2D, inp: List<T>, inpL: Layout, k: List<T>
                     val outOffset = bIdx * p.cOut * spatialSize
                     for ((i, r) in result.iter().enumerate()) {
                         run {
-                            val ptr = mutPtrFromRustCast<T>(dst.asPtr().add(outOffset + i))
+                            val ptr = mutPtrFromRustCast(dst.asPtr().add(outOffset + i))
                             (ObjectSlotLayout<T>()).writeNative((ptr).rawAddress, r)
                         }
                     }
@@ -259,7 +259,7 @@ public fun <T> conv2dTiled(p: ParamsConv2D, inp: List<T>, inpL: Layout, k: List<
                                 // Within each batch, tiles process non-overlapping output positions.
                                 // Therefore, no two threads will write to the same dstIdx.
                                 run {
-                                    val ptr = mutPtrFromRustCast<T>(dst.asPtr().add(dstIdx1))
+                                    val ptr = mutPtrFromRustCast(dst.asPtr().add(dstIdx1))
                                     (ObjectSlotLayout<T>()).writeNative((ptr).rawAddress, result[resultIdx])
                                 }
                             }
@@ -355,7 +355,7 @@ public fun <T> conv2dDirect(p: ParamsConv2D, inp: List<T>, inpL: Layout, k: List
                             val d = zeroTFn()
                             run {
                                 vecDotTFn(inpCont1.asPtr(), kCont.asPtr(), d, p.cIn)
-                                val ptr = mutPtrFromRustCast<T>(dst.asPtr().add(dstIdx1))
+                                val ptr = mutPtrFromRustCast(dst.asPtr().add(dstIdx1))
                                 (ptr).let { targetPtr ->
                                     val targetLayout = ObjectSlotLayout<T>()
                                     var currentValue = targetLayout.readNative(targetPtr.rawAddress)

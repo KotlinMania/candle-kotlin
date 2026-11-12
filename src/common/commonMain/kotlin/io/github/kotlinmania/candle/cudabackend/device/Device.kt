@@ -239,7 +239,7 @@ public class CudaDevice internal constructor(
             }
             return Ok(null)
         }
-        val bytes = fromRawParts(srcSlice.asPtr().cast<UByte>(), byteLen).toVec()
+        val bytes = fromRawParts(srcSlice.asPtr().cast(), byteLen).toVec()
         val key = Triple(this.id, RustTypeId.of<T>(), bytes)
         when (
             val matchVal =

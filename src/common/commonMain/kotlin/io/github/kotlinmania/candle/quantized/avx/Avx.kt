@@ -43,8 +43,8 @@ internal fun hsumFloat8(x: M256): Float {
  * # Safety
  * `rsi` must point to at least 16 readable bytes.
  */
-internal fun bytesFromNibbles32(rsi: ConstPtr<UByte>): M256i {
-    val tmp = mmLoaduSi128(ConstPtr<M128i>(rsi.rawAddress, rsi.rawMeta))
+internal fun bytesFromNibbles32(rsi: ConstPtr): M256i {
+    val tmp = mmLoaduSi128(ConstPtr(rsi.rawAddress, rsi.rawMeta))
     val bytes = mm256Insertf128Si256(mm256Castsi128Si256(tmp), mmSrliEpi16(tmp, 4), 1)
     val lowMask = mm256Set1Epi8(0xF)
     return mm256AndSi256(lowMask, bytes)
@@ -65,7 +65,7 @@ internal fun vecDotQ40Q80(n: Int, xs: List<BlockQ40>, ys: List<BlockQ80>): Float
             val bx = bytesFromNibbles32(x.qs.asPtr())
             val off = mm256Set1Epi8(8)
             val bx1 = mm256SubEpi8(bx, off)
-            val by = mm256LoaduSi256(constPtrFromRustCast<M256i>(y.qs.asPtr()))
+            val by = mm256LoaduSi256(constPtrFromRustCast(y.qs.asPtr()))
             val q = mulSumI8PairsFloat(bx1, by)
             acc = mm256FmaddPs(d, q, acc)
         }
@@ -79,8 +79,8 @@ internal fun vecDotQ80Q80(n: Int, xs: List<BlockQ80>, ys: List<BlockQ80>): Float
         var acc = mm256SetzeroPs()
         for ((x, y) in (xs.zip(ys))) {
             val d = mm256Set1Ps(f16.toF32(x.d) * f16.toF32(y.d))
-            val bx = mm256LoaduSi256(constPtrFromRustCast<M256i>(x.qs.asPtr()))
-            val by = mm256LoaduSi256(constPtrFromRustCast<M256i>(y.qs.asPtr()))
+            val bx = mm256LoaduSi256(constPtrFromRustCast(x.qs.asPtr()))
+            val by = mm256LoaduSi256(constPtrFromRustCast(y.qs.asPtr()))
             val q = mulSumI8PairsFloat(bx, by)
             acc = mm256FmaddPs(d, q, acc)
         }
@@ -94,7 +94,7 @@ internal fun vecDotQ80Q80(n: Int, xs: List<BlockQ80>, ys: List<BlockQ80>): Float
  */
 public fun getScaleShuffle(i: Int): M128i {
     val K_SHUFFLE: UByteArray = ubyteArrayOf(0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u, 1u, 1u, 1u, 1u, 1u, 1u, 1u, 1u, 2u, 2u, 2u, 2u, 2u, 2u, 2u, 2u, 3u, 3u, 3u, 3u, 3u, 3u, 3u, 3u, 4u, 4u, 4u, 4u, 4u, 4u, 4u, 4u, 5u, 5u, 5u, 5u, 5u, 5u, 5u, 5u, 6u, 6u, 6u, 6u, 6u, 6u, 6u, 6u, 7u, 7u, 7u, 7u, 7u, 7u, 7u, 7u, 8u, 8u, 8u, 8u, 8u, 8u, 8u, 8u, 9u, 9u, 9u, 9u, 9u, 9u, 9u, 9u, 10u, 10u, 10u, 10u, 10u, 10u, 10u, 10u, 11u, 11u, 11u, 11u, 11u, 11u, 11u, 11u, 12u, 12u, 12u, 12u, 12u, 12u, 12u, 12u, 13u, 13u, 13u, 13u, 13u, 13u, 13u, 13u, 14u, 14u, 14u, 14u, 14u, 14u, 14u, 14u, 15u, 15u, 15u, 15u, 15u, 15u, 15u, 15u)
-    return mmLoaduSi128(ConstPtr(((constPtrFromRustCast<M128i>(K_SHUFFLE.asPtr()))).rawAddress + ((i).toLong() * (ObjectSlotLayout<M128i>()).strideBytes)))
+    return mmLoaduSi128(ConstPtr(((constPtrFromRustCast(K_SHUFFLE.asPtr()))).rawAddress + ((i).toLong() * (ObjectSlotLayout<M128i>()).strideBytes)))
 }
 
 /**
@@ -103,7 +103,7 @@ public fun getScaleShuffle(i: Int): M128i {
  */
 public fun getScaleShuffleK4(i: Int): M256i {
     val K_SHUFFLE: UByteArray = ubyteArrayOf(0u, 1u, 0u, 1u, 0u, 1u, 0u, 1u, 0u, 1u, 0u, 1u, 0u, 1u, 0u, 1u, 0u, 1u, 0u, 1u, 0u, 1u, 0u, 1u, 0u, 1u, 0u, 1u, 0u, 1u, 0u, 1u, 2u, 3u, 2u, 3u, 2u, 3u, 2u, 3u, 2u, 3u, 2u, 3u, 2u, 3u, 2u, 3u, 2u, 3u, 2u, 3u, 2u, 3u, 2u, 3u, 2u, 3u, 2u, 3u, 2u, 3u, 2u, 3u, 4u, 5u, 4u, 5u, 4u, 5u, 4u, 5u, 4u, 5u, 4u, 5u, 4u, 5u, 4u, 5u, 4u, 5u, 4u, 5u, 4u, 5u, 4u, 5u, 4u, 5u, 4u, 5u, 4u, 5u, 4u, 5u, 6u, 7u, 6u, 7u, 6u, 7u, 6u, 7u, 6u, 7u, 6u, 7u, 6u, 7u, 6u, 7u, 6u, 7u, 6u, 7u, 6u, 7u, 6u, 7u, 6u, 7u, 6u, 7u, 6u, 7u, 6u, 7u, 8u, 9u, 8u, 9u, 8u, 9u, 8u, 9u, 8u, 9u, 8u, 9u, 8u, 9u, 8u, 9u, 8u, 9u, 8u, 9u, 8u, 9u, 8u, 9u, 8u, 9u, 8u, 9u, 8u, 9u, 8u, 9u, 10u, 11u, 10u, 11u, 10u, 11u, 10u, 11u, 10u, 11u, 10u, 11u, 10u, 11u, 10u, 11u, 10u, 11u, 10u, 11u, 10u, 11u, 10u, 11u, 10u, 11u, 10u, 11u, 10u, 11u, 10u, 11u, 12u, 13u, 12u, 13u, 12u, 13u, 12u, 13u, 12u, 13u, 12u, 13u, 12u, 13u, 12u, 13u, 12u, 13u, 12u, 13u, 12u, 13u, 12u, 13u, 12u, 13u, 12u, 13u, 12u, 13u, 12u, 13u, 14u, 15u, 14u, 15u, 14u, 15u, 14u, 15u, 14u, 15u, 14u, 15u, 14u, 15u, 14u, 15u, 14u, 15u, 14u, 15u, 14u, 15u, 14u, 15u, 14u, 15u, 14u, 15u, 14u, 15u, 14u, 15u)
-    return mm256LoaduSi256(ConstPtr(((constPtrFromRustCast<M256i>(K_SHUFFLE.asPtr()))).rawAddress + ((i).toLong() * (ObjectSlotLayout<M256i>()).strideBytes)))
+    return mm256LoaduSi256(ConstPtr(((constPtrFromRustCast(K_SHUFFLE.asPtr()))).rawAddress + ((i).toLong() * (ObjectSlotLayout<M256i>()).strideBytes)))
 }
 
 /**
@@ -112,7 +112,7 @@ public fun getScaleShuffleK4(i: Int): M256i {
  */
 public fun getScaleShuffleQ3k(i: Int): M256i {
     val K_SHUFFLE: UByteArray = ubyteArrayOf(0u, 1u, 0u, 1u, 0u, 1u, 0u, 1u, 0u, 1u, 0u, 1u, 0u, 1u, 0u, 1u, 2u, 3u, 2u, 3u, 2u, 3u, 2u, 3u, 2u, 3u, 2u, 3u, 2u, 3u, 2u, 3u, 4u, 5u, 4u, 5u, 4u, 5u, 4u, 5u, 4u, 5u, 4u, 5u, 4u, 5u, 4u, 5u, 6u, 7u, 6u, 7u, 6u, 7u, 6u, 7u, 6u, 7u, 6u, 7u, 6u, 7u, 6u, 7u, 8u, 9u, 8u, 9u, 8u, 9u, 8u, 9u, 8u, 9u, 8u, 9u, 8u, 9u, 8u, 9u, 10u, 11u, 10u, 11u, 10u, 11u, 10u, 11u, 10u, 11u, 10u, 11u, 10u, 11u, 10u, 11u, 12u, 13u, 12u, 13u, 12u, 13u, 12u, 13u, 12u, 13u, 12u, 13u, 12u, 13u, 12u, 13u, 14u, 15u, 14u, 15u, 14u, 15u, 14u, 15u, 14u, 15u, 14u, 15u, 14u, 15u, 14u, 15u)
-    return mm256LoaduSi256(ConstPtr(((constPtrFromRustCast<M256i>(K_SHUFFLE.asPtr()))).rawAddress + ((i).toLong() * (ObjectSlotLayout<M256i>()).strideBytes)))
+    return mm256LoaduSi256(ConstPtr(((constPtrFromRustCast(K_SHUFFLE.asPtr()))).rawAddress + ((i).toLong() * (ObjectSlotLayout<M256i>()).strideBytes)))
 }
 
 internal fun vecDotQ6kQ8k(n: Int, xs: List<BlockQ6K>, ys: List<BlockQ8K>): Float {
@@ -127,7 +127,7 @@ internal fun vecDotQ6kQ8k(n: Int, xs: List<BlockQ6K>, ys: List<BlockQ8K>): Float
             var q4 = x.ql.asPtr()
             var qh = x.qh.asPtr()
             var q8 = y.qs.asPtr()
-            val scales = mmLoaduSi128(constPtrFromRustCast<M128i>(x.scales.asPtr()))
+            val scales = mmLoaduSi128(constPtrFromRustCast(x.scales.asPtr()))
             var sumi = mm256SetzeroSi256()
             for (j in 0 until QK_K / 128) {
                 val isMatch = j * 4
@@ -135,11 +135,11 @@ internal fun vecDotQ6kQ8k(n: Int, xs: List<BlockQ6K>, ys: List<BlockQ8K>): Float
                 val scale1 = mmShuffleEpi8(scales, getScaleShuffle(isMatch + 1))
                 val scale2 = mmShuffleEpi8(scales, getScaleShuffle(isMatch + 2))
                 val scale3 = mmShuffleEpi8(scales, getScaleShuffle(isMatch + 3))
-                val q4bits1 = mm256LoaduSi256(constPtrFromRustCast<M256i>(q4))
+                val q4bits1 = mm256LoaduSi256(constPtrFromRustCast(q4))
                 q4 = q4.add(32)
-                val q4bits2 = mm256LoaduSi256(constPtrFromRustCast<M256i>(q4))
+                val q4bits2 = mm256LoaduSi256(constPtrFromRustCast(q4))
                 q4 = q4.add(32)
-                val q4bitsH = mm256LoaduSi256(constPtrFromRustCast<M256i>(qh))
+                val q4bitsH = mm256LoaduSi256(constPtrFromRustCast(qh))
                 qh = qh.add(32)
                 val q4h0 = mm256SlliEpi16(mm256AndSi256(q4bitsH, m2), 4)
                 val q4h1 = mm256SlliEpi16(mm256AndSi256(mm256SrliEpi16(q4bitsH, 2), m2), 4)
@@ -149,13 +149,13 @@ internal fun vecDotQ6kQ8k(n: Int, xs: List<BlockQ6K>, ys: List<BlockQ8K>): Float
                 val q41 = mm256OrSi256(mm256AndSi256(q4bits2, m4), q4h1)
                 val q42 = mm256OrSi256(mm256AndSi256(mm256SrliEpi16(q4bits1, 4), m4), q4h2)
                 val q43 = mm256OrSi256(mm256AndSi256(mm256SrliEpi16(q4bits2, 4), m4), q4h3)
-                val q80 = mm256LoaduSi256(constPtrFromRustCast<M256i>(q8))
+                val q80 = mm256LoaduSi256(constPtrFromRustCast(q8))
                 q8 = q8.add(32)
-                val q81 = mm256LoaduSi256(constPtrFromRustCast<M256i>(q8))
+                val q81 = mm256LoaduSi256(constPtrFromRustCast(q8))
                 q8 = q8.add(32)
-                val q82 = mm256LoaduSi256(constPtrFromRustCast<M256i>(q8))
+                val q82 = mm256LoaduSi256(constPtrFromRustCast(q8))
                 q8 = q8.add(32)
-                val q83 = mm256LoaduSi256(constPtrFromRustCast<M256i>(q8))
+                val q83 = mm256LoaduSi256(constPtrFromRustCast(q8))
                 q8 = q8.add(32)
                 val q8s0 = mm256MaddubsEpi16(m32s, q80)
                 val q8s1 = mm256MaddubsEpi16(m32s, q81)
@@ -195,11 +195,11 @@ internal fun vecDotQ2kQ8k(n: Int, xs: List<BlockQ2K>, ys: List<BlockQ8K>): Float
             val dmin = -y.d * x.dmin.toF32()
             var q2 = x.qs.asPtr()
             var q8 = y.qs.asPtr()
-            val minsAndScales = mmLoaduSi128(constPtrFromRustCast<M128i>(x.scales.asPtr()))
+            val minsAndScales = mmLoaduSi128(constPtrFromRustCast(x.scales.asPtr()))
             val scales8 = mmAndSi128(minsAndScales, m4)
             val mins8 = mmAndSi128(mmSrliEpi16(minsAndScales, 4), m4)
             val mins = mm256Cvtepi8Epi16(mins8)
-            val prod = mm256MaddEpi16(mins, mm256LoaduSi256(constPtrFromRustCast<M256i>(y.bsums.asPtr())))
+            val prod = mm256MaddEpi16(mins, mm256LoaduSi256(constPtrFromRustCast(y.bsums.asPtr())))
             acc = mm256FmaddPs(mm256BroadcastSs(dmin), mm256Cvtepi32Ps(prod), acc)
             val allScales = mm256Cvtepi8Epi16(scales8)
             val lScales = mm256Extracti128Si256(allScales, 0)
@@ -207,15 +207,15 @@ internal fun vecDotQ2kQ8k(n: Int, xs: List<BlockQ2K>, ys: List<BlockQ8K>): Float
             val scales = listOf(mm256SetM128i(lScales, lScales), mm256SetM128i(hScales, hScales))
             var sumi = mm256SetzeroSi256()
             for (scale in scales) {
-                val q2bits = mm256LoaduSi256(constPtrFromRustCast<M256i>(q2))
+                val q2bits = mm256LoaduSi256(constPtrFromRustCast(q2))
                 q2 = q2.add(32)
-                val q80 = mm256LoaduSi256(constPtrFromRustCast<M256i>(q8))
+                val q80 = mm256LoaduSi256(constPtrFromRustCast(q8))
                 q8 = q8.add(32)
-                val q81 = mm256LoaduSi256(constPtrFromRustCast<M256i>(q8))
+                val q81 = mm256LoaduSi256(constPtrFromRustCast(q8))
                 q8 = q8.add(32)
-                val q82 = mm256LoaduSi256(constPtrFromRustCast<M256i>(q8))
+                val q82 = mm256LoaduSi256(constPtrFromRustCast(q8))
                 q8 = q8.add(32)
-                val q83 = mm256LoaduSi256(constPtrFromRustCast<M256i>(q8))
+                val q83 = mm256LoaduSi256(constPtrFromRustCast(q8))
                 q8 = q8.add(32)
                 val q20 = mm256AndSi256(q2bits, m3)
                 val q21 = mm256AndSi256(mm256SrliEpi16(q2bits, 2), m3)
@@ -261,11 +261,11 @@ internal fun vecDotQ3kQ8k(n: Int, xs: List<BlockQ3K>, ys: List<BlockQ8K>): Float
             val hScales = mm256Extracti128Si256(allScales, 1)
             val scales = listOf(mm256SetM128i(lScales, lScales), mm256SetM128i(hScales, hScales))
             // high bit
-            val hbits = mm256LoaduSi256(constPtrFromRustCast<M256i>(x.hmask.asPtr()))
+            val hbits = mm256LoaduSi256(constPtrFromRustCast(x.hmask.asPtr()))
             var sumi = mm256SetzeroSi256()
             for ((j, scale) in scales.iter().enumerate()) {
                 // load low 2 bits
-                val q3bits = mm256LoaduSi256(constPtrFromRustCast<M256i>(q3))
+                val q3bits = mm256LoaduSi256(constPtrFromRustCast(q3))
                 q3 = q3.add(32)
                 // Prepare low and high bits
                 // We hardcode the shifts here to avoid loading them into a separate register
@@ -302,13 +302,13 @@ internal fun vecDotQ3kQ8k(n: Int, xs: List<BlockQ3K>, ys: List<BlockQ8K>): Float
                     }
                 val q3h31 = mm256SlliEpi16(q3h3, 2)
                 // load Q8 quants
-                val q80 = mm256LoaduSi256(constPtrFromRustCast<M256i>(q8))
+                val q80 = mm256LoaduSi256(constPtrFromRustCast(q8))
                 q8 = q8.add(32)
-                val q81 = mm256LoaduSi256(constPtrFromRustCast<M256i>(q8))
+                val q81 = mm256LoaduSi256(constPtrFromRustCast(q8))
                 q8 = q8.add(32)
-                val q82 = mm256LoaduSi256(constPtrFromRustCast<M256i>(q8))
+                val q82 = mm256LoaduSi256(constPtrFromRustCast(q8))
                 q8 = q8.add(32)
-                val q83 = mm256LoaduSi256(constPtrFromRustCast<M256i>(q8))
+                val q83 = mm256LoaduSi256(constPtrFromRustCast(q8))
                 q8 = q8.add(32)
                 // Dot product: we multiply the 2 low bits and 1 high bit part separately, so we
                 // can use _mm256_maddubs_epi16, and then subtract. The high bit part has the 2
@@ -365,7 +365,7 @@ internal fun vecDotQ4kQ8k(n: Int, xs: List<BlockQ4K>, ys: List<BlockQ8K>): Float
             var q4 = x.qs.asPtr()
             var q8 = y.qs.asPtr()
             val minsAndScales = mm256Cvtepu8Epi16(mmSetEpi32(utmp[3].toInt(), utmp[2].toInt(), utmp[1].toInt(), utmp[0].toInt()))
-            val q8sums = mm256LoaduSi256(constPtrFromRustCast<M256i>(y.bsums.asPtr()))
+            val q8sums = mm256LoaduSi256(constPtrFromRustCast(y.bsums.asPtr()))
             val q8s = mmHaddEpi16(mm256Extracti128Si256(q8sums, 0), mm256Extracti128Si256(q8sums, 1))
             val prod = mmMaddEpi16(mm256Extracti128Si256(minsAndScales, 1), q8s)
             accM = mmFmaddPs(mmSet1Ps(dmin), mmCvtepi32Ps(prod), accM)
@@ -375,16 +375,16 @@ internal fun vecDotQ4kQ8k(n: Int, xs: List<BlockQ4K>, ys: List<BlockQ8K>): Float
             for (j in 0 until QK_K / 64) {
                 val scaleL = mm256ShuffleEpi8(scales, getScaleShuffleK4(2 * j))
                 val scaleH = mm256ShuffleEpi8(scales, getScaleShuffleK4(2 * j + 1))
-                val q4bits = mm256LoaduSi256(constPtrFromRustCast<M256i>(q4))
+                val q4bits = mm256LoaduSi256(constPtrFromRustCast(q4))
                 q4 = q4.add(32)
                 val q4l = mm256AndSi256(q4bits, m4)
                 val q4h = mm256AndSi256(mm256SrliEpi16(q4bits, 4), m4)
-                val q8l = mm256LoaduSi256(constPtrFromRustCast<M256i>(q8))
+                val q8l = mm256LoaduSi256(constPtrFromRustCast(q8))
                 q8 = q8.add(32)
                 val p16l = mm256MaddubsEpi16(q4l, q8l)
                 val p16l1 = mm256MaddEpi16(scaleL, p16l)
                 sumi = mm256AddEpi32(sumi, p16l1)
-                val q8h = mm256LoaduSi256(constPtrFromRustCast<M256i>(q8))
+                val q8h = mm256LoaduSi256(constPtrFromRustCast(q8))
                 q8 = q8.add(32)
                 val p16h = mm256MaddubsEpi16(q4h, q8h)
                 val p16h1 = mm256MaddEpi16(scaleH, p16h)
@@ -423,20 +423,20 @@ internal fun vecDotQ5kQ8k(n: Int, xs: List<BlockQ5K>, ys: List<BlockQ8K>): Float
             var q5 = x.qs.asPtr()
             var q8 = y.qs.asPtr()
             val minsAndScales = mm256Cvtepu8Epi16(mmSetEpi32(utmp[3].toInt(), utmp[2].toInt(), utmp[1].toInt(), utmp[0].toInt()))
-            val q8sums = mm256LoaduSi256(constPtrFromRustCast<M256i>(y.bsums.asPtr()))
+            val q8sums = mm256LoaduSi256(constPtrFromRustCast(y.bsums.asPtr()))
             val q8s = mmHaddEpi16(mm256Extracti128Si256(q8sums, 0), mm256Extracti128Si256(q8sums, 1))
             val prod = mmMaddEpi16(mm256Extracti128Si256(minsAndScales, 1), q8s)
             val hsum = mmHaddEpi32(mmHaddEpi32(prod, mzero), mzero)
             summs += dmin * mmExtractEpi32(hsum, 0).toFloat()
             val sc128 = mm256Extracti128Si256(minsAndScales, 0)
             val scales = mm256SetM128i(sc128, sc128)
-            val hbits = mm256LoaduSi256(constPtrFromRustCast<M256i>(x.qh.asPtr()))
+            val hbits = mm256LoaduSi256(constPtrFromRustCast(x.qh.asPtr()))
             var hmask = mone
             var sumi = mm256SetzeroSi256()
             for (j in 0 until QK_K / 64) {
                 val scale0 = mm256ShuffleEpi8(scales, getScaleShuffleK4(2 * j))
                 val scale1 = mm256ShuffleEpi8(scales, getScaleShuffleK4(2 * j + 1))
-                val q5bits = mm256LoaduSi256(constPtrFromRustCast<M256i>(q5))
+                val q5bits = mm256LoaduSi256(constPtrFromRustCast(q5))
                 q5 = q5.add(32)
                 // Similar to q3k we hardcode the shifts here to avoid loading them into a separate register
                 val q5l0 = mm256AndSi256(q5bits, m4)
@@ -465,9 +465,9 @@ internal fun vecDotQ5kQ8k(n: Int, xs: List<BlockQ5K>, ys: List<BlockQ8K>): Float
                 val q5h1 = mm256SlliEpi16(q5l1RightShift, 4)
                 val q51 = mm256AddEpi8(q5l1, q5h1)
                 hmask = mm256SlliEpi16(hmask, 1)
-                val q80 = mm256LoaduSi256(constPtrFromRustCast<M256i>(q8))
+                val q80 = mm256LoaduSi256(constPtrFromRustCast(q8))
                 q8 = q8.add(32)
-                val q81 = mm256LoaduSi256(constPtrFromRustCast<M256i>(q8))
+                val q81 = mm256LoaduSi256(constPtrFromRustCast(q8))
                 q8 = q8.add(32)
                 val p160 = mm256MaddubsEpi16(q50, q80)
                 val p161 = mm256MaddubsEpi16(q51, q81)
@@ -491,8 +491,8 @@ internal fun vecDotQ8kQ8k(n: Int, xs: List<BlockQ8K>, ys: List<BlockQ8K>): Float
             val xQs = xs1.qs.asPtr()
             val yQs = ys1.qs.asPtr()
             for (j in (0 until QK_K).stepBy(32)) {
-                val xs2 = mm256LoaduSi256(constPtrFromRustCast<M256i>(xQs.add(j)))
-                val ys2 = mm256LoaduSi256(constPtrFromRustCast<M256i>(yQs.add(j)))
+                val xs2 = mm256LoaduSi256(constPtrFromRustCast(xQs.add(j)))
+                val ys2 = mm256LoaduSi256(constPtrFromRustCast(yQs.add(j)))
                 val xs0 = mm256Cvtepi8Epi16(mm256Extracti128Si256(xs2, 0))
                 val ys0 = mm256Cvtepi8Epi16(mm256Extracti128Si256(ys2, 0))
                 sumi = mm256AddEpi32(sumi, mm256MaddEpi16(xs0, ys0))

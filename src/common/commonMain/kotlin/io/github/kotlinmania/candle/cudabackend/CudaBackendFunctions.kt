@@ -213,13 +213,13 @@ public fun gemmStridedBatchedF32(cublas: CudaBlas, cfg: StridedBatchedConfig<Flo
         } else {
             sys.CUBLAS_COMPUTE_32F
         }
-    val alpha = constPtrFromRustCast<Float>(cfg.gemm.alpha)
-    val beta = constPtrFromRustCast<Float>(cfg.gemm.beta)
+    val alpha = constPtrFromRustCast(cfg.gemm.alpha)
+    val beta = constPtrFromRustCast(cfg.gemm.beta)
     val stream = c.stream().clone()
     val (a1, guardA) = a.devicePtr(stream)
     val (b1, guardB) = b.devicePtr(stream)
     val (c1, guardC) = c.devicePtrMut(stream)
-    return gemmStridedBatchedEx(cublas.handle(), cfg.gemm.transa, cfg.gemm.transb, cfg.gemm.m, cfg.gemm.n, cfg.gemm.k, alpha, constPtrFromRustCast<UByte>(a1), sys.CUDA_R_32F, cfg.gemm.lda, cfg.strideA, constPtrFromRustCast<UByte>(b1), sys.CUDA_R_32F, cfg.gemm.ldb, cfg.strideB, beta, mutPtrFromRustCast<UByte>(c1), sys.CUDA_R_32F, cfg.gemm.ldc, cfg.strideC, cfg.batchSize, computeType, sys.CUBLAS_GEMM_DEFAULT_TENSOR_OP)
+    return gemmStridedBatchedEx(cublas.handle(), cfg.gemm.transa, cfg.gemm.transb, cfg.gemm.m, cfg.gemm.n, cfg.gemm.k, alpha, constPtrFromRustCast(a1), sys.CUDA_R_32F, cfg.gemm.lda, cfg.strideA, constPtrFromRustCast(b1), sys.CUDA_R_32F, cfg.gemm.ldb, cfg.strideB, beta, mutPtrFromRustCast(c1), sys.CUDA_R_32F, cfg.gemm.ldc, cfg.strideC, cfg.batchSize, computeType, sys.CUBLAS_GEMM_DEFAULT_TENSOR_OP)
 }
 
 public fun gemmStridedBatchedF16(cublas: CudaBlas, cfg: StridedBatchedConfig<F16>, a: CudaView<F16>, b: CudaView<F16>, c: CudaSlice<F16>): Result<Unit, CublasError> {
@@ -233,15 +233,15 @@ public fun gemmStridedBatchedF16(cublas: CudaBlas, cfg: StridedBatchedConfig<F16
     var betaF32 by localStorageL2649C4
     val (computeType, alpha1, beta1) =
         if (gemmReducedPrecisionF16()) {
-            Triple(sys.CUBLAS_COMPUTE_16F, ConstPtr<F16>(localStorageL2646C4.asMutPtr().rawAddress), ConstPtr<F16>(localStorageL2647C4.asMutPtr().rawAddress))
+            Triple(sys.CUBLAS_COMPUTE_16F, ConstPtr(localStorageL2646C4.asMutPtr().rawAddress), ConstPtr(localStorageL2647C4.asMutPtr().rawAddress))
         } else {
-            Triple(sys.CUBLAS_COMPUTE_32F, ConstPtr<Float>(localStorageL2648C4.asMutPtr().rawAddress), ConstPtr<Float>(localStorageL2649C4.asMutPtr().rawAddress))
+            Triple(sys.CUBLAS_COMPUTE_32F, ConstPtr(localStorageL2648C4.asMutPtr().rawAddress), ConstPtr(localStorageL2649C4.asMutPtr().rawAddress))
         }
     val stream = c.stream().clone()
     val (a1, guardA) = a.devicePtr(stream)
     val (b1, guardB) = b.devicePtr(stream)
     val (c1, guardC) = c.devicePtrMut(stream)
-    return gemmStridedBatchedEx(cublas.handle(), cfg.gemm.transa, cfg.gemm.transb, cfg.gemm.m, cfg.gemm.n, cfg.gemm.k, alpha1, constPtrFromRustCast<UByte>(a1), sys.CUDA_R_16F, cfg.gemm.lda, cfg.strideA, constPtrFromRustCast<UByte>(b1), sys.CUDA_R_16F, cfg.gemm.ldb, cfg.strideB, beta1, mutPtrFromRustCast<UByte>(c1), sys.CUDA_R_16F, cfg.gemm.ldc, cfg.strideC, cfg.batchSize, computeType, sys.CUBLAS_GEMM_DEFAULT_TENSOR_OP)
+    return gemmStridedBatchedEx(cublas.handle(), cfg.gemm.transa, cfg.gemm.transb, cfg.gemm.m, cfg.gemm.n, cfg.gemm.k, alpha1, constPtrFromRustCast(a1), sys.CUDA_R_16F, cfg.gemm.lda, cfg.strideA, constPtrFromRustCast(b1), sys.CUDA_R_16F, cfg.gemm.ldb, cfg.strideB, beta1, mutPtrFromRustCast(c1), sys.CUDA_R_16F, cfg.gemm.ldc, cfg.strideC, cfg.batchSize, computeType, sys.CUBLAS_GEMM_DEFAULT_TENSOR_OP)
 }
 
 public fun gemmStridedBatchedBf16(cublas: CudaBlas, cfg: StridedBatchedConfig<Bf16>, a: CudaView<Bf16>, b: CudaView<Bf16>, c: CudaSlice<Bf16>): Result<Unit, CublasError> {
@@ -253,15 +253,15 @@ public fun gemmStridedBatchedBf16(cublas: CudaBlas, cfg: StridedBatchedConfig<Bf
     // https://docs.nvidia.com/cuda/cublas/index.html#cublasgemmstridedbatchedex
     val (computeType, alpha, beta) =
         if (gemmReducedPrecisionBf16()) {
-            Triple(sys.CUBLAS_COMPUTE_32F_FAST_16BF, ConstPtr<Float>(localStorageL2705C4.asMutPtr().rawAddress), ConstPtr<Float>(localStorageL2706C4.asMutPtr().rawAddress))
+            Triple(sys.CUBLAS_COMPUTE_32F_FAST_16BF, ConstPtr(localStorageL2705C4.asMutPtr().rawAddress), ConstPtr(localStorageL2706C4.asMutPtr().rawAddress))
         } else {
-            Triple(sys.CUBLAS_COMPUTE_32F, ConstPtr<Float>(localStorageL2705C4.asMutPtr().rawAddress), ConstPtr<Float>(localStorageL2706C4.asMutPtr().rawAddress))
+            Triple(sys.CUBLAS_COMPUTE_32F, ConstPtr(localStorageL2705C4.asMutPtr().rawAddress), ConstPtr(localStorageL2706C4.asMutPtr().rawAddress))
         }
     val stream = c.stream().clone()
     val (a1, guardA) = a.devicePtr(stream)
     val (b1, guardB) = b.devicePtr(stream)
     val (c1, guardC) = c.devicePtrMut(stream)
-    return gemmStridedBatchedEx(cublas.handle(), cfg.gemm.transa, cfg.gemm.transb, cfg.gemm.m, cfg.gemm.n, cfg.gemm.k, alpha, constPtrFromRustCast<UByte>(a1), sys.CUDA_R_16BF, cfg.gemm.lda, cfg.strideA, constPtrFromRustCast<UByte>(b1), sys.CUDA_R_16BF, cfg.gemm.ldb, cfg.strideB, beta, mutPtrFromRustCast<UByte>(c1), sys.CUDA_R_16BF, cfg.gemm.ldc, cfg.strideC, cfg.batchSize, computeType, sys.CUBLAS_GEMM_DEFAULT_TENSOR_OP)
+    return gemmStridedBatchedEx(cublas.handle(), cfg.gemm.transa, cfg.gemm.transb, cfg.gemm.m, cfg.gemm.n, cfg.gemm.k, alpha, constPtrFromRustCast(a1), sys.CUDA_R_16BF, cfg.gemm.lda, cfg.strideA, constPtrFromRustCast(b1), sys.CUDA_R_16BF, cfg.gemm.ldb, cfg.strideB, beta, mutPtrFromRustCast(c1), sys.CUDA_R_16BF, cfg.gemm.ldc, cfg.strideC, cfg.batchSize, computeType, sys.CUBLAS_GEMM_DEFAULT_TENSOR_OP)
 }
 
 public fun Scalar.builderArg(builder: LaunchArgs) {

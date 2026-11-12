@@ -1090,7 +1090,7 @@ public class BlockQ3K(
                 aux[0] = (aux[0] and KMASK2) or (((tmp) and KMASK1) shl 4)
                 aux[1] = (aux[1] and KMASK2) or (((tmp shr 2) and KMASK1) shl 4)
                 // Transfer the scales into an i8 array
-                val scales: List<Byte> = fromRawPartsMut(MutPtr<Byte>(localStorageL1384C12.elementMutPtr(0).rawAddress, localStorageL1384C12.elementMutPtr(0).rawMeta), 16)
+                val scales: List<Byte> = fromRawPartsMut(MutPtr(localStorageL1384C12.elementMutPtr(0).rawAddress, localStorageL1384C12.elementMutPtr(0).rawMeta), 16)
                 val dAll = block.d.toF32()
                 var m = 1
                 var isMatch = 0
@@ -2052,7 +2052,7 @@ public fun <VecDotType, T : GgmlType<T>> matmul(tupleArg0: Triple<Int, Int, Int>
             }
             // SAFETY: u64 ensures sufficient alignment. Resize ensures sufficient size.
             // All elements written before reading.
-            val lhsB: List<VecDotType> = fromRawPartsMut(mutPtrFromRustCast<VecDotType>(scratch.asMutPtr()), m * kInBlocks)
+            val lhsB: List<VecDotType> = fromRawPartsMut(mutPtrFromRustCast(scratch.asMutPtr()), m * kInBlocks)
             // f32, f16, and bf16 support direct copy
             if (T.DIRECT_COPY) {
                 lhs.directCopy(lhsB)
@@ -2078,7 +2078,7 @@ public fun <VecDotType, T : GgmlType<T>> matmul(tupleArg0: Triple<Int, Int, Int>
                 { rowIdx1: Int, col: Int ->
                     val (d0, d1, d2, d3) = vecDot4TFn(k, ((rhsT).slice(col * kInBlocks until (col + 1) * kInBlocks)), ((rhsT).slice((col + 1) * kInBlocks until (col + 2) * kInBlocks)), ((rhsT).slice((col + 2) * kInBlocks until (col + 3) * kInBlocks)), ((rhsT).slice((col + 3) * kInBlocks until (col + 4) * kInBlocks)), lhsRow(rowIdx1))
                     run {
-                        val base = MutPtr(((MutPtr<Float>(dstPtr.toLong()))).rawAddress + ((rowIdx1 * n + col).toLong() * (PrimitiveLayouts.F32).strideBytes))
+                        val base = MutPtr(((MutPtr(dstPtr.toLong()))).rawAddress + ((rowIdx1 * n + col).toLong() * (PrimitiveLayouts.F32).strideBytes))
                         (PrimitiveLayouts.F32).writeNative((base).rawAddress, d0)
                         (PrimitiveLayouts.F32).writeNative((MutPtr((base).rawAddress + ((1).toLong() * (PrimitiveLayouts.F32).strideBytes))).rawAddress, d1)
                         (PrimitiveLayouts.F32).writeNative((MutPtr((base).rawAddress + ((2).toLong() * (PrimitiveLayouts.F32).strideBytes))).rawAddress, d2)
@@ -2088,7 +2088,7 @@ public fun <VecDotType, T : GgmlType<T>> matmul(tupleArg0: Triple<Int, Int, Int>
             // The 0..=3 columns left over after the quads.
             val dotTail =
                 { rowIdx1: Int ->
-                    val dstRow = fromRawPartsMut(MutPtr(((MutPtr<Float>(dstPtr.toLong()))).rawAddress + ((rowIdx1 * n + nQuad).toLong() * (PrimitiveLayouts.F32).strideBytes)), nTail)
+                    val dstRow = fromRawPartsMut(MutPtr(((MutPtr(dstPtr.toLong()))).rawAddress + ((rowIdx1 * n + nQuad).toLong() * (PrimitiveLayouts.F32).strideBytes)), nTail)
                     if (nTail >= 2) {
                         val col = nQuad
                         val (d0, d1) = vecDot2TFn(k, ((rhsT).slice(col * kInBlocks until (col + 1) * kInBlocks)), ((rhsT).slice((col + 1) * kInBlocks until (col + 2) * kInBlocks)), lhsRow(rowIdx1))
@@ -2157,7 +2157,7 @@ internal fun matmulQ4kX8(tupleArg0: Triple<Int, Int, Int>, lhs: List<Float>, rep
             if (scratch.len() < requiredLen) {
                 scratch.resize(requiredLen, 0)
             }
-            val lhsB: List<BlockQ8K> = fromRawPartsMut(mutPtrFromRustCast<BlockQ8K>(scratch.asMutPtr()), m * kInBlocks)
+            val lhsB: List<BlockQ8K> = fromRawPartsMut(mutPtrFromRustCast(scratch.asMutPtr()), m * kInBlocks)
             for (rowIdx in 0 until m) {
                 val lhsRow = ((lhs).slice(rowIdx * k until (rowIdx + 1) * k))
                 val lhsBMut = ((lhsB).slice(rowIdx * kInBlocks until (rowIdx + 1) * kInBlocks))
@@ -2173,10 +2173,10 @@ internal fun matmulQ4kX8(tupleArg0: Triple<Int, Int, Int>, lhs: List<Float>, rep
                 val lhsRowPtr = lhsB1.asPtr().toInt()
                 val dstRowPtr = dst.asMutPtr().toInt()
                 pool.executeStatic(nGroups, { range ->
-                    val lhsRow1: List<BlockQ8K> = fromRawParts(ConstPtr<BlockQ8K>(lhsRowPtr.toLong()), kInBlocks)
-                    val dstPtr = MutPtr<Float>(dstRowPtr.toLong())
+                    val lhsRow1: List<BlockQ8K> = fromRawParts(ConstPtr(lhsRowPtr.toLong()), kInBlocks)
+                    val dstPtr = MutPtr(dstRowPtr.toLong())
                     for (g in range) {
-                        val xs = fromRawParts(ConstPtr<BlockQ4Kx8>((repackedPtr + g * kInBlocks * x8BlockBytes).toLong()), kInBlocks)
+                        val xs = fromRawParts(ConstPtr((repackedPtr + g * kInBlocks * x8BlockBytes).toLong()), kInBlocks)
                         val results = vecDot8Q4kQ8k(k, xs, lhsRow1)
                         run {
                             copyNonoverlapping(results.asPtr(), MutPtr((dstPtr).rawAddress + ((g * 8).toLong() * (PrimitiveLayouts.F32).strideBytes)), 8)
@@ -2190,10 +2190,10 @@ internal fun matmulQ4kX8(tupleArg0: Triple<Int, Int, Int>, lhs: List<Float>, rep
                 val lhsRowPtr1 = lhsRow1.asPtr().toInt()
                 val dstRowPtr1 = ((dst).slice(rowIdx1 * n until (rowIdx1 + 1) * n)).asMutPtr().toInt()
                 pool.executeStatic(nGroups, { range ->
-                    val lhsRow2: List<BlockQ8K> = fromRawParts(ConstPtr<BlockQ8K>(lhsRowPtr1.toLong()), kInBlocks)
-                    val dstPtr = MutPtr<Float>(dstRowPtr1.toLong())
+                    val lhsRow2: List<BlockQ8K> = fromRawParts(ConstPtr(lhsRowPtr1.toLong()), kInBlocks)
+                    val dstPtr = MutPtr(dstRowPtr1.toLong())
                     for (g in range) {
-                        val xs = fromRawParts(ConstPtr<BlockQ4Kx8>((repackedPtr + g * kInBlocks * x8BlockBytes).toLong()), kInBlocks)
+                        val xs = fromRawParts(ConstPtr((repackedPtr + g * kInBlocks * x8BlockBytes).toLong()), kInBlocks)
                         val results = vecDot8Q4kQ8k(k, xs, lhsRow2)
                         run {
                             copyNonoverlapping(results.asPtr(), MutPtr((dstPtr).rawAddress + ((g * 8).toLong() * (PrimitiveLayouts.F32).strideBytes)), 8)

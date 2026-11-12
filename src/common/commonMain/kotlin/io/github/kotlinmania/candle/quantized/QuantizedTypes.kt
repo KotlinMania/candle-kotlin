@@ -18,7 +18,6 @@ import io.github.kotlinmania.candle.quantized.kquants.BlockQ6K
 import io.github.kotlinmania.candle.quantized.kquants.BlockQ80
 import io.github.kotlinmania.candle.quantized.kquants.BlockQ81
 import io.github.kotlinmania.candle.quantized.kquants.BlockQ8K
-import io.github.kotlinmania.candle.quantized.kquants.GgmlType
 import io.github.kotlinmania.candle.quantized.kquants.QK4_0
 import io.github.kotlinmania.candle.quantized.kquants.QK4_1
 import io.github.kotlinmania.candle.quantized.kquants.QK5_0
@@ -329,7 +328,7 @@ public sealed class QStorage {
         }
     }
 
-    public fun devicePtr(): Result<ConstPtr<UByte>> =
+    public fun devicePtr(): Result<ConstPtr> =
         when (this) {
             is QStorage.Cuda -> {
                 val (storage) = this
@@ -343,7 +342,7 @@ public sealed class QStorage {
             }
         }
 
-    public fun devicePtrWithGuard(stream: CudaStream): Result<Pair<ConstPtr<UByte>, SyncOnDrop>> =
+    public fun devicePtrWithGuard(stream: CudaStream): Result<Pair<ConstPtr, SyncOnDrop>> =
         when (this) {
             is QStorage.Cuda -> {
                 val (storage) = this
@@ -569,7 +568,7 @@ public interface QuantizedType {
 
     public fun storageSizeInBytes(): Int
 
-    public fun asPtr(): ConstPtr<UByte>
+    public fun asPtr(): ConstPtr
 
     public fun blockSize(): Int
 

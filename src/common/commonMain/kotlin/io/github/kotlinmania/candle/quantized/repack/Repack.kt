@@ -69,27 +69,27 @@ public enum class PackedKind(
         return when (this) {
             PackedKind.Q40x4 -> {
                 val totalBlocks = storage.storageSizeInBytes() / sizeOf<BlockQ40>(typeLayoutT = ObjectSlotLayout<BlockQ40>())
-                val blocks = fromRawParts(constPtrFromRustCast<BlockQ40>(storage.asPtr()), totalBlocks)
+                val blocks = fromRawParts(constPtrFromRustCast(storage.asPtr()), totalBlocks)
                 PackedStorage.Q40x4(packToQ40x4(blocks, n, interleave))
             }
             PackedKind.Q4Kx8 -> {
                 val totalBlocks1 = storage.storageSizeInBytes() / sizeOf<BlockQ4K>(typeLayoutT = ObjectSlotLayout<BlockQ4K>())
-                val blocks1 = fromRawParts(constPtrFromRustCast<BlockQ4K>(storage.asPtr()), totalBlocks1)
+                val blocks1 = fromRawParts(constPtrFromRustCast(storage.asPtr()), totalBlocks1)
                 PackedStorage.Q4Kx8(packToQ4kx8(blocks1, n))
             }
             PackedKind.Q5Kx8 -> {
                 val totalBlocks2 = storage.storageSizeInBytes() / sizeOf<BlockQ5K>(typeLayoutT = ObjectSlotLayout<BlockQ5K>())
-                val blocks2 = fromRawParts(constPtrFromRustCast<BlockQ5K>(storage.asPtr()), totalBlocks2)
+                val blocks2 = fromRawParts(constPtrFromRustCast(storage.asPtr()), totalBlocks2)
                 PackedStorage.Q5Kx8(packToQ5kx8(blocks2, n, interleave))
             }
             PackedKind.Q6Kx8 -> {
                 val totalBlocks3 = storage.storageSizeInBytes() / sizeOf<BlockQ6K>(typeLayoutT = ObjectSlotLayout<BlockQ6K>())
-                val blocks3 = fromRawParts(constPtrFromRustCast<BlockQ6K>(storage.asPtr()), totalBlocks3)
+                val blocks3 = fromRawParts(constPtrFromRustCast(storage.asPtr()), totalBlocks3)
                 PackedStorage.Q6Kx8(packToQ6kx8(blocks3, n, interleave))
             }
             PackedKind.Q80x4 -> {
                 val totalBlocks4 = storage.storageSizeInBytes() / sizeOf<BlockQ80>(typeLayoutT = ObjectSlotLayout<BlockQ80>())
-                val blocks4 = fromRawParts(constPtrFromRustCast<BlockQ80>(storage.asPtr()), totalBlocks4)
+                val blocks4 = fromRawParts(constPtrFromRustCast(storage.asPtr()), totalBlocks4)
                 PackedStorage.Q80x4(packToQ80x4(blocks4, n, interleave))
             }
         }
@@ -716,7 +716,7 @@ public fun gemvFusedQ4k(kind: PackedKind, k: Int, lhs: List<Float>, parts: List<
             if (scratch.len() < requiredLen) {
                 scratch.resize(requiredLen, 0)
             }
-            val lhsB: List<BlockQ8K> = fromRawPartsMut(mutPtrFromRustCast<BlockQ8K>(scratch.asMutPtr()), kInBlocks)
+            val lhsB: List<BlockQ8K> = fromRawPartsMut(mutPtrFromRustCast(scratch.asMutPtr()), kInBlocks)
             BlockQ8K.fromFloat(lhs, lhsB)
             var metas: List<List<Any?>> = ArrayList(parts.size)
             var total = 0
@@ -731,14 +731,14 @@ public fun gemvFusedQ4k(kind: PackedKind, k: Int, lhs: List<Float>, parts: List<
             val lhsPtr = lhsB.asPtr().toInt()
             val pool = barrierPool()
             pool.executeStatic(total, { range ->
-                val lhsRow: List<BlockQ8K> = fromRawParts(ConstPtr<BlockQ8K>(lhsPtr.toLong()), kInBlocks)
+                val lhsRow: List<BlockQ8K> = fromRawParts(ConstPtr(lhsPtr.toLong()), kInBlocks)
                 for (gg in range) {
                     val (pptr, ng, dptr, off) = (metas.indexOf({ (_, ng, _, off) -> gg < off + ng }).takeIf { it >= 0 })!!
                     val g = gg - off
-                    val xs = fromRawParts(ConstPtr<BlockQ4Kx8>((pptr + g * kInBlocks * blkBytes).toLong()), kInBlocks)
+                    val xs = fromRawParts(ConstPtr((pptr + g * kInBlocks * blkBytes).toLong()), kInBlocks)
                     val r = vecDot8Q4kQ8k(k, xs, lhsRow)
                     run {
-                        copyNonoverlapping(r.asPtr(), MutPtr(((mutPtrFromRustCast<Float>(dptr))).rawAddress + ((g * 8).toLong() * (PrimitiveLayouts.F32).strideBytes)), 8)
+                        copyNonoverlapping(r.asPtr(), MutPtr(((mutPtrFromRustCast(dptr))).rawAddress + ((g * 8).toLong() * (PrimitiveLayouts.F32).strideBytes)), 8)
                     }
                 }
             })
@@ -757,7 +757,7 @@ public fun gemvFusedQ6k(kind: PackedKind, k: Int, lhs: List<Float>, parts: List<
             if (scratch.len() < requiredLen) {
                 scratch.resize(requiredLen, 0)
             }
-            val lhsB: List<BlockQ8K> = fromRawPartsMut(mutPtrFromRustCast<BlockQ8K>(scratch.asMutPtr()), kInBlocks)
+            val lhsB: List<BlockQ8K> = fromRawPartsMut(mutPtrFromRustCast(scratch.asMutPtr()), kInBlocks)
             BlockQ8K.fromFloat(lhs, lhsB)
             var metas: List<List<Any?>> = ArrayList(parts.size)
             var total = 0
@@ -772,14 +772,14 @@ public fun gemvFusedQ6k(kind: PackedKind, k: Int, lhs: List<Float>, parts: List<
             val lhsPtr = lhsB.asPtr().toInt()
             val pool = barrierPool()
             pool.executeStatic(total, { range ->
-                val lhsRow: List<BlockQ8K> = fromRawParts(ConstPtr<BlockQ8K>(lhsPtr.toLong()), kInBlocks)
+                val lhsRow: List<BlockQ8K> = fromRawParts(ConstPtr(lhsPtr.toLong()), kInBlocks)
                 for (gg in range) {
                     val (pptr, ng, dptr, off) = (metas.indexOf({ (_, ng, _, off) -> gg < off + ng }).takeIf { it >= 0 })!!
                     val g = gg - off
-                    val xs = fromRawParts(ConstPtr<BlockQ6Kx8>((pptr + g * kInBlocks * blkBytes).toLong()), kInBlocks)
+                    val xs = fromRawParts(ConstPtr((pptr + g * kInBlocks * blkBytes).toLong()), kInBlocks)
                     val r = vecDot8Q6kx8Q8k(k, xs, lhsRow)
                     run {
-                        copyNonoverlapping(r.asPtr(), MutPtr(((mutPtrFromRustCast<Float>(dptr))).rawAddress + ((g * 8).toLong() * (PrimitiveLayouts.F32).strideBytes)), 8)
+                        copyNonoverlapping(r.asPtr(), MutPtr(((mutPtrFromRustCast(dptr))).rawAddress + ((g * 8).toLong() * (PrimitiveLayouts.F32).strideBytes)), 8)
                     }
                 }
             })
@@ -798,7 +798,7 @@ public fun gemvFusedQ80(kind: PackedKind, k: Int, lhs: List<Float>, parts: List<
             if (scratch.len() < requiredLen) {
                 scratch.resize(requiredLen, 0)
             }
-            val lhsB: List<BlockQ80> = fromRawPartsMut(mutPtrFromRustCast<BlockQ80>(scratch.asMutPtr()), kInBlocks)
+            val lhsB: List<BlockQ80> = fromRawPartsMut(mutPtrFromRustCast(scratch.asMutPtr()), kInBlocks)
             BlockQ80.fromFloat(lhs, lhsB)
             var metas: List<List<Any?>> = ArrayList(parts.size)
             var total = 0
@@ -813,14 +813,14 @@ public fun gemvFusedQ80(kind: PackedKind, k: Int, lhs: List<Float>, parts: List<
             val lhsPtr = lhsB.asPtr().toInt()
             val pool = barrierPool()
             pool.executeStatic(total, { range ->
-                val lhsRow: List<BlockQ80> = fromRawParts(ConstPtr<BlockQ80>(lhsPtr.toLong()), kInBlocks)
+                val lhsRow: List<BlockQ80> = fromRawParts(ConstPtr(lhsPtr.toLong()), kInBlocks)
                 for (gg in range) {
                     val (pptr, ng, dptr, off) = (metas.indexOf({ (_, ng, _, off) -> gg < off + ng }).takeIf { it >= 0 })!!
                     val g = gg - off
-                    val xs = fromRawParts(ConstPtr<BlockQ80x4>((pptr + g * kInBlocks * blkBytes).toLong()), kInBlocks)
+                    val xs = fromRawParts(ConstPtr((pptr + g * kInBlocks * blkBytes).toLong()), kInBlocks)
                     val r = vecDot4Q80x4Q80(k, xs, lhsRow)
                     run {
-                        copyNonoverlapping(r.asPtr(), MutPtr(((mutPtrFromRustCast<Float>(dptr))).rawAddress + ((g * 4).toLong() * (PrimitiveLayouts.F32).strideBytes)), 4)
+                        copyNonoverlapping(r.asPtr(), MutPtr(((mutPtrFromRustCast(dptr))).rawAddress + ((g * 4).toLong() * (PrimitiveLayouts.F32).strideBytes)), 4)
                     }
                 }
             })
@@ -875,7 +875,7 @@ public fun indexedGemvQ4k(kind: PackedKind, storage: QuantizedType, cache: Packe
     val lhsQPtr = lhsQ.asMutPtr().toInt()
     val pool = barrierPool()
     pool.executeChunked(nRows, { range ->
-        val lhsQPtr1 = MutPtr<BlockQ8K>(lhsQPtr.toLong())
+        val lhsQPtr1 = MutPtr(lhsQPtr.toLong())
         for (r in range) {
             val row = ((lhs).slice(r * k until (r + 1) * k))
             val out = fromRawPartsMut(MutPtr((lhsQPtr1).rawAddress + ((r * kInBlocks).toLong() * (ObjectSlotLayout<BlockQ8K>()).strideBytes)), kInBlocks)
@@ -890,9 +890,9 @@ public fun indexedGemvQ4k(kind: PackedKind, storage: QuantizedType, cache: Packe
     val dstPtr = dst.asMutPtr().toInt()
     val blkBytes = sizeOf<BlockQ4Kx8>(typeLayoutT = ObjectSlotLayout<BlockQ4Kx8>())
     pool.executeChunked(totalUnits, { range ->
-        val packedPtr1 = ConstPtr<UByte>(packedPtr.toLong())
-        val lhsQPtr2 = ConstPtr<BlockQ8K>(lhsQPtr1.toLong())
-        val dstPtr1 = MutPtr<Float>(dstPtr.toLong())
+        val packedPtr1 = ConstPtr(packedPtr.toLong())
+        val lhsQPtr2 = ConstPtr(lhsQPtr1.toLong())
+        val dstPtr1 = MutPtr(dstPtr.toLong())
         for (unit in range) {
             val pair = unit / groupsPerExpert
             val g = unit % groupsPerExpert
@@ -905,7 +905,7 @@ public fun indexedGemvQ4k(kind: PackedKind, storage: QuantizedType, cache: Packe
                 }
             val lhsRow = fromRawParts(ConstPtr((lhsQPtr2).rawAddress + ((row * kInBlocks).toLong() * (ObjectSlotLayout<BlockQ8K>()).strideBytes)), kInBlocks)
             val groupGlobal = expert * groupsPerExpert + g
-            val xs = fromRawParts(ConstPtr<BlockQ4Kx8>(ConstPtr((packedPtr1).rawAddress + ((groupGlobal * kInBlocks * blkBytes).toLong() * (PrimitiveLayouts.U8).strideBytes)).rawAddress, ConstPtr((packedPtr1).rawAddress + ((groupGlobal * kInBlocks * blkBytes).toLong() * (PrimitiveLayouts.U8).strideBytes)).rawMeta), kInBlocks)
+            val xs = fromRawParts(ConstPtr(ConstPtr((packedPtr1).rawAddress + ((groupGlobal * kInBlocks * blkBytes).toLong() * (PrimitiveLayouts.U8).strideBytes)).rawAddress, ConstPtr((packedPtr1).rawAddress + ((groupGlobal * kInBlocks * blkBytes).toLong() * (PrimitiveLayouts.U8).strideBytes)).rawMeta), kInBlocks)
             val r = vecDot8Q4kQ8k(k, xs, lhsRow)
             run {
                 copyNonoverlapping(r.asPtr(), MutPtr((dstPtr1).rawAddress + ((pair * nOut + g * 8).toLong() * (PrimitiveLayouts.F32).strideBytes)), 8)
@@ -924,7 +924,7 @@ public fun indexedGemvQ6k(kind: PackedKind, storage: QuantizedType, cache: Packe
     val lhsQPtr = lhsQ.asMutPtr().toInt()
     val pool = barrierPool()
     pool.executeChunked(nRows, { range ->
-        val lhsQPtr1 = MutPtr<BlockQ8K>(lhsQPtr.toLong())
+        val lhsQPtr1 = MutPtr(lhsQPtr.toLong())
         for (r in range) {
             val row = ((lhs).slice(r * k until (r + 1) * k))
             val out = fromRawPartsMut(MutPtr((lhsQPtr1).rawAddress + ((r * kInBlocks).toLong() * (ObjectSlotLayout<BlockQ8K>()).strideBytes)), kInBlocks)
@@ -939,9 +939,9 @@ public fun indexedGemvQ6k(kind: PackedKind, storage: QuantizedType, cache: Packe
     val dstPtr = dst.asMutPtr().toInt()
     val blkBytes = sizeOf<BlockQ6Kx8>(typeLayoutT = ObjectSlotLayout<BlockQ6Kx8>())
     pool.executeChunked(totalUnits, { range ->
-        val packedPtr1 = ConstPtr<UByte>(packedPtr.toLong())
-        val lhsQPtr2 = ConstPtr<BlockQ8K>(lhsQPtr1.toLong())
-        val dstPtr1 = MutPtr<Float>(dstPtr.toLong())
+        val packedPtr1 = ConstPtr(packedPtr.toLong())
+        val lhsQPtr2 = ConstPtr(lhsQPtr1.toLong())
+        val dstPtr1 = MutPtr(dstPtr.toLong())
         for (unit in range) {
             val pair = unit / groupsPerExpert
             val g = unit % groupsPerExpert
@@ -954,7 +954,7 @@ public fun indexedGemvQ6k(kind: PackedKind, storage: QuantizedType, cache: Packe
                 }
             val lhsRow = fromRawParts(ConstPtr((lhsQPtr2).rawAddress + ((row * kInBlocks).toLong() * (ObjectSlotLayout<BlockQ8K>()).strideBytes)), kInBlocks)
             val groupGlobal = expert * groupsPerExpert + g
-            val xs = fromRawParts(ConstPtr<BlockQ6Kx8>(ConstPtr((packedPtr1).rawAddress + ((groupGlobal * kInBlocks * blkBytes).toLong() * (PrimitiveLayouts.U8).strideBytes)).rawAddress, ConstPtr((packedPtr1).rawAddress + ((groupGlobal * kInBlocks * blkBytes).toLong() * (PrimitiveLayouts.U8).strideBytes)).rawMeta), kInBlocks)
+            val xs = fromRawParts(ConstPtr(ConstPtr((packedPtr1).rawAddress + ((groupGlobal * kInBlocks * blkBytes).toLong() * (PrimitiveLayouts.U8).strideBytes)).rawAddress, ConstPtr((packedPtr1).rawAddress + ((groupGlobal * kInBlocks * blkBytes).toLong() * (PrimitiveLayouts.U8).strideBytes)).rawMeta), kInBlocks)
             val r = vecDot8Q6kx8Q8k(k, xs, lhsRow)
             run {
                 copyNonoverlapping(r.asPtr(), MutPtr((dstPtr1).rawAddress + ((pair * nOut + g * 8).toLong() * (PrimitiveLayouts.F32).strideBytes)), 8)
@@ -973,7 +973,7 @@ public fun indexedGemvQ80(kind: PackedKind, storage: QuantizedType, cache: Packe
     val lhsQPtr = lhsQ.asMutPtr().toInt()
     val pool = barrierPool()
     pool.executeChunked(nRows, { range ->
-        val lhsQPtr1 = MutPtr<BlockQ80>(lhsQPtr.toLong())
+        val lhsQPtr1 = MutPtr(lhsQPtr.toLong())
         for (r in range) {
             val row = ((lhs).slice(r * k until (r + 1) * k))
             val out = fromRawPartsMut(MutPtr((lhsQPtr1).rawAddress + ((r * kInBlocks).toLong() * (ObjectSlotLayout<BlockQ80>()).strideBytes)), kInBlocks)
@@ -988,9 +988,9 @@ public fun indexedGemvQ80(kind: PackedKind, storage: QuantizedType, cache: Packe
     val dstPtr = dst.asMutPtr().toInt()
     val blkBytes = sizeOf<BlockQ80x4>(typeLayoutT = ObjectSlotLayout<BlockQ80x4>())
     pool.executeChunked(totalUnits, { range ->
-        val packedPtr1 = ConstPtr<UByte>(packedPtr.toLong())
-        val lhsQPtr2 = ConstPtr<BlockQ80>(lhsQPtr1.toLong())
-        val dstPtr1 = MutPtr<Float>(dstPtr.toLong())
+        val packedPtr1 = ConstPtr(packedPtr.toLong())
+        val lhsQPtr2 = ConstPtr(lhsQPtr1.toLong())
+        val dstPtr1 = MutPtr(dstPtr.toLong())
         for (unit in range) {
             val pair = unit / groupsPerExpert
             val g = unit % groupsPerExpert
@@ -1003,7 +1003,7 @@ public fun indexedGemvQ80(kind: PackedKind, storage: QuantizedType, cache: Packe
                 }
             val lhsRow = fromRawParts(ConstPtr((lhsQPtr2).rawAddress + ((row * kInBlocks).toLong() * (ObjectSlotLayout<BlockQ80>()).strideBytes)), kInBlocks)
             val groupGlobal = expert * groupsPerExpert + g
-            val xs = fromRawParts(ConstPtr<BlockQ80x4>(ConstPtr((packedPtr1).rawAddress + ((groupGlobal * kInBlocks * blkBytes).toLong() * (PrimitiveLayouts.U8).strideBytes)).rawAddress, ConstPtr((packedPtr1).rawAddress + ((groupGlobal * kInBlocks * blkBytes).toLong() * (PrimitiveLayouts.U8).strideBytes)).rawMeta), kInBlocks)
+            val xs = fromRawParts(ConstPtr(ConstPtr((packedPtr1).rawAddress + ((groupGlobal * kInBlocks * blkBytes).toLong() * (PrimitiveLayouts.U8).strideBytes)).rawAddress, ConstPtr((packedPtr1).rawAddress + ((groupGlobal * kInBlocks * blkBytes).toLong() * (PrimitiveLayouts.U8).strideBytes)).rawMeta), kInBlocks)
             val r = vecDot4Q80x4Q80(k, xs, lhsRow)
             run {
                 copyNonoverlapping(r.asPtr(), MutPtr((dstPtr1).rawAddress + ((pair * nOut + g * 4).toLong() * (PrimitiveLayouts.F32).strideBytes)), 4)

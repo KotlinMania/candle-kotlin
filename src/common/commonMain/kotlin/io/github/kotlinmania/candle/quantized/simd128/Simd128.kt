@@ -27,7 +27,7 @@ internal fun vecDotQ40Q80(n: Int, xs: List<BlockQ40>, ys: List<BlockQ80>): Float
     return run {
         var acc = f32x4Splat(0.0f)
         for ((x, y) in (xs.zip(ys))) {
-            val x1234 = v128Load(constPtrFromRustCast<V128>(x.qs.asPtr()))
+            val x1234 = v128Load(constPtrFromRustCast(x.qs.asPtr()))
             val x12 = v128And(x1234, u8x16Splat(0x0F))
             val x121 = i8x16Sub(x12, i8x16Splat(8))
             val x34 = u8x16Shr(x1234, 4)
@@ -160,12 +160,12 @@ internal fun vecDotQ4kQ8k(n: Int, xs: List<BlockQ4K>, ys: List<BlockQ8K>): Float
             val q4 = x.qs
             val q8 = y.qs
             for (j in 0 until QK_K / 64) {
-                val q41 = v128Load(constPtrFromRustCast<V128>(q4.asPtr().add(32 * j)))
-                val q42 = v128Load(constPtrFromRustCast<V128>(q4.asPtr().add(32 * j + 16)))
-                v128Store(MutPtr<V128>(MutPtr((localStorageL192C4.elementMutPtr(0)).rawAddress + ((64 * j).toLong() * (PrimitiveLayouts.U8).strideBytes)).rawAddress, MutPtr((localStorageL192C4.elementMutPtr(0)).rawAddress + ((64 * j).toLong() * (PrimitiveLayouts.U8).strideBytes)).rawMeta), v128And(q41, u8x16Splat(0x0F)))
-                v128Store(MutPtr<V128>(MutPtr((localStorageL192C4.elementMutPtr(0)).rawAddress + ((64 * j + 16).toLong() * (PrimitiveLayouts.U8).strideBytes)).rawAddress, MutPtr((localStorageL192C4.elementMutPtr(0)).rawAddress + ((64 * j + 16).toLong() * (PrimitiveLayouts.U8).strideBytes)).rawMeta), v128And(q42, u8x16Splat(0x0F)))
-                v128Store(MutPtr<V128>(MutPtr((localStorageL192C4.elementMutPtr(0)).rawAddress + ((64 * j + 32).toLong() * (PrimitiveLayouts.U8).strideBytes)).rawAddress, MutPtr((localStorageL192C4.elementMutPtr(0)).rawAddress + ((64 * j + 32).toLong() * (PrimitiveLayouts.U8).strideBytes)).rawMeta), u8x16Shr(q41, 4))
-                v128Store(MutPtr<V128>(MutPtr((localStorageL192C4.elementMutPtr(0)).rawAddress + ((64 * j + 48).toLong() * (PrimitiveLayouts.U8).strideBytes)).rawAddress, MutPtr((localStorageL192C4.elementMutPtr(0)).rawAddress + ((64 * j + 48).toLong() * (PrimitiveLayouts.U8).strideBytes)).rawMeta), u8x16Shr(q42, 4))
+                val q41 = v128Load(constPtrFromRustCast(q4.asPtr().add(32 * j)))
+                val q42 = v128Load(constPtrFromRustCast(q4.asPtr().add(32 * j + 16)))
+                v128Store(MutPtr(MutPtr((localStorageL192C4.elementMutPtr(0)).rawAddress + ((64 * j).toLong() * (PrimitiveLayouts.U8).strideBytes)).rawAddress, MutPtr((localStorageL192C4.elementMutPtr(0)).rawAddress + ((64 * j).toLong() * (PrimitiveLayouts.U8).strideBytes)).rawMeta), v128And(q41, u8x16Splat(0x0F)))
+                v128Store(MutPtr(MutPtr((localStorageL192C4.elementMutPtr(0)).rawAddress + ((64 * j + 16).toLong() * (PrimitiveLayouts.U8).strideBytes)).rawAddress, MutPtr((localStorageL192C4.elementMutPtr(0)).rawAddress + ((64 * j + 16).toLong() * (PrimitiveLayouts.U8).strideBytes)).rawMeta), v128And(q42, u8x16Splat(0x0F)))
+                v128Store(MutPtr(MutPtr((localStorageL192C4.elementMutPtr(0)).rawAddress + ((64 * j + 32).toLong() * (PrimitiveLayouts.U8).strideBytes)).rawAddress, MutPtr((localStorageL192C4.elementMutPtr(0)).rawAddress + ((64 * j + 32).toLong() * (PrimitiveLayouts.U8).strideBytes)).rawMeta), u8x16Shr(q41, 4))
+                v128Store(MutPtr(MutPtr((localStorageL192C4.elementMutPtr(0)).rawAddress + ((64 * j + 48).toLong() * (PrimitiveLayouts.U8).strideBytes)).rawAddress, MutPtr((localStorageL192C4.elementMutPtr(0)).rawAddress + ((64 * j + 48).toLong() * (PrimitiveLayouts.U8).strideBytes)).rawMeta), u8x16Shr(q42, 4))
             }
             LittleEndian.readU32Into(x.scales, ((utmp).slice(0 until 3)))
             utmp[3] = ((utmp[2] shr 4) and KMASK2) or (((utmp[1] shr 6) and KMASK3) shl 4)
@@ -225,27 +225,27 @@ internal fun vecDotQ6kQ8k(n: Int, xs: List<BlockQ6K>, ys: List<BlockQ8K>): Float
                 val qh1 = qh.asPtr().add(j / 4)
                 for (l in (0 until 32).stepBy(16)) {
                     // aux8[l] = (((q4[l] & 0xF) | ((qh[l] & 3) << 4)) as i32 - 32) as i8;
-                    val a8 = v128Or(v128And(v128Load(constPtrFromRustCast<V128>(q41.add(l))), u8x16Splat(0xF)), u8x16Shl(v128And(v128Load(constPtrFromRustCast<V128>(qh1.add(l))), u8x16Splat(3)), 4))
+                    val a8 = v128Or(v128And(v128Load(constPtrFromRustCast(q41.add(l))), u8x16Splat(0xF)), u8x16Shl(v128And(v128Load(constPtrFromRustCast(qh1.add(l))), u8x16Splat(3)), 4))
                     val a8Low = i16x8Sub(i16x8ExtendLowU8x16(a8), i16x8Splat(32))
                     val a8High = i16x8Sub(i16x8ExtendHighU8x16(a8), i16x8Splat(32))
-                    v128Store(mutPtrFromRustCast<V128>(aux81.add(l)), i8x16NarrowI16x8(a8Low, a8High))
+                    v128Store(mutPtrFromRustCast(aux81.add(l)), i8x16NarrowI16x8(a8Low, a8High))
                     // aux8[l + 32] =
                     // (((q4[l + 32] & 0xF) | (((qh[l] >> 2) & 3) << 4)) as i32 - 32) as i8;
-                    val a81 = v128Or(v128And(v128Load(constPtrFromRustCast<V128>(q41.add(l + 32))), u8x16Splat(0xF)), u8x16Shl(v128And(u8x16Shr(v128Load(constPtrFromRustCast<V128>(qh1.add(l))), 2), u8x16Splat(3)), 4))
+                    val a81 = v128Or(v128And(v128Load(constPtrFromRustCast(q41.add(l + 32))), u8x16Splat(0xF)), u8x16Shl(v128And(u8x16Shr(v128Load(constPtrFromRustCast(qh1.add(l))), 2), u8x16Splat(3)), 4))
                     val a8Low1 = i16x8Sub(i16x8ExtendLowU8x16(a81), i16x8Splat(32))
                     val a8High1 = i16x8Sub(i16x8ExtendHighU8x16(a81), i16x8Splat(32))
-                    v128Store(mutPtrFromRustCast<V128>(aux81.add(l + 32)), i8x16NarrowI16x8(a8Low1, a8High1))
+                    v128Store(mutPtrFromRustCast(aux81.add(l + 32)), i8x16NarrowI16x8(a8Low1, a8High1))
                     // aux8[l + 64] = (((q4[l] >> 4) | (((qh[l] >> 4) & 3) << 4)) as i32 - 32) as i8;
-                    val a82 = v128Or(u8x16Shr(v128Load(constPtrFromRustCast<V128>(q41.add(l))), 4), u8x16Shl(v128And(u8x16Shr(v128Load(constPtrFromRustCast<V128>(qh1.add(l))), 4), u8x16Splat(3)), 4))
+                    val a82 = v128Or(u8x16Shr(v128Load(constPtrFromRustCast(q41.add(l))), 4), u8x16Shl(v128And(u8x16Shr(v128Load(constPtrFromRustCast(qh1.add(l))), 4), u8x16Splat(3)), 4))
                     val a8Low2 = i16x8Sub(i16x8ExtendLowU8x16(a82), i16x8Splat(32))
                     val a8High2 = i16x8Sub(i16x8ExtendHighU8x16(a82), i16x8Splat(32))
-                    v128Store(mutPtrFromRustCast<V128>(aux81.add(l + 64)), i8x16NarrowI16x8(a8Low2, a8High2))
+                    v128Store(mutPtrFromRustCast(aux81.add(l + 64)), i8x16NarrowI16x8(a8Low2, a8High2))
                     // aux8[l + 96] =
                     // (((q4[l + 32] >> 4) | (((qh[l] >> 6) & 3) << 4)) as i32 - 32) as i8;
-                    val a83 = v128Or(u8x16Shr(v128Load(constPtrFromRustCast<V128>(q41.add(l + 32))), 4), u8x16Shl(v128And(u8x16Shr(v128Load(constPtrFromRustCast<V128>(qh1.add(l))), 6), u8x16Splat(3)), 4))
+                    val a83 = v128Or(u8x16Shr(v128Load(constPtrFromRustCast(q41.add(l + 32))), 4), u8x16Shl(v128And(u8x16Shr(v128Load(constPtrFromRustCast(qh1.add(l))), 6), u8x16Splat(3)), 4))
                     val a8Low3 = i16x8Sub(i16x8ExtendLowU8x16(a83), i16x8Splat(32))
                     val a8High3 = i16x8Sub(i16x8ExtendHighU8x16(a83), i16x8Splat(32))
-                    v128Store(mutPtrFromRustCast<V128>(aux81.add(l + 96)), i8x16NarrowI16x8(a8Low3, a8High3))
+                    v128Store(mutPtrFromRustCast(aux81.add(l + 96)), i8x16NarrowI16x8(a8Low3, a8High3))
                 }
             }
             for ((j1, scale) in x.scales.iter().enumerate()) {

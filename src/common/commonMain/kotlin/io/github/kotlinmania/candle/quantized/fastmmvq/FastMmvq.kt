@@ -15,7 +15,6 @@ import io.github.kotlinmania.candlekernels.ffi
 import io.github.kotlinmania.cudarc.driver.CudaSlice
 import io.github.kotlinmania.half.Bf16
 import io.github.kotlinmania.half.F16
-import io.github.kotlinmania.rustlang.core.ffi.CVoid
 import io.github.kotlinmania.rustlang.core.mem.constPtrFromRustCast
 import io.github.kotlinmania.rustlang.core.mem.mutPtrFromRustCast
 import io.github.kotlinmania.rustlang.core.ptr.ConstPtr
@@ -27,7 +26,7 @@ import io.github.kotlinmania.rustlang.std.sync.OnceLock
 // CUDA fast path for GGUF matmul with BF16/F32 activations.
 
 public fun interface FnCallback {
-    public operator fun invoke(vx: ConstPtr<ffi.CVoid>, vy: ConstPtr<ffi.CVoid>, dst: MutPtr<ffi.CVoid>, ncolsX: Int, nrowsX: Int, strideColY: Int, strideColDst: Int, bSize: Int, stream: MutPtr<ffi.CVoid>)
+    public operator fun invoke(vx: ConstPtr, vy: ConstPtr, dst: MutPtr, ncolsX: Int, nrowsX: Int, strideColY: Int, strideColDst: Int, bSize: Int, stream: MutPtr)
 }
 
 public val Q8_1_BLOCK_SIZE: Int = 32
@@ -140,7 +139,7 @@ public fun workspaceEnsure(dev: CudaDevice, bytes: Int): Result<Pair<ULong, Mute
 // Launcher dispatch by weight dtype and output dtype.
 // ---------------------------------------------------------------------------
 public fun interface PlainLauncher {
-    public operator fun invoke(vx: ConstPtr<CVoid>, vy: ConstPtr<CVoid>, dst: MutPtr<CVoid>, ncolsX: Int, nrowsX: Int, strideColY: Int, strideColDst: Int, bSize: Int, stream: MutPtr<CVoid>)
+    public operator fun invoke(vx: ConstPtr, vy: ConstPtr, dst: MutPtr, ncolsX: Int, nrowsX: Int, strideColY: Int, strideColDst: Int, bSize: Int, stream: MutPtr)
 }
 
 public fun plainLauncherBf16(dtype: GgmlDType): PlainLauncher? {
@@ -269,7 +268,7 @@ public fun tryFwd(qstorage: QCudaStorage, selfShape: Shape, rhs: CudaStorage, rh
             }
         }
     val dev = qstorage.device()
-    val streamPtr = mutPtrFromRustCast<ffi.CVoid>(dev.cudaStream().cuStream())
+    val streamPtr = mutPtrFromRustCast(dev.cudaStream().cuStream())
     val kPadded = pad(k2, MATRIX_ROW_PADDING)
     val numBlocksPerRow = kPadded / Q8_1_BLOCK_SIZE
     val dstRowBytes = numBlocksPerRow * Q8_1_TYPE_SIZE
@@ -279,11 +278,11 @@ public fun tryFwd(qstorage: QCudaStorage, selfShape: Shape, rhs: CudaStorage, rh
             is Result.Ok -> tryResult.value
             is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
         }
-    val scratchPtr1 = mutPtrFromRustCast<ffi.CVoid>(scratchPtr)
+    val scratchPtr1 = mutPtrFromRustCast(scratchPtr)
     val strideColY = (kPadded / Q8_1_BLOCK_SIZE)
     val strideColDst = nrows.toInt()
     val weightPtr =
-        constPtrFromRustCast<ffi.CVoid>(
+        constPtrFromRustCast(
             when (val tryResult = qstorage.devicePtr()) {
                 is Result.Ok -> tryResult.value
                 is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
@@ -306,12 +305,12 @@ public fun tryFwd(qstorage: QCudaStorage, selfShape: Shape, rhs: CudaStorage, rh
                     is Result.Ok -> tryResult.value
                     is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
                 }
-            val rhsPtr = constPtrFromRustCast<ffi.CVoid>(rhsSlice1.devicePtr(stream).first)
-            val outPtr = mutPtrFromRustCast<ffi.CVoid>(out.devicePtr(stream).first)
+            val rhsPtr = constPtrFromRustCast(rhsSlice1.devicePtr(stream).first)
+            val outPtr = mutPtrFromRustCast(out.devicePtr(stream).first)
             run {
                 ffi.launchMmvqGgufQuantizeQ81Bf16(rhsPtr, scratchPtr1, k2.toInt(), kPadded, bSize.toInt(), streamPtr)
                 val launcher = plainLauncherBf16(wDtype)!!
-                launcher(weightPtr, ConstPtr<ffi.CVoid>(scratchPtr1.rawAddress, scratchPtr1.rawMeta), outPtr, k2.toInt(), nrows.toInt(), strideColY, strideColDst, bSize.toInt(), streamPtr)
+                launcher(weightPtr, ConstPtr(scratchPtr1.rawAddress, scratchPtr1.rawMeta), outPtr, k2.toInt(), nrows.toInt(), strideColY, strideColDst, bSize.toInt(), streamPtr)
             }
             val outStorage = CudaStorage.wrapCudaSlice(out, dev.clone())
             Ok(Pair(outStorage, outShape.into()))
@@ -328,12 +327,12 @@ public fun tryFwd(qstorage: QCudaStorage, selfShape: Shape, rhs: CudaStorage, rh
                     is Result.Ok -> tryResult.value
                     is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
                 }
-            val rhsPtr1 = constPtrFromRustCast<ffi.CVoid>(rhsSlice3.devicePtr(stream).first)
-            val outPtr1 = mutPtrFromRustCast<ffi.CVoid>(out1.devicePtr(stream).first)
+            val rhsPtr1 = constPtrFromRustCast(rhsSlice3.devicePtr(stream).first)
+            val outPtr1 = mutPtrFromRustCast(out1.devicePtr(stream).first)
             run {
                 ffi.launchMmvqGgufQuantizeQ81F16(rhsPtr1, scratchPtr1, k2.toInt(), kPadded, bSize.toInt(), streamPtr)
                 val launcher1 = plainLauncherF16(wDtype)!!
-                launcher1(weightPtr, ConstPtr<ffi.CVoid>(scratchPtr1.rawAddress, scratchPtr1.rawMeta), outPtr1, k2.toInt(), nrows.toInt(), strideColY, strideColDst, bSize.toInt(), streamPtr)
+                launcher1(weightPtr, ConstPtr(scratchPtr1.rawAddress, scratchPtr1.rawMeta), outPtr1, k2.toInt(), nrows.toInt(), strideColY, strideColDst, bSize.toInt(), streamPtr)
             }
             val outStorage1 = CudaStorage.wrapCudaSlice(out1, dev.clone())
             Ok(Pair(outStorage1, outShape.into()))
@@ -350,12 +349,12 @@ public fun tryFwd(qstorage: QCudaStorage, selfShape: Shape, rhs: CudaStorage, rh
                     is Result.Ok -> tryResult.value
                     is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
                 }
-            val rhsPtr2 = constPtrFromRustCast<ffi.CVoid>(rhsSlice5.devicePtr(stream).first)
-            val outPtr2 = mutPtrFromRustCast<ffi.CVoid>(out2.devicePtr(stream).first)
+            val rhsPtr2 = constPtrFromRustCast(rhsSlice5.devicePtr(stream).first)
+            val outPtr2 = mutPtrFromRustCast(out2.devicePtr(stream).first)
             run {
                 ffi.launchMmvqGgufQuantizeQ81F32(rhsPtr2, scratchPtr1, k2.toInt(), kPadded, bSize.toInt(), streamPtr)
                 val launcher2 = plainLauncherF32(wDtype)!!
-                launcher2(weightPtr, ConstPtr<ffi.CVoid>(scratchPtr1.rawAddress, scratchPtr1.rawMeta), outPtr2, k2.toInt(), nrows.toInt(), strideColY, strideColDst, bSize.toInt(), streamPtr)
+                launcher2(weightPtr, ConstPtr(scratchPtr1.rawAddress, scratchPtr1.rawMeta), outPtr2, k2.toInt(), nrows.toInt(), strideColY, strideColDst, bSize.toInt(), streamPtr)
             }
             val outStorage2 = CudaStorage.wrapCudaSlice(out2, dev.clone())
             Ok(Pair(outStorage2, outShape.into()))

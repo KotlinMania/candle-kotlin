@@ -1,7 +1,6 @@
 package io.github.kotlinmania.candle.cpubackend
 
 import io.github.kotlinmania.candle.dtype.IntDType
-import io.github.kotlinmania.candle.error.Error
 import io.github.kotlinmania.candle.layout.Layout
 import io.github.kotlinmania.candle.nditer.NdIter
 import io.github.kotlinmania.candle.stridedindex.StridedBlocks

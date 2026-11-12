@@ -25,7 +25,7 @@ public fun <T> asTSlice(data: List<UByte>, typeLayoutT: TypeLayout<T>): List<T> 
     check(data.size % size == 0)
     val ptr = data.asPtr()
     check((ptr.toInt()) % alignOf<T>(typeLayoutT = typeLayoutT) == 0)
-    return fromRawParts(constPtrFromRustCast<T>(ptr), data.size / size)
+    return fromRawParts(constPtrFromRustCast(ptr), data.size / size)
 }
 
 public fun checkShape(shape: Shape, blockSize: Int): Result<Unit> {
@@ -44,7 +44,7 @@ public fun widenBf16(src: List<Bf16>): List<Float> {
     val outPtr = out.asMutPtr().toInt()
     val nUnits = src.size.divCeil(WIDEN_CHUNK)
     barrierPool().executeChunked(nUnits, { range ->
-        val outPtr1 = MutPtr<Float>(outPtr.toLong())
+        val outPtr1 = MutPtr(outPtr.toLong())
         for (unit in range) {
             val lo = unit * WIDEN_CHUNK
             val hi = src.size.min(lo + WIDEN_CHUNK)
@@ -63,7 +63,7 @@ public fun narrowBf16(src: List<Float>): List<Bf16> {
     val outPtr = out.asMutPtr().toInt()
     val nUnits = src.size.divCeil(WIDEN_CHUNK)
     barrierPool().executeChunked(nUnits, { range ->
-        val outPtr1 = MutPtr<Bf16>(outPtr.toLong())
+        val outPtr1 = MutPtr(outPtr.toLong())
         for (unit in range) {
             val lo = unit * WIDEN_CHUNK
             val hi = src.size.min(lo + WIDEN_CHUNK)
@@ -151,4 +151,4 @@ public fun <T : GgmlType> List<T>.dequantize(elemCount: Int, toFloatTFn: (Any?) 
 
 public fun <T : GgmlType> List<T>.storageSizeInBytes(typeLayoutT: TypeLayout<T>): Int = this.size * sizeOf<T>(typeLayoutT = typeLayoutT)
 
-public fun <T : GgmlType> List<T>.asPtrQuantizedType(): ConstPtr<UByte> = this.asPtr()
+public fun <T : GgmlType> List<T>.asPtrQuantizedType(): ConstPtr = this.asPtr()

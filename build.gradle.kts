@@ -1,5 +1,6 @@
 @file:OptIn(
     ExperimentalKotlinGradlePluginApi::class,
+    KotlinNativeCacheApi::class,
     org.jetbrains.kotlin.gradle.swiftexport.ExperimentalSwiftExportDsl::class,
 )
 
@@ -33,6 +34,8 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.dsl.KotlinVersion
 import org.jetbrains.kotlin.gradle.plugin.KotlinTarget
 import org.jetbrains.kotlin.gradle.plugin.mpp.AbstractExecutable
+import org.jetbrains.kotlin.gradle.plugin.mpp.DisableCacheInKotlinVersion
+import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeCacheApi
 import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget
 import org.jetbrains.kotlin.gradle.plugin.mpp.apple.XCFramework
 import org.jetbrains.kotlin.gradle.plugin.mpp.apple.swiftexport.SwiftExportedModuleMetadata
@@ -608,11 +611,13 @@ kotlin {
                     this is org.jetbrains.kotlin.gradle.plugin.mpp.StaticLibrary ||
                         (this is org.jetbrains.kotlin.gradle.plugin.mpp.Framework && isStatic)
                 if (buildType == org.jetbrains.kotlin.gradle.plugin.mpp.NativeBuildType.DEBUG && !isStaticArchive) {
-                    // Xcode 26 ld-prime emits N_AST stabs ('...a(...a.o)') for unreferenced
-                    // force-loaded stdlib-per-file-cache archives on Debug links, causing
-                    // dsymutil 'could not open' warnings. Passing -dead_strip elides unused
-                    // archive members while retaining full N_OSO DWARF debug info for live symbols.
-                    linkerOpts("-dead_strip")
+                    // Kotlin/Native 2.4.21's stdlib-per-file-cache archives emit Mach-O N_AST stabs
+                    // ('...a(...a.o)') under Xcode 26 ld, causing dsymutil 'could not open' warnings
+                    // on every Debug link while retaining full DWARF symbols when cache is disabled.
+                    disableNativeCache(
+                        version = DisableCacheInKotlinVersion.`2_4_21`,
+                        reason = "Prevent Xcode 26 dsymutil N_AST 'could not open' warnings from stdlib-per-file-cache",
+                    )
                 }
             }
         }

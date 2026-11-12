@@ -64,7 +64,7 @@ public interface VecOps<T> : NumAssign {
      * The length of `lhs` and `rhs` have to be at least `len`. `res` has to point to a valid
      * element.
      */
-    public fun vecDot(lhs: ConstPtr<T>, rhs: ConstPtr<T>, res: MutPtr<T>, len: Int) {
+    public fun vecDot(lhs: ConstPtr, rhs: ConstPtr, res: MutPtr, len: Int) {
         val res1 = res
         (ObjectSlotLayout<T>()).writeNative((res1).rawAddress, T.zero())
         for (i in 0 until len) {
@@ -85,7 +85,7 @@ public interface VecOps<T> : NumAssign {
      * The length of `xs` must be at least `len`. `res` has to point to a valid
      * element.
      */
-    public fun vecReduceSum(xs: ConstPtr<T>, res: MutPtr<T>, len: Int) {
+    public fun vecReduceSum(xs: ConstPtr, res: MutPtr, len: Int) {
         val res1 = res
         (ObjectSlotLayout<T>()).writeNative((res1).rawAddress, T.zero())
         for (i in 0 until len) {
@@ -106,7 +106,7 @@ public interface VecOps<T> : NumAssign {
      * The length of `xs` must be at least `len` and positive. `res` has to point to a valid
      * element.
      */
-    public fun vecReduceMax(xs: ConstPtr<T>, res: MutPtr<T>, len: Int) {
+    public fun vecReduceMax(xs: ConstPtr, res: MutPtr, len: Int) {
         val res1 = res
         (ObjectSlotLayout<T>()).writeNative((res1).rawAddress, (ObjectSlotLayout<T>()).readNative((xs).rawAddress))
         for (i in 1 until len) {
@@ -122,7 +122,7 @@ public interface VecOps<T> : NumAssign {
      * The length of `xs` must be at least `len` and positive. `res` has to point to a valid
      * element.
      */
-    public fun vecReduceMin(xs: ConstPtr<T>, res: MutPtr<T>, len: Int) {
+    public fun vecReduceMin(xs: ConstPtr, res: MutPtr, len: Int) {
         val res1 = res
         (ObjectSlotLayout<T>()).writeNative((res1).rawAddress, (ObjectSlotLayout<T>()).readNative((xs).rawAddress))
         for (i in 1 until len) {
@@ -141,11 +141,11 @@ public fun vecOpsFloat(lhs: List<Float>, rhs: List<Float>, res: MutableList<Floa
     }
 }
 
-public fun vecOpsFloat(lhs: ConstPtr<Float>, rhs: ConstPtr<Float>, res: MutPtr<Float>, len: ULong) {
+public fun vecOpsFloat(lhs: ConstPtr, rhs: ConstPtr, res: MutPtr, len: ULong) {
     vecDotF32(lhs, rhs, res, len.toInt())
 }
 
-public fun vecOpsFloat(xs: ConstPtr<Float>, res: MutPtr<Float>, len: ULong) {
+public fun vecOpsFloat(xs: ConstPtr, res: MutPtr, len: ULong) {
     vecSum(xs, res, len.toInt())
 }
 
@@ -161,7 +161,7 @@ public fun vecOpsF16(scalar: F16, xs: List<F16>, ys: List<F16>) {
     vecScalarAddF16(scalar, xs.asPtr(), ys.asMutPtr(), xs.size)
 }
 
-public fun vecOpsF16(lhs: ConstPtr<F16>, rhs: ConstPtr<F16>, res: MutPtr<F16>, len: Int) {
+public fun vecOpsF16(lhs: ConstPtr, rhs: ConstPtr, res: MutPtr, len: Int) {
     val res1 = res
     val resF32 = 0.0f
     vecDotF16(lhs, rhs, resF32, len)
@@ -190,7 +190,7 @@ public fun vecOpsBf16(scalar: Bf16, xs: List<Bf16>, ys: List<Bf16>) {
     vecScalarAddBf16(scalar, xs.asPtr(), ys.asMutPtr(), xs.size)
 }
 
-public fun vecOpsBf16(lhs: ConstPtr<Bf16>, rhs: ConstPtr<Bf16>, res: MutPtr<Bf16>, len: Int) {
+public fun vecOpsBf16(lhs: ConstPtr, rhs: ConstPtr, res: MutPtr, len: Int) {
     val res1 = res
     val resF32 = 0.0f
     vecDotBf16(lhs, rhs, resF32, len)

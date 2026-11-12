@@ -8,11 +8,9 @@ import io.github.kotlinmania.libc.qosclasst.QOS_CLASS_USER_INTERACTIVE
 import io.github.kotlinmania.libc.sysctlbyname
 import io.github.kotlinmania.numcpus.getPhysical
 import io.github.kotlinmania.rayon.ThreadPool
-import io.github.kotlinmania.rustlang.core.ffi.CVoid
 import io.github.kotlinmania.rustlang.core.mem.AddressableLocal
 import io.github.kotlinmania.rustlang.core.mem.ObjectSlotLayout
 import io.github.kotlinmania.rustlang.core.mem.PrimitiveLayouts
-import io.github.kotlinmania.rustlang.core.mem.TypeLayout
 import io.github.kotlinmania.rustlang.core.mem.constPtrFromRustCast
 import io.github.kotlinmania.rustlang.core.ptr.ConstPtr
 import io.github.kotlinmania.rustlang.core.ptr.MutPtr
@@ -28,7 +26,7 @@ import io.github.kotlinmania.rustlang.std.thread.Thread
 // Useful functions for checking features.
 
 public fun interface WorkDescTrampolineCallback {
-    public operator fun invoke(arg0: ConstPtr<Unit>, arg1: Int)
+    public operator fun invoke(arg0: ConstPtr, arg1: Int)
 }
 
 public val DEFAULT_BARRIER_POOL_SPIN_LIMIT: UInt = 25000u
@@ -52,9 +50,9 @@ public data class Slot(
  */
 public class WorkDesc internal constructor(
     public var trampoline: WorkDescTrampolineCallback,
-    dataCtorArg: ConstPtr<Unit>,
+    dataCtorArg: ConstPtr,
 ) {
-    public var data: ConstPtr<Unit> = dataCtorArg
+    public var data: ConstPtr = dataCtorArg
         internal set
 
     public constructor() : this(
@@ -64,9 +62,9 @@ public class WorkDesc internal constructor(
 
     public operator fun component1(): WorkDescTrampolineCallback = this.trampoline
 
-    public operator fun component2(): ConstPtr<Unit> = this.data
+    public operator fun component2(): ConstPtr = this.data
 
-    public fun copy(trampoline: WorkDescTrampolineCallback = this.trampoline, data: ConstPtr<Unit> = this.data): WorkDesc = WorkDesc(trampoline = trampoline, dataCtorArg = data)
+    public fun copy(trampoline: WorkDescTrampolineCallback = this.trampoline, data: ConstPtr = this.data): WorkDesc = WorkDesc(trampoline = trampoline, dataCtorArg = data)
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
@@ -85,7 +83,7 @@ public class WorkDesc internal constructor(
     public companion object {
         public operator fun invoke(
             trampoline: WorkDescTrampolineCallback = WorkDescTrampolineCallback { _, _ -> },
-            data: ConstPtr<Unit> = ConstPtr(0L),
+            data: ConstPtr = ConstPtr(0L),
         ): WorkDesc =
             WorkDesc(
                 trampoline = trampoline,
@@ -246,7 +244,7 @@ public class BarrierPool internal constructor(
         run {
             val work = this.inner.work.get()
             work.trampoline = WorkDescTrampolineCallback { data, tid -> callTrampoline<(Int) -> Unit>(data, tid) }
-            work.data = ConstPtr<Unit>((constPtrFromRustCast<(Int) -> Unit>(f)).rawAddress, (constPtrFromRustCast<(Int) -> Unit>(f)).rawMeta)
+            work.data = ConstPtr((constPtrFromRustCast(f)).rawAddress, (constPtrFromRustCast(f)).rawMeta)
         }
         val handles = this.inner.handles.get()!!
         for (root in this.rootWorkers) {
@@ -346,7 +344,7 @@ public class BarrierPool internal constructor(
 
         public fun new(nWorkers: Int): BarrierPool {
             val inner = BarrierPoolInner(slots = (0 until nWorkers).map({ Slot(go = AtomicUsize.new(0), done = AtomicUsize.new(0)) }).collect<Vec>().intoBoxedSlice(), handles = OnceLock.new(), work = UnsafeCell.new(WorkDesc(trampoline = {}, data = ConstPtr(0L))), stop = AtomicBool.new(false), panicPayload = Mutex.new(null))
-            val innerPtr = (constPtrFromRustCast<BarrierPoolInner>(inner)).rawAddress.toInt()
+            val innerPtr = (constPtrFromRustCast(inner)).rawAddress.toInt()
             val clusterSize = getClusterSize()
             val (children, rootWorkers) = computeTree(nWorkers, clusterSize)
             val spinLimit = barrierPoolSpinLimit()
@@ -361,7 +359,7 @@ public class BarrierPool internal constructor(
                                 closure@{
                                     IN_BARRIER_POOL.with({ f -> f.set(true) })
                                     setThreadAffinity()
-                                    val inner1 = (ObjectSlotLayout<BarrierPoolInner>()).readNative(((ConstPtr<BarrierPoolInner>(innerPtr.toLong()))).rawAddress)
+                                    val inner1 = (ObjectSlotLayout<BarrierPoolInner>()).readNative(((ConstPtr(innerPtr.toLong()))).rawAddress)
                                     val slot = inner1.slots[tid]
                                     var gen = 0
                                     while (true) {
@@ -439,8 +437,8 @@ public class BarrierPool internal constructor(
     }
 }
 
-public fun <F : (Int) -> Unit> callTrampoline(data: ConstPtr<Unit>, tid: Int) {
-    (ObjectSlotLayout<(Int) -> Unit>()).readNative(((ConstPtr<(Int) -> Unit>(data.rawAddress, data.rawMeta))).rawAddress)(tid)
+public fun <F : (Int) -> Unit> callTrampoline(data: ConstPtr, tid: Int) {
+    (ObjectSlotLayout<(Int) -> Unit>()).readNative(((ConstPtr(data.rawAddress, data.rawMeta))).rawAddress)(tid)
 }
 
 /**
@@ -570,7 +568,7 @@ public fun perfCoreCount(): Int? {
     val localStorageL429C4 = AddressableLocal(0u, PrimitiveLayouts.U32)
     var count by localStorageL429C4
     val size = sizeOf<UInt>(typeLayoutT = PrimitiveLayouts.U32)
-    val ret = sysctlbyname("hw.perflevel0.logicalcpu".asPtr().cast(), MutPtr<CVoid>((MutPtr<UInt>(localStorageL429C4.asMutPtr().rawAddress)).rawAddress, (MutPtr<UInt>(localStorageL429C4.asMutPtr().rawAddress)).rawMeta), size, MutPtr(0L), 0)
+    val ret = sysctlbyname("hw.perflevel0.logicalcpu".asPtr().cast(), MutPtr((MutPtr(localStorageL429C4.asMutPtr().rawAddress)).rawAddress, (MutPtr(localStorageL429C4.asMutPtr().rawAddress)).rawMeta), size, MutPtr(0L), 0)
     return (ret == 0 && count > 0u).thenSome(count.toInt())
 }
 

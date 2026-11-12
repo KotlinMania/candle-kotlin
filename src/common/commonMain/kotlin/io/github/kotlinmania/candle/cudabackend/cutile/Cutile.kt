@@ -14,7 +14,6 @@ import io.github.kotlinmania.cutile.cudaasync.devicebuffer.DevicePointer
 import io.github.kotlinmania.cutile.cudacore.Stream
 import io.github.kotlinmania.cutile.cutilecompiler.cudatileruntimeutils.getGpuName
 import io.github.kotlinmania.cutile.cutilecompiler.cudatileruntimeutils.tileirasBinary
-import io.github.kotlinmania.rustlang.core.ffi.CVoid
 import io.github.kotlinmania.rustlang.core.mem.TypeLayout
 import io.github.kotlinmania.rustlang.core.mem.mutPtrFromRustCast
 import io.github.kotlinmania.rustlang.core.result.fromResidual
@@ -130,8 +129,8 @@ public data class CutileContext(
                 is Result.Ok -> tryResult.value
                 is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
             }
-            val cutileDevice = Device.borrowWithOwner(mutPtrFromRustCast<CVoid>(candleContext.cuCtx()), candleContext.cuDevice().toInt(), candleContext.ordinal(), candleContext.clone())
-            val cutileStream = Stream.borrowWithOwner(mutPtrFromRustCast<CVoid>(candleStream.cuStream()), cutileDevice, candleStream.clone())
+            val cutileDevice = Device.borrowWithOwner(mutPtrFromRustCast(candleContext.cuCtx()), candleContext.cuDevice().toInt(), candleContext.ordinal(), candleContext.clone())
+            val cutileStream = Stream.borrowWithOwner(mutPtrFromRustCast(candleStream.cuStream()), cutileDevice, candleStream.clone())
             return Ok(CutileContext(candleStream = candleStream, cutileStream = cutileStream))
         }
     }

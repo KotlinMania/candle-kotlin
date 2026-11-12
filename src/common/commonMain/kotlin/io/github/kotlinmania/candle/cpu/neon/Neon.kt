@@ -38,17 +38,17 @@ public class CurrentCpu : Cpu {
 
         public fun zeroArray(): List<Float32x4T> = List((CurrentCpu.ARR).toInt()) { CurrentCpu.zero() }
 
-        public fun load(memAddr: ConstPtr<Float>): Float32x4T = vld1qF32(memAddr)
+        public fun load(memAddr: ConstPtr): Float32x4T = vld1qF32(memAddr)
 
         public fun vecAdd(a: Float32x4T, b: Float32x4T): Float32x4T = vaddqF32(a, b)
 
         public fun vecFma(a: Float32x4T, b: Float32x4T, c: Float32x4T): Float32x4T = vfmaqF32(a, b, c)
 
-        public fun vecStore(memAddr: MutPtr<Float>, a: Float32x4T) {
+        public fun vecStore(memAddr: MutPtr, a: Float32x4T) {
             vst1qF32(memAddr, a)
         }
 
-        public fun vecReduce(x: List<Float32x4T>, y: MutPtr<Float>) {
+        public fun vecReduce(x: List<Float32x4T>, y: MutPtr) {
             val y1 = y
             for (i in 0 until CurrentCpu.ARR / 2) {
                 x[2 * i] = vaddqF32(x[2 * i], x[2 * i + 1])
@@ -84,8 +84,8 @@ public class CurrentCpuF16 : CpuF16 {
 
         public fun zeroArray(): List<Float32x4T> = List((CurrentCpuF16.ARR).toInt()) { CurrentCpuF16.zero() }
 
-        public fun load(memAddr: ConstPtr<F16>): Float32x4T {
-            val bits = vld1U16(ConstPtr<UShort>(memAddr.rawAddress, memAddr.rawMeta))
+        public fun load(memAddr: ConstPtr): Float32x4T {
+            val bits = vld1U16(ConstPtr(memAddr.rawAddress, memAddr.rawMeta))
             val result: Float32x4T
             asm("fcvtl {dst:v}.4s, {src:v}.4h", src, vreg, bits, dst, out, vreg, result, options(pure, nomem, nostack))
             return result
@@ -95,7 +95,7 @@ public class CurrentCpuF16 : CpuF16 {
 
         public fun vecFma(a: Float32x4T, b: Float32x4T, c: Float32x4T): Float32x4T = vfmaqF32(a, b, c)
 
-        public fun vecReduce(x: List<Float32x4T>, y: MutPtr<Float>) {
+        public fun vecReduce(x: List<Float32x4T>, y: MutPtr) {
             val y1 = y
             for (i in 0 until CurrentCpuF16.ARR / 2) {
                 x[2 * i] = vaddqF32(x[2 * i], x[2 * i + 1])
@@ -111,10 +111,10 @@ public class CurrentCpuF16 : CpuF16 {
 
         public fun fromF32(v: Float): Float32x4T = vdupqNF32(v)
 
-        public fun vecStore(memAddr: MutPtr<F16>, a: Float32x4T) {
+        public fun vecStore(memAddr: MutPtr, a: Float32x4T) {
             val bits: Uint16x4T
             asm("fcvtn {dst:v}.4h, {src:v}.4s", src, vreg, a, dst, out, vreg, bits, options(pure, nomem, nostack))
-            vst1U16(MutPtr<UShort>(memAddr.rawAddress, memAddr.rawMeta), bits)
+            vst1U16(MutPtr(memAddr.rawAddress, memAddr.rawMeta), bits)
         }
     }
 }
@@ -139,9 +139,9 @@ public class CurrentCpuBF16 : CpuBF16 {
 
         public fun zeroArray(): List<Float32x4T> = List((CurrentCpuBF16.ARR).toInt()) { CurrentCpuBF16.zero() }
 
-        public fun load(memAddr: ConstPtr<Bf16>): Float32x4T {
+        public fun load(memAddr: ConstPtr): Float32x4T {
             // bf16 is the top 16 bits of f32; shift left by 16 to reconstruct f32 bits.
-            val i = vld1U16(ConstPtr<UShort>(memAddr.rawAddress, memAddr.rawMeta))
+            val i = vld1U16(ConstPtr(memAddr.rawAddress, memAddr.rawMeta))
             val s = vshllNU16(i, 16)
             return vreinterpretqF32U32(s)
         }
@@ -150,7 +150,7 @@ public class CurrentCpuBF16 : CpuBF16 {
 
         public fun vecFma(a: Float32x4T, b: Float32x4T, c: Float32x4T): Float32x4T = vfmaqF32(a, b, c)
 
-        public fun vecReduce(x: List<Float32x4T>, y: MutPtr<Float>) {
+        public fun vecReduce(x: List<Float32x4T>, y: MutPtr) {
             val y1 = y
             for (i in 0 until CurrentCpuBF16.ARR / 2) {
                 x[2 * i] = vaddqF32(x[2 * i], x[2 * i + 1])
@@ -166,16 +166,16 @@ public class CurrentCpuBF16 : CpuBF16 {
 
         public fun fromF32(v: Float): Float32x4T = vdupqNF32(v)
 
-        public fun vecStore(memAddr: MutPtr<Bf16>, a: Float32x4T) {
+        public fun vecStore(memAddr: MutPtr, a: Float32x4T) {
             // Extract top 16 bits of each f32 lane, which is the bf16 representation.
             val s = vreinterpretqU32F32(a)
             val h = vshrnNU32(s, 16)
-            vst1U16(MutPtr<UShort>(memAddr.rawAddress, memAddr.rawMeta), h)
+            vst1U16(MutPtr(memAddr.rawAddress, memAddr.rawMeta), h)
         }
     }
 }
 
-internal fun vecDotF32(aRow: ConstPtr<Float>, bRow: ConstPtr<Float>, c: MutPtr<Float>, k: Int) {
+internal fun vecDotF32(aRow: ConstPtr, bRow: ConstPtr, c: MutPtr, k: Int) {
     val c1 = c
     val sum = CurrentCpu.zeroArray()
     var i = 0
@@ -197,7 +197,7 @@ internal fun vecDotF32(aRow: ConstPtr<Float>, bRow: ConstPtr<Float>, c: MutPtr<F
     }
 }
 
-internal fun vecSum(row: ConstPtr<Float>, b: MutPtr<Float>, k: Int) {
+internal fun vecSum(row: ConstPtr, b: MutPtr, k: Int) {
     val b1 = b
     val np = k and (CurrentCpu.STEP - 1).inv()
     val sum = CurrentCpu.zeroArray()
@@ -219,7 +219,7 @@ internal fun vecSum(row: ConstPtr<Float>, b: MutPtr<Float>, k: Int) {
     }
 }
 
-internal fun vecDotF16(aRow: ConstPtr<F16>, bRow: ConstPtr<F16>, c: MutPtr<Float>, k: Int) {
+internal fun vecDotF16(aRow: ConstPtr, bRow: ConstPtr, c: MutPtr, k: Int) {
     val c1 = c
     var sumf = 0.0f
     var sum = CurrentCpuF16.zeroArray()
@@ -249,7 +249,7 @@ internal fun vecDotF16(aRow: ConstPtr<F16>, bRow: ConstPtr<F16>, c: MutPtr<Float
     (PrimitiveLayouts.F32).writeNative((c1).rawAddress, sumf)
 }
 
-internal fun vecDotBf16(aRow: ConstPtr<Bf16>, bRow: ConstPtr<Bf16>, c: MutPtr<Float>, k: Int) {
+internal fun vecDotBf16(aRow: ConstPtr, bRow: ConstPtr, c: MutPtr, k: Int) {
     val c1 = c
     val sum = CurrentCpuBF16.zeroArray()
     var i = 0
@@ -271,7 +271,7 @@ internal fun vecDotBf16(aRow: ConstPtr<Bf16>, bRow: ConstPtr<Bf16>, c: MutPtr<Fl
     }
 }
 
-internal fun vecAddF16(aRow: ConstPtr<F16>, bRow: ConstPtr<F16>, c: MutPtr<F16>, k: Int) {
+internal fun vecAddF16(aRow: ConstPtr, bRow: ConstPtr, c: MutPtr, k: Int) {
     var i = 0
     while (i + CurrentCpuF16.STEP <= k) {
         for (j in 0 until CurrentCpuF16.ARR) {
@@ -284,20 +284,20 @@ internal fun vecAddF16(aRow: ConstPtr<F16>, bRow: ConstPtr<F16>, c: MutPtr<F16>,
     }
 }
 
-internal fun vecAddBf16(aRow: ConstPtr<Bf16>, bRow: ConstPtr<Bf16>, c: MutPtr<Bf16>, k: Int) {
+internal fun vecAddBf16(aRow: ConstPtr, bRow: ConstPtr, c: MutPtr, k: Int) {
     // Widen to f32, add, narrow. The bfdot-specialized CurrentCpuBF16 keeps raw bf16 bits in
     // its Unit and its vecAdd interprets them as f32 lanes, so it must not be used here.
     var i = 0
     while (i + 8 <= k) {
-        val a = vld1qU16(ConstPtr<UShort>(ConstPtr((aRow).rawAddress + ((i).toLong() * (ObjectSlotLayout<Bf16>()).strideBytes)).rawAddress, ConstPtr((aRow).rawAddress + ((i).toLong() * (ObjectSlotLayout<Bf16>()).strideBytes)).rawMeta))
-        val b = vld1qU16(ConstPtr<UShort>(ConstPtr((bRow).rawAddress + ((i).toLong() * (ObjectSlotLayout<Bf16>()).strideBytes)).rawAddress, ConstPtr((bRow).rawAddress + ((i).toLong() * (ObjectSlotLayout<Bf16>()).strideBytes)).rawMeta))
+        val a = vld1qU16(ConstPtr(ConstPtr((aRow).rawAddress + ((i).toLong() * (ObjectSlotLayout<Bf16>()).strideBytes)).rawAddress, ConstPtr((aRow).rawAddress + ((i).toLong() * (ObjectSlotLayout<Bf16>()).strideBytes)).rawMeta))
+        val b = vld1qU16(ConstPtr(ConstPtr((bRow).rawAddress + ((i).toLong() * (ObjectSlotLayout<Bf16>()).strideBytes)).rawAddress, ConstPtr((bRow).rawAddress + ((i).toLong() * (ObjectSlotLayout<Bf16>()).strideBytes)).rawMeta))
         val aLo = vreinterpretqF32U32(vshllNU16(vgetLowU16(a), 16))
         val aHi = vreinterpretqF32U32(vshllHighNU16(a, 16))
         val bLo = vreinterpretqF32U32(vshllNU16(vgetLowU16(b), 16))
         val bHi = vreinterpretqF32U32(vshllHighNU16(b, 16))
         val lo = vshrnNU32(vreinterpretqU32F32(vaddqF32(aLo, bLo)), 16)
         val hi = vshrnNU32(vreinterpretqU32F32(vaddqF32(aHi, bHi)), 16)
-        vst1qU16(MutPtr<UShort>(MutPtr((c).rawAddress + ((i).toLong() * (ObjectSlotLayout<Bf16>()).strideBytes)).rawAddress, MutPtr((c).rawAddress + ((i).toLong() * (ObjectSlotLayout<Bf16>()).strideBytes)).rawMeta), vcombineU16(lo, hi))
+        vst1qU16(MutPtr(MutPtr((c).rawAddress + ((i).toLong() * (ObjectSlotLayout<Bf16>()).strideBytes)).rawAddress, MutPtr((c).rawAddress + ((i).toLong() * (ObjectSlotLayout<Bf16>()).strideBytes)).rawMeta), vcombineU16(lo, hi))
         i += 8
     }
     for (j in i until k) {
@@ -305,7 +305,7 @@ internal fun vecAddBf16(aRow: ConstPtr<Bf16>, bRow: ConstPtr<Bf16>, c: MutPtr<Bf
     }
 }
 
-internal fun vecScalarAddF16(scalar: F16, xs: ConstPtr<F16>, ys: MutPtr<F16>, k: Int) {
+internal fun vecScalarAddF16(scalar: F16, xs: ConstPtr, ys: MutPtr, k: Int) {
     val sv = CurrentCpuF16.fromF32(scalar.toF32())
     var i = 0
     while (i + CurrentCpuF16.STEP <= k) {
@@ -319,18 +319,18 @@ internal fun vecScalarAddF16(scalar: F16, xs: ConstPtr<F16>, ys: MutPtr<F16>, k:
     }
 }
 
-internal fun vecMulBf16(aRow: ConstPtr<Bf16>, bRow: ConstPtr<Bf16>, c: MutPtr<Bf16>, k: Int) {
+internal fun vecMulBf16(aRow: ConstPtr, bRow: ConstPtr, c: MutPtr, k: Int) {
     var i = 0
     while (i + 8 <= k) {
-        val a = vld1qU16(ConstPtr<UShort>(ConstPtr((aRow).rawAddress + ((i).toLong() * (ObjectSlotLayout<Bf16>()).strideBytes)).rawAddress, ConstPtr((aRow).rawAddress + ((i).toLong() * (ObjectSlotLayout<Bf16>()).strideBytes)).rawMeta))
-        val b = vld1qU16(ConstPtr<UShort>(ConstPtr((bRow).rawAddress + ((i).toLong() * (ObjectSlotLayout<Bf16>()).strideBytes)).rawAddress, ConstPtr((bRow).rawAddress + ((i).toLong() * (ObjectSlotLayout<Bf16>()).strideBytes)).rawMeta))
+        val a = vld1qU16(ConstPtr(ConstPtr((aRow).rawAddress + ((i).toLong() * (ObjectSlotLayout<Bf16>()).strideBytes)).rawAddress, ConstPtr((aRow).rawAddress + ((i).toLong() * (ObjectSlotLayout<Bf16>()).strideBytes)).rawMeta))
+        val b = vld1qU16(ConstPtr(ConstPtr((bRow).rawAddress + ((i).toLong() * (ObjectSlotLayout<Bf16>()).strideBytes)).rawAddress, ConstPtr((bRow).rawAddress + ((i).toLong() * (ObjectSlotLayout<Bf16>()).strideBytes)).rawMeta))
         val aLo = vreinterpretqF32U32(vshllNU16(vgetLowU16(a), 16))
         val aHi = vreinterpretqF32U32(vshllHighNU16(a, 16))
         val bLo = vreinterpretqF32U32(vshllNU16(vgetLowU16(b), 16))
         val bHi = vreinterpretqF32U32(vshllHighNU16(b, 16))
         val lo = vshrnNU32(vreinterpretqU32F32(vmulqF32(aLo, bLo)), 16)
         val hi = vshrnNU32(vreinterpretqU32F32(vmulqF32(aHi, bHi)), 16)
-        vst1qU16(MutPtr<UShort>(MutPtr((c).rawAddress + ((i).toLong() * (ObjectSlotLayout<Bf16>()).strideBytes)).rawAddress, MutPtr((c).rawAddress + ((i).toLong() * (ObjectSlotLayout<Bf16>()).strideBytes)).rawMeta), vcombineU16(lo, hi))
+        vst1qU16(MutPtr(MutPtr((c).rawAddress + ((i).toLong() * (ObjectSlotLayout<Bf16>()).strideBytes)).rawAddress, MutPtr((c).rawAddress + ((i).toLong() * (ObjectSlotLayout<Bf16>()).strideBytes)).rawMeta), vcombineU16(lo, hi))
         i += 8
     }
     for (j in i until k) {
@@ -338,16 +338,16 @@ internal fun vecMulBf16(aRow: ConstPtr<Bf16>, bRow: ConstPtr<Bf16>, c: MutPtr<Bf
     }
 }
 
-internal fun vecScalarAddBf16(scalar: Bf16, xs: ConstPtr<Bf16>, ys: MutPtr<Bf16>, k: Int) {
+internal fun vecScalarAddBf16(scalar: Bf16, xs: ConstPtr, ys: MutPtr, k: Int) {
     val sv = vdupqNF32(scalar.toF32())
     var i = 0
     while (i + 8 <= k) {
-        val x = vld1qU16(ConstPtr<UShort>(ConstPtr((xs).rawAddress + ((i).toLong() * (ObjectSlotLayout<Bf16>()).strideBytes)).rawAddress, ConstPtr((xs).rawAddress + ((i).toLong() * (ObjectSlotLayout<Bf16>()).strideBytes)).rawMeta))
+        val x = vld1qU16(ConstPtr(ConstPtr((xs).rawAddress + ((i).toLong() * (ObjectSlotLayout<Bf16>()).strideBytes)).rawAddress, ConstPtr((xs).rawAddress + ((i).toLong() * (ObjectSlotLayout<Bf16>()).strideBytes)).rawMeta))
         val xLo = vreinterpretqF32U32(vshllNU16(vgetLowU16(x), 16))
         val xHi = vreinterpretqF32U32(vshllHighNU16(x, 16))
         val lo = vshrnNU32(vreinterpretqU32F32(vaddqF32(xLo, sv)), 16)
         val hi = vshrnNU32(vreinterpretqU32F32(vaddqF32(xHi, sv)), 16)
-        vst1qU16(MutPtr<UShort>(MutPtr((ys).rawAddress + ((i).toLong() * (ObjectSlotLayout<Bf16>()).strideBytes)).rawAddress, MutPtr((ys).rawAddress + ((i).toLong() * (ObjectSlotLayout<Bf16>()).strideBytes)).rawMeta), vcombineU16(lo, hi))
+        vst1qU16(MutPtr(MutPtr((ys).rawAddress + ((i).toLong() * (ObjectSlotLayout<Bf16>()).strideBytes)).rawAddress, MutPtr((ys).rawAddress + ((i).toLong() * (ObjectSlotLayout<Bf16>()).strideBytes)).rawMeta), vcombineU16(lo, hi))
         i += 8
     }
     for (j in i until k) {

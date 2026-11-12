@@ -2,10 +2,6 @@
 
 package io.github.kotlinmania.candle.mkl
 
-import io.github.kotlinmania.half.F16
-import io.github.kotlinmania.libc.CChar
-import io.github.kotlinmania.libc.CDouble
-import io.github.kotlinmania.libc.CFloat
 import io.github.kotlinmania.libc.CInt
 import io.github.kotlinmania.rustlang.core.ptr.ConstPtr
 import io.github.kotlinmania.rustlang.core.ptr.MutPtr
@@ -96,7 +92,7 @@ private external fun wasmCandleMklDgemm(p0: String, p1: String, p2: String, p3: 
 @JsFun("(p0, p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12) => globalThis.__km_napi_candle.candleMklHgemm(p0, p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12)")
 private external fun wasmCandleMklHgemm(p0: String, p1: String, p2: String, p3: String, p4: String, p5: String, p6: String, p7: String, p8: String, p9: String, p10: String, p11: String, p12: String)
 
-public actual fun vsTanh(n: CInt, a: ConstPtr<CFloat>, y: MutPtr<CFloat>) {
+public actual fun vsTanh(n: CInt, a: ConstPtr, y: MutPtr) {
     if (mklNapiAvailable) {
         wasmCandleMklVsTanh(n, a.rawAddress.toString(), y.rawAddress.toString())
     } else {
@@ -104,7 +100,7 @@ public actual fun vsTanh(n: CInt, a: ConstPtr<CFloat>, y: MutPtr<CFloat>) {
     }
 }
 
-public actual fun vdTanh(n: CInt, a: ConstPtr<CDouble>, y: MutPtr<CDouble>) {
+public actual fun vdTanh(n: CInt, a: ConstPtr, y: MutPtr) {
     if (mklNapiAvailable) {
         wasmCandleMklVdTanh(n, a.rawAddress.toString(), y.rawAddress.toString())
     } else {
@@ -112,7 +108,7 @@ public actual fun vdTanh(n: CInt, a: ConstPtr<CDouble>, y: MutPtr<CDouble>) {
     }
 }
 
-public actual fun vsExp(n: CInt, a: ConstPtr<CFloat>, y: MutPtr<CFloat>) {
+public actual fun vsExp(n: CInt, a: ConstPtr, y: MutPtr) {
     if (mklNapiAvailable) {
         wasmCandleMklVsExp(n, a.rawAddress.toString(), y.rawAddress.toString())
     } else {
@@ -120,7 +116,7 @@ public actual fun vsExp(n: CInt, a: ConstPtr<CFloat>, y: MutPtr<CFloat>) {
     }
 }
 
-public actual fun vdExp(n: CInt, a: ConstPtr<CDouble>, y: MutPtr<CDouble>) {
+public actual fun vdExp(n: CInt, a: ConstPtr, y: MutPtr) {
     if (mklNapiAvailable) {
         wasmCandleMklVdExp(n, a.rawAddress.toString(), y.rawAddress.toString())
     } else {
@@ -128,7 +124,7 @@ public actual fun vdExp(n: CInt, a: ConstPtr<CDouble>, y: MutPtr<CDouble>) {
     }
 }
 
-public actual fun vsLn(n: CInt, a: ConstPtr<CFloat>, y: MutPtr<CFloat>) {
+public actual fun vsLn(n: CInt, a: ConstPtr, y: MutPtr) {
     if (mklNapiAvailable) {
         wasmCandleMklVsLn(n, a.rawAddress.toString(), y.rawAddress.toString())
     } else {
@@ -136,7 +132,7 @@ public actual fun vsLn(n: CInt, a: ConstPtr<CFloat>, y: MutPtr<CFloat>) {
     }
 }
 
-public actual fun vdLn(n: CInt, a: ConstPtr<CDouble>, y: MutPtr<CDouble>) {
+public actual fun vdLn(n: CInt, a: ConstPtr, y: MutPtr) {
     if (mklNapiAvailable) {
         wasmCandleMklVdLn(n, a.rawAddress.toString(), y.rawAddress.toString())
     } else {
@@ -144,7 +140,7 @@ public actual fun vdLn(n: CInt, a: ConstPtr<CDouble>, y: MutPtr<CDouble>) {
     }
 }
 
-public actual fun vsSin(n: CInt, a: ConstPtr<CFloat>, y: MutPtr<CFloat>) {
+public actual fun vsSin(n: CInt, a: ConstPtr, y: MutPtr) {
     if (mklNapiAvailable) {
         wasmCandleMklVsSin(n, a.rawAddress.toString(), y.rawAddress.toString())
     } else {
@@ -152,7 +148,7 @@ public actual fun vsSin(n: CInt, a: ConstPtr<CFloat>, y: MutPtr<CFloat>) {
     }
 }
 
-public actual fun vdSin(n: CInt, a: ConstPtr<CDouble>, y: MutPtr<CDouble>) {
+public actual fun vdSin(n: CInt, a: ConstPtr, y: MutPtr) {
     if (mklNapiAvailable) {
         wasmCandleMklVdSin(n, a.rawAddress.toString(), y.rawAddress.toString())
     } else {
@@ -160,7 +156,7 @@ public actual fun vdSin(n: CInt, a: ConstPtr<CDouble>, y: MutPtr<CDouble>) {
     }
 }
 
-public actual fun vsCos(n: CInt, a: ConstPtr<CFloat>, y: MutPtr<CFloat>) {
+public actual fun vsCos(n: CInt, a: ConstPtr, y: MutPtr) {
     if (mklNapiAvailable) {
         wasmCandleMklVsCos(n, a.rawAddress.toString(), y.rawAddress.toString())
     } else {
@@ -168,7 +164,7 @@ public actual fun vsCos(n: CInt, a: ConstPtr<CFloat>, y: MutPtr<CFloat>) {
     }
 }
 
-public actual fun vdCos(n: CInt, a: ConstPtr<CDouble>, y: MutPtr<CDouble>) {
+public actual fun vdCos(n: CInt, a: ConstPtr, y: MutPtr) {
     if (mklNapiAvailable) {
         wasmCandleMklVdCos(n, a.rawAddress.toString(), y.rawAddress.toString())
     } else {
@@ -176,7 +172,7 @@ public actual fun vdCos(n: CInt, a: ConstPtr<CDouble>, y: MutPtr<CDouble>) {
     }
 }
 
-public actual fun vsSqrt(n: CInt, a: ConstPtr<CFloat>, y: MutPtr<CFloat>) {
+public actual fun vsSqrt(n: CInt, a: ConstPtr, y: MutPtr) {
     if (mklNapiAvailable) {
         wasmCandleMklVsSqrt(n, a.rawAddress.toString(), y.rawAddress.toString())
     } else {
@@ -184,7 +180,7 @@ public actual fun vsSqrt(n: CInt, a: ConstPtr<CFloat>, y: MutPtr<CFloat>) {
     }
 }
 
-public actual fun vdSqrt(n: CInt, a: ConstPtr<CDouble>, y: MutPtr<CDouble>) {
+public actual fun vdSqrt(n: CInt, a: ConstPtr, y: MutPtr) {
     if (mklNapiAvailable) {
         wasmCandleMklVdSqrt(n, a.rawAddress.toString(), y.rawAddress.toString())
     } else {
@@ -192,7 +188,7 @@ public actual fun vdSqrt(n: CInt, a: ConstPtr<CDouble>, y: MutPtr<CDouble>) {
     }
 }
 
-public actual fun vsAdd(n: CInt, a: ConstPtr<CFloat>, b: ConstPtr<CFloat>, y: MutPtr<CFloat>) {
+public actual fun vsAdd(n: CInt, a: ConstPtr, b: ConstPtr, y: MutPtr) {
     if (mklNapiAvailable) {
         wasmCandleMklVsAdd(n, a.rawAddress.toString(), b.rawAddress.toString(), y.rawAddress.toString())
     } else {
@@ -200,7 +196,7 @@ public actual fun vsAdd(n: CInt, a: ConstPtr<CFloat>, b: ConstPtr<CFloat>, y: Mu
     }
 }
 
-public actual fun vdAdd(n: CInt, a: ConstPtr<CDouble>, b: ConstPtr<CDouble>, y: MutPtr<CDouble>) {
+public actual fun vdAdd(n: CInt, a: ConstPtr, b: ConstPtr, y: MutPtr) {
     if (mklNapiAvailable) {
         wasmCandleMklVdAdd(n, a.rawAddress.toString(), b.rawAddress.toString(), y.rawAddress.toString())
     } else {
@@ -208,7 +204,7 @@ public actual fun vdAdd(n: CInt, a: ConstPtr<CDouble>, b: ConstPtr<CDouble>, y: 
     }
 }
 
-public actual fun vsSub(n: CInt, a: ConstPtr<CFloat>, b: ConstPtr<CFloat>, y: MutPtr<CFloat>) {
+public actual fun vsSub(n: CInt, a: ConstPtr, b: ConstPtr, y: MutPtr) {
     if (mklNapiAvailable) {
         wasmCandleMklVsSub(n, a.rawAddress.toString(), b.rawAddress.toString(), y.rawAddress.toString())
     } else {
@@ -216,7 +212,7 @@ public actual fun vsSub(n: CInt, a: ConstPtr<CFloat>, b: ConstPtr<CFloat>, y: Mu
     }
 }
 
-public actual fun vdSub(n: CInt, a: ConstPtr<CDouble>, b: ConstPtr<CDouble>, y: MutPtr<CDouble>) {
+public actual fun vdSub(n: CInt, a: ConstPtr, b: ConstPtr, y: MutPtr) {
     if (mklNapiAvailable) {
         wasmCandleMklVdSub(n, a.rawAddress.toString(), b.rawAddress.toString(), y.rawAddress.toString())
     } else {
@@ -224,7 +220,7 @@ public actual fun vdSub(n: CInt, a: ConstPtr<CDouble>, b: ConstPtr<CDouble>, y: 
     }
 }
 
-public actual fun vsMul(n: CInt, a: ConstPtr<CFloat>, b: ConstPtr<CFloat>, y: MutPtr<CFloat>) {
+public actual fun vsMul(n: CInt, a: ConstPtr, b: ConstPtr, y: MutPtr) {
     if (mklNapiAvailable) {
         wasmCandleMklVsMul(n, a.rawAddress.toString(), b.rawAddress.toString(), y.rawAddress.toString())
     } else {
@@ -232,7 +228,7 @@ public actual fun vsMul(n: CInt, a: ConstPtr<CFloat>, b: ConstPtr<CFloat>, y: Mu
     }
 }
 
-public actual fun vdMul(n: CInt, a: ConstPtr<CDouble>, b: ConstPtr<CDouble>, y: MutPtr<CDouble>) {
+public actual fun vdMul(n: CInt, a: ConstPtr, b: ConstPtr, y: MutPtr) {
     if (mklNapiAvailable) {
         wasmCandleMklVdMul(n, a.rawAddress.toString(), b.rawAddress.toString(), y.rawAddress.toString())
     } else {
@@ -240,7 +236,7 @@ public actual fun vdMul(n: CInt, a: ConstPtr<CDouble>, b: ConstPtr<CDouble>, y: 
     }
 }
 
-public actual fun vsDiv(n: CInt, a: ConstPtr<CFloat>, b: ConstPtr<CFloat>, y: MutPtr<CFloat>) {
+public actual fun vsDiv(n: CInt, a: ConstPtr, b: ConstPtr, y: MutPtr) {
     if (mklNapiAvailable) {
         wasmCandleMklVsDiv(n, a.rawAddress.toString(), b.rawAddress.toString(), y.rawAddress.toString())
     } else {
@@ -248,7 +244,7 @@ public actual fun vsDiv(n: CInt, a: ConstPtr<CFloat>, b: ConstPtr<CFloat>, y: Mu
     }
 }
 
-public actual fun vdDiv(n: CInt, a: ConstPtr<CDouble>, b: ConstPtr<CDouble>, y: MutPtr<CDouble>) {
+public actual fun vdDiv(n: CInt, a: ConstPtr, b: ConstPtr, y: MutPtr) {
     if (mklNapiAvailable) {
         wasmCandleMklVdDiv(n, a.rawAddress.toString(), b.rawAddress.toString(), y.rawAddress.toString())
     } else {
@@ -256,7 +252,7 @@ public actual fun vdDiv(n: CInt, a: ConstPtr<CDouble>, b: ConstPtr<CDouble>, y: 
     }
 }
 
-public actual fun vsFmax(n: CInt, a: ConstPtr<CFloat>, b: ConstPtr<CFloat>, y: MutPtr<CFloat>) {
+public actual fun vsFmax(n: CInt, a: ConstPtr, b: ConstPtr, y: MutPtr) {
     if (mklNapiAvailable) {
         wasmCandleMklVsFmax(n, a.rawAddress.toString(), b.rawAddress.toString(), y.rawAddress.toString())
     } else {
@@ -264,7 +260,7 @@ public actual fun vsFmax(n: CInt, a: ConstPtr<CFloat>, b: ConstPtr<CFloat>, y: M
     }
 }
 
-public actual fun vdFmax(n: CInt, a: ConstPtr<CDouble>, b: ConstPtr<CDouble>, y: MutPtr<CDouble>) {
+public actual fun vdFmax(n: CInt, a: ConstPtr, b: ConstPtr, y: MutPtr) {
     if (mklNapiAvailable) {
         wasmCandleMklVdFmax(n, a.rawAddress.toString(), b.rawAddress.toString(), y.rawAddress.toString())
     } else {
@@ -272,7 +268,7 @@ public actual fun vdFmax(n: CInt, a: ConstPtr<CDouble>, b: ConstPtr<CDouble>, y:
     }
 }
 
-public actual fun vsFmin(n: CInt, a: ConstPtr<CFloat>, b: ConstPtr<CFloat>, y: MutPtr<CFloat>) {
+public actual fun vsFmin(n: CInt, a: ConstPtr, b: ConstPtr, y: MutPtr) {
     if (mklNapiAvailable) {
         wasmCandleMklVsFmin(n, a.rawAddress.toString(), b.rawAddress.toString(), y.rawAddress.toString())
     } else {
@@ -280,7 +276,7 @@ public actual fun vsFmin(n: CInt, a: ConstPtr<CFloat>, b: ConstPtr<CFloat>, y: M
     }
 }
 
-public actual fun vdFmin(n: CInt, a: ConstPtr<CDouble>, b: ConstPtr<CDouble>, y: MutPtr<CDouble>) {
+public actual fun vdFmin(n: CInt, a: ConstPtr, b: ConstPtr, y: MutPtr) {
     if (mklNapiAvailable) {
         wasmCandleMklVdFmin(n, a.rawAddress.toString(), b.rawAddress.toString(), y.rawAddress.toString())
     } else {
@@ -288,7 +284,7 @@ public actual fun vdFmin(n: CInt, a: ConstPtr<CDouble>, b: ConstPtr<CDouble>, y:
     }
 }
 
-public actual fun sgemm(transa: ConstPtr<CChar>, transb: ConstPtr<CChar>, m: ConstPtr<CInt>, n: ConstPtr<CInt>, k: ConstPtr<CInt>, alpha: ConstPtr<CFloat>, a: ConstPtr<CFloat>, lda: ConstPtr<CInt>, b: ConstPtr<CFloat>, ldb: ConstPtr<CInt>, beta: ConstPtr<CFloat>, c: MutPtr<CFloat>, ldc: ConstPtr<CInt>) {
+public actual fun sgemm(transa: ConstPtr, transb: ConstPtr, m: ConstPtr, n: ConstPtr, k: ConstPtr, alpha: ConstPtr, a: ConstPtr, lda: ConstPtr, b: ConstPtr, ldb: ConstPtr, beta: ConstPtr, c: MutPtr, ldc: ConstPtr) {
     if (mklNapiAvailable) {
         wasmCandleMklSgemm(transa.rawAddress.toString(), transb.rawAddress.toString(), m.rawAddress.toString(), n.rawAddress.toString(), k.rawAddress.toString(), alpha.rawAddress.toString(), a.rawAddress.toString(), lda.rawAddress.toString(), b.rawAddress.toString(), ldb.rawAddress.toString(), beta.rawAddress.toString(), c.rawAddress.toString(), ldc.rawAddress.toString())
     } else {
@@ -296,7 +292,7 @@ public actual fun sgemm(transa: ConstPtr<CChar>, transb: ConstPtr<CChar>, m: Con
     }
 }
 
-public actual fun dgemm(transa: ConstPtr<CChar>, transb: ConstPtr<CChar>, m: ConstPtr<CInt>, n: ConstPtr<CInt>, k: ConstPtr<CInt>, alpha: ConstPtr<CDouble>, a: ConstPtr<CDouble>, lda: ConstPtr<CInt>, b: ConstPtr<CDouble>, ldb: ConstPtr<CInt>, beta: ConstPtr<CDouble>, c: MutPtr<CDouble>, ldc: ConstPtr<CInt>) {
+public actual fun dgemm(transa: ConstPtr, transb: ConstPtr, m: ConstPtr, n: ConstPtr, k: ConstPtr, alpha: ConstPtr, a: ConstPtr, lda: ConstPtr, b: ConstPtr, ldb: ConstPtr, beta: ConstPtr, c: MutPtr, ldc: ConstPtr) {
     if (mklNapiAvailable) {
         wasmCandleMklDgemm(transa.rawAddress.toString(), transb.rawAddress.toString(), m.rawAddress.toString(), n.rawAddress.toString(), k.rawAddress.toString(), alpha.rawAddress.toString(), a.rawAddress.toString(), lda.rawAddress.toString(), b.rawAddress.toString(), ldb.rawAddress.toString(), beta.rawAddress.toString(), c.rawAddress.toString(), ldc.rawAddress.toString())
     } else {
@@ -304,7 +300,7 @@ public actual fun dgemm(transa: ConstPtr<CChar>, transb: ConstPtr<CChar>, m: Con
     }
 }
 
-public actual fun hgemm(transa: ConstPtr<CChar>, transb: ConstPtr<CChar>, m: ConstPtr<CInt>, n: ConstPtr<CInt>, k: ConstPtr<CInt>, alpha: ConstPtr<F16>, a: ConstPtr<F16>, lda: ConstPtr<CInt>, b: ConstPtr<F16>, ldb: ConstPtr<CInt>, beta: ConstPtr<F16>, c: MutPtr<F16>, ldc: ConstPtr<CInt>) {
+public actual fun hgemm(transa: ConstPtr, transb: ConstPtr, m: ConstPtr, n: ConstPtr, k: ConstPtr, alpha: ConstPtr, a: ConstPtr, lda: ConstPtr, b: ConstPtr, ldb: ConstPtr, beta: ConstPtr, c: MutPtr, ldc: ConstPtr) {
     if (mklNapiAvailable) {
         wasmCandleMklHgemm(transa.rawAddress.toString(), transb.rawAddress.toString(), m.rawAddress.toString(), n.rawAddress.toString(), k.rawAddress.toString(), alpha.rawAddress.toString(), a.rawAddress.toString(), lda.rawAddress.toString(), b.rawAddress.toString(), ldb.rawAddress.toString(), beta.rawAddress.toString(), c.rawAddress.toString(), ldc.rawAddress.toString())
     } else {
