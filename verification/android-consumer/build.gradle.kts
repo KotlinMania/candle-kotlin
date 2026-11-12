@@ -1,83 +1,140 @@
-import java.util.Properties
-import org.gradle.process.ExecOperations
-import org.gradle.kotlin.dsl.support.serviceOf
+import groovy.json.JsonOutput
+import io.github.kotlinmania.build.AndroidClasspathVerifier
+import io.github.kotlinmania.build.BuildToolTask
 import org.gradle.api.artifacts.component.ModuleComponentIdentifier
 import org.gradle.api.artifacts.component.ModuleComponentSelector
 import org.gradle.api.artifacts.result.ResolvedDependencyResult
+import org.gradle.api.tasks.testing.Test
+import org.w3c.dom.Element
+import javax.xml.parsers.DocumentBuilderFactory
 
 plugins {
     alias(libs.plugins.kotlin.multiplatform)
     alias(libs.plugins.android.kmp)
 }
-val producer = Properties().apply { file("../../gradle.properties").inputStream().use { load(it) } }
-val libraryVersion = producer.getProperty("project.version")
-val hostPlatform = when {
-    System.getProperty("os.name").lowercase().contains("mac") -> "macos"
-    System.getProperty("os.name").lowercase().contains("windows") -> "windows"
-    else -> "linux"
-}
-val hostArchitecture = if (System.getProperty("os.arch").lowercase() in listOf("arm64", "aarch64")) "aarch64" else "x86_64"
-val extractHostJni = tasks.register<Sync>("extractPublishedHostJni") {
-    from(zipTree(file("../../build/libs/candle-kotlin-jvm-$libraryVersion.jar"))) {
-        include("io/github/kotlinmania/candle/native/$hostPlatform-$hostArchitecture/*")
-        eachFile { path = name }
-        includeEmptyDirs = false
-    }
-    into(layout.buildDirectory.dir("published-host-jni"))
-}
+// Isolate outputs when allocated; this fixture never writes into producer checkouts.
+providers.gradleProperty("consumerBuildRoot").orNull?.let { layout.buildDirectory.set(file(it)) }
+val expectedVersions =
+    mapOf(
+        "async-trait-kotlin" to providers.gradleProperty("asyncVersion").get(),
+        "android-system-properties-kotlin" to providers.gradleProperty("systemPropertiesVersion").get(),
+    )
 kotlin {
-    jvmToolchain(producer.getProperty("jvm.toolchain").toInt())
+    jvmToolchain(21)
     compilerOptions { allWarningsAsErrors.set(true) }
     android {
-        namespace = "io.github.kotlinmania.candle.artifactconsumer"
-        compileSdk = producer.getProperty("android.compileSdk").toInt()
-        minSdk = producer.getProperty("android.minSdk").toInt()
+        namespace = "io.github.kotlinmania.candle.publicationconsumer"
+        compileSdk = providers.gradleProperty("consumerCompileSdk").get().toInt()
+        minSdk = 24
         withHostTestBuilder { sourceSetTreeName = "test" }
     }
     sourceSets {
-        commonMain.dependencies { implementation("io.github.kotlinmania:candle-kotlin:$libraryVersion") }
+        commonMain.dependencies {
+            expectedVersions.forEach { (module, version) -> implementation("io.github.kotlinmania:$module:$version") }
+        }
         commonTest.dependencies { implementation(kotlin("test")) }
     }
 }
-val consumerTests = tasks.withType<Test>().matching { it.name == "testAndroidHostTest" }
-consumerTests.configureEach {
-    dependsOn(extractHostJni)
-    outputs.upToDateWhen { false }
-    outputs.doNotCacheIf("Consumer tests must execute") { true }
-    systemProperty("java.library.path", layout.buildDirectory.dir("published-host-jni").get().asFile.absolutePath)
-    doFirst { layout.buildDirectory.dir("consumer-io").get().asFile.mkdirs() }
-    testLogging { events("passed", "failed", "skipped") }
-}
+val hostTests = tasks.withType<Test>().matching { it.name == "testAndroidHostTest" }
+hostTests.configureEach { outputs.upToDateWhen { false } }
+
 kotlin.targets.named("android") {
     compilations.named("main") {
-        val dependencies = configurations.getByName(compileDependencyConfigurationName)
-        val selection = dependencies.incoming.resolutionResult.rootComponent.map { root ->
-            val dependency = root.dependencies.filterIsInstance<ResolvedDependencyResult>().single {
-                val requested = it.requested
-                requested is ModuleComponentSelector && requested.group == "io.github.kotlinmania" && requested.module == "candle-kotlin"
-            }
-            val variant = dependency.resolvedVariant.externalVariant.orElse(dependency.resolvedVariant)
-            val owner = variant.owner as ModuleComponentIdentifier
-            variant.attributes.keySet().associate { it.name to variant.attributes.getAttribute(it).toString() } +
-                mapOf("group" to owner.group, "module" to owner.module, "version" to owner.version)
-        }
-        tasks.register("verifyAndroidPublication") {
-            dependsOn(consumerTests)
-            doLast {
-                val actual = selection.get()
-                mapOf("group" to "io.github.kotlinmania", "module" to "candle-kotlin-android", "version" to libraryVersion,
-                    "org.jetbrains.kotlin.platform.type" to "androidJvm", "org.gradle.libraryelements" to "aar",
-                    "org.gradle.jvm.environment" to "android").forEach { (key, value) ->
-                    check(actual[key] == value) { "Wrong artifact selection: $actual; expected $key=$value" }
+        val compileDependencies = configurations.getByName(compileDependencyConfigurationName)
+        // Fail explicitly if the Android plugin changes its resolvable configuration layout.
+        val runtimeName = compileDependencyConfigurationName.replace("CompileClasspath", "RuntimeClasspath")
+        val runtimeDependencies = configurations.named(runtimeName)
+        val classpathReceipt = layout.buildDirectory.file("reports/publication/raw-classpaths.json")
+        val writeClasspath =
+            tasks.register("writeAndroidPublicationClasspath") {
+                outputs.file(classpathReceipt)
+                outputs.upToDateWhen { false }
+                doLast {
+                    val artifactsByConfiguration =
+                        mapOf(
+                            "compile" to compileDependencies,
+                            "runtime" to runtimeDependencies.get(),
+                        ).mapValues { (scope, configuration) ->
+                            val artifacts =
+                                configuration.incoming.artifacts.artifacts
+                                    .map { it.file }
+                                    .distinct()
+                            check(artifacts.isNotEmpty() && artifacts.all { it.extension in setOf("aar", "jar") }) {
+                                "Unsupported raw Android $scope classpath artifact layout: $artifacts"
+                            }
+                            artifacts.sortedBy { it.absolutePath }.map { it.absolutePath }
+                        }
+                    classpathReceipt.get().asFile.apply {
+                        parentFile.mkdirs()
+                        writeText(JsonOutput.prettyPrint(JsonOutput.toJson(artifactsByConfiguration)) + "\n")
+                    }
                 }
-                check(consumerTests.size == 1)
-                project.serviceOf<ExecOperations>().exec {
-                    commandLine("python3", "../verify_behavior_results.py", consumerTests.single().reports.junitXml.outputLocation.get().asFile,
-                        "--require", "publishedAndroidApiCreatesTensor")
-                }.assertNormalExitValue()
-                layout.buildDirectory.file("reports/selected-android-artifact.json").get().asFile.apply {
+            }
+        val checkClasspath =
+            tasks.register<BuildToolTask>("checkAndroidPublicationClasspath") {
+                dependsOn(writeClasspath)
+                mustRunAfter(hostTests)
+                toolClass.set(AndroidClasspathVerifier::class.java.name)
+                arguments.addAll(
+                    classpathReceipt.get().asFile.absolutePath,
+                    "--configurations",
+                    "--receipt",
+                    layout.buildDirectory
+                        .file("reports/publication/duplicates.json")
+                        .get()
+                        .asFile.absolutePath,
+                )
+            }
+        // Keep diagnostics when an executed host test fails; neither result is converted to success.
+        hostTests.configureEach { finalizedBy(checkClasspath) }
+        tasks.register("verifyAndroidConsumer") {
+            dependsOn(compileTaskProvider, hostTests, checkClasspath)
+            doLast {
+                val selections = mutableListOf<String>()
+                compileDependencies.incoming.resolutionResult.rootComponent
+                    .get()
+                    .dependencies
+                    .filterIsInstance<ResolvedDependencyResult>()
+                    .forEach { dependency ->
+                        val requested = dependency.requested as? ModuleComponentSelector ?: return@forEach
+                        val version = expectedVersions[requested.module] ?: return@forEach
+                        val variant = dependency.resolvedVariant.externalVariant.orElse(dependency.resolvedVariant)
+                        val owner = variant.owner as ModuleComponentIdentifier
+                        val attributes = variant.attributes.keySet().associate { it.name to variant.attributes.getAttribute(it).toString() }
+                        check(owner.group == "io.github.kotlinmania" && owner.module == "${requested.module}-android" && owner.version == version)
+                        check(
+                            attributes["org.jetbrains.kotlin.platform.type"] == "androidJvm" &&
+                                attributes["org.gradle.libraryelements"] == "aar" && attributes["org.gradle.jvm.environment"] == "android",
+                        )
+                        selections += "${owner.group}:${owner.module}:${owner.version} $attributes"
+                    }
+                check(selections.size == expectedVersions.size) { "Not every root dependency selected an Android AAR" }
+                val expected = setOf("publishedAsyncResultAndQuoteApi", "publishedThrowingApi", "publishedAndroidPropertyInputValidation")
+                val executed = mutableSetOf<String>()
+                check(hostTests.size == 1)
+                val parser = DocumentBuilderFactory.newInstance().newDocumentBuilder()
+                hostTests
+                    .single()
+                    .reports.junitXml.outputLocation
+                    .get()
+                    .asFile
+                    .listFiles()
+                    .orEmpty()
+                    .filter { it.extension == "xml" }
+                    .forEach { xml ->
+                        val cases = parser.parse(xml).getElementsByTagName("testcase")
+                        for (index in 0 until cases.length) {
+                            val case = cases.item(index) as Element
+                            if (case.getAttribute("classname") == "consumer.PublicationConsumerTest") {
+                                check(listOf("failure", "error", "skipped").none { case.getElementsByTagName(it).length > 0 })
+                                check(executed.add(case.getAttribute("name")))
+                            }
+                        }
+                    }
+                check(executed == expected) { "Missing/extra/skipped consumer tests: $executed" }
+                layout.buildDirectory.file("reports/publication/consumer.txt").get().asFile.apply {
                     parentFile.mkdirs()
-                    writeText(groovy.json.JsonOutput.toJson(actual) + "\n")
+                    writeText((selections + executed.sorted()).joinToString("\n", postfix = "\n"))
                 }
             }
         }
