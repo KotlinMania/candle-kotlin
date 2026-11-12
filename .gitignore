@@ -1,26 +1,26 @@
-# Kotlin/Gradle build artifacts
-build/
 .gradle/
-.kotlin/
-*.class
-*.jar
-*.war
-*.ear
-
-# Keep the Gradle wrapper jar checked in so CI can run `./gradlew`.
-!gradle/wrapper/gradle-wrapper.jar
-
-# IDE
-.idea/
-*.iml
+build/
+!src/**/build/
 out/
 
-# Upstream Rust source — clone freshly when porting begins
+# Kotlin
+.kotlin/
+
+# IntelliJ IDEA / Android Studio
+.idea/
+*.iml
+*.ipr
+*.iws
+.claude/
+
+# macOS
+.DS_Store
+
+# Temporary files
 tmp/
 !tmp/.gitkeep
 
 # Upstream Rust crate trees — never commit these at repo root.
-# If porting, clone upstream into tmp/ instead.
 /candle-book/
 /candle-core/
 /candle-datasets/
@@ -44,59 +44,67 @@ high_priority_ports.md
 NEXT_ACTIONS.md
 port_lint_proposed_changes.md
 ast_distance_*.txt
-.cache/
 deep_symbol_inventory.txt
+direct-translation/
+*.log
+*.stderr
+*.o.tmp
+**/src/native/interop/cinterop/*.a
+.cache/
 *.lock
 kotlin-js-store/*
 !kotlin-js-store/package.json
 !kotlin-js-store/yarn.lock
 !kotlin-js-store/wasm/
+!kotlin-js-store/wasm/package.json
 !kotlin-js-store/wasm/yarn.lock
-tools/ast_distance/ast_distance
-tools/ast_distance/build/
-tools/ast_distance
-tools/
+tools/ast_distance/
+!tools/ast_distance/.gitkeep
 
-# JVM heap dumps
+# JVM heap dumps & Python bytecode
+*.class
+*.jar
+*.war
+*.ear
 *.hprof
 java_pid*.hprof
-
-# macOS Finder metadata
-.DS_Store
-
-# Python bytecode
 __pycache__/
+**/__pycache__/
 *.pyc
+
+# Visual Studio Code
+.vscode/
+
+# Eclipse
+.classpath
+.project
+.settings/
+
+# Gradle Wrapper (don't ignore gradle-wrapper.jar and properties)
+!gradle/wrapper/gradle-wrapper.jar
+!gradle/wrapper/gradle-wrapper.properties
+
+# Local tools
+tools/bin/
 
 # Android SDK
 /.android-sdk/
+**/.android-sdk/
 local.properties
 
 # Swift Package Manager / Xcode workspace state.
-#
-# `src/swift/swift-test-harness/` is a real SPM package that exercises the Kotlin
-# Swift Export pipeline against the artifacts produced by
-# `embedSwiftExportForXcode`. Its `Package.swift`, `Tests/`, and
-# per-package `.gitignore` (which ignores its own `.build/`) are all
-# tracked. The patterns below cover the Swift/Xcode workspace state
-# that this harness — or any future Swift Package added under the
-# repo — would also produce.
-#
-# Note: the staging directory the Kotlin Swift Export pipeline writes
-# to (`build/swift-test/lib*.a` + `.swiftmodule/` bundles when run with
-# the Xcode-style env vars) is already covered by `build/` above.
 .swiftpm/
+**/.build/
 DerivedData/
 *.xcuserstate
 *.xcworkspace/xcuserdata/
 *.xcodeproj/xcuserdata/
-local.properties
 
 # Cargo / Rust build artifacts
-debug/
-data/
-dist/
-target/
+/debug/
+/data/
+/dist/
+/target/
 *.pdb
 perf.data
 flamegraph.svg
@@ -108,11 +116,25 @@ trace-*.json
 bench_results/
 native/*/build/
 native/*/node_modules/
+src/js/node-*/dist/build/
+src/js/node-*/dist/node_modules/
 
 # npm install output; JS dependencies come from yarn via the Kotlin Gradle plugin
 node_modules/
 package-lock.json
-!src/js/node-ffi/dist/package-lock.json
+!**/native/node-*/package-lock.json
+!**/src/js/node-*/**/package-lock.json
+
+# Sensitive credentials and environment files
+maven.properties
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.keystore
+credentials*.json
 
 # Java build helpers are source; buildSrc/build remains generated output.
 !buildSrc/
@@ -120,14 +142,4 @@ package-lock.json
 !buildSrc/src/**
 !buildSrc/build.gradle.kts
 !buildSrc/settings.gradle.kts
-
-# Template build layout and generated files.
-direct-translation/
-*.log
-*.stderr
-*.o.tmp
-**/src/native/interop/cinterop/*.a
-**/.android-sdk/
-**/.build/
-!**/native/node-*/package-lock.json
-!**/src/js/node-*/**/package-lock.json
+tools/ast_distance

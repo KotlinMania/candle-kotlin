@@ -10,10 +10,12 @@ detekt = "2.0.0-alpha.6"
 ktlint = "14.2.0"
 ktlintEngine = "1.8.0"
 kotlinxBenchmark = "0.5.0"
+androidxTestRunner = "1.7.0"
 node = "24.22.0"
 webpackCli = "7.2.3"
 karma = "6.4.8"
 serialization = "1.11.0"
+rustLang = "0.1.0"
 libc = "0.1.13"
 rand = "0.2.0"
 thiserror = "0.2.2"
@@ -54,10 +56,12 @@ kotlinx-benchmark = { id = "org.jetbrains.kotlinx.benchmark", version.ref = "kot
 kotlin-allopen = { id = "org.jetbrains.kotlin.plugin.allopen", version.ref = "kotlin" }
 
 [libraries]
+androidx-test-runner = { module = "androidx.test:runner", version.ref = "androidxTestRunner" }
 kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "serialization" }
 kotlinx-serialization-core = { module = "org.jetbrains.kotlinx:kotlinx-serialization-core", version.ref = "serialization" }
 kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "coroutines" }
 kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "coroutines" }
+rust-lang-kotlin = { module = "io.github.kotlinmania:rust-lang-kotlin", version.ref = "rustLang" }
 serde-core = { module = "io.github.kotlinmania:serde-core", version.ref = "serdeCore" }
 serde-json-kotlin = { module = "io.github.kotlinmania:serde-json-kotlin", version.ref = "serdeJson" }
 kotlinx-datetime = { module = "org.jetbrains.kotlinx:kotlinx-datetime", version.ref = "datetime" }
@@ -92,8 +96,12 @@ km-io = { module = "io.github.kotlinmania:km-io", version.ref = "kmIo" }
 safetensors-kotlin = { module = "io.github.kotlinmania:safetensors-kotlin", version.ref = "safetensors" }
 zip-kotlin = { module = "io.github.kotlinmania:zip-kotlin", version.ref = "zipKotlin" }
 
-
 [bundles]
+candle-api = [
+  "rust-lang-kotlin",
+  "half-kotlin",
+  "float8-kotlin",
+]
 candle-commonMain = [
   "kotlinx-coroutines-core",
   "serde-core",
@@ -108,10 +116,9 @@ candle-commonMain = [
   "objc2-foundation-kotlin",
   "cudarc-kotlin",
   "gemm-kotlin",
-  "half-kotlin",
-  "float8-kotlin",
   "intel-mkl-src-kotlin",
   "libc-kotlin",
+  "windows-sys-kotlin",
   "libm-kotlin",
   "num-traits-kotlin",
   "rand-kotlin",

@@ -1,5 +1,14 @@
 // swift-tools-version: 6.0
+import Foundation
 import PackageDescription
+
+let swiftExportConfiguration: String = {
+    let raw =
+        ProcessInfo.processInfo.environment["SWIFT_EXPORT_CONFIGURATION"]
+        ?? ProcessInfo.processInfo.environment["CONFIGURATION"]
+        ?? "Debug"
+    return raw.lowercased() == "release" ? "Release" : "Debug"
+}()
 
 let package = Package(
     name: "SwiftTestHarness",
@@ -7,19 +16,29 @@ let package = Package(
         .macOS(.v15),
     ],
     dependencies: [
-        .package(name: "Candle", path: "../../../build/SPMPackage/macosArm64/Debug")
+        .package(name: "Candle", path: "../../../build/SPMPackage/macosArm64/\(swiftExportConfiguration)"),
     ],
     targets: [
         .testTarget(
             name: "SwiftTestHarnessTests",
             dependencies: [
-                .product(name: "CandleLibrary", package: "Candle")
+                .product(name: "CandleLibrary", package: "Candle"),
             ],
             linkerSettings: [
-                .unsafeFlags([
-                    "-L", "../../../build/swift-test",
-                    "-lCandle",
-                ]),
+                .unsafeFlags(
+                    [
+                        "-L", "../../../build/swift-test/Debug",
+                        "-lCandle",
+                    ],
+                    .when(configuration: .debug)
+                ),
+                .unsafeFlags(
+                    [
+                        "-L", "../../../build/swift-test/Release",
+                        "-lCandle",
+                    ],
+                    .when(configuration: .release)
+                ),
             ]
         ),
     ],
