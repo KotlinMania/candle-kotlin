@@ -1,8 +1,8 @@
 [versions]
 kotlin = "2.4.21"
 coroutines = "1.11.0"
-serdeCore = "0.1.11"
-serdeJson = "0.1.1"
+serdeCore = "0.1.12"
+serdeJson = "0.2.0"
 datetime = "0.8.0"
 collectionsImmutable = "0.5.2"
 androidKmp = "9.4.1"
@@ -14,32 +14,35 @@ node = "24.22.0"
 webpackCli = "7.2.3"
 karma = "6.4.8"
 serialization = "1.11.0"
-libc = "0.1.11"
+libc = "0.1.13"
 rand = "0.2.0"
-thiserror = "0.2.1"
-procMacro = "0.1.4"
+thiserror = "0.2.2"
+procMacro = "0.1.5"
 anyhow = "0.2.0"
 clap = "0.1.2"
 threadlocal = "0.3.3"
 onceCell = "0.1.1"
-envie = "0.1.0"
+envie = "0.1.1"
 windowsSys = "0.1.2"
-accelerateSrc = "0.1.0"
+accelerateSrc = "0.1.1"
 byteorder = "2.0.1"
 candleKernels = "0.1.0"
 candleMetalKernels = "0.10.2"
 objc2Metal = "0.1.0"
-objc2Foundation = "0.1.0"
+objc2Foundation = "0.3.1"
 cudarc = "0.1.0"
-gemm = "0.1.0"
-half = "3.0.0"
+gemm = "0.19.0"
+half = "0.1.1"
 float8 = "0.7.0"
 intelMklSrc = "0.1.1"
-libm = "0.1.0"
-numTraits = "0.1.0"
-randDistr = "0.1.0"
+libm = "0.2.15"
+numTraits = "0.2.15"
+randDistr = "0.1.1"
 rayon = "1.7.1"
 rustLang = "0.1.0-SNAPSHOT"
+kmIo = "0.4.0"
+safetensors = "0.1.1"
+zipKotlin = "0.1.1"
 
 [plugins]
 kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
@@ -88,6 +91,9 @@ rand-distr-kotlin = { module = "io.github.kotlinmania:rand-distr-kotlin", versio
 rayon-kotlin = { module = "io.github.kotlinmania:rayon-kotlin", version.ref = "rayon" }
 rust-lang-runtime-kmp = { module = "io.github.kotlinmania:rust-lang-runtime-kmp", version.ref = "rustLang" }
 rust-lang-core-values-kmp = { module = "io.github.kotlinmania:rust-lang-core-values-kmp", version.ref = "rustLang" }
+km-io = { module = "io.github.kotlinmania:km-io", version.ref = "kmIo" }
+safetensors-kotlin = { module = "io.github.kotlinmania:safetensors-kotlin", version.ref = "safetensors" }
+zip-kotlin = { module = "io.github.kotlinmania:zip-kotlin", version.ref = "zipKotlin" }
 
 
 [bundles]
@@ -122,6 +128,9 @@ candle-commonMain = [
   "envie-kotlin",
   "rust-lang-runtime-kmp",
   "rust-lang-core-values-kmp",
+  "km-io",
+  "safetensors-kotlin",
+  "zip-kotlin",
 ]
 candle-commonTest = [
   "kotlinx-coroutines-test",
