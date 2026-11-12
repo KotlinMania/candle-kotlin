@@ -1,13 +1,13 @@
 // port-lint: source backprop.rs
 package io.github.kotlinmania.candle.backprop
 
-import io.github.kotlinmania.candle.BinaryOp
-import io.github.kotlinmania.candle.Op
-import io.github.kotlinmania.candle.ReduceOp
-import io.github.kotlinmania.candle.UnaryOp
 import io.github.kotlinmania.candle.error.Error
 import io.github.kotlinmania.candle.error.Result
 import io.github.kotlinmania.candle.error.bail
+import io.github.kotlinmania.candle.op.BinaryOp
+import io.github.kotlinmania.candle.op.Op
+import io.github.kotlinmania.candle.op.ReduceOp
+import io.github.kotlinmania.candle.op.UnaryOp
 import io.github.kotlinmania.candle.tensor.Tensor
 import io.github.kotlinmania.candle.tensor.TensorId
 

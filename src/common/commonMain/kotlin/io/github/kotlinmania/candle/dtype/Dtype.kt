@@ -4,12 +4,12 @@ package io.github.kotlinmania.candle.dtype
 import io.github.kotlinmania.candle.BF16
 import io.github.kotlinmania.candle.F64
 import io.github.kotlinmania.candle.F8E4M3
-import io.github.kotlinmania.candle.Scalar
 import io.github.kotlinmania.candle.cpu.kernels.VecOps
 import io.github.kotlinmania.candle.cpubackend.CpuStorage
 import io.github.kotlinmania.candle.cpubackend.CpuStorageRef
 import io.github.kotlinmania.candle.error.Error
 import io.github.kotlinmania.candle.error.Result
+import io.github.kotlinmania.candle.scalar.Scalar
 import io.github.kotlinmania.float8.F8e4m3
 import io.github.kotlinmania.half.Bf16
 import io.github.kotlinmania.half.F16

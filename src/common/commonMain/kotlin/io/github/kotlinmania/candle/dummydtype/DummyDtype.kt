@@ -1,7 +1,6 @@
 // port-lint: source dummy_dtype.rs
 package io.github.kotlinmania.candle.dummydtype
 
-import io.github.kotlinmania.candle.Scalar
 import io.github.kotlinmania.candle.cpu.kernels.VecOps
 import io.github.kotlinmania.candle.cpubackend.CpuStorage
 import io.github.kotlinmania.candle.cpubackend.CpuStorageRef
@@ -9,6 +8,7 @@ import io.github.kotlinmania.candle.dtype.DType
 import io.github.kotlinmania.candle.dtype.WithDType
 import io.github.kotlinmania.candle.error.Error
 import io.github.kotlinmania.candle.error.Result
+import io.github.kotlinmania.candle.scalar.Scalar
 import io.github.kotlinmania.numtraits.Num
 import io.github.kotlinmania.numtraits.One
 import io.github.kotlinmania.numtraits.Zero

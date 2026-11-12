@@ -1,52 +1,13 @@
 // port-lint: source tensor.rs
 package io.github.kotlinmania.candle.tensor
 
-import io.github.kotlinmania.candle.Abs
-import io.github.kotlinmania.candle.Add
-import io.github.kotlinmania.candle.BackpropOp
-import io.github.kotlinmania.candle.BinaryOp
-import io.github.kotlinmania.candle.Ceil
-import io.github.kotlinmania.candle.CmpOp
-import io.github.kotlinmania.candle.Cos
-import io.github.kotlinmania.candle.Dim
-import io.github.kotlinmania.candle.Dims
-import io.github.kotlinmania.candle.Div
-import io.github.kotlinmania.candle.Erf
-import io.github.kotlinmania.candle.Exp
-import io.github.kotlinmania.candle.Floor
-import io.github.kotlinmania.candle.Gelu
-import io.github.kotlinmania.candle.GeluErf
-import io.github.kotlinmania.candle.Log
-import io.github.kotlinmania.candle.Maximum
-import io.github.kotlinmania.candle.Minimum
 import io.github.kotlinmania.candle.Module
 import io.github.kotlinmania.candle.ModuleT
-import io.github.kotlinmania.candle.Mul
-import io.github.kotlinmania.candle.NdArray
-import io.github.kotlinmania.candle.Neg
-import io.github.kotlinmania.candle.Op
-import io.github.kotlinmania.candle.Recip
-import io.github.kotlinmania.candle.ReduceOp
-import io.github.kotlinmania.candle.Relu
-import io.github.kotlinmania.candle.Round
-import io.github.kotlinmania.candle.Scalar
-import io.github.kotlinmania.candle.ShapeWithOneHole
-import io.github.kotlinmania.candle.Sign
-import io.github.kotlinmania.candle.Silu
-import io.github.kotlinmania.candle.Sin
-import io.github.kotlinmania.candle.Sqr
-import io.github.kotlinmania.candle.Sqrt
-import io.github.kotlinmania.candle.Storage
-import io.github.kotlinmania.candle.StorageMutRef
-import io.github.kotlinmania.candle.StorageRef
-import io.github.kotlinmania.candle.Sub
-import io.github.kotlinmania.candle.Tanh
-import io.github.kotlinmania.candle.TensorOrScalar
 import io.github.kotlinmania.candle.ToUsize2
-import io.github.kotlinmania.candle.UnaryOp
 import io.github.kotlinmania.candle.cpubackend.CpuStorage
 import io.github.kotlinmania.candle.cudabackend.utils.S
 import io.github.kotlinmania.candle.device.Device
+import io.github.kotlinmania.candle.device.NdArray
 import io.github.kotlinmania.candle.dtype.DType
 import io.github.kotlinmania.candle.dtype.FloatDType
 import io.github.kotlinmania.candle.dtype.WithDType
@@ -55,8 +16,47 @@ import io.github.kotlinmania.candle.error.Result
 import io.github.kotlinmania.candle.error.bail
 import io.github.kotlinmania.candle.layout.Layout
 import io.github.kotlinmania.candle.one
+import io.github.kotlinmania.candle.op.Abs
+import io.github.kotlinmania.candle.op.Add
+import io.github.kotlinmania.candle.op.BackpropOp
+import io.github.kotlinmania.candle.op.BinaryOp
+import io.github.kotlinmania.candle.op.Ceil
+import io.github.kotlinmania.candle.op.CmpOp
+import io.github.kotlinmania.candle.op.Cos
+import io.github.kotlinmania.candle.op.Div
+import io.github.kotlinmania.candle.op.Erf
+import io.github.kotlinmania.candle.op.Exp
+import io.github.kotlinmania.candle.op.Floor
+import io.github.kotlinmania.candle.op.Gelu
+import io.github.kotlinmania.candle.op.GeluErf
+import io.github.kotlinmania.candle.op.Log
+import io.github.kotlinmania.candle.op.Maximum
+import io.github.kotlinmania.candle.op.Minimum
+import io.github.kotlinmania.candle.op.Mul
+import io.github.kotlinmania.candle.op.Neg
+import io.github.kotlinmania.candle.op.Op
+import io.github.kotlinmania.candle.op.Recip
+import io.github.kotlinmania.candle.op.ReduceOp
+import io.github.kotlinmania.candle.op.Relu
+import io.github.kotlinmania.candle.op.Round
+import io.github.kotlinmania.candle.op.Sign
+import io.github.kotlinmania.candle.op.Silu
+import io.github.kotlinmania.candle.op.Sin
+import io.github.kotlinmania.candle.op.Sqr
+import io.github.kotlinmania.candle.op.Sqrt
+import io.github.kotlinmania.candle.op.Sub
+import io.github.kotlinmania.candle.op.Tanh
+import io.github.kotlinmania.candle.op.UnaryOp
+import io.github.kotlinmania.candle.scalar.Scalar
+import io.github.kotlinmania.candle.scalar.TensorOrScalar
 import io.github.kotlinmania.candle.shape.D
+import io.github.kotlinmania.candle.shape.Dim
+import io.github.kotlinmania.candle.shape.Dims
 import io.github.kotlinmania.candle.shape.Shape
+import io.github.kotlinmania.candle.shape.ShapeWithOneHole
+import io.github.kotlinmania.candle.storage.Storage
+import io.github.kotlinmania.candle.storage.StorageMutRef
+import io.github.kotlinmania.candle.storage.StorageRef
 import io.github.kotlinmania.candle.stridedindex.StridedBlocks
 import io.github.kotlinmania.candle.stridedindex.StridedIndex
 import io.github.kotlinmania.candle.zero
@@ -229,7 +229,7 @@ public open class Tensor(
     public open fun <T : TensorOrScalar> maximum(rhs: T): Result<Tensor> {
         val rhs3 =
             when (val matchVal = rhs.toTensorScalar().getOrElse { return Result.failure(it) }) {
-                is io.github.kotlinmania.candle.Tensor -> {
+                is Tensor -> {
                     val (rhs1) = matchVal
                     rhs1
                 }
@@ -250,7 +250,7 @@ public open class Tensor(
     public open fun <T : TensorOrScalar> minimum(rhs: T): Result<Tensor> {
         val rhs3 =
             when (val matchVal = rhs.toTensorScalar().getOrElse { return Result.failure(it) }) {
-                is io.github.kotlinmania.candle.Tensor -> {
+                is Tensor -> {
                     val (rhs1) = matchVal
                     rhs1
                 }
@@ -1059,7 +1059,7 @@ public open class Tensor(
     public open fun <T : TensorOrScalar> cmp(rhs: T, op: CmpOp): Result<Tensor> {
         val rhs3 =
             when (val matchVal = rhs.toTensorScalar().getOrElse { return Result.failure(it) }) {
-                is io.github.kotlinmania.candle.Tensor -> {
+                is Tensor -> {
                     val (rhs1) = matchVal
                     rhs1
                 }

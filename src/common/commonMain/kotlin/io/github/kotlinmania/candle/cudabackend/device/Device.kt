@@ -1,9 +1,9 @@
 // port-lint: source cuda_backend/device.rs
 package io.github.kotlinmania.candle.cudabackend.device
 
-import io.github.kotlinmania.candle.BackendDevice
 import io.github.kotlinmania.candle.RustAny
 import io.github.kotlinmania.candle.RustTypeId
+import io.github.kotlinmania.candle.backend.BackendDevice
 import io.github.kotlinmania.candle.cpubackend.CpuStorage
 import io.github.kotlinmania.candle.cpubackend.CpuStorageRef
 import io.github.kotlinmania.candle.cudabackend.Affine

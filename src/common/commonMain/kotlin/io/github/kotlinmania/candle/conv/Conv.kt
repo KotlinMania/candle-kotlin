@@ -1,13 +1,13 @@
 // port-lint: source conv.rs
 package io.github.kotlinmania.candle.conv
 
-import io.github.kotlinmania.candle.BackpropOp
-import io.github.kotlinmania.candle.Op
 import io.github.kotlinmania.candle.error.Error
 import io.github.kotlinmania.candle.error.Result
 import io.github.kotlinmania.candle.error.bail
-import io.github.kotlinmania.candle.fromStorage
+import io.github.kotlinmania.candle.op.BackpropOp
+import io.github.kotlinmania.candle.op.Op
 import io.github.kotlinmania.candle.tensor.Tensor
+import io.github.kotlinmania.candle.tensor.fromStorage
 
 // 1D and 2D Convolutions
 

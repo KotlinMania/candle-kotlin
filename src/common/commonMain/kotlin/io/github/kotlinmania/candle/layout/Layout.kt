@@ -1,10 +1,10 @@
 // port-lint: source layout.rs
 package io.github.kotlinmania.candle.layout
 
-import io.github.kotlinmania.candle.Dim
 import io.github.kotlinmania.candle.error.Error
 import io.github.kotlinmania.candle.error.Result
 import io.github.kotlinmania.candle.error.bail
+import io.github.kotlinmania.candle.shape.Dim
 import io.github.kotlinmania.candle.shape.Shape
 import io.github.kotlinmania.candle.stridedindex.StridedBlocks
 import io.github.kotlinmania.candle.stridedindex.StridedIndex

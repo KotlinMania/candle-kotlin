@@ -1,9 +1,6 @@
 // port-lint: source custom_op.rs
 package io.github.kotlinmania.candle.customop
 
-import io.github.kotlinmania.candle.BackpropOp
-import io.github.kotlinmania.candle.LayoutRelation
-import io.github.kotlinmania.candle.Op
 import io.github.kotlinmania.candle.cpubackend.CpuStorage
 import io.github.kotlinmania.candle.cudabackend.CudaStorage
 import io.github.kotlinmania.candle.cudabackend.utils.S
@@ -11,11 +8,14 @@ import io.github.kotlinmania.candle.dummymetalbackend.MetalStorage
 import io.github.kotlinmania.candle.error.Error
 import io.github.kotlinmania.candle.error.Result
 import io.github.kotlinmania.candle.error.bail
-import io.github.kotlinmania.candle.fromStorage
 import io.github.kotlinmania.candle.layout.Layout
+import io.github.kotlinmania.candle.layout.LayoutRelation
+import io.github.kotlinmania.candle.op.BackpropOp
+import io.github.kotlinmania.candle.op.Op
 import io.github.kotlinmania.candle.shape.Shape
 import io.github.kotlinmania.candle.storage.Storage
 import io.github.kotlinmania.candle.tensor.Tensor
+import io.github.kotlinmania.candle.tensor.fromStorage
 
 /**
  * Unary ops that can be defined in user-land.

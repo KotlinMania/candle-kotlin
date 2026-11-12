@@ -1,8 +1,8 @@
 // port-lint: source variable.rs
 package io.github.kotlinmania.candle.variable
 
-import io.github.kotlinmania.candle.NdArray
 import io.github.kotlinmania.candle.device.Device
+import io.github.kotlinmania.candle.device.NdArray
 import io.github.kotlinmania.candle.dtype.DType
 import io.github.kotlinmania.candle.dtype.FloatDType
 import io.github.kotlinmania.candle.dtype.WithDType

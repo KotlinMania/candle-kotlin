@@ -127,7 +127,7 @@ public sealed class Error {
     }
 }
 
-public typealias Result<T> = Result<T, Error>
+public typealias Result<T> = kotlin.Result<T>
 
 public fun <T, U> zip(r1: Result<T>, r2: Result<U>): Result<Pair<T, U>> =
     run {
@@ -160,16 +160,16 @@ public interface Context<T, E> : Sealed {
     /**
      * Wrap the error value with additional context.
      */
-    public fun <C> context(context: C): Result<T, Error>
+    public fun <C> context(context: C): kotlin.Result<T>
 
     /**
      * Wrap the error value with additional context that is evaluated lazily
      * only once an error does occur.
      */
-    public fun <C> withContext(f: () -> C): Result<T, Error>
+    public fun <C> withContext(f: () -> C): kotlin.Result<T>
 }
 
-public fun <T, E, C> Result<T, E>.context(context: C): Result<T, Error> where E : Error {
+public fun <T, E, C> kotlin.Result<T>.context(context: C): kotlin.Result<T> where E : Error {
     // Not using mapErr to save 2 useless frames off the captured backtrace
     // in extContext.
     return if (this.isSuccess) {
@@ -181,7 +181,7 @@ public fun <T, E, C> Result<T, E>.context(context: C): Result<T, Error> where E 
     }
 }
 
-public fun <T, E, C> Result<T, E>.withContext(context: () -> C): Result<T, Error> where E : Error =
+public fun <T, E, C> kotlin.Result<T>.withContext(context: () -> C): kotlin.Result<T> where E : Error =
     if (this.isSuccess) {
         val ok = this.getOrThrow()
         Result.success(ok)
@@ -190,7 +190,7 @@ public fun <T, E, C> Result<T, E>.withContext(context: () -> C): Result<T, Error
         Result.failure(Error.WrappedContext(wrapped = error, context = context().toString()).bt())
     }
 
-public fun <T, C> T?.context(context: C): Result<T, Error> {
+public fun <T, C> T?.context(context: C): kotlin.Result<T> {
     // Not using okOrElse to save 2 useless frames off the captured
     // backtrace.
     return when (this) {
@@ -202,7 +202,7 @@ public fun <T, C> T?.context(context: C): Result<T, Error> {
     }
 }
 
-public fun <T, C> T?.withContext(context: () -> C): Result<T, Error> =
+public fun <T, C> T?.withContext(context: () -> C): kotlin.Result<T> =
     when (this) {
         null -> Result.failure(Error.UnwrapNone.context(context()).bt())
         else -> {

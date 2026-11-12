@@ -13,6 +13,10 @@ import io.github.kotlinmania.candle.customop.CustomOp1
 import io.github.kotlinmania.candle.dtype.DType
 import io.github.kotlinmania.candle.dtype.WithDType
 import io.github.kotlinmania.candle.dummycudabackend.CudaDevice
+import io.github.kotlinmania.candle.dummydtype.F4
+import io.github.kotlinmania.candle.dummydtype.F6e2m3
+import io.github.kotlinmania.candle.dummydtype.F6e3m2
+import io.github.kotlinmania.candle.dummydtype.F8e8m0
 import io.github.kotlinmania.candle.dummymetalbackend.MetalStorage
 import io.github.kotlinmania.candle.error.Error
 import io.github.kotlinmania.candle.error.Result
@@ -110,17 +114,17 @@ public open class ArgSort(
                     this.asort(vs9, layout).getOrElse { return Result.failure(it) }
                 }
                 // Dummy types don't support sorting
-                is CpuStorage.F6e2m3 -> {
-                    return Result.failure(Error.UnsupportedDTypeForOp(DType.F6E2M3, "argsort").bt())
+                is F6e2m3 -> {
+                    return Result.failure(Error.UnsupportedDTypeForOp(F6e2m3, "argsort").bt())
                 }
-                is CpuStorage.F6e3m2 -> {
-                    return Result.failure(Error.UnsupportedDTypeForOp(DType.F6E3M2, "argsort").bt())
+                is F6e3m2 -> {
+                    return Result.failure(Error.UnsupportedDTypeForOp(F6e3m2, "argsort").bt())
                 }
-                is CpuStorage.F4 -> {
-                    return Result.failure(Error.UnsupportedDTypeForOp(DType.F4, "argsort").bt())
+                is F4 -> {
+                    return Result.failure(Error.UnsupportedDTypeForOp(F4, "argsort").bt())
                 }
-                is CpuStorage.F8e8m0 -> {
-                    return Result.failure(Error.UnsupportedDTypeForOp(DType.F8E8M0, "argsort").bt())
+                is F8e8m0 -> {
+                    return Result.failure(Error.UnsupportedDTypeForOp(F8e8m0, "argsort").bt())
                 }
             }
         val sortIndexes1 = CpuStorage.U32(sortIndexes)

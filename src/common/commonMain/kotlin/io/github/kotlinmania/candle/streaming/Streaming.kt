@@ -10,7 +10,7 @@ import io.github.kotlinmania.candle.tensor.Tensor
 
 // StreamTensror useful for streaming ops.
 
-public interface Dim : io.github.kotlinmania.candle.Dim
+public interface Dim : io.github.kotlinmania.candle.shape.Dim
 
 /**
  * A stream tensor is used in streaming module. It can either contain an actual tensor or be

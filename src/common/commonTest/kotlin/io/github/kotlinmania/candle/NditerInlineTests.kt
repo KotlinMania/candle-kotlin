@@ -1,8 +1,8 @@
 // port-lint: tests nditer.rs
 package io.github.kotlinmania.candle.nditer
 
-import io.github.kotlinmania.candle.Shape
 import io.github.kotlinmania.candle.layout.Layout
+import io.github.kotlinmania.candle.shape.Shape
 
 public fun layout(dims: List<ULong>, strides: List<ULong>): Layout = Layout.new(Shape.from(dims.toVec()), strides.toVec(), 0)
 

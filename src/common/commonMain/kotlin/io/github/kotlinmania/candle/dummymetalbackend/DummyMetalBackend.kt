@@ -1,17 +1,12 @@
 // port-lint: source dummy_metal_backend.rs
 package io.github.kotlinmania.candle.dummymetalbackend
 
-import io.github.kotlinmania.candle.BackendDevice
-import io.github.kotlinmania.candle.BackendStorage
-import io.github.kotlinmania.candle.BinaryOpT
-import io.github.kotlinmania.candle.CmpOp
-import io.github.kotlinmania.candle.ParamsConv1D
-import io.github.kotlinmania.candle.ParamsConv2D
-import io.github.kotlinmania.candle.ParamsConvTranspose1D
-import io.github.kotlinmania.candle.ParamsConvTranspose2D
-import io.github.kotlinmania.candle.ReduceOp
-import io.github.kotlinmania.candle.Scalar
-import io.github.kotlinmania.candle.UnaryOpT
+import io.github.kotlinmania.candle.backend.BackendDevice
+import io.github.kotlinmania.candle.backend.BackendStorage
+import io.github.kotlinmania.candle.conv.ParamsConv1D
+import io.github.kotlinmania.candle.conv.ParamsConv2D
+import io.github.kotlinmania.candle.conv.ParamsConvTranspose1D
+import io.github.kotlinmania.candle.conv.ParamsConvTranspose2D
 import io.github.kotlinmania.candle.cpubackend.CpuStorage
 import io.github.kotlinmania.candle.device.DeviceLocation
 import io.github.kotlinmania.candle.dtype.DType
@@ -19,6 +14,11 @@ import io.github.kotlinmania.candle.dtype.WithDType
 import io.github.kotlinmania.candle.error.Error
 import io.github.kotlinmania.candle.error.Result
 import io.github.kotlinmania.candle.layout.Layout
+import io.github.kotlinmania.candle.op.BinaryOpT
+import io.github.kotlinmania.candle.op.CmpOp
+import io.github.kotlinmania.candle.op.ReduceOp
+import io.github.kotlinmania.candle.op.UnaryOpT
+import io.github.kotlinmania.candle.scalar.Scalar
 import io.github.kotlinmania.candle.shape.Shape
 
 public typealias Device = MetalDevice

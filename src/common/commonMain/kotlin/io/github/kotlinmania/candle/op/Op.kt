@@ -6,11 +6,11 @@ import io.github.kotlinmania.candle.cpu.erf.erfF64
 import io.github.kotlinmania.candle.customop.CustomOp1
 import io.github.kotlinmania.candle.customop.CustomOp2
 import io.github.kotlinmania.candle.customop.CustomOp3
+import io.github.kotlinmania.candle.mkl.vdGelu
+import io.github.kotlinmania.candle.mkl.vdSilu
+import io.github.kotlinmania.candle.mkl.vsGelu
+import io.github.kotlinmania.candle.mkl.vsSilu
 import io.github.kotlinmania.candle.tensor.Tensor
-import io.github.kotlinmania.candle.vdGelu
-import io.github.kotlinmania.candle.vdSilu
-import io.github.kotlinmania.candle.vsGelu
-import io.github.kotlinmania.candle.vsSilu
 import io.github.kotlinmania.float8.F8e4m3
 import io.github.kotlinmania.half.Bf16
 import io.github.kotlinmania.half.F16
@@ -448,11 +448,11 @@ public open class Gelu : UnaryOpT<Gelu> {
         }
 
         public fun f32VecUnaryOpT(xs: List<Float>, ys: List<Float>) {
-            vsGelu(xs, ys)
+            io.github.kotlinmania.candle.accelerate.vsGelu(xs, ys)
         }
 
         public fun f64VecUnaryOpT(xs: List<Double>, ys: List<Double>) {
-            vdGelu(xs, ys)
+            io.github.kotlinmania.candle.accelerate.vdGelu(xs, ys)
         }
     }
 }
@@ -591,11 +591,11 @@ public open class Silu : UnaryOpT<Silu> {
         }
 
         public fun f32VecUnaryOpT(xs: List<Float>, ys: List<Float>) {
-            vsSilu(xs, ys)
+            io.github.kotlinmania.candle.accelerate.vsSilu(xs, ys)
         }
 
         public fun f64VecUnaryOpT(xs: List<Double>, ys: List<Double>) {
-            vdSilu(xs, ys)
+            io.github.kotlinmania.candle.accelerate.vdSilu(xs, ys)
         }
     }
 }

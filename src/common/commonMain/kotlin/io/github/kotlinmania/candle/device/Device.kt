@@ -3,7 +3,6 @@ package io.github.kotlinmania.candle.device
 
 import io.github.kotlinmania.candle.cpubackend.CpuDevice
 import io.github.kotlinmania.candle.cpubackend.CpuStorage
-import io.github.kotlinmania.candle.cudaIsAvailable
 import io.github.kotlinmania.candle.cudabackend.device.CudaDevice
 import io.github.kotlinmania.candle.cudabackend.utils.S
 import io.github.kotlinmania.candle.dtype.DType
@@ -12,11 +11,12 @@ import io.github.kotlinmania.candle.dtype.WithDType
 import io.github.kotlinmania.candle.error.Result
 import io.github.kotlinmania.candle.error.bail
 import io.github.kotlinmania.candle.layout.Layout
-import io.github.kotlinmania.candle.metalIsAvailable
 import io.github.kotlinmania.candle.metalbackend.device.MetalDevice
 import io.github.kotlinmania.candle.shape.Shape
 import io.github.kotlinmania.candle.storage.Storage
-import io.github.kotlinmania.candle.withThreadpool
+import io.github.kotlinmania.candle.utils.cudaIsAvailable
+import io.github.kotlinmania.candle.utils.metalIsAvailable
+import io.github.kotlinmania.candle.utils.withThreadpool
 
 /**
  * A `DeviceLocation` represents a physical device whereas multiple `Device`

@@ -1,5 +1,0 @@
-package = io.github.kotlinmania.candle.mkl.cinterop
-headers = mkl_wrapper.h
-headerFilter = mkl_wrapper.h
-compilerOpts = -Isrc/native/interop/cinterop
-staticLibraries = mkl_wrapper.a

@@ -1,5 +1,5 @@
-headers = stdlib.h stdint.h string.h candle_wrapper.h
-headerFilter = *
+headers = candle_wrapper.h accelerate_wrapper.h mkl_wrapper.h
+headerFilter = candle_wrapper.h accelerate_wrapper.h mkl_wrapper.h
 compilerOpts = -Isrc/native/interop/cinterop
 staticLibraries = candle_wrapper.a
 linkerOpts.osx = -framework Accelerate

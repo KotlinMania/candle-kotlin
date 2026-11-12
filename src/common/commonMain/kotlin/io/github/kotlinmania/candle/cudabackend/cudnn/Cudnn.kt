@@ -1,9 +1,9 @@
 // port-lint: source cuda_backend/cudnn.rs
 package io.github.kotlinmania.candle.cudabackend.cudnn
 
-import io.github.kotlinmania.candle.ParamsConv1D
-import io.github.kotlinmania.candle.ParamsConv2D
-import io.github.kotlinmania.candle.cudabackend.CudaDevice
+import io.github.kotlinmania.candle.conv.ParamsConv1D
+import io.github.kotlinmania.candle.conv.ParamsConv2D
+import io.github.kotlinmania.candle.cudabackend.device.CudaDevice
 import io.github.kotlinmania.candle.dtype.WithDType
 import io.github.kotlinmania.candle.error.Error
 import io.github.kotlinmania.candle.error.Result
@@ -14,7 +14,7 @@ import io.github.kotlinmania.cudarc.driver.CudaSlice
 import io.github.kotlinmania.cudarc.driver.CudaView
 import io.github.kotlinmania.cudarc.driver.DeviceRepr
 import io.github.kotlinmania.cudarc.driver.ValidAsZeroBits
-import io.github.kotlinmania.candle.CudnnFwdAlgo as CandleAlgo
+import io.github.kotlinmania.candle.conv.CudnnFwdAlgo as CandleAlgo
 import io.github.kotlinmania.cudarc.cudnn.sys.cudnnConvolutionFwdAlgoT as A
 
 public fun fromError(err: cudarc.CudnnError): Error = Error.wrap(err)

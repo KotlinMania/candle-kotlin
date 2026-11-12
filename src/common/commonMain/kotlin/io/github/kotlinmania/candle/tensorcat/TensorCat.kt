@@ -2,14 +2,14 @@
 package io.github.kotlinmania.candle.tensorcat
 
 import io.github.kotlinmania.candle.Cat
-import io.github.kotlinmania.candle.Dim
 import io.github.kotlinmania.candle.error.Error
 import io.github.kotlinmania.candle.error.Result
 import io.github.kotlinmania.candle.error.bail
-import io.github.kotlinmania.candle.fromStorage
 import io.github.kotlinmania.candle.new
+import io.github.kotlinmania.candle.shape.Dim
 import io.github.kotlinmania.candle.shape.Shape
 import io.github.kotlinmania.candle.tensor.Tensor
+import io.github.kotlinmania.candle.tensor.fromStorage
 
 /**
  * Concatenates two or more tensors along a particular dimension.
