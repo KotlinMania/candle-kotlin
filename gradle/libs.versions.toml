@@ -39,7 +39,6 @@ libm = "0.2.15"
 numTraits = "0.2.15"
 randDistr = "0.1.1"
 rayon = "1.7.1"
-rustLang = "0.1.0-SNAPSHOT"
 kmIo = "0.4.0"
 safetensors = "0.1.1"
 zipKotlin = "0.1.1"
@@ -89,8 +88,6 @@ libm-kotlin = { module = "io.github.kotlinmania:libm-kotlin", version.ref = "lib
 num-traits-kotlin = { module = "io.github.kotlinmania:num-traits-kotlin", version.ref = "numTraits" }
 rand-distr-kotlin = { module = "io.github.kotlinmania:rand-distr-kotlin", version.ref = "randDistr" }
 rayon-kotlin = { module = "io.github.kotlinmania:rayon-kotlin", version.ref = "rayon" }
-rust-lang-runtime-kmp = { module = "io.github.kotlinmania:rust-lang-runtime-kmp", version.ref = "rustLang" }
-rust-lang-core-values-kmp = { module = "io.github.kotlinmania:rust-lang-core-values-kmp", version.ref = "rustLang" }
 km-io = { module = "io.github.kotlinmania:km-io", version.ref = "kmIo" }
 safetensors-kotlin = { module = "io.github.kotlinmania:safetensors-kotlin", version.ref = "safetensors" }
 zip-kotlin = { module = "io.github.kotlinmania:zip-kotlin", version.ref = "zipKotlin" }
@@ -126,8 +123,6 @@ candle-commonMain = [
   "threadlocal-kotlin",
   "once-cell-kotlin",
   "envie-kotlin",
-  "rust-lang-runtime-kmp",
-  "rust-lang-core-values-kmp",
   "km-io",
   "safetensors-kotlin",
   "zip-kotlin",

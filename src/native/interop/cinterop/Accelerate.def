@@ -1,0 +1,5 @@
+package = io.github.kotlinmania.candle.accelerate.cinterop
+headers = accelerate_wrapper.h
+headerFilter = accelerate_wrapper.h
+compilerOpts = -Isrc/native/interop/cinterop
+staticLibraries = accelerate_wrapper.a
