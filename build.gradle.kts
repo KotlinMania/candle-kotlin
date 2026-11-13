@@ -605,7 +605,7 @@ kotlin {
         }
 
     targets.withType<KotlinNativeTarget>().configureEach {
-        if (konanTarget.family.isAppleFamily) {
+        if (konanTarget.family.isAppleFamily && konanTarget.name != "watchos_device_arm64") {
             binaries.configureEach {
                 val isStaticArchive =
                     this is org.jetbrains.kotlin.gradle.plugin.mpp.StaticLibrary ||
