@@ -1,8 +1,8 @@
 [versions]
-kotlin = "2.4.20"
+kotlin = "2.4.21"
 coroutines = "1.11.0"
-serdeCore = "0.1.11"
-serdeJson = "0.1.1"
+serdeCore = "0.1.12"
+serdeJson = "0.2.0"
 datetime = "0.8.0"
 collectionsImmutable = "0.5.2"
 androidKmp = "9.4.1"
@@ -10,33 +10,44 @@ detekt = "2.0.0-alpha.6"
 ktlint = "14.2.0"
 ktlintEngine = "1.8.0"
 kotlinxBenchmark = "0.5.0"
-libc = "0.1.11"
+androidxTestRunner = "1.7.0"
+node = "24.22.0"
+webpackCli = "7.2.3"
+karma = "6.4.8"
+serialization = "1.11.0"
+rustLang = "0.1.0"
+libc = "0.1.13"
 rand = "0.2.0"
-thiserror = "0.2.1"
-procMacro = "0.1.4"
+thiserror = "0.2.2"
+procMacro = "0.1.5"
 anyhow = "0.2.0"
 clap = "0.1.2"
 threadlocal = "0.3.3"
 onceCell = "0.1.1"
-envie = "0.1.0"
+envie = "0.1.1"
 windowsSys = "0.1.2"
-accelerateSrc = "0.1.0"
+accelerateSrc = "0.1.1"
 byteorder = "2.0.1"
 candleKernels = "0.1.0"
 candleMetalKernels = "0.10.2"
 objc2Metal = "0.1.0"
-objc2Foundation = "0.1.0"
+objc2Foundation = "0.3.1"
 cudarc = "0.1.0"
-gemm = "0.1.0"
-half = "3.0.0"
+gemm = "0.19.0"
+half = "0.1.1"
 float8 = "0.7.0"
 intelMklSrc = "0.1.1"
-libm = "0.1.0"
-numTraits = "0.1.0"
-randDistr = "0.1.0"
+libm = "0.2.15"
+numTraits = "0.2.15"
+randDistr = "0.1.1"
 rayon = "1.7.1"
+kmIo = "0.4.0"
+safetensors = "0.1.1"
+zipKotlin = "0.1.1"
 
 [plugins]
+kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
+android-kotlin-multiplatform-library = { id = "com.android.kotlin.multiplatform.library", version.ref = "androidKmp" }
 kotlin-multiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
 android-kmp = { id = "com.android.kotlin.multiplatform.library", version.ref = "androidKmp" }
 detekt = { id = "dev.detekt", version.ref = "detekt" }
@@ -45,8 +56,12 @@ kotlinx-benchmark = { id = "org.jetbrains.kotlinx.benchmark", version.ref = "kot
 kotlin-allopen = { id = "org.jetbrains.kotlin.plugin.allopen", version.ref = "kotlin" }
 
 [libraries]
+androidx-test-runner = { module = "androidx.test:runner", version.ref = "androidxTestRunner" }
+kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "serialization" }
+kotlinx-serialization-core = { module = "org.jetbrains.kotlinx:kotlinx-serialization-core", version.ref = "serialization" }
 kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "coroutines" }
 kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "coroutines" }
+rust-lang-kotlin = { module = "io.github.kotlinmania:rust-lang-kotlin", version.ref = "rustLang" }
 serde-core = { module = "io.github.kotlinmania:serde-core", version.ref = "serdeCore" }
 serde-json-kotlin = { module = "io.github.kotlinmania:serde-json-kotlin", version.ref = "serdeJson" }
 kotlinx-datetime = { module = "org.jetbrains.kotlinx:kotlinx-datetime", version.ref = "datetime" }
@@ -77,9 +92,16 @@ libm-kotlin = { module = "io.github.kotlinmania:libm-kotlin", version.ref = "lib
 num-traits-kotlin = { module = "io.github.kotlinmania:num-traits-kotlin", version.ref = "numTraits" }
 rand-distr-kotlin = { module = "io.github.kotlinmania:rand-distr-kotlin", version.ref = "randDistr" }
 rayon-kotlin = { module = "io.github.kotlinmania:rayon-kotlin", version.ref = "rayon" }
-
+km-io = { module = "io.github.kotlinmania:km-io", version.ref = "kmIo" }
+safetensors-kotlin = { module = "io.github.kotlinmania:safetensors-kotlin", version.ref = "safetensors" }
+zip-kotlin = { module = "io.github.kotlinmania:zip-kotlin", version.ref = "zipKotlin" }
 
 [bundles]
+candle-api = [
+  "rust-lang-kotlin",
+  "half-kotlin",
+  "float8-kotlin",
+]
 candle-commonMain = [
   "kotlinx-coroutines-core",
   "serde-core",
@@ -94,10 +116,9 @@ candle-commonMain = [
   "objc2-foundation-kotlin",
   "cudarc-kotlin",
   "gemm-kotlin",
-  "half-kotlin",
-  "float8-kotlin",
   "intel-mkl-src-kotlin",
   "libc-kotlin",
+  "windows-sys-kotlin",
   "libm-kotlin",
   "num-traits-kotlin",
   "rand-kotlin",
@@ -109,6 +130,9 @@ candle-commonMain = [
   "threadlocal-kotlin",
   "once-cell-kotlin",
   "envie-kotlin",
+  "km-io",
+  "safetensors-kotlin",
+  "zip-kotlin",
 ]
 candle-commonTest = [
   "kotlinx-coroutines-test",

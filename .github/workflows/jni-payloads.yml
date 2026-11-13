@@ -1,0 +1,87 @@
+name: JNI library artifacts
+
+on:
+  workflow_call:
+    inputs:
+      run-tests:
+        type: boolean
+        required: false
+        default: true
+
+permissions:
+  contents: read
+
+jobs:
+  jni:
+    name: JNI ${{ matrix.platform }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-26
+            platform: macos-aarch64
+          - runner: ubuntu-latest
+            platform: linux-x86_64
+          - runner: ubuntu-24.04-arm
+            platform: linux-aarch64
+          - runner: windows-latest
+            platform: windows-x86_64
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+      - name: Set up JDK 21
+        uses: actions/setup-java@v6.1.0
+        with:
+          distribution: zulu
+          java-version: '21'
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v6.4.0
+      - name: Set up Node.js
+        uses: actions/setup-node@v7.1.0
+        with:
+          node-version: '24'
+          check-latest: true
+      - name: Build the packaged native libraries
+        shell: bash
+        run: ./gradlew jvmJar verifyPackagedJniArtifact buildNodeCandle ${{ inputs.run-tests && 'jvmTest packagedJniTest jsNodeTest wasmJsNodeTest' || '' }} --no-daemon --max-workers=2 --no-configuration-cache
+      - name: Verify real behavior test execution
+        if: inputs.run-tests
+        shell: bash
+        run: |
+          for task in jvmTest packagedJniTest jsNodeTest wasmJsNodeTest; do
+            ./gradlew -p buildSrc runBuildTool --no-daemon --no-configuration-cache --args="BehaviorResultsVerifier build/test-results/$task"
+          done
+      - name: Stage the actual Node payload
+        shell: bash
+        run: |
+          mkdir -p build/napi-payload/${{ matrix.platform }}
+          for binary in src/js/node-candle/dist/build/Release/*.node; do
+            cp "$binary" build/napi-payload/${{ matrix.platform }}/candle_native.node
+          done
+      - name: Upload real Node payload
+        uses: actions/upload-artifact@v7
+        with:
+          name: napi-${{ matrix.platform }}
+          path: build/napi-payload/
+          if-no-files-found: error
+          retention-days: 7
+      - name: Upload real native payload
+        uses: actions/upload-artifact@v7
+        with:
+          name: jni-${{ matrix.platform }}
+          path: build/generated/jniResources/io/github/kotlinmania/candle/native/
+          if-no-files-found: error
+          retention-days: 7
+      - name: Upload JNI test reports
+        if: always() && inputs.run-tests
+        uses: actions/upload-artifact@v7
+        with:
+          name: jni-tests-${{ matrix.platform }}
+          path: |
+            build/test-results/jvmTest/
+            build/test-results/packagedJniTest/
+            build/test-results/jsNodeTest/
+            build/test-results/wasmJsNodeTest/
+          if-no-files-found: warn
+          retention-days: 7

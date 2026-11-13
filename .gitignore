@@ -1,27 +1,26 @@
-# Kotlin/Gradle build artifacts
-build/
 .gradle/
-.kotlin/
-*.class
-*.jar
-*.war
-*.ear
-
-# Keep the Gradle wrapper jar checked in so CI can run `./gradlew`.
-!gradle/wrapper/gradle-wrapper.jar
-
-# IDE
-.idea/
-*.iml
+build/
+!src/**/build/
 out/
 
-# Upstream Rust source — clone freshly into tmp/ when porting begins.
-# tmp/ is fully ignored; no .gitkeep, nothing tracked. Rust sources must
-# never live in the repo.
+# Kotlin
+.kotlin/
+
+# IntelliJ IDEA / Android Studio
+.idea/
+*.iml
+*.ipr
+*.iws
+.claude/
+
+# macOS
+.DS_Store
+
+# Temporary files
 tmp/
+!tmp/.gitkeep
 
 # Upstream Rust crate trees — never commit these at repo root.
-# If porting, clone upstream into tmp/ instead.
 /candle-book/
 /candle-core/
 /candle-datasets/
@@ -46,44 +45,66 @@ NEXT_ACTIONS.md
 port_lint_proposed_changes.md
 ast_distance_*.txt
 deep_symbol_inventory.txt
+direct-translation/
+*.log
+*.stderr
+*.o.tmp
+**/src/native/interop/cinterop/*.a
 .cache/
 *.lock
 kotlin-js-store/*
 !kotlin-js-store/package.json
 !kotlin-js-store/yarn.lock
 !kotlin-js-store/wasm/
+!kotlin-js-store/wasm/package.json
 !kotlin-js-store/wasm/yarn.lock
-tools/ast_distance/ast_distance
-tools/ast_distance/build/
-tools/ast_distance
+tools/ast_distance/
+!tools/ast_distance/.gitkeep
 
-# JVM heap dumps
+# JVM heap dumps & Python bytecode
+*.class
+*.jar
+*.war
+*.ear
 *.hprof
 java_pid*.hprof
-
-# macOS Finder metadata
-.DS_Store
-
-# Python bytecode
 __pycache__/
+**/__pycache__/
 *.pyc
+
+# Visual Studio Code
+.vscode/
+
+# Eclipse
+.classpath
+.project
+.settings/
+
+# Gradle Wrapper (don't ignore gradle-wrapper.jar and properties)
+!gradle/wrapper/gradle-wrapper.jar
+!gradle/wrapper/gradle-wrapper.properties
+
+# Local tools
+tools/bin/
 
 # Android SDK
 /.android-sdk/
+**/.android-sdk/
 local.properties
 
 # Swift Package Manager / Xcode workspace state.
 .swiftpm/
+**/.build/
 DerivedData/
 *.xcuserstate
 *.xcworkspace/xcuserdata/
 *.xcodeproj/xcuserdata/
 
 # Cargo / Rust build artifacts
-debug/
-data/
-dist/
-target/
+/debug/
+/data/
+/dist/
+/target/
 *.pdb
 perf.data
 flamegraph.svg
@@ -93,6 +114,32 @@ flamegraph.svg
 *.swo
 trace-*.json
 bench_results/
-node_modules/
 native/*/build/
 native/*/node_modules/
+src/js/node-*/dist/build/
+src/js/node-*/dist/node_modules/
+
+# npm install output; JS dependencies come from yarn via the Kotlin Gradle plugin
+node_modules/
+package-lock.json
+!**/native/node-*/package-lock.json
+!**/src/js/node-*/**/package-lock.json
+
+# Sensitive credentials and environment files
+maven.properties
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.keystore
+credentials*.json
+
+# Java build helpers are source; buildSrc/build remains generated output.
+!buildSrc/
+!buildSrc/src/
+!buildSrc/src/**
+!buildSrc/build.gradle.kts
+!buildSrc/settings.gradle.kts
+tools/ast_distance
