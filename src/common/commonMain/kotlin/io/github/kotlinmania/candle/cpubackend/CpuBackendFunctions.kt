@@ -8,7 +8,7 @@ import io.github.kotlinmania.numtraits.Float
 import io.github.kotlinmania.rand.prelude.*
 import io.github.kotlinmania.rayon.prelude.*
 
-public fun <I, T> whereImpl(ndIter: NdIter, ysToSet: List<T>, pred: List<I>, t: List<T>, f: List<T>, predFn: (Int, Int, Int) -> Int, tFn: (Int, Int, Int) -> Int, fFn: (Int, Int, Int) -> Int) where I : IntDType {
+public fun <I, T> whereImpl(ndIter: NdIter, ysToSet: MutableList<T>, pred: List<I>, t: List<T>, f: List<T>, predFn: (Int, Int, Int) -> Int, tFn: (Int, Int, Int) -> Int, fFn: (Int, Int, Int) -> Int) where I : IntDType {
     val innerSize = ndIter.innerSize
     val (innerPs, innerTs, innerFs) = ndIter.innerStrides
     var dstOff = 0
@@ -28,7 +28,7 @@ public fun <I, T> whereImpl(ndIter: NdIter, ysToSet: List<T>, pred: List<I>, t: 
     }
 }
 
-public fun <T> copy2d(src: List<T>, dst: List<T>, d1: Int, d2: Int, srcStride1: Int, dstStride1: Int, srcOffset: Int, dstOffset: Int) {
+public fun <T> copy2d(src: List<T>, dst: MutableList<T>, d1: Int, d2: Int, srcStride1: Int, dstStride1: Int, srcOffset: Int, dstOffset: Int) {
     // Both are contiguous - one memcpy covers everything.
     if (srcStride1 == d2 && dstStride1 == d2) {
         val srcStart = srcOffset
@@ -45,7 +45,7 @@ public fun <T> copy2d(src: List<T>, dst: List<T>, d1: Int, d2: Int, srcStride1: 
     }
 }
 
-public fun <T> copyStridedSrc(src: List<T>, dst: List<T>, dstOffset: Int, srcL: Layout) {
+public fun <T> copyStridedSrc(src: List<T>, dst: MutableList<T>, dstOffset: Int, srcL: Layout) {
     run {
         val matchVal = srcL.stridedBlocks()
         when {
