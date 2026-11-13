@@ -12,7 +12,6 @@ import io.github.kotlinmania.candle.cpubackend.utils.Map2
 import io.github.kotlinmania.candle.cpubackend.utils.Map2InPlace
 import io.github.kotlinmania.candle.cpubackend.utils.Map2U8
 import io.github.kotlinmania.candle.cpubackend.utils.binaryMap
-import io.github.kotlinmania.candle.cpubackend.utils.binaryMapVec
 import io.github.kotlinmania.candle.cpubackend.utils.unaryMap
 import io.github.kotlinmania.candle.device.DeviceLocation
 import io.github.kotlinmania.candle.dims3

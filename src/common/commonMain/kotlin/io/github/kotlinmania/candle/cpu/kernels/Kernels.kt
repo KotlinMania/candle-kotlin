@@ -9,8 +9,6 @@ import io.github.kotlinmania.candle.cpu.vecDotF32
 import io.github.kotlinmania.candle.cpu.vecScalarAddBf16
 import io.github.kotlinmania.candle.cpu.vecScalarAddF16
 import io.github.kotlinmania.candle.cpu.vecSum
-import io.github.kotlinmania.candle.vdAdd
-import io.github.kotlinmania.candle.vsAdd
 import io.github.kotlinmania.float8.F8e4m3
 import io.github.kotlinmania.half.Bf16
 import io.github.kotlinmania.half.F16

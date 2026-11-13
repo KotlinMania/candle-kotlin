@@ -25,7 +25,6 @@ import io.github.kotlinmania.candle.scalar.Scalar
 import io.github.kotlinmania.candle.shape.Shape
 import io.github.kotlinmania.candle.stridedindex.StridedBlocks
 import io.github.kotlinmania.float8.F8e4m3
-import io.github.kotlinmania.gemm.gemm
 import io.github.kotlinmania.half.Bf16
 import io.github.kotlinmania.half.F16
 import io.github.kotlinmania.numtraits.Float
