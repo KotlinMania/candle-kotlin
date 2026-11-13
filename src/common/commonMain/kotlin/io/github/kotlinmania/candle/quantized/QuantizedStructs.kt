@@ -1,5 +1,6 @@
 package io.github.kotlinmania.candle.quantized
 
+import io.github.kotlinmania.candle.cpu.Cpu
 import io.github.kotlinmania.candle.cpubackend.CpuStorage
 import io.github.kotlinmania.candle.cudabackend.CudaStorage
 import io.github.kotlinmania.candle.customop.CustomOp1
@@ -9,7 +10,7 @@ import io.github.kotlinmania.candle.dummymetalbackend.MetalStorage
 import io.github.kotlinmania.candle.error.Result
 import io.github.kotlinmania.candle.error.bail
 import io.github.kotlinmania.candle.layout.Layout
-import io.github.kotlinmania.candle.none
+import io.github.kotlinmania.candle.op.BackpropOp
 import io.github.kotlinmania.candle.quantized.repack.PackedCache
 import io.github.kotlinmania.candle.quantized.repack.tryGemvFused
 import io.github.kotlinmania.candle.quantized.repack.tryIndexedGemv
@@ -26,11 +27,10 @@ import io.github.kotlinmania.candle.shape.Shape
 import io.github.kotlinmania.candle.storage.Storage
 import io.github.kotlinmania.candle.tensor.Tensor
 import io.github.kotlinmania.candle.tensor.fromStorage
+import io.github.kotlinmania.f16.ZERO
 import io.github.kotlinmania.half.Bf16
 import io.github.kotlinmania.half.F16
 import io.github.kotlinmania.rustlang.core.ptr.ConstPtr
-import io.github.kotlinmania.rustlang.core.result.fromResidual
-import io.github.kotlinmania.rustlang.std.borrow.Cow
 
 public class QTensor(
     public var storage: QStorage = QStorage(),
@@ -50,10 +50,10 @@ public class QTensor(
     public fun dequantize(device: Device): Result<Tensor> {
         val storage =
             when (val tryResult = this.storage.dequantize(this.shape.elemCount())) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
-        val none = none()
+        val none = BackpropOp.none()
         return fromStorage(storage, this.shape.clone(), none, false).toDevice(device)
     }
 
@@ -65,10 +65,10 @@ public class QTensor(
                 val (s) = matchVal
                 val s1 =
                     when (val tryResult = s.dequantizeF16(this.shape.elemCount())) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
-                val none = none()
+                val none = BackpropOp.none()
                 fromStorage(Storage.Cuda(s1), this.shape.clone(), none, false).toDevice(device)
             }
             else -> {
@@ -76,14 +76,14 @@ public class QTensor(
                     when (
                         val tryResult =
                             when (val tryResult = this.dequantize(device)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }.toDtype(DType.F16)
                     ) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
-                Ok(s2)
+                Result.Ok(s2)
             }
         }
     }
@@ -91,8 +91,8 @@ public class QTensor(
     public fun embedding(ids: Tensor): Result<Tensor> {
         val (rows, hidden) =
             when (val tryResult = this.shape.dims2()) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         if (!hidden.isMultipleOf(this.dtype().blockSize())) {
             bail("quantized embedding hidden size {hidden} is not divisible by block size {}", this.dtype().blockSize())
@@ -108,20 +108,20 @@ public class QTensor(
                             when (
                                 val tryResult =
                                     when (val tryResult = ids.toDevice(device)) {
-                                        is Result.Ok -> tryResult.value
-                                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                        is Result.Ok<*> -> tryResult.value
+                                        is Result.Err<*> -> return Result.Err(tryResult.error)
                                     }.toDtype(DType.U32)
                             ) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }.flattenAll()
                     ) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }.contiguous()
             ) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val storage3 =
             when (val matchVal = this.storage) {
@@ -129,13 +129,13 @@ public class QTensor(
                     val (storage) = matchVal
                     val ids2 =
                         when (val tryResult = ids1.toVec1<UInt>()) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     Storage.Cpu(
                         when (val tryResult = storage.embedding(ids2, rows, hidden)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         },
                     )
                 }
@@ -146,8 +146,8 @@ public class QTensor(
                             val (idsStorage) = matchVal1
                             Storage.Metal(
                                 when (val tryResult = storage1.embedding(rows, hidden, idsStorage, ids1.layout())) {
-                                    is Result.Ok -> tryResult.value
-                                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                    is Result.Ok<*> -> tryResult.value
+                                    is Result.Err<*> -> return Result.Err(tryResult.error)
                                 },
                             )
                         }
@@ -161,8 +161,8 @@ public class QTensor(
                             val (idsStorage1) = matchVal2
                             Storage.Cuda(
                                 when (val tryResult = storage2.embedding(rows, hidden, idsStorage1, ids1.layout())) {
-                                    is Result.Ok -> tryResult.value
-                                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                    is Result.Ok<*> -> tryResult.value
+                                    is Result.Err<*> -> return Result.Err(tryResult.error)
                                 },
                             )
                         }
@@ -170,13 +170,13 @@ public class QTensor(
                     }
                 }
             }
-        val none = none()
-        return Ok(fromStorage(storage3, outShape, none, false))
+        val none = BackpropOp.none()
+        return Result.Ok(fromStorage(storage3, outShape, none, false))
     }
 
     public fun storageSizeInBytes(): Int = this.storage.sizeInBytes()
 
-    public fun data(): Result<Cow<List<UByte>>> = this.storage.data()
+    public fun data(): Result<List<UByte>> = this.storage.data()
 
     public fun indexedMoeForward(x: Tensor, ids: Tensor): Result<Tensor> {
         return when (val matchVal = this.storage) {
@@ -190,10 +190,10 @@ public class QTensor(
                             val (idsStorage) = matchVal1.second as Storage.Cuda
                             val (storage, outShape) =
                                 when (val tryResult = s.indexedMoeForward(this.shape(), xStorage, x.layout(), idsStorage, ids.layout())) {
-                                    is Result.Ok -> tryResult.value
-                                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                    is Result.Ok<*> -> tryResult.value
+                                    is Result.Err<*> -> return Result.Err(tryResult.error)
                                 }
-                            Ok(fromStorage(Storage.Cuda(storage), outShape, none(), false))
+                            Result.Ok(fromStorage(Storage.Cuda(storage), outShape, BackpropOp.none(), false))
                         }
                         else -> {
                             error("Non-cuda indexed_moe_forward is not implemented!")
@@ -245,37 +245,37 @@ public class QTensor(
                     else -> false
                 } || !x.isContiguous()
             ) {
-                return Ok(null)
+                return Result.Ok(null)
             }
-            val (nExperts, nOut, k) = this.shape.dims3() ?: return Ok(null)
-            val (batch, xT, xk) = x.dims3() ?: return Ok(null)
-            val (idsB, topk) = ids.dims2() ?: return Ok(null)
+            val (nExperts, nOut, k) = this.shape.dims3() ?: return Result.Ok(null)
+            val (batch, xT, xk) = x.dims3() ?: return Result.Ok(null)
+            val (idsB, topk) = ids.dims2() ?: return Result.Ok(null)
             if (xk != k || idsB != batch || (xT != 1 && xT != topk)) {
-                return Ok(null)
+                return Result.Ok(null)
             }
-            val storage = this.storage ?: return Ok(null)
+            val storage = this.storage ?: return Result.Ok(null)
             val idsV: List<UInt> =
                 when (
                     val tryResult =
                         when (
                             val tryResult =
                                 when (val tryResult = ids.toDtype(DType.U32)) {
-                                    is Result.Ok -> tryResult.value
-                                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                    is Result.Ok<*> -> tryResult.value
+                                    is Result.Err<*> -> return Result.Err(tryResult.error)
                                 }.flattenAll()
                         ) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }.toVec1<UInt>()
                 ) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             if (idsV.any({ e -> e.toInt() >= nExperts })) {
                 bail("expert index out of range")
             }
             val guard = x.storage()
-            val cpu = guard ?: return Ok(null)
+            val cpu = guard ?: return Result.Ok(null)
             val offset = x.layout().startOffset()
             val nRows = batch * xT
             val widened: Any?
@@ -283,43 +283,43 @@ public class QTensor(
                 if (x.dtype() == DType.BF16) {
                     val bslice =
                         when (val tryResult = cpu.asSlice<Bf16>()) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     widened = widenBf16(((bslice).slice(offset until offset + nRows * k)))
                     widened
                 } else {
                     val slice =
                         when (val tryResult = cpu.asSlice<Float>()) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     ((slice).slice(offset until offset + nRows * k))
                 }
             val dst = mutableListOf(0.0f, batch * topk * nOut)
             val ok =
                 when (val tryResult = tryIndexedGemv(storage.asRef(), this.repackedQs, nExperts, nOut, k, lhs, nRows, idsV, topk, dst)) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             drop(guard)
             if (!ok) {
-                return Ok(null)
+                return Result.Ok(null)
             }
             val out =
-                when (val tryResult = Tensor.fromVec(dst, Triple(batch, topk, nOut), Device.Cpu)) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                when (val tryResult = Tensor.fromVec(dst, Triple(batch, topk, nOut), Cpu)) {
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             if (x.dtype() == DType.BF16) {
-                Ok(
+                Result.Ok(
                     when (val tryResult = out.toDtype(DType.BF16)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     },
                 )
             } else {
-                Ok(out)
+                Result.Ok(out)
             }
         }
     }
@@ -334,8 +334,8 @@ public class QTensor(
         // self is transposed so n is first then k.
         val (n, k) =
             when (val tryResult = this.shape.dims2()) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         if (srcShape.rank() < 2) {
             bail("input tensor has only one dimension {layout:?}")
@@ -360,46 +360,46 @@ public class QTensor(
             DType.f32 -> {
                 val slice =
                     when (val tryResult = storage.asSlice<Float>()) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                 val slice1 = ((slice).slice(layout.startOffset() until layout.startOffset() + srcShape.elemCount()))
                 val dstStorage = mutableListOf(0.0f, dstShape1.elemCount())
                 val mkn = Triple(dstShape1.elemCount() / n, k, n)
                 val usedPacked =
                     when (val tryResult = tryMatmulF32(selfStorage.asRef(), this.repackedQs, mkn, slice1, dstStorage)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                 if (usedPacked) {
-                    return Ok(Pair(CpuStorage.F32(dstStorage), dstShape1))
+                    return Result.Ok(Pair(CpuStorage.F32(dstStorage), dstShape1))
                 }
                 when (val tryResult = selfStorage.matmulT(mkn, slice1, dstStorage)) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
-                Ok(Pair(CpuStorage.F32(dstStorage), dstShape1))
+                Result.Ok(Pair(CpuStorage.F32(dstStorage), dstShape1))
             }
             DType.f16 -> {
                 val slice2 =
                     when (val tryResult = storage.asSlice<F16>()) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                 val slice3 = ((slice2).slice(layout.startOffset() until layout.startOffset() + srcShape.elemCount()))
                 val dstStorage1 = mutableListOf(ZERO, dstShape1.elemCount())
                 when (val tryResult = selfStorage.matmulTF16(Triple(dstShape1.elemCount() / n, k, n), slice3, dstStorage1)) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
-                Ok(Pair(CpuStorage.F16(dstStorage1), dstShape1))
+                Result.Ok(Pair(CpuStorage.F16(dstStorage1), dstShape1))
             }
             DType.bf16 -> {
                 // widen to f32 once and take the repacked path; output stays bf16
                 val slice4 =
                     when (val tryResult = storage.asSlice<Bf16>()) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                 val slice5 = ((slice4).slice(layout.startOffset() until layout.startOffset() + srcShape.elemCount()))
                 val lhs = widenBf16(slice5)
@@ -407,17 +407,17 @@ public class QTensor(
                 val mkn1 = Triple(dstShape1.elemCount() / n, k, n)
                 val usedPacked1 =
                     when (val tryResult = tryMatmulF32(selfStorage.asRef(), this.repackedQs, mkn1, lhs, dstStorage2)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                 if (!usedPacked1) {
                     when (val tryResult = selfStorage.matmulT(mkn1, lhs, dstStorage2)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                 }
                 val dst: List<Bf16> = narrowBf16(dstStorage2)
-                Ok(Pair(CpuStorage.BF16(dst), dstShape1))
+                Result.Ok(Pair(CpuStorage.BF16(dst), dstShape1))
             }
             else -> bail("Expected f32/f16/bf16")
         }
@@ -451,29 +451,29 @@ public class QTensor(
         public fun new(storage: QStorage, shape: Shape): Result<QTensor> {
             val shape1 = shape
             when (val tryResult = checkShape(shape1, storage.blockSize())) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
-            return Ok(QTensor(storage = storage, shape = shape1, repackedQs = PackedCache.new()))
+            return Result.Ok(QTensor(storage = storage, shape = shape1, repackedQs = PackedCache.new()))
         }
 
         public fun quantize(src: Tensor, dtype: GgmlDType): Result<QTensor> {
             val shape = src.shape()
             val blockSize = dtype.blockSize()
             when (val tryResult = checkShape(shape, blockSize)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
             val src1 =
                 when (
                     val tryResult =
                         when (val tryResult = src.toDtype(DType.F32)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }.flattenAll()
                 ) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             val elemCount = shape.elemCount()
             if (!elemCount.isMultipleOf(blockSize)) {
@@ -481,14 +481,14 @@ public class QTensor(
             }
             var storage =
                 when (val tryResult = src1.device().qzeros(elemCount, dtype)) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             when (val tryResult = storage.quantize(src1.storage())) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
-            return Ok(QTensor(storage = storage, shape = shape.clone(), repackedQs = PackedCache.new()))
+            return Result.Ok(QTensor(storage = storage, shape = shape.clone(), repackedQs = PackedCache.new()))
         }
 
         public fun quantizeImatrix(src: Tensor, imatrixWeights: List<Float>, dtype: GgmlDType): Result<QTensor> {
@@ -496,35 +496,35 @@ public class QTensor(
             // Size of imatrix == last dim of tensor
             val nPerRow =
                 when (val tryResult = src.dim(D.Minus1)) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             if (imatrixWeights.size != nPerRow) {
                 bail(
                     "imatrix weights must have the same length {} as the last dim of src {}",
                     imatrixWeights.size,
                     when (val tryResult = src.dim(D.Minus1)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     },
                 )
             }
             val shape = src.shape()
             val blockSize = dtype.blockSize()
             when (val tryResult = checkShape(shape, blockSize)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
             val src1 =
                 when (
                     val tryResult =
                         when (val tryResult = src.toDtype(DType.F32)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }.flattenAll()
                 ) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             val elemCount = shape.elemCount()
             if (!elemCount.isMultipleOf(blockSize)) {
@@ -532,14 +532,14 @@ public class QTensor(
             }
             var storage =
                 when (val tryResult = src1.device().qzeros(elemCount, dtype)) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             when (val tryResult = storage.quantizeImatrix(src1.storage(), imatrixWeights, nPerRow)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
-            return Ok(QTensor(storage = storage, shape = shape.clone(), repackedQs = PackedCache.new()))
+            return Result.Ok(QTensor(storage = storage, shape = shape.clone(), repackedQs = PackedCache.new()))
         }
 
         /**
@@ -553,35 +553,35 @@ public class QTensor(
             // Size of imatrix == last dim of tensor
             val nPerRow =
                 when (val tryResult = src.dim(D.Minus1)) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             if (imatrixWeights.size != nPerRow) {
                 bail(
                     "imatrix weights must have the same length {} as the last dim of src {}",
                     imatrixWeights.size,
                     when (val tryResult = src.dim(D.Minus1)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     },
                 )
             }
             val shape = src.shape()
             val blockSize = dtype.blockSize()
             when (val tryResult = checkShape(shape, blockSize)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
             val src1 =
                 when (
                     val tryResult =
                         when (val tryResult = src.toDtype(DType.F32)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }.flattenAll()
                 ) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             val elemCount = shape.elemCount()
             if (!elemCount.isMultipleOf(blockSize)) {
@@ -590,14 +590,14 @@ public class QTensor(
             // storage is on the `dev`, src is on `cpu`
             var storage =
                 when (val tryResult = dev.qzeros(elemCount, dtype)) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             when (val tryResult = storage.quantizeImatrixOnto(src1.storage(), imatrixWeights, nPerRow)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
-            return Ok(QTensor(storage = storage, shape = shape.clone(), repackedQs = PackedCache.new()))
+            return Result.Ok(QTensor(storage = storage, shape = shape.clone(), repackedQs = PackedCache.new()))
         }
 
         /**
@@ -610,19 +610,19 @@ public class QTensor(
             val shape = src.shape()
             val blockSize = dtype.blockSize()
             when (val tryResult = checkShape(shape, blockSize)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
             val src1 =
                 when (
                     val tryResult =
                         when (val tryResult = src.toDtype(DType.F32)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }.flattenAll()
                 ) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             val elemCount = shape.elemCount()
             if (!elemCount.isMultipleOf(blockSize)) {
@@ -631,14 +631,14 @@ public class QTensor(
             // storage is on the `dev`, src is on `cpu`
             var storage =
                 when (val tryResult = dev.qzeros(elemCount, dtype)) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             when (val tryResult = storage.quantizeOnto(src1.storage())) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
-            return Ok(QTensor(storage = storage, shape = shape.clone(), repackedQs = PackedCache.new()))
+            return Result.Ok(QTensor(storage = storage, shape = shape.clone(), repackedQs = PackedCache.new()))
         }
 
         /**
@@ -648,47 +648,47 @@ public class QTensor(
         public fun gemvFusedSharedLhs(ts: List<QTensor>, lhs: Tensor): Result<List<Tensor>?> {
             run {
                 if (ts.isEmpty() || !lhs.device().isCpu() || lhs.dtype() != DType.F32) {
-                    return Ok(null)
+                    return Result.Ok(null)
                 }
                 if (!lhs.isContiguous()) {
-                    return Ok(null)
+                    return Result.Ok(null)
                 }
                 val dims = lhs.dims()
-                val (k, batch) = dims.splitLast() ?: return Ok(null)
+                val (k, batch) = dims.splitLast() ?: return Result.Ok(null)
                 if (batch.iter().product<Int>() != 1) {
-                    return Ok(null)
+                    return Result.Ok(null)
                 }
                 val ns = ArrayList(ts.size)
                 val parts: List<Pair<QuantizedType, PackedCache>> = ArrayList(ts.size)
                 for (t in ts) {
                     val (n, tk) =
                         when (val tryResult = t.shape.dims2()) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     if (tk != k) {
-                        return Ok(null)
+                        return Result.Ok(null)
                     }
-                    val s = t.storage ?: return Ok(null)
+                    val s = t.storage ?: return Result.Ok(null)
                     ns.add(n)
                     parts.add(Pair(s.asRef(), t.repackedQs))
                 }
                 val storage = lhs.storage()
-                val cpu = storage ?: return Ok(null)
+                val cpu = storage ?: return Result.Ok(null)
                 val slice =
                     when (val tryResult = cpu.asSlice<Float>()) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                 val offset = lhs.layout().startOffset()
                 val slice1 = ((slice).slice(offset until offset + k))
-                val dsts: List<List<Float>> = ArrayDeque((ArrayDeque(ns)).map({ n1 -> mutableListOf(0.0f, n1) })).collect()
+                val dsts: List<List<Float>> = ns.map({ n1 -> mutableListOf(0.0f, n1) }).toMutableList()
                 if (!when (val tryResult = tryGemvFused(k, slice1, parts, dsts)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                 ) {
-                    return Ok(null)
+                    return Result.Ok(null)
                 }
                 drop(storage)
                 val outs =
@@ -698,84 +698,83 @@ public class QTensor(
                                 .map({ (d, n1) ->
                                     var shape = dims.toVec()
                                     shape.lastMut()!! = n1
-                                    Tensor.fromVec(d, shape, Device.Cpu)
+                                    Tensor.fromVec(d, shape, Cpu)
                                 })
                                 .collect<Result<Vec>>()
                     ) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
-                Ok(outs)
+                Result.Ok(outs)
             }
             run {
                 // the fused kernel is 512-bit only; downlevel tiers fall through to
                 // per-matmul calls which dispatch to the 256-bit kernels
                 if (level() != X86Level.Avx512Vnni) {
-                    return Ok(null)
+                    return Result.Ok(null)
                 }
                 if (ts.isEmpty() || !lhs.device().isCpu() || lhs.dtype() != DType.F32) {
-                    return Ok(null)
+                    return Result.Ok(null)
                 }
                 if (!lhs.isContiguous()) {
-                    return Ok(null)
+                    return Result.Ok(null)
                 }
                 val dims1 = lhs.dims()
-                val (k1, batch1) = dims1.splitLast() ?: return Ok(null)
+                val (k1, batch1) = dims1.splitLast() ?: return Result.Ok(null)
                 val m: Int = batch1.iter().product()
                 if (m == 0) {
-                    return Ok(null)
+                    return Result.Ok(null)
                 }
                 val dtype = ts[0].dtype()
                 val shapes = ArrayList(ts.size)
                 for (t1 in ts) {
-                    val (n1, tk1) = t1.shape.dims2() ?: return Ok(null)
+                    val (n1, tk1) = t1.shape.dims2() ?: return Result.Ok(null)
                     if (tk1 != k1 || t1.dtype() != dtype ||
                         !when (val matchVal = t1.storage) {
                             is QStorage.Cpu -> true
                             else -> false
                         } || !select(dtype, m, n1, k1)
                     ) {
-                        return Ok(null)
+                        return Result.Ok(null)
                     }
                     shapes.add(n1)
                 }
                 val guard = lhs.storage()
-                val cpu1 = guard ?: return Ok(null)
+                val cpu1 = guard ?: return Result.Ok(null)
                 val slice2 =
                     when (val tryResult = cpu1.asSlice<Float>()) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                 val offset1 = lhs.layout().startOffset()
                 val lhsData = ((slice2).slice(offset1 until offset1 + m * k1))
                 val lhsQ = quantizeLhs(lhsData, m, k1)
                 val packs: List<PackedX86> =
-                    ts
-                        .enumerate()
-                        .map({ (i, t2) ->
+                    (
+                        ts.mapIndexed { index, item -> Pair(index, item) }.map({ (i, t2) ->
                             val n2 = shapes[i]
                             t2.repackedQs.x86GetOrInit({ pack(dtype, t2.storageRef(), n2, k1) })
                         })
-                        .collect()
-                val parts1: List<Pair<PackedX86, Int>> = (packs.zip(ArrayDeque(shapes))).map({ (p, n2) -> Pair(p, n2) }).collect()
-                val dsts1: List<List<Float>> = ArrayDeque((ArrayDeque(shapes)).map({ n2 -> mutableListOf(0.0f, m * n2) })).collect()
+                    ).toMutableList()
+                val parts1: List<Pair<PackedX86, Int>> = (packs.zip(shapes)).map({ (p, n2) -> Pair(p, n2) }).toMutableList()
+                val dsts1: List<List<Float>> = shapes.map({ n2 -> mutableListOf(0.0f, m * n2) }).toMutableList()
                 gemvFused(parts1, lhsQ, m, k1, dsts1)
                 drop(guard)
                 val out = ArrayList(ts.size)
                 val outDims = dims1.toVec()
-                for ((dst, n2) in (dsts1.zip(ArrayDeque(shapes)))) {
+                for ((dst, n2) in (dsts1.zip(shapes))) {
                     outDims.lastMut()!! = n2
                     out.add(
-                        when (val tryResult = Tensor.fromVec(dst, outDims.clone(), Device.Cpu)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        when (val tryResult = Tensor.fromVec(dst, outDims.clone(), Cpu)) {
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         },
                     )
                 }
-                Ok(out)
+                Result.Ok(out)
             }
             return run {
-                Ok(null)
+                Result.Ok(null)
             }
         }
     }

@@ -17,7 +17,7 @@ import io.github.kotlinmania.candle.storage.Storage
 import io.github.kotlinmania.candle.utils.cudaIsAvailable
 import io.github.kotlinmania.candle.utils.metalIsAvailable
 import io.github.kotlinmania.candle.utils.withThreadpool
-import io.github.kotlinmania.rustlang.core.result.fromResidual
+import io.github.kotlinmania.rustlang.core.F16
 
 /**
  * A `DeviceLocation` represents a physical device whereas multiple `Device`
@@ -51,7 +51,7 @@ public sealed class Device {
         when (this) {
             is Cuda -> {
                 val (d) = this
-                Ok(d)
+                Result.Ok(d)
             }
             Device.Cpu -> bail("expected a cuda device, got cpu")
             is Metal -> bail("expected a cuda device, got Metal")
@@ -63,7 +63,7 @@ public sealed class Device {
             Device.Cpu -> bail("expected a metal device, got cpu")
             is Metal -> {
                 val (d) = this
-                Ok(d)
+                Result.Ok(d)
             }
         }
 
@@ -178,10 +178,10 @@ public sealed class Device {
             Device.Cpu -> {
                 val storage =
                     when (val tryResult = CpuDevice.randUniform(shape, dtype, lo, up)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
-                Ok(Storage.Cpu(storage))
+                Result.Ok(Storage.Cpu(storage))
             }
             is Device.Cuda -> {
                 val (device) = this
@@ -189,27 +189,27 @@ public sealed class Device {
                 if (dtype == DType.F16 || dtype == DType.BF16) {
                     val storage1 =
                         when (val tryResult = device.randUniform(shape, DType.F32, lo, up)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     Storage.Cuda(storage1).toDtype(Layout.contiguous(shape), dtype)
                 } else {
                     val storage2 =
                         when (val tryResult = device.randUniform(shape, dtype, lo, up)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
-                    Ok(Storage.Cuda(storage2))
+                    Result.Ok(Storage.Cuda(storage2))
                 }
             }
             is Device.Metal -> {
                 val (device1) = this
                 val storage3 =
                     when (val tryResult = device1.randUniform(shape, dtype, lo, up)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
-                Ok(Storage.Metal(storage3))
+                Result.Ok(Storage.Metal(storage3))
             }
         }
     }
@@ -221,10 +221,10 @@ public sealed class Device {
             Device.Cpu -> {
                 val storage =
                     when (val tryResult = CpuDevice.randNormal(shape, dtype, mean, std)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
-                Ok(Storage.Cpu(storage))
+                Result.Ok(Storage.Cpu(storage))
             }
             is Device.Cuda -> {
                 val (device) = this
@@ -232,27 +232,27 @@ public sealed class Device {
                 if (dtype == DType.F16 || dtype == DType.BF16) {
                     val storage1 =
                         when (val tryResult = device.randNormal(shape, DType.F32, mean, std)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     Storage.Cuda(storage1).toDtype(Layout.contiguous(shape), dtype)
                 } else {
                     val storage2 =
                         when (val tryResult = device.randNormal(shape, dtype, mean, std)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
-                    Ok(Storage.Cuda(storage2))
+                    Result.Ok(Storage.Cuda(storage2))
                 }
             }
             is Device.Metal -> {
                 val (device1) = this
                 val storage3 =
                     when (val tryResult = device1.randNormal(shape, dtype, mean, std)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
-                Ok(Storage.Metal(storage3))
+                Result.Ok(Storage.Metal(storage3))
             }
         }
     }
@@ -264,28 +264,28 @@ public sealed class Device {
             Device.Cpu -> {
                 val storage =
                     when (val tryResult = CpuDevice.zerosImpl(shape, dtype)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
-                Ok(Storage.Cpu(storage))
+                Result.Ok(Storage.Cpu(storage))
             }
             is Device.Cuda -> {
                 val (device) = this
                 val storage1 =
                     when (val tryResult = device.zerosImpl(shape, dtype)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
-                Ok(Storage.Cuda(storage1))
+                Result.Ok(Storage.Cuda(storage1))
             }
             is Device.Metal -> {
                 val (device1) = this
                 val storage2 =
                     when (val tryResult = device1.zerosImpl(shape, dtype)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
-                Ok(Storage.Metal(storage2))
+                Result.Ok(Storage.Metal(storage2))
             }
         }
     }
@@ -295,111 +295,111 @@ public sealed class Device {
             Device.Cpu -> {
                 val storage =
                     when (val tryResult = CpuDevice.allocUninit(shape, dtype)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
-                Ok(Storage.Cpu(storage))
+                Result.Ok(Storage.Cpu(storage))
             }
             is Device.Cuda -> {
                 val (device) = this
                 val storage1 =
                     when (val tryResult = device.allocUninit(shape, dtype)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
-                Ok(Storage.Cuda(storage1))
+                Result.Ok(Storage.Cuda(storage1))
             }
             is Device.Metal -> {
                 val (device1) = this
                 val storage2 =
                     when (val tryResult = device1.allocUninit(shape, dtype)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
-                Ok(Storage.Metal(storage2))
+                Result.Ok(Storage.Metal(storage2))
             }
         }
     }
 
     internal fun <D : WithDType> storageFromSlice(data: List<D>): Result<Storage> {
         return when (this) {
-            Device.Cpu -> Ok(Storage.Cpu(data.toCpuStorage()))
+            Device.Cpu -> Result.Ok(Storage.Cpu(data.toCpuStorage()))
             is Device.Cuda -> {
                 val (device) = this
                 val storage =
                     when (val tryResult = device.storageFromSlice(data)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
-                Ok(Storage.Cuda(storage))
+                Result.Ok(Storage.Cuda(storage))
             }
             is Device.Metal -> {
                 val (device1) = this
                 val storage1 =
                     when (val tryResult = device1.storageFromSlice(data)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
-                Ok(Storage.Metal(storage1))
+                Result.Ok(Storage.Metal(storage1))
             }
         }
     }
 
     internal fun <A : NdArray> storage(array: A): Result<Storage> {
         return when (this) {
-            Device.Cpu -> Ok(Storage.Cpu(array.toCpuStorage()))
+            Device.Cpu -> Result.Ok(Storage.Cpu(array.toCpuStorage()))
             is Device.Cuda -> {
                 val (device) = this
                 val storage = array.toCpuStorage()
                 val storage1 =
                     when (val tryResult = device.storageFromCpuStorageOwned(storage)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
-                Ok(Storage.Cuda(storage1))
+                Result.Ok(Storage.Cuda(storage1))
             }
             is Device.Metal -> {
                 val (device1) = this
                 val storage2 = array.toCpuStorage()
                 val storage3 =
                     when (val tryResult = device1.storageFromCpuStorageOwned(storage2)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
-                Ok(Storage.Metal(storage3))
+                Result.Ok(Storage.Metal(storage3))
             }
         }
     }
 
     internal fun <S : WithDType> storageOwned(data: List<S>, toCpuStorageOwnedSFn: (Any?) -> Any?): Result<Storage> {
         return when (this) {
-            Device.Cpu -> Ok(Storage.Cpu(toCpuStorageOwnedSFn(data)))
+            Device.Cpu -> Result.Ok(Storage.Cpu(toCpuStorageOwnedSFn(data)))
             is Device.Cuda -> {
                 val (device) = this
                 val storage = toCpuStorageOwnedSFn(data)
                 val storage1 =
                     when (val tryResult = device.storageFromCpuStorageOwned(storage)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
-                Ok(Storage.Cuda(storage1))
+                Result.Ok(Storage.Cuda(storage1))
             }
             is Device.Metal -> {
                 val (device1) = this
                 val storage2 = toCpuStorageOwnedSFn(data)
                 val storage3 =
                     when (val tryResult = device1.storageFromCpuStorageOwned(storage2)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
-                Ok(Storage.Metal(storage3))
+                Result.Ok(Storage.Metal(storage3))
             }
         }
     }
 
     public fun synchronize(): Result<Unit> =
         when (this) {
-            Device.Cpu -> Ok(Unit)
+            Device.Cpu -> Result.Ok(Unit)
             is Cuda -> {
                 val (d) = this
                 d.synchronize()
@@ -412,33 +412,33 @@ public sealed class Device {
 
     public companion object {
         public fun newCuda(ordinal: ULong): Result<Device> {
-            return Ok(
+            return Result.Ok(
                 Device.Cuda(
                     when (val tryResult = CudaDevice.new(ordinal)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     },
                 ),
             )
         }
 
         public fun newCudaWithStream(ordinal: ULong): Result<Device> {
-            return Ok(
+            return Result.Ok(
                 Device.Cuda(
                     when (val tryResult = CudaDevice.newWithStream(ordinal.toInt())) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     },
                 ),
             )
         }
 
         public fun newMetal(ordinal: ULong): Result<Device> {
-            return Ok(
+            return Result.Ok(
                 Device.Metal(
                     when (val tryResult = MetalDevice.new(ordinal)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     },
                 ),
             )
@@ -448,14 +448,14 @@ public sealed class Device {
             if (cudaIsAvailable()) {
                 Device.newCuda(ordinal)
             } else {
-                Ok(Device.Cpu)
+                Result.Ok(Device.Cpu)
             }
 
         public fun metalIfAvailable(ordinal: Int): Result<Device> =
             if (metalIsAvailable()) {
                 Device.newMetal(ordinal)
             } else {
-                Ok(Device.Cpu)
+                Result.Ok(Device.Cpu)
             }
     }
 }
@@ -466,41 +466,41 @@ public interface NdArray {
     public fun toCpuStorage(): CpuStorage
 }
 
-public fun <S : WithDType> S.shape(): Result<Shape> = Ok(Shape.from())
+public fun <S : WithDType> S.shape(): Result<Shape> = Result.Ok(Shape.from())
 
 public fun <S : WithDType> S.toCpuStorage(toCpuStorageSFn: (Any?) -> Any?): CpuStorage = toCpuStorageSFn(listOf(this))
 
-public fun <S : WithDType> List<S>.shape(n: Int): Result<Shape> = Ok(Shape.from(this.size))
+public fun <S : WithDType> List<S>.shape(n: Int): Result<Shape> = Result.Ok(Shape.from(this.size))
 
 public fun <S : WithDType> List<S>.toCpuStorage(n: Int, toCpuStorageSFn: (Any?) -> Any?): CpuStorage = toCpuStorageSFn(this.asSlice())
 
-public fun <S : WithDType> List<S>.shape(): Result<Shape> = Ok(Shape.from(this.size))
+public fun <S : WithDType> List<S>.shape(): Result<Shape> = Result.Ok(Shape.from(this.size))
 
 public fun <S : WithDType> List<S>.toCpuStorage(toCpuStorageSFn: (Any?) -> Any?): CpuStorage = toCpuStorageSFn(this)
 
-public fun <S : WithDType> List<List<S>>.shape(n: Int, m: Int): Result<Shape> = Ok(Shape.from(Pair(M, N)))
+public fun <S : WithDType> List<List<S>>.shape(n: Int, m: Int): Result<Shape> = Result.Ok(Shape.from(Pair(m, n)))
 
 public fun <S : WithDType> List<List<S>>.toCpuStorage(n: Int, m: Int, toCpuStorageOwnedSFn: (Any?) -> Any?): CpuStorage = toCpuStorageOwnedSFn(this.concat())
 
-public fun <S : WithDType> List<List<List<S>>>.shape(n1: Int, n2: Int, n3: Int): Result<Shape> = Ok(Shape.from(Triple(N1, N2, N3)))
+public fun <S : WithDType> List<List<List<S>>>.shape(n1: Int, n2: Int, n3: Int): Result<Shape> = Result.Ok(Shape.from(Triple(n1, n2, n3)))
 
 public fun <S : WithDType> List<List<List<S>>>.toCpuStorage(n1: Int, n2: Int, n3: Int, toCpuStorageOwnedSFn: (Any?) -> Any?): CpuStorage {
-    val vec = ArrayList(N1 * N2 * N3)
-    for (i1 in 0 until N1) {
-        for (i2 in 0 until N2) {
+    val vec = ArrayList(n1 * n2 * n3)
+    for (i1 in 0 until n1) {
+        for (i2 in 0 until n2) {
             vec.extend(this[i1][i2])
         }
     }
     return toCpuStorageOwnedSFn(vec)
 }
 
-public fun <S : WithDType> List<List<List<List<S>>>>.shape(n1: Int, n2: Int, n3: Int, n4: Int): Result<Shape> = Ok(Shape.from(listOf(N1, N2, N3, N4)))
+public fun <S : WithDType> List<List<List<List<S>>>>.shape(n1: Int, n2: Int, n3: Int, n4: Int): Result<Shape> = Result.Ok(Shape.from(listOf(n1, n2, n3, n4)))
 
 public fun <S : WithDType> List<List<List<List<S>>>>.toCpuStorage(n1: Int, n2: Int, n3: Int, n4: Int, toCpuStorageOwnedSFn: (Any?) -> Any?): CpuStorage {
-    val vec = ArrayList(N1 * N2 * N3 * N4)
-    for (i1 in 0 until N1) {
-        for (i2 in 0 until N2) {
-            for (i3 in 0 until N3) {
+    val vec = ArrayList(n1 * n2 * n3 * n4)
+    for (i1 in 0 until n1) {
+        for (i2 in 0 until n2) {
+            for (i3 in 0 until n3) {
                 vec.extend(this[i1][i2][i3])
             }
         }

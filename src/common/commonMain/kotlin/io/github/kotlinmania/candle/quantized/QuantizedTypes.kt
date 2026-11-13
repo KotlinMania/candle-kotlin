@@ -6,6 +6,7 @@ import io.github.kotlinmania.candle.device.Device
 import io.github.kotlinmania.candle.dtype.DType
 import io.github.kotlinmania.candle.error.Result
 import io.github.kotlinmania.candle.error.bail
+import io.github.kotlinmania.candle.quantized.cuda.QCudaStorage
 import io.github.kotlinmania.candle.quantized.kquants.BlockQ2K
 import io.github.kotlinmania.candle.quantized.kquants.BlockQ3K
 import io.github.kotlinmania.candle.quantized.kquants.BlockQ40
@@ -25,16 +26,17 @@ import io.github.kotlinmania.candle.quantized.kquants.QK5_1
 import io.github.kotlinmania.candle.quantized.kquants.QK8_0
 import io.github.kotlinmania.candle.quantized.kquants.QK8_1
 import io.github.kotlinmania.candle.quantized.kquants.QK_K
+import io.github.kotlinmania.candle.quantized.metal.QMetalStorage
+import io.github.kotlinmania.candle.quantized.metal.loadQuantized
 import io.github.kotlinmania.candle.shape.D
 import io.github.kotlinmania.candle.storage.Storage
 import io.github.kotlinmania.candle.tensor.Tensor
+import io.github.kotlinmania.f16.zeros
 import io.github.kotlinmania.half.Bf16
 import io.github.kotlinmania.half.F16
 import io.github.kotlinmania.rustlang.core.mem.ObjectSlotLayout
 import io.github.kotlinmania.rustlang.core.mem.PrimitiveLayouts
 import io.github.kotlinmania.rustlang.core.ptr.ConstPtr
-import io.github.kotlinmania.rustlang.core.result.fromResidual
-import io.github.kotlinmania.rustlang.std.borrow.Cow
 
 public sealed class QStorage {
     public data class Cpu(
@@ -117,8 +119,8 @@ public sealed class QStorage {
                     val (src1) = matchVal.second as Storage.Cpu
                     storage.fromFloat(
                         when (val tryResult = src1.asSlice<Float>()) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         },
                     )
                 }
@@ -126,22 +128,22 @@ public sealed class QStorage {
                     val (storage1) = matchVal.first as QStorage.Metal
                     val (src2) = matchVal.second as Storage.Metal
                     when (val tryResult = storage1.quantize(src2)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                 }
                 matchVal.first is QStorage.Cuda && matchVal.second is Storage.Cuda -> {
                     val (storage2) = matchVal.first as QStorage.Cuda
                     val (src3) = matchVal.second as Storage.Cuda
                     when (val tryResult = storage2.quantize(src3)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                 }
                 else -> bail("Invalid quantize storage locations do not match")
             }
         }
-        return Ok(Unit)
+        return Result.Ok(Unit)
     }
 
     public fun quantizeImatrix(src: Storage, imatrixWeights: List<Float>, nPerRow: Int): Result<Unit> {
@@ -153,8 +155,8 @@ public sealed class QStorage {
                     val (src1) = matchVal.second as Storage.Cpu
                     storage.fromFloatImatrix(
                         when (val tryResult = src1.asSlice<Float>()) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         },
                         imatrixWeights,
                         nPerRow,
@@ -164,22 +166,22 @@ public sealed class QStorage {
                     val (storage1) = matchVal.first as QStorage.Metal
                     val (src2) = matchVal.second as Storage.Metal
                     when (val tryResult = storage1.quantizeImatrix(src2, imatrixWeights, nPerRow)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                 }
                 matchVal.first is QStorage.Cuda && matchVal.second is Storage.Cuda -> {
                     val (storage2) = matchVal.first as QStorage.Cuda
                     val (src3) = matchVal.second as Storage.Cuda
                     when (val tryResult = storage2.quantizeImatrix(src3, imatrixWeights, nPerRow)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                 }
                 else -> bail("Invalid quantize storage locations do not match")
             }
         }
-        return Ok(Unit)
+        return Result.Ok(Unit)
     }
 
     public fun quantizeOnto(src: Storage): Result<Unit> {
@@ -191,8 +193,8 @@ public sealed class QStorage {
                     val (src1) = matchVal.second as Storage.Cpu
                     storage.fromFloat(
                         when (val tryResult = src1.asSlice<Float>()) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         },
                     )
                 }
@@ -200,22 +202,22 @@ public sealed class QStorage {
                     val (storage1) = matchVal.first as QStorage.Metal
                     val (src2) = matchVal.second as Storage.Cpu
                     when (val tryResult = storage1.quantizeOnto(src2)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                 }
                 matchVal.first is QStorage.Cuda && matchVal.second is Storage.Cpu -> {
                     val (storage2) = matchVal.first as QStorage.Cuda
                     val (src3) = matchVal.second as Storage.Cpu
                     when (val tryResult = storage2.quantizeOnto(src3)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                 }
                 else -> bail("Invalid quantize source storage locations: not on cpu")
             }
         }
-        return Ok(Unit)
+        return Result.Ok(Unit)
     }
 
     public fun quantizeImatrixOnto(src: Storage, imatrixWeights: List<Float>, nPerRow: Int): Result<Unit> {
@@ -227,8 +229,8 @@ public sealed class QStorage {
                     val (src1) = matchVal.second as Storage.Cpu
                     storage.fromFloatImatrix(
                         when (val tryResult = src1.asSlice<Float>()) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         },
                         imatrixWeights,
                         nPerRow,
@@ -238,55 +240,55 @@ public sealed class QStorage {
                     val (storage1) = matchVal.first as QStorage.Metal
                     val (src2) = matchVal.second as Storage.Cpu
                     when (val tryResult = storage1.quantizeImatrixOnto(src2, imatrixWeights, nPerRow)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                 }
                 matchVal.first is QStorage.Cuda && matchVal.second is Storage.Cpu -> {
                     val (storage2) = matchVal.first as QStorage.Cuda
                     val (src3) = matchVal.second as Storage.Cpu
                     when (val tryResult = storage2.quantizeImatrixOnto(src3, imatrixWeights, nPerRow)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                 }
                 else -> bail("Invalid quantize storage locations do not match")
             }
         }
-        return Ok(Unit)
+        return Result.Ok(Unit)
     }
 
     public fun dequantize(elemCount: Int): Result<Storage> {
         return when (this) {
             is QStorage.Cpu -> {
                 val (storage) = this
-                Ok(
+                Result.Ok(
                     Storage.Cpu(
                         when (val tryResult = storage.dequantize(elemCount)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         },
                     ),
                 )
             }
             is QStorage.Metal -> {
                 val (storage1) = this
-                Ok(
+                Result.Ok(
                     Storage.Metal(
                         when (val tryResult = storage1.dequantize(elemCount)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         },
                     ),
                 )
             }
             is QStorage.Cuda -> {
                 val (storage2) = this
-                Ok(
+                Result.Ok(
                     Storage.Cuda(
                         when (val tryResult = storage2.dequantize(elemCount)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         },
                     ),
                 )
@@ -294,33 +296,33 @@ public sealed class QStorage {
         }
     }
 
-    public fun data(): Result<Cow<List<UByte>>> {
+    public fun data(): Result<List<UByte>> {
         return when (this) {
             is QStorage.Cpu -> {
                 val (storage) = this
                 val dataPtr = storage.asPtr()
                 val sizeInBytes = storage.storageSizeInBytes()
                 val data = fromRawParts(dataPtr, sizeInBytes)
-                Ok(Cow.from(data))
+                Result.Ok(Cow.from(data))
             }
             is QStorage.Cuda -> {
                 val (storage1) = this
-                Ok(
+                Result.Ok(
                     Cow.from(
                         when (val tryResult = storage1.data()) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         },
                     ),
                 )
             }
             is QStorage.Metal -> {
                 val (storage2) = this
-                Ok(
+                Result.Ok(
                     Cow.from(
                         when (val tryResult = storage2.data()) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         },
                     ),
                 )
@@ -357,10 +359,10 @@ public sealed class QStorage {
         }
 
     public companion object {
-        public fun fromData(data: Cow<List<UByte>>, device: Device, dtype: GgmlDType): Result<QStorage> {
+        public fun fromData(data: List<UByte>, device: Device, dtype: GgmlDType): Result<QStorage> {
             val data1: List<UByte> = data
             return when (device) {
-                Device.Cpu -> Ok(QStorage.Cpu(dtype.fromData(Cow.Borrowed(data1))))
+                Device.Cpu -> Result.Ok(QStorage.Cpu(dtype.fromData(data1)))
                 is Device.Metal -> {
                     val (d) = device
                     when (dtype) {
@@ -384,21 +386,51 @@ public sealed class QStorage {
                 is Device.Cuda -> {
                     val (d1) = device
                     when (dtype) {
-                        GgmlDType.f32 -> loadQuantized(d1, asTSlice<Float>(data1, typeLayoutT = PrimitiveLayouts.F32))
-                        GgmlDType.f16 -> loadQuantized(d1, asTSlice<F16>(data1, typeLayoutT = ObjectSlotLayout<F16>()))
-                        GgmlDType.q40 -> loadQuantized(d1, asTSlice<BlockQ40>(data1, typeLayoutT = ObjectSlotLayout<BlockQ40>()))
-                        GgmlDType.q41 -> loadQuantized(d1, asTSlice<BlockQ41>(data1, typeLayoutT = ObjectSlotLayout<BlockQ41>()))
-                        GgmlDType.q50 -> loadQuantized(d1, asTSlice<BlockQ50>(data1, typeLayoutT = ObjectSlotLayout<BlockQ50>()))
-                        GgmlDType.q51 -> loadQuantized(d1, asTSlice<BlockQ51>(data1, typeLayoutT = ObjectSlotLayout<BlockQ51>()))
-                        GgmlDType.q80 -> loadQuantized(d1, asTSlice<BlockQ80>(data1, typeLayoutT = ObjectSlotLayout<BlockQ80>()))
-                        GgmlDType.q81 -> loadQuantized(d1, asTSlice<BlockQ81>(data1, typeLayoutT = ObjectSlotLayout<BlockQ81>()))
-                        GgmlDType.q2k -> loadQuantized(d1, asTSlice<BlockQ2K>(data1, typeLayoutT = ObjectSlotLayout<BlockQ2K>()))
-                        GgmlDType.q3k -> loadQuantized(d1, asTSlice<BlockQ3K>(data1, typeLayoutT = ObjectSlotLayout<BlockQ3K>()))
-                        GgmlDType.q4k -> loadQuantized(d1, asTSlice<BlockQ4K>(data1, typeLayoutT = ObjectSlotLayout<BlockQ4K>()))
-                        GgmlDType.q5k -> loadQuantized(d1, asTSlice<BlockQ5K>(data1, typeLayoutT = ObjectSlotLayout<BlockQ5K>()))
-                        GgmlDType.q6k -> loadQuantized(d1, asTSlice<BlockQ6K>(data1, typeLayoutT = ObjectSlotLayout<BlockQ6K>()))
-                        GgmlDType.q8k -> loadQuantized(d1, asTSlice<BlockQ8K>(data1, typeLayoutT = ObjectSlotLayout<BlockQ8K>()))
-                        GgmlDType.bf16 -> loadQuantized(d1, asTSlice<Bf16>(data1, typeLayoutT = ObjectSlotLayout<Bf16>()))
+                        GgmlDType.f32 ->
+                            io.github.kotlinmania.candle.quantized.cuda
+                                .loadQuantized(d1, asTSlice<Float>(data1, typeLayoutT = PrimitiveLayouts.F32))
+                        GgmlDType.f16 ->
+                            io.github.kotlinmania.candle.quantized.cuda
+                                .loadQuantized(d1, asTSlice<F16>(data1, typeLayoutT = ObjectSlotLayout<F16>()))
+                        GgmlDType.q40 ->
+                            io.github.kotlinmania.candle.quantized.cuda
+                                .loadQuantized(d1, asTSlice<BlockQ40>(data1, typeLayoutT = ObjectSlotLayout<BlockQ40>()))
+                        GgmlDType.q41 ->
+                            io.github.kotlinmania.candle.quantized.cuda
+                                .loadQuantized(d1, asTSlice<BlockQ41>(data1, typeLayoutT = ObjectSlotLayout<BlockQ41>()))
+                        GgmlDType.q50 ->
+                            io.github.kotlinmania.candle.quantized.cuda
+                                .loadQuantized(d1, asTSlice<BlockQ50>(data1, typeLayoutT = ObjectSlotLayout<BlockQ50>()))
+                        GgmlDType.q51 ->
+                            io.github.kotlinmania.candle.quantized.cuda
+                                .loadQuantized(d1, asTSlice<BlockQ51>(data1, typeLayoutT = ObjectSlotLayout<BlockQ51>()))
+                        GgmlDType.q80 ->
+                            io.github.kotlinmania.candle.quantized.cuda
+                                .loadQuantized(d1, asTSlice<BlockQ80>(data1, typeLayoutT = ObjectSlotLayout<BlockQ80>()))
+                        GgmlDType.q81 ->
+                            io.github.kotlinmania.candle.quantized.cuda
+                                .loadQuantized(d1, asTSlice<BlockQ81>(data1, typeLayoutT = ObjectSlotLayout<BlockQ81>()))
+                        GgmlDType.q2k ->
+                            io.github.kotlinmania.candle.quantized.cuda
+                                .loadQuantized(d1, asTSlice<BlockQ2K>(data1, typeLayoutT = ObjectSlotLayout<BlockQ2K>()))
+                        GgmlDType.q3k ->
+                            io.github.kotlinmania.candle.quantized.cuda
+                                .loadQuantized(d1, asTSlice<BlockQ3K>(data1, typeLayoutT = ObjectSlotLayout<BlockQ3K>()))
+                        GgmlDType.q4k ->
+                            io.github.kotlinmania.candle.quantized.cuda
+                                .loadQuantized(d1, asTSlice<BlockQ4K>(data1, typeLayoutT = ObjectSlotLayout<BlockQ4K>()))
+                        GgmlDType.q5k ->
+                            io.github.kotlinmania.candle.quantized.cuda
+                                .loadQuantized(d1, asTSlice<BlockQ5K>(data1, typeLayoutT = ObjectSlotLayout<BlockQ5K>()))
+                        GgmlDType.q6k ->
+                            io.github.kotlinmania.candle.quantized.cuda
+                                .loadQuantized(d1, asTSlice<BlockQ6K>(data1, typeLayoutT = ObjectSlotLayout<BlockQ6K>()))
+                        GgmlDType.q8k ->
+                            io.github.kotlinmania.candle.quantized.cuda
+                                .loadQuantized(d1, asTSlice<BlockQ8K>(data1, typeLayoutT = ObjectSlotLayout<BlockQ8K>()))
+                        GgmlDType.bf16 ->
+                            io.github.kotlinmania.candle.quantized.cuda
+                                .loadQuantized(d1, asTSlice<Bf16>(data1, typeLayoutT = ObjectSlotLayout<Bf16>()))
                     }
                 }
             }
@@ -465,10 +497,15 @@ public enum class GgmlDType(
             GgmlDType.q5k -> mutableListOf(BlockQ5K.zeros(), elemCount / BlockQ5K.BLCK_SIZE)
             GgmlDType.q6k -> mutableListOf(BlockQ6K.zeros(), elemCount / BlockQ6K.BLCK_SIZE)
             GgmlDType.q8k -> mutableListOf(BlockQ8K.zeros(), elemCount / BlockQ8K.BLCK_SIZE)
-            GgmlDType.bf16 -> mutableListOf(zeros(), elemCount)
+            GgmlDType.bf16 ->
+                mutableListOf(
+                    io.github.kotlinmania.bf16
+                        .zeros(),
+                    elemCount,
+                )
         }
 
-    public fun fromData(data: Cow<List<UByte>>): QuantizedType {
+    public fun fromData(data: List<UByte>): QuantizedType {
         val data1: List<UByte> = data
         return when (this) {
             GgmlDType.f32 -> asTSlice<Float>(data1, typeLayoutT = PrimitiveLayouts.F32).toVec()
@@ -549,7 +586,7 @@ public enum class GgmlDType(
                     30 -> GgmlDType.BF16
                     else -> bail("unknown dtype for tensor {u}")
                 }
-            return Ok(dtype)
+            return Result.Ok(dtype)
         }
     }
 }
@@ -558,9 +595,9 @@ public enum class GgmlDType(
 public interface QuantizedType {
     public fun dtype(): GgmlDType
 
-    public fun matmulT(mkn: Triple<Int, Int, Int>, lhs: List<Float>, dst: List<Float>): Result<Unit>
+    public fun matmulT(mkn: Triple<Int, Int, Int>, lhs: List<Float>, dst: MutableList<Float>): Result<Unit>
 
-    public fun matmulTF16(mkn: Triple<Int, Int, Int>, lhs: List<F16>, dst: List<F16>): Result<Unit>
+    public fun matmulTF16(mkn: Triple<Int, Int, Int>, lhs: List<F16>, dst: MutableList<F16>): Result<Unit>
 
     public fun embedding(ids: List<UInt>, rows: Int, hidden: Int): Result<CpuStorage>
 
@@ -602,15 +639,15 @@ public sealed class QMatMul : Module {
             }
             is TensorF16 -> {
                 val (t2) = this
-                Ok(t2.clone())
+                Result.Ok(t2.clone())
             }
         }
 
     public fun forwardViaF16(xs: Tensor): Result<Tensor> {
         val w =
             when (val tryResult = this.dequantizeF16()) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val inDtype = xs.dtype()
         val w1 =
@@ -623,12 +660,12 @@ public sealed class QMatMul : Module {
                         when (
                             val tryResult =
                                 when (val tryResult = w.broadcastLeft(Pair(b1, b2))) {
-                                    is Result.Ok -> tryResult.value
-                                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                    is Result.Ok<*> -> tryResult.value
+                                    is Result.Err<*> -> return Result.Err(tryResult.error)
                                 }.t()
                         ) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     }
                     matchVal.size == 3 -> {
@@ -636,30 +673,30 @@ public sealed class QMatMul : Module {
                         when (
                             val tryResult =
                                 when (val tryResult = w.broadcastLeft(bsize)) {
-                                    is Result.Ok -> tryResult.value
-                                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                    is Result.Ok<*> -> tryResult.value
+                                    is Result.Err<*> -> return Result.Err(tryResult.error)
                                 }.t()
                         ) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     }
                     else ->
                         when (val tryResult = w.t()) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                 }
             }
         return when (
             val tryResult =
                 when (val tryResult = xs.toDtype(DType.F16)) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }.matmul(w1)
         ) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }.toDtype(inDtype)
     }
 
@@ -685,24 +722,24 @@ public sealed class QMatMul : Module {
                 var finalDims = ids.dims().toVec()
                 finalDims.push(
                     when (val tryResult = w.dim(D.Minus1)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     },
                 )
                 val ids1 =
                     when (
                         val tryResult =
                             when (val tryResult = ids.toDevice(w.device())) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }.flattenAll()
                     ) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                 when (val tryResult = w.indexSelect(ids1, 0)) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }.reshape(finalDims)
             }
             is TensorF16 -> {
@@ -710,24 +747,24 @@ public sealed class QMatMul : Module {
                 var finalDims1 = ids.dims().toVec()
                 finalDims1.push(
                     when (val tryResult = w1.dim(D.Minus1)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     },
                 )
                 val ids2 =
                     when (
                         val tryResult =
                             when (val tryResult = ids.toDevice(w1.device())) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }.flattenAll()
                     ) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                 when (val tryResult = w1.indexSelect(ids2, 0)) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }.reshape(finalDims1)
             }
         }
@@ -751,12 +788,12 @@ public sealed class QMatMul : Module {
                                 when (
                                     val tryResult =
                                         when (val tryResult = w.broadcastLeft(Pair(b1, b2))) {
-                                            is Result.Ok -> tryResult.value
-                                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                            is Result.Ok<*> -> tryResult.value
+                                            is Result.Err<*> -> return Result.Err(tryResult.error)
                                         }.t()
                                 ) {
-                                    is Result.Ok -> tryResult.value
-                                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                    is Result.Ok<*> -> tryResult.value
+                                    is Result.Err<*> -> return Result.Err(tryResult.error)
                                 }
                             }
                             matchVal.size == 3 -> {
@@ -764,18 +801,18 @@ public sealed class QMatMul : Module {
                                 when (
                                     val tryResult =
                                         when (val tryResult = w.broadcastLeft(bsize)) {
-                                            is Result.Ok -> tryResult.value
-                                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                            is Result.Ok<*> -> tryResult.value
+                                            is Result.Err<*> -> return Result.Err(tryResult.error)
                                         }.t()
                                 ) {
-                                    is Result.Ok -> tryResult.value
-                                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                    is Result.Ok<*> -> tryResult.value
+                                    is Result.Err<*> -> return Result.Err(tryResult.error)
                                 }
                             }
                             else ->
                                 when (val tryResult = w.t()) {
-                                    is Result.Ok -> tryResult.value
-                                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                    is Result.Ok<*> -> tryResult.value
+                                    is Result.Err<*> -> return Result.Err(tryResult.error)
                                 }
                         }
                     }
@@ -794,12 +831,12 @@ public sealed class QMatMul : Module {
                                 when (
                                     val tryResult =
                                         when (val tryResult = w2.broadcastLeft(Pair(b11, b21))) {
-                                            is Result.Ok -> tryResult.value
-                                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                            is Result.Ok<*> -> tryResult.value
+                                            is Result.Err<*> -> return Result.Err(tryResult.error)
                                         }.t()
                                 ) {
-                                    is Result.Ok -> tryResult.value
-                                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                    is Result.Ok<*> -> tryResult.value
+                                    is Result.Err<*> -> return Result.Err(tryResult.error)
                                 }
                             }
                             matchVal1.size == 3 -> {
@@ -807,30 +844,30 @@ public sealed class QMatMul : Module {
                                 when (
                                     val tryResult =
                                         when (val tryResult = w2.broadcastLeft(bsize1)) {
-                                            is Result.Ok -> tryResult.value
-                                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                            is Result.Ok<*> -> tryResult.value
+                                            is Result.Err<*> -> return Result.Err(tryResult.error)
                                         }.t()
                                 ) {
-                                    is Result.Ok -> tryResult.value
-                                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                    is Result.Ok<*> -> tryResult.value
+                                    is Result.Err<*> -> return Result.Err(tryResult.error)
                                 }
                             }
                             else ->
                                 when (val tryResult = w2.t()) {
-                                    is Result.Ok -> tryResult.value
-                                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                    is Result.Ok<*> -> tryResult.value
+                                    is Result.Err<*> -> return Result.Err(tryResult.error)
                                 }
                         }
                     }
                 when (
                     val tryResult =
                         when (val tryResult = xs.toDtype(DType.F16)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }.matmul(w3)
                 ) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }.toDtype(inDtype)
             }
         }
@@ -847,21 +884,21 @@ public sealed class QMatMul : Module {
                 if (dequantize) {
                     val tensor =
                         when (val tryResult = qtensor.dequantize(qtensor.device())) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     QMatMul.Tensor(tensor)
                 } else if (DEQUANTIZE_ALL_F16.with({ b -> b })) {
                     val tensor1 =
                         when (val tryResult = qtensor.dequantizeF16(qtensor.device())) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     QMatMul.TensorF16(tensor1)
                 } else {
                     QMatMul.QTensor(qtensor)
                 }
-            return Ok(t)
+            return Result.Ok(t)
         }
 
         public fun fromQtensor(qtensor: QTensor): Result<QMatMul> = QMatMul.fromArc(qtensor)

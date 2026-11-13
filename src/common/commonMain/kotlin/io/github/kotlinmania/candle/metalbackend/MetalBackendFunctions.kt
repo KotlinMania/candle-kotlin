@@ -21,13 +21,10 @@ import io.github.kotlinmania.candlemetalkernels.metal.Buffer
 import io.github.kotlinmania.candlemetalkernels.metal.Commands
 import io.github.kotlinmania.candlemetalkernels.metal.ResidencySet
 import io.github.kotlinmania.objc2foundation.NSRange
-import io.github.kotlinmania.objc2foundation.NSString
+import io.github.kotlinmania.rustlang.core.F16
 import io.github.kotlinmania.rustlang.core.mem.PrimitiveLayouts
 import io.github.kotlinmania.rustlang.core.mem.constPtrFromRustCast
 import io.github.kotlinmania.rustlang.core.mem.mutPtrFromRustCast
-import io.github.kotlinmania.rustlang.core.result.fromResidual
-import io.github.kotlinmania.rustlang.std.sync.Mutex
-import io.github.kotlinmania.rustlang.std.sync.RwLock
 
 public typealias Storage = MetalStorage
 
@@ -40,30 +37,28 @@ public fun <T> readToVec(buffer: Buffer, n: Int): List<T> {
     return slice.toVec()
 }
 
-public fun backendDeviceMetalDevice(ordinal: Int): Result<MetalDevice> {
+public fun backendDeviceNewMetalDevice(ordinal: Int): Result<MetalDevice> {
     val device = Device.all().swapRemove(ordinal)
     val commandQueue =
         when (val tryResult = device.newCommandQueue().mapErr(MetalError::from)) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
-    commandQueue.setLabel(NSString.fromStr("candle-metal"))
     val kernels = Kernels.new()
     val residencySet = ResidencySet.new(device)
     val seedBuf =
         when (val tryResult = device.newBufferWithData(constPtrFromRustCast(listOf(299792458uL).asPtr()), sizeOf<ULong>(typeLayoutT = PrimitiveLayouts.U64), RESOURCE_OPTIONS).mapErr(MetalError::from)) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
-    seedBuf.setLabel("rng_seed")
     residencySet.insert(seedBuf)
     val seed = Mutex.new(seedBuf)
     val commands =
         when (val tryResult = Commands.new(commandQueue, residencySet).mapErr(MetalError::from)) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
-    return Ok(MetalDevice(id = DeviceId.new(), device = device, commands = commands, buffers = RwLock.new(HashMap.new()), privateBuffers = RwLock.new(HashMap.new()), kernels = kernels, seed = seed, seedValue = RwLock.new(299792458), residencySet = residencySet))
+    return Result.Ok(MetalDevice(id = DeviceId.new(), device = device, commands = commands, buffers = RwLock.new(mutableMapOf()), privateBuffers = RwLock.new(mutableMapOf()), kernels = kernels, seed = seed, seedValue = RwLock.new(299792458), residencySet = residencySet))
 }
 
 public fun MetalDevice.location(): DeviceLocation = DeviceLocation.Metal(gpuId = this.registryId().toInt())
@@ -80,10 +75,10 @@ public fun MetalDevice.allocUninit(shape: Shape, dtype: DType): Result<MetalStor
                     .withLabel("alloc-uninit")
                     .build()
         ) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
-    return Ok(MetalStorage.new(buffer, this.clone(), shape.elemCount(), dtype))
+    return Result.Ok(MetalStorage.new(buffer, this.clone(), shape.elemCount(), dtype))
 }
 
 public fun MetalDevice.zerosImpl(shape: Shape, dtype: DType): Result<MetalStorage> {
@@ -97,10 +92,10 @@ public fun MetalDevice.zerosImpl(shape: Shape, dtype: DType): Result<MetalStorag
                     .withLabel("zeros")
                     .build()
         ) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
-    return Ok(MetalStorage.new(buffer, this.clone(), shape.elemCount(), dtype))
+    return Result.Ok(MetalStorage.new(buffer, this.clone(), shape.elemCount(), dtype))
 }
 
 public fun <T : WithDType> MetalDevice.storageFromSlice(s: List<T>, cpuStorageRefTFn: (Any?) -> Any?): Result<MetalStorage> {
@@ -218,23 +213,23 @@ public fun <T : WithDType> MetalDevice.storageFromSlice(s: List<T>, cpuStorageRe
                 )
             }
             is CpuStorageRef.F6e2m3 -> {
-                return Err(Error.UnsupportedDTypeForOp(T.DTYPE, "to_dtype").bt())
+                return Result.Err(Error.UnsupportedDTypeForOp(T.DTYPE, "to_dtype").bt())
             }
             is CpuStorageRef.F6e3m2 -> {
-                return Err(Error.UnsupportedDTypeForOp(T.DTYPE, "to_dtype").bt())
+                return Result.Err(Error.UnsupportedDTypeForOp(T.DTYPE, "to_dtype").bt())
             }
             is CpuStorageRef.F4 -> {
-                return Err(Error.UnsupportedDTypeForOp(T.DTYPE, "to_dtype").bt())
+                return Result.Err(Error.UnsupportedDTypeForOp(T.DTYPE, "to_dtype").bt())
             }
             is CpuStorageRef.F8e8m0 -> {
-                return Err(Error.UnsupportedDTypeForOp(T.DTYPE, "to_dtype").bt())
+                return Result.Err(Error.UnsupportedDTypeForOp(T.DTYPE, "to_dtype").bt())
             }
         }
-    return Ok(
+    return Result.Ok(
         MetalDevice.Storage.new(
             when (val tryResult = buffer) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             },
             this.clone(),
             count,
@@ -358,23 +353,23 @@ public fun MetalDevice.storageFromCpuStorage(storage: CpuStorage): Result<MetalS
                 )
             }
             is CpuStorage.F6e2m3 -> {
-                return Err(Error.UnsupportedDTypeForOp(storage.dtype(), "to_dtype").bt())
+                return Result.Err(Error.UnsupportedDTypeForOp(storage.dtype(), "to_dtype").bt())
             }
             is CpuStorage.F6e3m2 -> {
-                return Err(Error.UnsupportedDTypeForOp(storage.dtype(), "to_dtype").bt())
+                return Result.Err(Error.UnsupportedDTypeForOp(storage.dtype(), "to_dtype").bt())
             }
             is CpuStorage.F4 -> {
-                return Err(Error.UnsupportedDTypeForOp(storage.dtype(), "to_dtype").bt())
+                return Result.Err(Error.UnsupportedDTypeForOp(storage.dtype(), "to_dtype").bt())
             }
             is CpuStorage.F8e8m0 -> {
-                return Err(Error.UnsupportedDTypeForOp(storage.dtype(), "to_dtype").bt())
+                return Result.Err(Error.UnsupportedDTypeForOp(storage.dtype(), "to_dtype").bt())
             }
         }
-    return Ok(
+    return Result.Ok(
         MetalDevice.Storage.new(
             when (val tryResult = buffer) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             },
             this.clone(),
             count,
@@ -405,19 +400,19 @@ public fun MetalDevice.randUniform(shape: Shape, dtype: DType, min: Double, max:
                     .withLabel("rand_uniform")
                     .build()
         ) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
     val encoder =
         when (val tryResult = this.commandEncoder()) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
     when (val tryResult = callRandomUniform(this.device, encoder, this.kernels, name, min.toFloat(), max.toFloat(), shape.elemCount(), this.seed.lock().unwrap(), buffer).mapErr(MetalError::from)) {
-        is Result.Ok -> tryResult.value
-        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+        is Result.Ok<*> -> tryResult.value
+        is Result.Err<*> -> return Result.Err(tryResult.error)
     }
-    return Ok(MetalDevice.Storage.new(buffer, this.clone(), shape.elemCount(), dtype))
+    return Result.Ok(MetalDevice.Storage.new(buffer, this.clone(), shape.elemCount(), dtype))
 }
 
 public fun MetalDevice.randNormal(shape: Shape, dtype: DType, mean: Double, stddev: Double): Result<MetalStorage> {
@@ -440,36 +435,36 @@ public fun MetalDevice.randNormal(shape: Shape, dtype: DType, mean: Double, stdd
                     .withLabel("rand_normal")
                     .build()
         ) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
     val encoder =
         when (val tryResult = this.commandEncoder()) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
     when (val tryResult = callRandomNormal(this.device, encoder, this.kernels, name, mean.toFloat(), stddev.toFloat(), shape.elemCount(), this.seed.lock().unwrap(), buffer).mapErr(MetalError::from)) {
-        is Result.Ok -> tryResult.value
-        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+        is Result.Ok<*> -> tryResult.value
+        is Result.Err<*> -> return Result.Err(tryResult.error)
     }
-    return Ok(MetalDevice.Storage.new(buffer, this.clone(), shape.elemCount(), dtype))
+    return Result.Ok(MetalDevice.Storage.new(buffer, this.clone(), shape.elemCount(), dtype))
 }
 
 public fun MetalDevice.setSeed(seed: ULong): Result<Unit> {
     this.seedValue.write().unwrap() = seed
     val seedBuffer =
         when (val tryResult = this.seed.tryLock().mapErr(MetalError::from)) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
     val contents = seedBuffer.data()
     run {
         copyNonoverlapping(listOf(seed).asPtr(), mutPtrFromRustCast(contents), 1)
     }
     seedBuffer.didModifyRange(NSRange.new(0, 8))
-    return Ok(Unit)
+    return Result.Ok(Unit)
 }
 
-public fun MetalDevice.getCurrentSeed(): Result<ULong> = Ok(this.seedValue.read().unwrap())
+public fun MetalDevice.getCurrentSeed(): Result<ULong> = Result.Ok(this.seedValue.read().unwrap())
 
 public fun MetalDevice.synchronize(): Result<Unit> = this.waitUntilCompleted()

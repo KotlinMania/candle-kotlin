@@ -107,8 +107,8 @@ public class CurrentCpuF16 : CpuF16 {
         public fun vecStore(memAddr: MutPtr, a: V128) {
             val values = List(EPR) { 0.0f }
             v128Store(values.asMutPtr().cast(), a)
-            for ((i, value) in values.intoIter().enumerate()) {
-                (ObjectSlotLayout<F16>()).writeNative((MutPtr((memAddr).rawAddress + ((i).toLong() * (ObjectSlotLayout<F16>()).strideBytes))).rawAddress, fromF32(value))
+            for ((i, value) in values.intoIter().mapIndexed { index, item -> Pair(index, item) }) {
+                (ObjectSlotLayout<F16>()).writeNative((MutPtr((memAddr).rawAddress + ((i).toLong() * (ObjectSlotLayout<F16>()).strideBytes))).rawAddress, F16.fromF32(value))
             }
         }
 
@@ -156,8 +156,8 @@ public class CurrentCpuBF16 : CpuBF16 {
         public fun vecStore(memAddr: MutPtr, a: V128) {
             val values = List(EPR) { 0.0f }
             v128Store(values.asMutPtr().cast(), a)
-            for ((i, value) in values.intoIter().enumerate()) {
-                (ObjectSlotLayout<Bf16>()).writeNative((MutPtr((memAddr).rawAddress + ((i).toLong() * (ObjectSlotLayout<Bf16>()).strideBytes))).rawAddress, fromF32(value))
+            for ((i, value) in values.intoIter().mapIndexed { index, item -> Pair(index, item) }) {
+                (ObjectSlotLayout<Bf16>()).writeNative((MutPtr((memAddr).rawAddress + ((i).toLong() * (ObjectSlotLayout<Bf16>()).strideBytes))).rawAddress, Bf16.fromF32(value))
             }
         }
 

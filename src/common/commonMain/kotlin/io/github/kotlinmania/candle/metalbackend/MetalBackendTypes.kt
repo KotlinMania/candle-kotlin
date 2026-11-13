@@ -2,8 +2,6 @@ package io.github.kotlinmania.candle.metalbackend
 
 import io.github.kotlinmania.candle.dtype.DType
 import io.github.kotlinmania.candlemetalkernels.MetalKernelError
-import io.github.kotlinmania.rustlang.std.sync.PoisonError
-import io.github.kotlinmania.rustlang.std.sync.TryLockError
 
 /**
  * Simple way to catch lock error without
@@ -19,7 +17,7 @@ public sealed class LockError {
 /**
  * Metal related errors
  */
-public sealed class MetalError : From<TryLockError<T>> {
+public sealed class MetalError {
     public data class Message(
         public var value: String,
     ) : MetalError()

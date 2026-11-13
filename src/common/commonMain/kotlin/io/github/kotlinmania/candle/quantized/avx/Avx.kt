@@ -263,7 +263,7 @@ internal fun vecDotQ3kQ8k(n: Int, xs: List<BlockQ3K>, ys: List<BlockQ8K>): Float
             // high bit
             val hbits = mm256LoaduSi256(constPtrFromRustCast(x.hmask.asPtr()))
             var sumi = mm256SetzeroSi256()
-            for ((j, scale) in scales.iter().enumerate()) {
+            for ((j, scale) in scales.iter().mapIndexed { index, item -> Pair(index, item) }) {
                 // load low 2 bits
                 val q3bits = mm256LoaduSi256(constPtrFromRustCast(q3))
                 q3 = q3.add(32)

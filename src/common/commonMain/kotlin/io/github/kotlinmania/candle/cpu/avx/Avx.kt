@@ -12,7 +12,6 @@ import io.github.kotlinmania.rustlang.core.mem.PrimitiveLayouts
 import io.github.kotlinmania.rustlang.core.mem.TypeLayout
 import io.github.kotlinmania.rustlang.core.ptr.ConstPtr
 import io.github.kotlinmania.rustlang.core.ptr.MutPtr
-import io.github.kotlinmania.rustlang.std.mem.transmute
 
 public class CurrentCpu : Cpu {
     public companion object {
@@ -118,7 +117,7 @@ public class CurrentCpuF16 : CpuF16 {
             val tmp = List(8) { 0.0f }
             mm256StoreuPs(tmp.asMutPtr(), a)
             for (i in 0 until 8) {
-                (ObjectSlotLayout<F16>()).writeNative((MutPtr((memAddr).rawAddress + ((i).toLong() * (ObjectSlotLayout<F16>()).strideBytes))).rawAddress, fromF32(tmp[i]))
+                (ObjectSlotLayout<F16>()).writeNative((MutPtr((memAddr).rawAddress + ((i).toLong() * (ObjectSlotLayout<F16>()).strideBytes))).rawAddress, F16.fromF32(tmp[i]))
             }
         }
 
@@ -189,7 +188,7 @@ public class CurrentCpuBF16 : CpuBF16 {
                 val tmp = List(8) { 0.0f }
                 mm256StoreuPs(tmp.asMutPtr(), a)
                 for (i in 0 until 8) {
-                    (ObjectSlotLayout<Bf16>()).writeNative((MutPtr((memAddr).rawAddress + ((i).toLong() * (ObjectSlotLayout<Bf16>()).strideBytes))).rawAddress, fromF32(tmp[i]))
+                    (ObjectSlotLayout<Bf16>()).writeNative((MutPtr((memAddr).rawAddress + ((i).toLong() * (ObjectSlotLayout<Bf16>()).strideBytes))).rawAddress, Bf16.fromF32(tmp[i]))
                 }
             }
         }

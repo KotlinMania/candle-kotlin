@@ -143,7 +143,7 @@ public fun nthJumpsToOuterBlock() {
     val lhs = Layout.new(Shape.from(mutableListOf(2, 3, 4)), mutableListOf(40, 10, 1), 5)
     val rhs = Layout.new(Shape.from(mutableListOf(2, 3, 4)), mutableListOf(50, 12, 1), 7)
     val expected: Vec = NdIter.new(listOf(lhs, rhs)).collect()
-    for ((n, offsets) in expected.iter().enumerate()) {
+    for ((n, offsets) in expected.iter().mapIndexed { index, item -> Pair(index, item) }) {
         check(NdIter.new(listOf(lhs, rhs)).nth(n) == offsets)
     }
     check(NdIter.new(listOf(lhs, rhs)).nth(expected.len()) == null)

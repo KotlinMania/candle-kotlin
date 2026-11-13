@@ -1,11 +1,12 @@
 package io.github.kotlinmania.candle.cpubackend
 
-import io.github.kotlinmania.candle.accelerate.dgemm
-import io.github.kotlinmania.candle.accelerate.sgemm
+import io.github.kotlinmania.bf16.ZERO
+import io.github.kotlinmania.bf16.fromF64
 import io.github.kotlinmania.candle.backend.BackendDevice
 import io.github.kotlinmania.candle.conv.ParamsConv1D
 import io.github.kotlinmania.candle.conv.ParamsConvTranspose1D
 import io.github.kotlinmania.candle.conv.ParamsConvTranspose2D
+import io.github.kotlinmania.candle.cpu.Cpu
 import io.github.kotlinmania.candle.cpubackend.utils.Map1
 import io.github.kotlinmania.candle.cpubackend.utils.Map1Any
 import io.github.kotlinmania.candle.cpubackend.utils.Map2
@@ -24,7 +25,6 @@ import io.github.kotlinmania.candle.error.MatMulUnexpectedStriding
 import io.github.kotlinmania.candle.error.Result
 import io.github.kotlinmania.candle.error.bail
 import io.github.kotlinmania.candle.layout.Layout
-import io.github.kotlinmania.candle.mkl.hgemm
 import io.github.kotlinmania.candle.nditer.NdIter
 import io.github.kotlinmania.candle.op.CmpOp
 import io.github.kotlinmania.candle.shape.Shape
@@ -36,28 +36,29 @@ import io.github.kotlinmania.half.Bf16
 import io.github.kotlinmania.half.F16
 import io.github.kotlinmania.numtraits.Float
 import io.github.kotlinmania.numtraits.Num
+import io.github.kotlinmania.rand.distr.Uniform
 import io.github.kotlinmania.rand.prelude.*
 import io.github.kotlinmania.rand.rng
+import io.github.kotlinmania.randdistr.Normal
 import io.github.kotlinmania.rayon.prelude.*
+import io.github.kotlinmania.rustlang.core.mem.MaybeUninit
 import io.github.kotlinmania.rustlang.core.mem.ObjectSlotLayout
 import io.github.kotlinmania.rustlang.core.mem.PrimitiveLayouts
 import io.github.kotlinmania.rustlang.core.mem.TypeLayout
-import io.github.kotlinmania.rustlang.core.mem.constPtrFromRustCast
 import io.github.kotlinmania.rustlang.core.mem.mutPtrFromRustCast
-import io.github.kotlinmania.rustlang.core.result.fromResidual
 
 public typealias Storage = CpuStorage
 
-public class CpuDevice : BackendDevice {
-    public fun location(): DeviceLocation = DeviceLocation.Cpu
+public class CpuDevice : BackendDevice<CpuStorage> {
+    public fun location(): DeviceLocation = Cpu
 
     public fun sameDevice(arg0: CpuDevice): Boolean = true
 
-    public fun <T : WithDType> storageFromSlice(s: List<T>, toCpuStorageTFn: (Any?) -> Any?): Result<CpuStorage> = Ok(toCpuStorageTFn(s))
+    public fun <T : WithDType> storageFromSlice(s: List<T>, toCpuStorageTFn: (Any?) -> Any?): Result<CpuStorage> = Result.Ok(toCpuStorageTFn(s))
 
-    public fun storageFromCpuStorage(s: CpuStorage): Result<CpuStorage> = Ok(s.clone())
+    public fun storageFromCpuStorage(s: CpuStorage): Result<CpuStorage> = Result.Ok(s.clone())
 
-    public fun storageFromCpuStorageOwned(s: CpuStorage): Result<CpuStorage> = Ok(s)
+    public fun storageFromCpuStorageOwned(s: CpuStorage): Result<CpuStorage> = Result.Ok(s)
 
     public fun setSeed(seed: ULong): Result<Unit> = bail("cannot seed the CPU rng with set_seed")
 
@@ -67,66 +68,75 @@ public class CpuDevice : BackendDevice {
         val elemCount = shape.elemCount()
         val rng = rng()
         return when (dtype) {
-            DType.u8, DType.u32, DType.i16, DType.i32, DType.i64, DType.f6e2m3, DType.f6e3m2, DType.f4, DType.f8e8m0 -> Err(Error.UnsupportedDTypeForOp(dtype, "rand_uniform").bt())
+            DType.u8, DType.u32, DType.i16, DType.i32, DType.i64, DType.f6e2m3, DType.f6e3m2, DType.f4, DType.f8e8m0 -> Result.Err(Error.UnsupportedDTypeForOp(dtype, "rand_uniform").bt())
             DType.bf16 -> {
                 val data = ArrayList(elemCount)
                 val uniform =
                     when (val tryResult = Uniform.new(fromF64(min), fromF64(max)).mapErr(Error::wrap)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                 for (i in 0 until elemCount) {
                     data.add(rng.sample<Bf16>(uniform))
                 }
-                Ok(CpuStorage.bf16(data))
+                Result.Ok(CpuStorage.bf16(data))
             }
             DType.f16 -> {
                 val data1 = ArrayList(elemCount)
                 val uniform1 =
-                    when (val tryResult = Uniform.new(fromF64(min), fromF64(max)).mapErr(Error::wrap)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    when (
+                        val tryResult =
+                            Uniform
+                                .new(
+                                    io.github.kotlinmania.f16
+                                        .fromF64(min),
+                                    io.github.kotlinmania.f16
+                                        .fromF64(max),
+                                ).mapErr(Error::wrap)
+                    ) {
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                 for (i1 in 0 until elemCount) {
                     data1.add(rng.sample<F16>(uniform1))
                 }
-                Ok(CpuStorage.f16(data1))
+                Result.Ok(CpuStorage.f16(data1))
             }
             DType.f8e4m3 -> {
                 val data2 = ArrayList(elemCount)
                 val uniform2 =
                     when (val tryResult = Uniform.new(F8e4m3.fromF64(min), F8e4m3.fromF64(max)).mapErr(Error::wrap)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                 for (i2 in 0 until elemCount) {
                     data2.add(rng.sample<F8e4m3>(uniform2))
                 }
-                Ok(CpuStorage.f8e4m3(data2))
+                Result.Ok(CpuStorage.f8e4m3(data2))
             }
             DType.f32 -> {
                 val data3 = ArrayList(elemCount)
                 val uniform3 =
                     when (val tryResult = Uniform.new(min.toFloat(), max.toFloat()).mapErr(Error::wrap)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                 for (i3 in 0 until elemCount) {
                     data3.add(rng.sample<Float>(uniform3))
                 }
-                Ok(CpuStorage.f32(data3))
+                Result.Ok(CpuStorage.f32(data3))
             }
             DType.f64 -> {
                 val data4 = ArrayList(elemCount)
                 val uniform4 =
                     when (val tryResult = Uniform.new(min, max).mapErr(Error::wrap)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                 for (i4 in 0 until elemCount) {
                     data4.add(rng.sample<Double>(uniform4))
                 }
-                Ok(CpuStorage.f64(data4))
+                Result.Ok(CpuStorage.f64(data4))
             }
         }
     }
@@ -135,66 +145,75 @@ public class CpuDevice : BackendDevice {
         val elemCount = shape.elemCount()
         val rng = rng()
         return when (dtype) {
-            DType.u8, DType.u32, DType.i16, DType.i32, DType.i64, DType.f6e2m3, DType.f6e3m2, DType.f4, DType.f8e8m0 -> Err(Error.UnsupportedDTypeForOp(dtype, "rand_normal").bt())
+            DType.u8, DType.u32, DType.i16, DType.i32, DType.i64, DType.f6e2m3, DType.f6e3m2, DType.f4, DType.f8e8m0 -> Result.Err(Error.UnsupportedDTypeForOp(dtype, "rand_normal").bt())
             DType.bf16 -> {
                 val data = ArrayList(elemCount)
                 val normal =
                     when (val tryResult = Normal.new(fromF64(mean), fromF64(std)).mapErr(Error::wrap)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                 for (i in 0 until elemCount) {
                     data.add(normal.sample(rng))
                 }
-                Ok(CpuStorage.bf16(data))
+                Result.Ok(CpuStorage.bf16(data))
             }
             DType.f16 -> {
                 val data1 = ArrayList(elemCount)
                 val normal1 =
-                    when (val tryResult = Normal.new(fromF64(mean), fromF64(std)).mapErr(Error::wrap)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    when (
+                        val tryResult =
+                            Normal
+                                .new(
+                                    io.github.kotlinmania.f16
+                                        .fromF64(mean),
+                                    io.github.kotlinmania.f16
+                                        .fromF64(std),
+                                ).mapErr(Error::wrap)
+                    ) {
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                 for (i1 in 0 until elemCount) {
                     data1.add(normal1.sample(rng))
                 }
-                Ok(CpuStorage.f16(data1))
+                Result.Ok(CpuStorage.f16(data1))
             }
             DType.f8e4m3 -> {
                 val data2 = ArrayList(elemCount)
                 val normal2 =
                     when (val tryResult = Normal.new(F8e4m3.fromF64(mean), F8e4m3.fromF64(std)).mapErr(Error::wrap)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                 for (i2 in 0 until elemCount) {
                     data2.add(normal2.sample(rng))
                 }
-                Ok(CpuStorage.f8e4m3(data2))
+                Result.Ok(CpuStorage.f8e4m3(data2))
             }
             DType.f32 -> {
                 val data3 = ArrayList(elemCount)
                 val normal3 =
                     when (val tryResult = Normal.new(mean.toFloat(), std.toFloat()).mapErr(Error::wrap)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                 for (i3 in 0 until elemCount) {
                     data3.add(normal3.sample(rng))
                 }
-                Ok(CpuStorage.f32(data3))
+                Result.Ok(CpuStorage.f32(data3))
             }
             DType.f64 -> {
                 val data4 = ArrayList(elemCount)
                 val normal4 =
                     when (val tryResult = Normal.new(mean, std).mapErr(Error::wrap)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                 for (i4 in 0 until elemCount) {
                     data4.add(normal4.sample(rng))
                 }
-                Ok(CpuStorage.f64(data4))
+                Result.Ok(CpuStorage.f64(data4))
             }
         }
     }
@@ -258,10 +277,10 @@ public class CpuDevice : BackendDevice {
                     CpuStorage.f8e4m3(v9)
                 }
                 DType.f6e2m3, DType.f6e3m2, DType.f4, DType.f8e8m0 -> {
-                    return Err(Error.UnsupportedDTypeForOp(dtype, "alloc_uninit").bt())
+                    return Result.Err(Error.UnsupportedDTypeForOp(dtype, "alloc_uninit").bt())
                 }
             }
-        return Ok(storage)
+        return Result.Ok(storage)
     }
 
     public fun zerosImpl(shape: Shape, dtype: DType): Result<CpuStorage> {
@@ -274,18 +293,18 @@ public class CpuDevice : BackendDevice {
                 DType.i32 -> CpuStorage.i32(mutableListOf(0, elemCount))
                 DType.i64 -> CpuStorage.i64(mutableListOf(0L, elemCount))
                 DType.bf16 -> CpuStorage.bf16(mutableListOf(ZERO, elemCount))
-                DType.f16 -> CpuStorage.f16(mutableListOf(ZERO, elemCount))
+                DType.f16 -> CpuStorage.f16(mutableListOf(io.github.kotlinmania.f16.ZERO, elemCount))
                 DType.f32 -> CpuStorage.f32(mutableListOf(0.0f, elemCount))
                 DType.f64 -> CpuStorage.f64(mutableListOf(0.0, elemCount))
                 DType.f8e4m3 -> CpuStorage.f8e4m3(mutableListOf(F8e4m3.ZERO, elemCount))
                 DType.f6e2m3, DType.f6e3m2, DType.f4, DType.f8e8m0 -> {
-                    return Err(Error.UnsupportedDTypeForOp(dtype, "zeros").bt())
+                    return Result.Err(Error.UnsupportedDTypeForOp(dtype, "zeros").bt())
                 }
             }
-        return Ok(storage)
+        return Result.Ok(storage)
     }
 
-    public fun synchronize(): Result<Unit> = Ok(Unit)
+    public fun synchronize(): Result<Unit> = Result.Ok(Unit)
 
     public companion object {
         public fun typeLayout(): io.github.kotlinmania.rustlang.core.mem.TypeLayout<CpuDevice> =
@@ -298,7 +317,7 @@ public class CpuDevice : BackendDevice {
                 }
             }
 
-        public fun new(arg0: ULong): Result<CpuDevice> = Ok(CpuDevice)
+        public fun new(arg0: ULong): Result<CpuDevice> = Result.Ok(CpuDevice)
     }
 }
 
@@ -321,7 +340,7 @@ public class Cmp(
                 CmpOp.Gt -> binaryMap(lhsL, rhsL, lhs, rhs, { x, y -> UByte.from(x > y) })
                 CmpOp.Ge -> binaryMap(lhsL, rhsL, lhs, rhs, { x, y -> UByte.from(x >= y) })
             }
-        return Ok(dst)
+        return Result.Ok(dst)
     }
 
     public companion object {
@@ -348,12 +367,12 @@ public fun <I : IntDType, T : WithDType> WCond<I>.f(t: List<T>, tL: Layout, f: L
                     val oT2 = matchVal.second.second
                     val oF1 = matchVal.third.first
                     val oF2 = matchVal.third.second
-                    val pred = ((this.value).slice(o1 until o2))
+                    val pred = ((this.field0).slice(o1 until o2))
                     val t1 = ((t).slice(oT1 until oT2))
                     val f1 = ((f).slice(oF1 until oF2))
                     (pred.zip((t1.iter().zip(f1.iter()))))
-                        .map({ (p, tf) ->
-                            val (t2, f2) = tf
+                        .map({ (p, tuple0) ->
+                            val (t2, f2) = tuple0
                             if (p.isTrue()) {
                                 t2
                             } else {
@@ -369,7 +388,7 @@ public fun <I : IntDType, T : WithDType> WCond<I>.f(t: List<T>, tL: Layout, f: L
                     val ysToSet =
                         run {
                             val s = ys.spareCapacityMut()
-                            transmute<List<T?>, List<T>>(s)
+                            transmute<MutableList<MaybeUninit<T>>, MutableList<T>>(s)
                         }
                     val ndIter = NdIter.new(listOf(this.field1, tL, fL))
                     val (innerPs, innerTs, innerFs) = ndIter.innerStrides
@@ -379,32 +398,32 @@ public fun <I : IntDType, T : WithDType> WCond<I>.f(t: List<T>, tL: Layout, f: L
                         val matchVal1 = Triple(innerPs, innerTs, innerFs)
                         when {
                             matchVal1.first == 1 && matchVal1.second == 1 && matchVal1.third == 1 -> {
-                                whereImpl(ndIter, ysToSet, this.value, t, f, offset, offset, offset)
+                                whereImpl(ndIter, ysToSet, this.field0, t, f, offset, offset, offset)
                             }
                             matchVal1.first == 1 && matchVal1.second == 1 && matchVal1.third == 0 -> {
-                                whereImpl(ndIter, ysToSet, this.value, t, f, offset, offset, boffset)
+                                whereImpl(ndIter, ysToSet, this.field0, t, f, offset, offset, boffset)
                             }
                             matchVal1.first == 1 && matchVal1.second == 0 && matchVal1.third == 1 -> {
-                                whereImpl(ndIter, ysToSet, this.value, t, f, offset, boffset, offset)
+                                whereImpl(ndIter, ysToSet, this.field0, t, f, offset, boffset, offset)
                             }
                             matchVal1.first == 1 && matchVal1.second == 0 && matchVal1.third == 0 -> {
-                                whereImpl(ndIter, ysToSet, this.value, t, f, offset, boffset, boffset)
+                                whereImpl(ndIter, ysToSet, this.field0, t, f, offset, boffset, boffset)
                             }
                             matchVal1.first == 0 && matchVal1.second == 1 && matchVal1.third == 1 -> {
-                                whereImpl(ndIter, ysToSet, this.value, t, f, boffset, offset, offset)
+                                whereImpl(ndIter, ysToSet, this.field0, t, f, boffset, offset, offset)
                             }
                             matchVal1.first == 0 && matchVal1.second == 1 && matchVal1.third == 0 -> {
-                                whereImpl(ndIter, ysToSet, this.value, t, f, boffset, offset, boffset)
+                                whereImpl(ndIter, ysToSet, this.field0, t, f, boffset, offset, boffset)
                             }
                             matchVal1.first == 0 && matchVal1.second == 0 && matchVal1.third == 1 -> {
-                                whereImpl(ndIter, ysToSet, this.value, t, f, boffset, boffset, offset)
+                                whereImpl(ndIter, ysToSet, this.field0, t, f, boffset, boffset, offset)
                             }
                             matchVal1.first == 0 && matchVal1.second == 0 && matchVal1.third == 0 -> {
-                                whereImpl(ndIter, ysToSet, this.value, t, f, boffset, boffset, boffset)
+                                whereImpl(ndIter, ysToSet, this.field0, t, f, boffset, boffset, boffset)
                             }
                             else -> {
                                 val offset1 = { off, i, inner -> off + i * inner }
-                                whereImpl(ndIter, ysToSet, this.value, t, f, offset1, offset1, offset1)
+                                whereImpl(ndIter, ysToSet, this.field0, t, f, offset1, offset1, offset1)
                             }
                         }
                     }
@@ -414,7 +433,7 @@ public fun <I : IntDType, T : WithDType> WCond<I>.f(t: List<T>, tL: Layout, f: L
                 }
             }
         }
-    return Ok(vs)
+    return Result.Ok(vs)
 }
 
 public class ReduceIndex(
@@ -429,15 +448,15 @@ public class ReduceIndex(
         val dstLen = srcL.shape().elemCount() / reduceDimSize
         val dst: List<U> = ArrayList(dstLen)
         val dstToSet = dst.spareCapacityMut()
-        val dstToSet1 = transmute<List<U?>, List<U>>(dstToSet)
+        val dstToSet1 = transmute<MutableList<MaybeUninit<U>>, MutableList<U>>(dstToSet)
         when (val matchVal = srcL.contiguousOffsets()) {
             null -> {
                 val l =
                     when (val tryResult = srcL.narrow(this.reduceDimIndex, 0, 1)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
-                for ((unstrIndex, srcIndex) in l.stridedIndex().enumerate()) {
+                for ((unstrIndex, srcIndex) in l.stridedIndex().mapIndexed { index, item -> Pair(index, item) }) {
                     val src1 = ((src).slice(srcIndex until src.size))
                     var acc = 0
                     var value = src1[0]
@@ -456,12 +475,12 @@ public class ReduceIndex(
                 val o2 = matchVal.second
                 val src2 = ((src).slice(o1 until o2))
                 if (reduceDimStride == 1) {
-                    for ((startSrcI, dstV) in dstToSet1.iterMut().enumerate()) {
+                    for ((startSrcI, dstV) in dstToSet1.iterMut().mapIndexed { index, item -> Pair(index, item) }) {
                         val startSrcI1 = startSrcI * reduceDimSize
                         val src3 = ((src2).slice(startSrcI1 until startSrcI1 + reduceDimSize))
                         var acc1 = 0
                         var value1 = src3[0]
-                        for ((srcI1, s1) in src3.iter().enumerate()) {
+                        for ((srcI1, s1) in src3.iter().mapIndexed { index, item -> Pair(index, item) }) {
                             if (f(value1, s1)) {
                                 acc1 = srcI1
                                 value1 = s1
@@ -470,7 +489,7 @@ public class ReduceIndex(
                         dstV = g(value1, acc1)
                     }
                 } else {
-                    for ((startSrcI2, dstV1) in dstToSet1.iterMut().enumerate()) {
+                    for ((startSrcI2, dstV1) in dstToSet1.iterMut().mapIndexed { index, item -> Pair(index, item) }) {
                         val (p, q) = Pair(startSrcI2 / reduceDimStride, startSrcI2 % reduceDimStride)
                         // startSrcI = p * reduceDimStride + q
                         val startSrcI3 = p * reduceDimStride * reduceDimSize + q
@@ -490,14 +509,14 @@ public class ReduceIndex(
             }
         }
         dst.setLen(dstLen)
-        return Ok(dst)
+        return Result.Ok(dst)
     }
 
     public fun <T : WithDType> f(src: List<T>, srcL: Layout, wrap: (List<T>) -> CpuStorage): Result<CpuStorage> {
         if (srcL.shape().elemCount() == 0) {
-            when (val tryResult = Err(Error.EmptyTensor(op = "reduce").bt())) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            when (val tryResult = Result.Err(Error.EmptyTensor(op = "reduce").bt())) {
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         }
         val dst =
@@ -507,36 +526,36 @@ public class ReduceIndex(
                     matchVal.first == false && matchVal.second == true ->
                         wrap(
                             when (val tryResult = this.foldImpl(src, srcL, { x, y -> x > y }, { v, i -> v })) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             },
                         )
                     matchVal.first == false && matchVal.second == false ->
                         wrap(
                             when (val tryResult = this.foldImpl(src, srcL, { x, y -> x < y }, { v, i -> v })) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             },
                         )
                     matchVal.first == true && matchVal.second == true -> {
                         CpuStorage.u32(
                             when (val tryResult = this.foldImpl(src, srcL, { x, y -> x > y }, { v, i -> i.toUInt() })) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             },
                         )
                     }
                     else -> {
                         CpuStorage.u32(
                             when (val tryResult = this.foldImpl(src, srcL, { x, y -> x < y }, { v, i -> i.toUInt() })) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             },
                         )
                     }
                 }
             }
-        return Ok(dst)
+        return Result.Ok(dst)
     }
 
     public companion object {
@@ -568,7 +587,7 @@ public class ReduceSum(
         val dst = mutableListOf(startElt, this.dstShape.elemCount())
         when (val matchVal = srcL.contiguousOffsets()) {
             null -> {
-                for ((unstrIndex, srcIndex) in srcL.stridedIndex().enumerate()) {
+                for ((unstrIndex, srcIndex) in srcL.stridedIndex().mapIndexed { index, item -> Pair(index, item) }) {
                     var dstIndex = unstrIndex
                     // Set the reduceDims indexes to 0.
                     for ((dim, stride) in ArrayDeque(this.reduceDimsAndStride)) {
@@ -590,17 +609,17 @@ public class ReduceSum(
                     this.reduceDims
                         .iter()
                         .rev()
-                        .enumerate()
+                        .mapIndexed { index, item -> Pair(index, item) }
                         .all({ (i, v) -> v == srcL.shape().rank() - 1 - i })
                 if (reduceOverLastDims) {
                     val reduceSz = this.reduceDimsAndStride.map({ (u, _) -> u }).product<Int>()
-                    for ((dstI, dstV) in ArrayDeque(dst).enumerate()) {
+                    for ((dstI, dstV) in ArrayDeque(dst).mapIndexed { index, item -> Pair(index, item) }) {
                         val srcI = dstI * reduceSz
                         vecReduceSumTFn(((src1).slice(srcI until srcI + reduceSz)).asPtr(), dstV, reduceSz)
                     }
-                    return Ok(dst)
+                    return Result.Ok(dst)
                 }
-                for ((unstrIndex1, src2) in src1.iter().enumerate()) {
+                for ((unstrIndex1, src2) in src1.iter().mapIndexed { index, item -> Pair(index, item) }) {
                     var dstIndex1 = unstrIndex1
                     // Set the reduceDims indexes to 0.
                     for ((dim1, stride1) in ArrayDeque(this.reduceDimsAndStride)) {
@@ -612,7 +631,7 @@ public class ReduceSum(
                 }
             }
         }
-        return Ok(dst)
+        return Result.Ok(dst)
     }
 
     public fun <T : WithDType> f(src: List<T>, srcL: Layout, zeroTFn: (Any?) -> Any?): Result<List<T>> = this.foldImpl(src, srcL, zeroTFn())
@@ -623,9 +642,9 @@ public class Affine(
     public var field1: Double = 0.0,
 ) : Map1 {
     public fun <T : WithDType> f(vs: List<T>, layout: Layout, fromF64TFn: (Any?) -> Any?): Result<List<T>> {
-        val mul = fromF64TFn(this.value)
+        val mul = fromF64TFn(this.field0)
         val add = fromF64TFn(this.field1)
-        return Ok(unaryMap(vs, layout, { v -> v * mul + add }))
+        return Result.Ok(unaryMap(vs, layout, { v -> v * mul + add }))
     }
 
     public companion object {
@@ -652,12 +671,12 @@ public class AvgPool2D(
 ) : Map1 {
     public fun <T : WithDType> f(src: List<T>, layout: Layout, fromF64TFn: (Any?) -> Any?, zeroTFn: (Any?) -> Any?): Result<List<T>> {
         // https://pytorch.org/docs/stable/generated/torch.nn.AvgPool2d.html
-        val (kH, kW) = this.value
+        val (kH, kW) = this.field0
         val (sH, sW) = this.field1
         val (bSz, c, h, w) =
             when (val tryResult = layout.shape().dims4()) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val stride = layout.stride()
         val (strideH, strideW) = Pair(stride[2], stride[3])
@@ -688,7 +707,7 @@ public class AvgPool2D(
                 }
             }
         }
-        return Ok(dst)
+        return Result.Ok(dst)
     }
 }
 
@@ -698,12 +717,12 @@ public class MaxPool2D(
 ) : Map1 {
     public fun <T : WithDType> f(src: List<T>, layout: Layout): Result<List<T>> {
         // https://pytorch.org/docs/stable/generated/torch.nn.MaxPool2d.html
-        val (kH, kW) = this.value
+        val (kH, kW) = this.field0
         val (sH, sW) = this.field1
         val (bSz, c, h, w) =
             when (val tryResult = layout.shape().dims4()) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val stride = layout.stride()
         val (strideH, strideW) = Pair(stride[2], stride[3])
@@ -734,7 +753,7 @@ public class MaxPool2D(
                 }
             }
         }
-        return Ok(dst)
+        return Result.Ok(dst)
     }
 }
 
@@ -752,8 +771,8 @@ public class UpsampleNearest1D(
         val dstSz = this.value
         val (bSz, c, srcSz) =
             when (val tryResult = layout.shape().dims3()) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val stride = layout.stride()
         val strideSz = stride[2]
@@ -767,12 +786,12 @@ public class UpsampleNearest1D(
             for (cIdx in 0 until c) {
                 val dst2 = ((dst1).slice(cIdx * dstSz until dst1.size))
                 val srcIndex2 = srcIndex1 + cIdx * stride[1]
-                for ((idx, srcIdx) in srcIdxs.iter().enumerate()) {
+                for ((idx, srcIdx) in srcIdxs.iter().mapIndexed { index, item -> Pair(index, item) }) {
                     dst2[idx] = src[srcIndex2 + srcIdx * strideSz]
                 }
             }
         }
-        return Ok(dst)
+        return Result.Ok(dst)
     }
 
     public companion object {
@@ -797,11 +816,11 @@ public class UpsampleNearest2D(
 ) : Map1 {
     public fun <T : WithDType> f(src: List<T>, layout: Layout): Result<List<T>> {
         // Note: Specialized implementation for the case 2*h, 2*w?
-        val (dstH, dstW) = Pair(this.value, this.field1)
+        val (dstH, dstW) = Pair(this.field0, this.field1)
         val (bSz, c, srcH, srcW) =
             when (val tryResult = layout.shape().dims4()) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val stride = layout.stride()
         val (strideH, strideW) = Pair(stride[2], stride[3])
@@ -817,15 +836,15 @@ public class UpsampleNearest2D(
             for (cIdx in 0 until c) {
                 val dst2 = ((dst1).slice(cIdx * dstH * dstW until dst1.size))
                 val srcIndex2 = srcIndex1 + cIdx * stride[1]
-                for ((hIdx, srcHIdx) in srcHIdxs.iter().enumerate()) {
-                    for ((wIdx, srcWIdx) in srcWIdxs.iter().enumerate()) {
+                for ((hIdx, srcHIdx) in srcHIdxs.iter().mapIndexed { index, item -> Pair(index, item) }) {
+                    for ((wIdx, srcWIdx) in srcWIdxs.iter().mapIndexed { index, item -> Pair(index, item) }) {
                         val srcIndex3 = srcIndex2 + srcHIdx * strideH + srcWIdx * strideW
                         dst2[hIdx * dstW + wIdx] = src[srcIndex3]
                     }
                 }
             }
         }
-        return Ok(dst)
+        return Result.Ok(dst)
     }
 
     public companion object {
@@ -856,14 +875,14 @@ public class UpsampleBilinear2D(
     public fun <T : WithDType> f(src: List<T>, layout: Layout, fromF64TFn: (Any?) -> Any?): Result<List<T>> {
         val (batch, channels, heightIn, widthIn) =
             when (val tryResult = layout.shape().dims4()) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val heightOut = this.targetH
         val widthOut = this.targetW
         // Early return for identity case
         if (heightIn == heightOut && widthIn == widthOut) {
-            return Ok(src.toVec())
+            return Result.Ok(src.toVec())
         }
         val stride = layout.stride()
         val srcOffset = layout.startOffset()
@@ -944,8 +963,8 @@ public class UpsampleBilinear2D(
             for (c in 0 until channels) {
                 val baseIdx = srcOffset + b * stride[0] + c * stride[1]
                 val dstBase = (b * channels + c) * heightOut * widthOut
-                for ((hOut1, h01, h11, weightH1) in ArrayDeque(hIndices).enumerate()) {
-                    for ((wOut1, w01, w11, weightW1) in ArrayDeque(wIndices).enumerate()) {
+                for ((hOut1, h01, h11, weightH1) in hIndices.mapIndexed { index, item -> Pair(index, item) }) {
+                    for ((wOut1, w01, w11, weightW1) in wIndices.mapIndexed { index, item -> Pair(index, item) }) {
                         // Get four neighboring pixels
                         val idx00 = baseIdx + h01 * stride[2] + w01 * stride[3]
                         val idx10 = baseIdx + h01 * stride[2] + w11 * stride[3]
@@ -964,7 +983,7 @@ public class UpsampleBilinear2D(
                 }
             }
         }
-        return Ok(dst)
+        return Result.Ok(dst)
     }
 }
 
@@ -977,9 +996,9 @@ public class Gather<I : IntDType>(
         val ids =
             when (val matchVal = this.idsL.contiguousOffsets()) {
                 null ->
-                    when (val tryResult = Err(Error.RequiresContiguous(op = "gather").bt())) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    when (val tryResult = Result.Err(Error.RequiresContiguous(op = "gather").bt())) {
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                 else -> {
                     val a = matchVal.first
@@ -990,9 +1009,9 @@ public class Gather<I : IntDType>(
         val src1 =
             when (val matchVal1 = srcL.contiguousOffsets()) {
                 null ->
-                    when (val tryResult = Err(Error.RequiresContiguous(op = "gather").bt())) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    when (val tryResult = Result.Err(Error.RequiresContiguous(op = "gather").bt())) {
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                 else -> {
                     val a1 = matchVal1.first
@@ -1023,9 +1042,9 @@ public class Gather<I : IntDType>(
                     } else {
                         val index1 = index.asUsize()
                         if (index1 >= srcDimLen) {
-                            when (val tryResult = Err(Error.InvalidIndex(index = index1, size = srcDimLen, op = "gather").bt())) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            when (val tryResult = Result.Err(Error.InvalidIndex(index = index1, size = srcDimLen, op = "gather").bt())) {
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         }
                         val srcIdx = startSrcIdx + index1 * srcRightLen + rightI
@@ -1034,7 +1053,7 @@ public class Gather<I : IntDType>(
                 }
             }
         }
-        return Ok(dst)
+        return Result.Ok(dst)
     }
 }
 
@@ -1048,9 +1067,9 @@ public fun <I : IntDType, T : WithDType> IndexSelect<I>.f(src: List<T>, layout: 
     val src1 =
         when (val matchVal = layout.contiguousOffsets()) {
             null ->
-                when (val tryResult = Err(Error.RequiresContiguous(op = "index-select").bt())) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                when (val tryResult = Result.Err(Error.RequiresContiguous(op = "index-select").bt())) {
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             else -> {
                 val a = matchVal.first
@@ -1069,9 +1088,9 @@ public fun <I : IntDType, T : WithDType> IndexSelect<I>.f(src: List<T>, layout: 
                 }
                 else -> {
                     val d = matchVal1
-                    when (val tryResult = Err(Error.UnexpectedNumberOfDims(expected = 1, got = d.len(), shape = this.idsL.shape().clone()).bt())) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    when (val tryResult = Result.Err(Error.UnexpectedNumberOfDims(expected = 1, got = d.len(), shape = this.idsL.shape().clone()).bt())) {
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                 }
             }
@@ -1095,9 +1114,9 @@ public fun <I : IntDType, T : WithDType> IndexSelect<I>.f(src: List<T>, layout: 
             } else {
                 val index1 = index.asUsize()
                 if (index1 >= srcDim) {
-                    when (val tryResult = Err(Error.InvalidIndex(index = index1, size = srcDim, op = "index-select").bt())) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    when (val tryResult = Result.Err(Error.InvalidIndex(index = index1, size = srcDim, op = "index-select").bt())) {
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                 }
                 val startSrcIdx1 = startSrcIdx + index1 * rightLen
@@ -1105,7 +1124,7 @@ public fun <I : IntDType, T : WithDType> IndexSelect<I>.f(src: List<T>, layout: 
             }
         }
     }
-    return Ok(dst)
+    return Result.Ok(dst)
 }
 
 public class Set : ElemUpdate {
@@ -1152,13 +1171,13 @@ public class Scatter<I : IntDType, M : ElemUpdate>(
     public var dim: Int = 0,
     public var phantom: Unit = Unit,
 ) : Map2InPlace {
-    public fun <T : WithDType> f(dst: List<T>, dstL: Layout, src: List<T>, srcL: Layout, maxValueIFn: (Any?) -> Any?, fMFn: (Any?) -> Any?): Result<Unit> {
+    public fun <T : WithDType> f(dst: MutableList<T>, dstL: Layout, src: List<T>, srcL: Layout, maxValueIFn: (Any?) -> Any?, fMFn: (Any?) -> Any?): Result<Unit> {
         val dst1 =
             when (val matchVal = dstL.contiguousOffsets()) {
                 null ->
-                    when (val tryResult = Err(Error.RequiresContiguous(op = "scatter").bt())) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    when (val tryResult = Result.Err(Error.RequiresContiguous(op = "scatter").bt())) {
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                 else -> {
                     val o1 = matchVal.first
@@ -1169,9 +1188,9 @@ public class Scatter<I : IntDType, M : ElemUpdate>(
         val src1 =
             when (val matchVal1 = srcL.contiguousOffsets()) {
                 null ->
-                    when (val tryResult = Err(Error.RequiresContiguous(op = "scatter").bt())) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    when (val tryResult = Result.Err(Error.RequiresContiguous(op = "scatter").bt())) {
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                 else -> {
                     val o11 = matchVal1.first
@@ -1190,9 +1209,9 @@ public class Scatter<I : IntDType, M : ElemUpdate>(
         val ids =
             when (val matchVal2 = this.idsL.contiguousOffsets()) {
                 null ->
-                    when (val tryResult = Err(Error.RequiresContiguous(op = "scatter").bt())) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    when (val tryResult = Result.Err(Error.RequiresContiguous(op = "scatter").bt())) {
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                 else -> {
                     val a = matchVal2.first
@@ -1213,9 +1232,9 @@ public class Scatter<I : IntDType, M : ElemUpdate>(
                     }
                     val index1 = index.asUsize()
                     if (index1 >= dstDimLen) {
-                        when (val tryResult = Err(Error.InvalidIndex(index = index1, size = dstDimLen, op = "gather").bt())) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        when (val tryResult = Result.Err(Error.InvalidIndex(index = index1, size = dstDimLen, op = "gather").bt())) {
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     }
                     val dstIdx = startDstIdx + index1 * dstRightLen + rightI
@@ -1223,7 +1242,7 @@ public class Scatter<I : IntDType, M : ElemUpdate>(
                 }
             }
         }
-        return Ok(Unit)
+        return Result.Ok(Unit)
     }
 
     public companion object {
@@ -1246,9 +1265,9 @@ public class IndexAdd<I : IntDType>(
         val src1 =
             when (val matchVal = srcL.contiguousOffsets()) {
                 null ->
-                    when (val tryResult = Err(Error.RequiresContiguous(op = "index-add").bt())) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    when (val tryResult = Result.Err(Error.RequiresContiguous(op = "index-add").bt())) {
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                 else -> {
                     val o1 = matchVal.first
@@ -1262,15 +1281,15 @@ public class IndexAdd<I : IntDType>(
         val srcDimSz = srcL.dims()[dim]
         val postDim = ((srcL.dims()).slice(dim + 1 until srcL.dims().size)).iter().product<Int>()
         if (dim == 0) {
-            for ((srcIdx, dstIdx) in this.ids.enumerate()) {
+            for ((srcIdx, dstIdx) in this.ids.mapIndexed { index, item -> Pair(index, item) }) {
                 if (dstIdx == maxValueIFn()) {
                     continue
                 }
                 val dstIdx1 = dstIdx.asUsize()
                 if (dstIdx1 >= maxIdx) {
-                    when (val tryResult = Err(Error.InvalidIndex(index = dstIdx1, op = "index-add", size = maxIdx))) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    when (val tryResult = Result.Err(Error.InvalidIndex(index = dstIdx1, op = "index-add", size = maxIdx))) {
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                 }
                 val srcIdx1 = srcIdx * postDim
@@ -1282,15 +1301,15 @@ public class IndexAdd<I : IntDType>(
                 }
             }
         } else {
-            for ((srcIdx2, dstIdx3) in this.ids.enumerate()) {
+            for ((srcIdx2, dstIdx3) in this.ids.mapIndexed { index, item -> Pair(index, item) }) {
                 if (dstIdx3 == maxValueIFn()) {
                     continue
                 }
                 val dstIdx4 = dstIdx3.asUsize()
                 if (dstIdx4 >= maxIdx) {
-                    when (val tryResult = Err(Error.InvalidIndex(index = dstIdx4, op = "index-add", size = maxIdx))) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    when (val tryResult = Result.Err(Error.InvalidIndex(index = dstIdx4, op = "index-add", size = maxIdx))) {
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                 }
                 for (preI in 0 until preDim) {
@@ -1304,7 +1323,7 @@ public class IndexAdd<I : IntDType>(
                 }
             }
         }
-        return Ok(dst)
+        return Result.Ok(dst)
     }
 
     public companion object {
@@ -1327,13 +1346,13 @@ public class Conv1D(
         val k1 = ((k).slice(kL.startOffset() until k.size))
         val (inpS0, inpS1, inpS2) =
             when (val tryResult = dims3(inpL.stride())) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val (kS0, kS1, kS2) =
             when (val tryResult = dims3(kL.stride())) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val lOut = p.lOut()
         val dstElems = p.cOut * lOut * p.bSize
@@ -1384,7 +1403,7 @@ public class Conv1D(
                 }
             })
         }
-        return Ok(dst)
+        return Result.Ok(dst)
     }
 
     public companion object {
@@ -1407,8 +1426,8 @@ public class Im2Col1D(
         val padding = this.padding
         val (b, c, l) =
             when (val tryResult = layout.shape().dims3()) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val lOut = this.lOut(l)
         val src = ((vs).slice(layout.startOffset() until vs.size))
@@ -1444,7 +1463,7 @@ public class Im2Col1D(
                 }
             }
         }
-        return Ok(dst)
+        return Result.Ok(dst)
     }
 
     public companion object {
@@ -1490,8 +1509,8 @@ public class Im2Col(
         val padding = this.padding
         val (b, c, h, w) =
             when (val tryResult = layout.shape().dims4()) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val (hOut, wOut) = this.hwOut(h, w)
         val src = ((vs).slice(layout.startOffset() until vs.size))
@@ -1539,7 +1558,7 @@ public class Im2Col(
                 }
             }
         }
-        return Ok(dst)
+        return Result.Ok(dst)
     }
 
     public companion object {
@@ -1572,8 +1591,8 @@ public class Col2Im1D(
     public fun <T : WithDType> f(col: List<T>, l: Layout): Result<List<T>> {
         val (bSize, lIn, cOut, kSize) =
             when (val tryResult = l.shape().dims4()) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val stride = this.stride
         val lOut = (lIn - 1) * stride + kSize
@@ -1592,7 +1611,7 @@ public class Col2Im1D(
                 }
             }
         }
-        return Ok(im)
+        return Result.Ok(im)
     }
 
     public companion object {
@@ -1626,13 +1645,13 @@ public class ConvTranspose1D(
         val k1 = ((k).slice(kL.startOffset() until k.size))
         val (inpS0, inpS1, inpS2) =
             when (val tryResult = dims3(inpL.stride())) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val (kS0, kS1, kS2) =
             when (val tryResult = dims3(kL.stride())) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val lOut = p.lOut()
         // Output shape: [bSize, cOut, lOut].
@@ -1687,7 +1706,7 @@ public class ConvTranspose1D(
                 }
             })
         }
-        return Ok(dst)
+        return Result.Ok(dst)
     }
 
     public companion object {
@@ -1709,14 +1728,14 @@ public class ConvTranspose2D(
         val inp1 = ((inp).slice(inpL.startOffset() until inp.size))
         val (inpS0, inpS1, inpS2, inpS3) =
             when (val tryResult = dims4(inpL.stride())) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val k1 = ((k).slice(kL.startOffset() until k.size))
         val (kS0, kS1, kS2, kS3) =
             when (val tryResult = dims4(kL.stride())) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val (outH, outW) = Pair(p.outH(), p.outW())
         // Output shape: [bSize, cOut, outH, outW].
@@ -1785,7 +1804,7 @@ public class ConvTranspose2D(
                 })
             }
         }
-        return Ok(dst)
+        return Result.Ok(dst)
     }
 
     public companion object {
@@ -1832,9 +1851,9 @@ public class MatMul(
                     }
                     matchVal.isEmpty() -> m * k
                     else ->
-                        when (val tryResult = Err(this.stridingError(lhsL, rhsL, "non-contiguous lhs"))) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        when (val tryResult = Result.Err(this.stridingError(lhsL, rhsL, "non-contiguous lhs"))) {
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                 }
             }
@@ -1861,22 +1880,22 @@ public class MatMul(
                     }
                     matchVal1.isEmpty() -> n * k
                     else ->
-                        when (val tryResult = Err(this.stridingError(lhsL, rhsL, "non-contiguous rhs"))) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        when (val tryResult = Result.Err(this.stridingError(lhsL, rhsL, "non-contiguous rhs"))) {
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                 }
             }
-        return Ok(Pair(aSkip, bSkip))
+        return Result.Ok(Pair(aSkip, bSkip))
     }
 
     public fun <T> f(lhs: List<T>, lhsL: Layout, rhs: List<T>, rhsL: Layout, zeroTFn: (Any?) -> Any?, oneTFn: (Any?) -> Any?): Result<List<T>> where T : WithDType, T : Num {
         when (T.DTYPE) {
             DType.f16, DType.f32, DType.f64 -> {}
             else ->
-                when (val tryResult = Err(Error.UnsupportedDTypeForOp(T.DTYPE, "matmul").bt())) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                when (val tryResult = Result.Err(Error.UnsupportedDTypeForOp(T.DTYPE, "matmul").bt())) {
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
         }
         val (b, m, n, k) = this.value
@@ -1891,8 +1910,8 @@ public class MatMul(
         val rhsRs = rhsStride[rank - 2]
         val (aSkip, bSkip) =
             when (val tryResult = this.abSkip(lhsL, rhsL)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val cSkip: Int = m * n
         val dstShape: Shape = Pair(m, n).into()
@@ -1928,196 +1947,7 @@ public class MatMul(
             val dstP = ((dst).slice(step * cSkip until dst.size))
             gemm(m1, n1, k1, dstP.asMutPtr(), dstCs.toInt(), dstRs.toInt(), false, lhsP.asPtr(), lhsCs.toInt(), lhsRs.toInt(), rhsP.asPtr(), rhsCs.toInt(), rhsRs.toInt(), zeroTFn(), oneTFn(), false, false, false, parallelism)
         }
-        return Ok(dst)
-    }
-
-    public fun <T> fMap2(lhs: List<T>, lhsL: Layout, rhs: List<T>, rhsL: Layout): Result<List<T>> where T : WithDType, T : Num {
-        val (b, m, n, k) = this.value
-        val lhs1 = ((lhs).slice(lhsL.startOffset() until lhs.size))
-        val rhs1 = ((rhs).slice(rhsL.startOffset() until rhs.size))
-        val lhsStride = lhsL.stride()
-        val rhsStride = rhsL.stride()
-        val (aSkip, bSkip) =
-            when (val tryResult = this.abSkip(lhsL, rhsL)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
-            }
-        val cSkip: Int = m * n
-        val rhsM1 = rhsStride[rhsStride.len() - 1]
-        val rhsM2 = rhsStride[rhsStride.len() - 2]
-        val lhsM1 = lhsStride[lhsStride.len() - 1]
-        val lhsM2 = lhsStride[lhsStride.len() - 2]
-        val (lda, transa) =
-            if ((rhsM1 == 1 || n == 1) && (rhsM2 == n || k == 1)) {
-                Pair(n.toInt(), 78u)
-            } else if (rhsM1 == k && rhsM2 == 1) {
-                Pair(k.toInt(), 84u)
-            } else {
-                when (val tryResult = Err(this.stridingError(lhsL, rhsL, "non-contiguous rhs"))) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
-                }
-            }
-        // The b tensor has dims batching, m, k (lhs)
-        val (ldb, transb) =
-            if ((lhsM1 == 1 || k == 1) && (lhsM2 == k || m == 1)) {
-                Pair(k.toInt(), 78u)
-            } else if (lhsM1 == m && lhsM2 == 1) {
-                Pair(m.toInt(), 84u)
-            } else {
-                when (val tryResult = Err(this.stridingError(lhsL, rhsL, "non-contiguous lhs"))) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
-                }
-            }
-        val dst = mutableListOf(T.zero(), b * m * n)
-        when (val matchVal = T.DTYPE) {
-            DType.f16 -> {
-                bail("the accelerate backend does not support f16 matmul")
-            }
-            DType.f32 -> {
-                for (step in 0 until b) {
-                    val lhsP = ((lhs1).slice(step * aSkip until lhs1.size))
-                    val rhsP = ((rhs1).slice(step * bSkip until rhs1.size))
-                    val dstP = ((dst).slice(step * cSkip until dst.size))
-                    run {
-                        val a = constPtrFromRustCast(rhsP.asPtr())
-                        val b1 = constPtrFromRustCast(lhsP.asPtr())
-                        val c = mutPtrFromRustCast(dstP.asMutPtr())
-                        val a1 = fromRawParts(a, aSkip)
-                        val b2 = fromRawParts(b1, bSkip)
-                        val c1 = fromRawPartsMut(c, cSkip)
-                        sgemm(transa, transb, n.toInt(), m.toInt(), k.toInt(), 1.0f, a1, lda, b2, ldb, 0.0f, c1, n.toInt())
-                    }
-                }
-            }
-            DType.f64 -> {
-                for (step1 in 0 until b) {
-                    val lhsP1 = ((lhs1).slice(step1 * aSkip until lhs1.size))
-                    val rhsP1 = ((rhs1).slice(step1 * bSkip until rhs1.size))
-                    val dstP1 = ((dst).slice(step1 * cSkip until dst.size))
-                    run {
-                        val a2 = constPtrFromRustCast(rhsP1.asPtr())
-                        val b3 = constPtrFromRustCast(lhsP1.asPtr())
-                        val c2 = mutPtrFromRustCast(dstP1.asMutPtr())
-                        val a3 = fromRawParts(a2, aSkip)
-                        val b4 = fromRawParts(b3, bSkip)
-                        val c3 = fromRawPartsMut(c2, cSkip)
-                        dgemm(transa, transb, n.toInt(), m.toInt(), k.toInt(), 1.0, a3, lda, b4, ldb, 0.0, c3, n.toInt())
-                    }
-                }
-            }
-            else -> {
-                val dtype = matchVal
-                when (val tryResult = Err(Error.UnsupportedDTypeForOp(dtype, "matmul").bt())) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
-                }
-            }
-        }
-        return Ok(dst)
-    }
-
-    public fun <T> fMap2Map2(lhs: List<T>, lhsL: Layout, rhs: List<T>, rhsL: Layout): Result<List<T>> where T : WithDType, T : Num {
-        val (b, m, n, k) = this.value
-        val lhs1 = ((lhs).slice(lhsL.startOffset() until lhs.size))
-        val rhs1 = ((rhs).slice(rhsL.startOffset() until rhs.size))
-        val lhsStride = lhsL.stride()
-        val rhsStride = rhsL.stride()
-        val (aSkip, bSkip) =
-            when (val tryResult = this.abSkip(lhsL, rhsL)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
-            }
-        val cSkip: Int = m * n
-        val rhsM1 = rhsStride[rhsStride.len() - 1]
-        val rhsM2 = rhsStride[rhsStride.len() - 2]
-        val lhsM1 = lhsStride[lhsStride.len() - 1]
-        val lhsM2 = lhsStride[lhsStride.len() - 2]
-        val (lda, transa) =
-            if ((rhsM1 == 1 || n == 1) && (rhsM2 == n || k == 1)) {
-                Pair(n.toInt(), 78u)
-            } else if (rhsM1 == k && rhsM2 == 1) {
-                Pair(k.toInt(), 84u)
-            } else {
-                when (val tryResult = Err(this.stridingError(lhsL, rhsL, "non-contiguous rhs"))) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
-                }
-            }
-        // The b tensor has dims batching, m, k (lhs)
-        val (ldb, transb) =
-            if ((lhsM1 == 1 || k == 1) && (lhsM2 == k || m == 1)) {
-                Pair(k.toInt(), 78u)
-            } else if (lhsM1 == m && lhsM2 == 1) {
-                Pair(m.toInt(), 84u)
-            } else {
-                when (val tryResult = Err(this.stridingError(lhsL, rhsL, "non-contiguous lhs"))) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
-                }
-            }
-        val dst = mutableListOf(T.zero(), b * m * n)
-        when (val matchVal = T.DTYPE) {
-            DType.f16 -> {
-                for (step in 0 until b) {
-                    val lhsP = ((lhs1).slice(step * aSkip until lhs1.size))
-                    val rhsP = ((rhs1).slice(step * bSkip until rhs1.size))
-                    val dstP = ((dst).slice(step * cSkip until dst.size))
-                    run {
-                        val a = constPtrFromRustCast(rhsP.asPtr())
-                        val b1 = constPtrFromRustCast(lhsP.asPtr())
-                        val c = mutPtrFromRustCast(dstP.asMutPtr())
-                        val a1 = fromRawParts(a, aSkip)
-                        val b2 = fromRawParts(b1, bSkip)
-                        val c1 = fromRawPartsMut(c, cSkip)
-                        hgemm(transa, transb, n.toInt(), m.toInt(), k.toInt(), ONE, a1, lda, b2, ldb, ZERO, c1, n.toInt())
-                    }
-                }
-            }
-            DType.f32 -> {
-                for (step1 in 0 until b) {
-                    val lhsP1 = ((lhs1).slice(step1 * aSkip until lhs1.size))
-                    val rhsP1 = ((rhs1).slice(step1 * bSkip until rhs1.size))
-                    val dstP1 = ((dst).slice(step1 * cSkip until dst.size))
-                    run {
-                        val a2 = constPtrFromRustCast(rhsP1.asPtr())
-                        val b3 = constPtrFromRustCast(lhsP1.asPtr())
-                        val c2 = mutPtrFromRustCast(dstP1.asMutPtr())
-                        val a3 = fromRawParts(a2, aSkip)
-                        val b4 = fromRawParts(b3, bSkip)
-                        val c3 = fromRawPartsMut(c2, cSkip)
-                        io.github.kotlinmania.candle.mkl
-                            .sgemm(transa, transb, n.toInt(), m.toInt(), k.toInt(), 1.0f, a3, lda, b4, ldb, 0.0f, c3, n.toInt())
-                    }
-                }
-            }
-            DType.f64 -> {
-                for (step2 in 0 until b) {
-                    val lhsP2 = ((lhs1).slice(step2 * aSkip until lhs1.size))
-                    val rhsP2 = ((rhs1).slice(step2 * bSkip until rhs1.size))
-                    val dstP2 = ((dst).slice(step2 * cSkip until dst.size))
-                    run {
-                        val a4 = constPtrFromRustCast(rhsP2.asPtr())
-                        val b5 = constPtrFromRustCast(lhsP2.asPtr())
-                        val c4 = mutPtrFromRustCast(dstP2.asMutPtr())
-                        val a5 = fromRawParts(a4, aSkip)
-                        val b6 = fromRawParts(b5, bSkip)
-                        val c5 = fromRawPartsMut(c4, cSkip)
-                        io.github.kotlinmania.candle.mkl
-                            .dgemm(transa, transb, n.toInt(), m.toInt(), k.toInt(), 1.0, a5, lda, b6, ldb, 0.0, c5, n.toInt())
-                    }
-                }
-            }
-            else -> {
-                val dtype = matchVal
-                when (val tryResult = Err(Error.UnsupportedDTypeForOp(dtype, "matmul").bt())) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
-                }
-            }
-        }
-        return Ok(dst)
+        return Result.Ok(dst)
     }
 
     public companion object {

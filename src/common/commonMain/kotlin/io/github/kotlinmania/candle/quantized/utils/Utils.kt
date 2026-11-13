@@ -7,6 +7,7 @@ import io.github.kotlinmania.candle.quantized.kquants.GgmlType
 import io.github.kotlinmania.rustlang.core.mem.PrimitiveLayouts
 import io.github.kotlinmania.rustlang.core.ptr.ConstPtr
 import io.github.kotlinmania.rustlang.core.ptr.MutPtr
+import io.github.kotlinmania.rustlang.core.result.unwrapOr
 
 internal fun nearestInt(v: Float): Int = v.round().toInt()
 
@@ -15,13 +16,13 @@ internal fun nearestInt(v: Float): Int = v.round().toInt()
  * input region `xs` to its corresponding output block in `ys`. Each output region is guaranteed
  * to be `T.BLCK_SIZE` long.
  */
-internal fun <T : GgmlType> groupForQuantization(xs: List<Float>, ys: List<T>): List<Pair<T, List<Float>>> {
+internal fun <VecDotType, T : GgmlType> groupForQuantization(xs: List<Float>, ys: MutableList<T>): List<Pair<T, List<Float>>> {
     val blockSize = T.BLCK_SIZE
     val expectedBlocks = xs.size / blockSize
     val actualBlocks = ys.size
     // Validate that the input is the right size
     check(expectedBlocks == actualBlocks)
-    return (ys.zip(xs.chunksExact(blockSize))).collect()
+    return (ys.zip(xs.chunksExact(blockSize))).toMutableList()
 }
 
 /**
@@ -29,14 +30,14 @@ internal fun <T : GgmlType> groupForQuantization(xs: List<Float>, ys: List<T>): 
  * input block `xs` to its corresponding output region in `ys`. Each output region is guaranteed
  * to be `T.BLCK_SIZE` long.
  */
-internal fun <T : GgmlType> groupForDequantization(xs: List<T>, ys: List<Float>): List<Pair<T, List<Float>>> {
+internal fun <VecDotType, T : GgmlType> groupForDequantization(xs: List<T>, ys: MutableList<Float>): List<Pair<T, MutableList<Float>>> {
     val blockSize = T.BLCK_SIZE
     val actualOutputLen = ys.size
     val expectedOutputLen = xs.size * blockSize
     // Validate that the output is the right size
     check(expectedOutputLen == actualOutputLen)
     // Zip the blocks and outputs together
-    return (xs.zip(ys.chunksExactMut(blockSize))).collect()
+    return (xs.zip(ys.chunksExactMut(blockSize))).toMutableList()
 }
 
 internal fun getScaleMinK4(j: Int, q: List<UByte>): Pair<UByte, UByte> =
@@ -236,7 +237,7 @@ internal fun makeQkx1Quants(nmax: Int, ntry: Int, x: List<Float>): Pair<Float, F
         var sumlx = 0.0
         var suml2 = 0
         var didChange = false
-        for ((i, value) in x.enumerate().take(n)) {
+        for ((i, value) in x.mapIndexed { index, item -> Pair(index, item) }.take(n)) {
             val li = nearestInt(iscale * (value - min1)).clamp(0, nmax)
             val clampedLi = li.toUByte()
             if (clampedLi != l[i]) {
@@ -452,7 +453,7 @@ internal fun makeQkx3Quants(nmax: Int, x: List<Float>, weights: List<Float>?, rm
 }
 
 // https://github.com/ggerganov/llama.cpp/blob/678d7994f4da0af3d29046be99950ac999ee9762/ggml/src/ggml-quants.c#L827
-internal fun makeQpQuants(n: Int, nmax: UByte, x: List<Float>, l: List<UByte>, quantWeights: List<Float>): Float {
+internal fun makeQpQuants(n: Int, nmax: UByte, x: List<Float>, l: MutableList<UByte>, quantWeights: List<Float>): Float {
     check(x.size == n)
     check(l.size == n)
     check(quantWeights.size == n)
@@ -468,8 +469,8 @@ internal fun makeQpQuants(n: Int, nmax: UByte, x: List<Float>, l: List<UByte>, q
     val scale = 1.0f / iscale
     var bestMse =
         ((x.zip(l)).zip(quantWeights))
-            .map({ (xl, w) ->
-                val (xi1, li1) = xl
+            .map({ (tuple0, w) ->
+                val (xi1, li1) = tuple0
                 val diff = xi1 - scale * li1.toFloat()
                 w * diff * diff
             })

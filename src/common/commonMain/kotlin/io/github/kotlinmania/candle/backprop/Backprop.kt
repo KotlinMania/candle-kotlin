@@ -10,8 +10,6 @@ import io.github.kotlinmania.candle.op.ReduceOp
 import io.github.kotlinmania.candle.op.UnaryOp
 import io.github.kotlinmania.candle.tensor.Tensor
 import io.github.kotlinmania.candle.tensor.TensorId
-import io.github.kotlinmania.rustlang.core.result.fromResidual
-import io.github.kotlinmania.rustlang.std.collections.hashmap.Entry
 
 // Methods for backpropagation of gradients.
 
@@ -25,8 +23,8 @@ public fun broadcastBack(arg: Tensor, node: Tensor, reducedDims: List<Int>): Res
         // keepdim = false
         // first expand the reduced dims.
         when (val tryResult = node.reshape(reducedDims)) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }.broadcastAs(arg.shape())
     }
 }
@@ -40,7 +38,7 @@ public fun broadcastBack(arg: Tensor, node: Tensor, reducedDims: List<Int>): Res
 public fun Tensor.sortedNodes(): List<Tensor> {
     // The vec of sorted nodes is passed as an owned value rather than a mutable reference
     // to get around some scope limitations.
-    fun walk(node: Tensor, nodes: List<Tensor>, alreadySeen: Map<TensorId, Boolean>): Pair<Boolean, List<Tensor>> {
+    fun walk(node: Tensor, nodes: List<Tensor>, alreadySeen: MutableMap<TensorId, Boolean>): Pair<Boolean, List<Tensor>> {
         when (val matchVal = alreadySeen.get(node.id())) {
             null -> {}
             else -> {
@@ -344,13 +342,13 @@ public fun Tensor.sortedNodes(): List<Tensor> {
                     }
                 }
             }
-        alreadySeen.insert(node.id(), trackGrad)
+        alreadySeen.put(node.id(), trackGrad)
         if (trackGrad) {
             nodes56.push(node)
         }
         return Pair(trackGrad, nodes56)
     }
-    var (tg, nodes) = walk(this, mutableListOf(), HashMap.new())
+    var (tg, nodes) = walk(this, mutableListOf(), mutableMapOf())
     nodes.reverse()
     return nodes
 }
@@ -363,19 +361,19 @@ public fun Tensor.backward(): Result<GradStore> {
         when (
             val tryResult =
                 when (val tryResult = this.onesLike()) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }.contiguous()
         ) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         },
     )
     for (node in sortedNodes.iter()) {
         if (node.isVariable()) {
             continue
         }
-        val grad = grads.remove(node).expect("candle internal error - grad not populated")
+        val grad = (grads.remove(node) ?: error("candle internal error - grad not populated"))
         // https://github.com/huggingface/candle/issues/1241
         // Ideally, we would make these operations in place where possible to ensure that we
         // do not have to allocate too often. Here we just call `.detach` to avoid computing
@@ -397,123 +395,123 @@ public fun Tensor.backward(): Result<GradStore> {
                         val (lhs, rhs, _) = op
                         val lhsSumGrad =
                             when (val tryResult = grads.orInsert(lhs)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         lhsSumGrad =
                             when (val tryResult = lhsSumGrad.add(grad1)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         val rhsSumGrad =
                             when (val tryResult = grads.orInsert(rhs)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         rhsSumGrad =
                             when (val tryResult = rhsSumGrad.add(grad1)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                     }
                     op is Op.Binary && op.field2 == BinaryOp.Sub -> {
                         val (lhs1, rhs1, _) = op
                         val lhsSumGrad1 =
                             when (val tryResult = grads.orInsert(lhs1)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         lhsSumGrad1 =
                             when (val tryResult = lhsSumGrad1.add(grad1)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         val rhsSumGrad1 =
                             when (val tryResult = grads.orInsert(rhs1)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         rhsSumGrad1 =
                             when (val tryResult = rhsSumGrad1.sub(grad1)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                     }
                     op is Op.Binary && op.field2 == BinaryOp.Mul -> {
                         val (lhs2, rhs2, _) = op
                         val lhsGrad =
                             when (val tryResult = grad1.mul(rhs2)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         val lhsSumGrad2 =
                             when (val tryResult = grads.orInsert(lhs2)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         lhsSumGrad2 =
                             when (val tryResult = lhsSumGrad2.add(lhsGrad)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         val rhsGrad =
                             when (val tryResult = grad1.mul(lhs2)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         val rhsSumGrad2 =
                             when (val tryResult = grads.orInsert(rhs2)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         rhsSumGrad2 =
                             when (val tryResult = rhsSumGrad2.add(rhsGrad)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                     }
                     op is Op.Binary && op.field2 == BinaryOp.Div -> {
                         val (lhs3, rhs3, _) = op
                         val lhsGrad1 =
                             when (val tryResult = grad1.div(rhs3)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         val lhsSumGrad3 =
                             when (val tryResult = grads.orInsert(lhs3)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         lhsSumGrad3 =
                             when (val tryResult = lhsSumGrad3.add(lhsGrad1)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         val rhsGrad1 =
                             when (
                                 val tryResult =
                                     when (val tryResult = grad1.mul(lhs3)) {
-                                        is Result.Ok -> tryResult.value
-                                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                        is Result.Ok<*> -> tryResult.value
+                                        is Result.Err<*> -> return Result.Err(tryResult.error)
                                     }.div(
                                         when (val tryResult = rhs3.sqr()) {
-                                            is Result.Ok -> tryResult.value
-                                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                            is Result.Ok<*> -> tryResult.value
+                                            is Result.Err<*> -> return Result.Err(tryResult.error)
                                         },
                                     )
                             ) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         val rhsSumGrad3 =
                             when (val tryResult = grads.orInsert(rhs3)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         rhsSumGrad3 =
                             when (val tryResult = rhsSumGrad3.sub(rhsGrad1)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                     }
                     op is Op.Binary && op.field2 == BinaryOp.Minimum -> {
@@ -522,23 +520,23 @@ public fun Tensor.backward(): Result<GradStore> {
                             when (
                                 val tryResult =
                                     when (val tryResult = node.eq(lhs4)) {
-                                        is Result.Ok -> tryResult.value
-                                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                        is Result.Ok<*> -> tryResult.value
+                                        is Result.Err<*> -> return Result.Err(tryResult.error)
                                     }.toDtype(grad1.dtype())
                             ) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         val maskRhs =
                             when (
                                 val tryResult =
                                     when (val tryResult = node.eq(rhs4)) {
-                                        is Result.Ok -> tryResult.value
-                                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                        is Result.Ok<*> -> tryResult.value
+                                        is Result.Err<*> -> return Result.Err(tryResult.error)
                                     }.toDtype(grad1.dtype())
                             ) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         // If both masks are 1 one the same point, we want to scale the
                         // gradient by 0.5 rather than 1.
@@ -546,53 +544,53 @@ public fun Tensor.backward(): Result<GradStore> {
                             when (
                                 val tryResult =
                                     when (val tryResult = maskLhs.mul(grad1)) {
-                                        is Result.Ok -> tryResult.value
-                                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                        is Result.Ok<*> -> tryResult.value
+                                        is Result.Err<*> -> return Result.Err(tryResult.error)
                                     }.div(
                                         when (val tryResult = (maskRhs + 1.0)) {
-                                            is Result.Ok -> tryResult.value
-                                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                            is Result.Ok<*> -> tryResult.value
+                                            is Result.Err<*> -> return Result.Err(tryResult.error)
                                         },
                                     )
                             ) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         val lhsSumGrad4 =
                             when (val tryResult = grads.orInsert(lhs4)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         lhsSumGrad4 =
                             when (val tryResult = lhsSumGrad4.add(lhsGrad2)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         val rhsGrad2 =
                             when (
                                 val tryResult =
                                     when (val tryResult = maskRhs.mul(grad1)) {
-                                        is Result.Ok -> tryResult.value
-                                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                        is Result.Ok<*> -> tryResult.value
+                                        is Result.Err<*> -> return Result.Err(tryResult.error)
                                     }.div(
                                         when (val tryResult = (maskLhs + 1.0)) {
-                                            is Result.Ok -> tryResult.value
-                                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                            is Result.Ok<*> -> tryResult.value
+                                            is Result.Err<*> -> return Result.Err(tryResult.error)
                                         },
                                     )
                             ) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         val rhsSumGrad4 =
                             when (val tryResult = grads.orInsert(rhs4)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         rhsSumGrad4 =
                             when (val tryResult = rhsSumGrad4.add(rhsGrad2)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                     }
                     op is Op.Binary && op.field2 == BinaryOp.Maximum -> {
@@ -601,113 +599,113 @@ public fun Tensor.backward(): Result<GradStore> {
                             when (
                                 val tryResult =
                                     when (val tryResult = node.eq(lhs5)) {
-                                        is Result.Ok -> tryResult.value
-                                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                        is Result.Ok<*> -> tryResult.value
+                                        is Result.Err<*> -> return Result.Err(tryResult.error)
                                     }.toDtype(grad1.dtype())
                             ) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         val maskRhs1 =
                             when (
                                 val tryResult =
                                     when (val tryResult = node.eq(rhs5)) {
-                                        is Result.Ok -> tryResult.value
-                                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                        is Result.Ok<*> -> tryResult.value
+                                        is Result.Err<*> -> return Result.Err(tryResult.error)
                                     }.toDtype(grad1.dtype())
                             ) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         val lhsGrad3 =
                             when (
                                 val tryResult =
                                     when (val tryResult = maskLhs1.mul(grad1)) {
-                                        is Result.Ok -> tryResult.value
-                                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                        is Result.Ok<*> -> tryResult.value
+                                        is Result.Err<*> -> return Result.Err(tryResult.error)
                                     }.div(
                                         when (val tryResult = (maskRhs1 + 1.0)) {
-                                            is Result.Ok -> tryResult.value
-                                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                            is Result.Ok<*> -> tryResult.value
+                                            is Result.Err<*> -> return Result.Err(tryResult.error)
                                         },
                                     )
                             ) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         val lhsSumGrad5 =
                             when (val tryResult = grads.orInsert(lhs5)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         lhsSumGrad5 =
                             when (val tryResult = lhsSumGrad5.add(lhsGrad3)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         val rhsGrad3 =
                             when (
                                 val tryResult =
                                     when (val tryResult = maskRhs1.mul(grad1)) {
-                                        is Result.Ok -> tryResult.value
-                                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                        is Result.Ok<*> -> tryResult.value
+                                        is Result.Err<*> -> return Result.Err(tryResult.error)
                                     }.div(
                                         when (val tryResult = (maskLhs1 + 1.0)) {
-                                            is Result.Ok -> tryResult.value
-                                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                            is Result.Ok<*> -> tryResult.value
+                                            is Result.Err<*> -> return Result.Err(tryResult.error)
                                         },
                                     )
                             ) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         val rhsSumGrad5 =
                             when (val tryResult = grads.orInsert(rhs5)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         rhsSumGrad5 =
                             when (val tryResult = rhsSumGrad5.add(rhsGrad3)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                     }
                     op is Op.WhereCond -> {
                         val (pred, t, f) = op
                         val zeros =
                             when (val tryResult = grad1.zerosLike()) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         val tSumGrad =
                             when (val tryResult = grads.orInsert(t)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         val tGrad =
                             when (val tryResult = pred.whereCond(grad1, zeros)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         tSumGrad =
                             when (val tryResult = tSumGrad.add(tGrad)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         val fSumGrad =
                             when (val tryResult = grads.orInsert(f)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         val fGrad =
                             when (val tryResult = pred.whereCond(zeros, grad1)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         fSumGrad =
                             when (val tryResult = fSumGrad.add(fGrad)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                     }
                     op is Op.Conv1D -> {
@@ -720,34 +718,34 @@ public fun Tensor.backward(): Result<GradStore> {
                         // (lIn - 1) * stride - 2 * padding + dilation * (kSize - 1) + outPadding + 1
                         val gradLIn =
                             when (val tryResult = grad1.dim(2)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         val kSize =
                             when (val tryResult = kernel.dim(2)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         val outSize = (gradLIn - 1) * stride + dilation * (kSize - 1) + 1 - 2 * padding
                         val outPadding =
                             when (val tryResult = arg.dim(2)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             } - outSize
                         val gradArg =
                             when (val tryResult = grad1.convTranspose1d(kernel, padding, outPadding, stride, dilation, 1)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         val sumGrad =
                             when (val tryResult = grads.orInsert(arg)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         sumGrad =
                             when (val tryResult = sumGrad.add(gradArg)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         val gradKernel =
                             when (
@@ -755,12 +753,12 @@ public fun Tensor.backward(): Result<GradStore> {
                                     when (
                                         val tryResult =
                                             when (val tryResult = arg.transpose(0, 1)) {
-                                                is Result.Ok -> tryResult.value
-                                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                                is Result.Ok<*> -> tryResult.value
+                                                is Result.Err<*> -> return Result.Err(tryResult.error)
                                             }.conv1d(
                                                 when (val tryResult = grad1.transpose(0, 1)) {
-                                                    is Result.Ok -> tryResult.value
-                                                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                                    is Result.Ok<*> -> tryResult.value
+                                                    is Result.Err<*> -> return Result.Err(tryResult.error)
                                                 },
                                                 padding,
                                                 dilation,
@@ -768,41 +766,41 @@ public fun Tensor.backward(): Result<GradStore> {
                                                 1,
                                             )
                                     ) {
-                                        is Result.Ok -> tryResult.value
-                                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                        is Result.Ok<*> -> tryResult.value
+                                        is Result.Err<*> -> return Result.Err(tryResult.error)
                                     }.transpose(0, 1)
                             ) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         val sumGrad1 =
                             when (val tryResult = grads.orInsert(kernel)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         val (_, _, k0) =
                             when (val tryResult = kernel.dims3()) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         val (_, _, gK0) =
                             when (val tryResult = gradKernel.dims3()) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         val gradKernel1 =
                             if (gK0 != k0) {
                                 when (val tryResult = gradKernel.narrow(2, 0, k0)) {
-                                    is Result.Ok -> tryResult.value
-                                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                    is Result.Ok<*> -> tryResult.value
+                                    is Result.Err<*> -> return Result.Err(tryResult.error)
                                 }
                             } else {
                                 gradKernel
                             }
                         sumGrad1 =
                             when (val tryResult = sumGrad1.add(gradKernel1)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                     }
                     op is Op.Conv2D -> {
@@ -815,34 +813,34 @@ public fun Tensor.backward(): Result<GradStore> {
                         // (iH - 1) * stride - 2 * padding + dilation * (kH - 1) + outPadding + 1
                         val gradH =
                             when (val tryResult = grad1.dim(2)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         val kH =
                             when (val tryResult = kernel1.dim(2)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         val outSize1 = (gradH - 1) * stride1 + dilation1 * (kH - 1) + 1 - 2 * padding1
                         val outPadding1 =
                             when (val tryResult = arg1.dim(2)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             } - outSize1
                         val gradArg1 =
                             when (val tryResult = grad1.convTranspose2d(kernel1, padding1, outPadding1, stride1, dilation1)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         val sumGrad2 =
                             when (val tryResult = grads.orInsert(arg1)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         sumGrad2 =
                             when (val tryResult = sumGrad2.add(gradArg1)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         val gradKernel2 =
                             when (
@@ -850,12 +848,12 @@ public fun Tensor.backward(): Result<GradStore> {
                                     when (
                                         val tryResult =
                                             when (val tryResult = arg1.transpose(0, 1)) {
-                                                is Result.Ok -> tryResult.value
-                                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                                is Result.Ok<*> -> tryResult.value
+                                                is Result.Err<*> -> return Result.Err(tryResult.error)
                                             }.conv2d(
                                                 when (val tryResult = grad1.transpose(0, 1)) {
-                                                    is Result.Ok -> tryResult.value
-                                                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                                    is Result.Ok<*> -> tryResult.value
+                                                    is Result.Err<*> -> return Result.Err(tryResult.error)
                                                 },
                                                 padding1,
                                                 dilation1,
@@ -863,53 +861,53 @@ public fun Tensor.backward(): Result<GradStore> {
                                                 1,
                                             )
                                     ) {
-                                        is Result.Ok -> tryResult.value
-                                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                        is Result.Ok<*> -> tryResult.value
+                                        is Result.Err<*> -> return Result.Err(tryResult.error)
                                     }.transpose(0, 1)
                             ) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         val sumGrad3 =
                             when (val tryResult = grads.orInsert(kernel1)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         val (_, _, k01, k1) =
                             when (val tryResult = kernel1.dims4()) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         val (_, _, gK01, gK1) =
                             when (val tryResult = gradKernel2.dims4()) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         val gradKernel3 =
                             if (gK01 != k01 || gK1 != k1) {
                                 when (
                                     val tryResult =
                                         when (val tryResult = gradKernel2.narrow(2, 0, k01)) {
-                                            is Result.Ok -> tryResult.value
-                                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                            is Result.Ok<*> -> tryResult.value
+                                            is Result.Err<*> -> return Result.Err(tryResult.error)
                                         }.narrow(3, 0, k1)
                                 ) {
-                                    is Result.Ok -> tryResult.value
-                                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                    is Result.Ok<*> -> tryResult.value
+                                    is Result.Err<*> -> return Result.Err(tryResult.error)
                                 }
                             } else {
                                 gradKernel2
                             }
                         sumGrad3 =
                             when (val tryResult = sumGrad3.add(gradKernel3)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                     }
                     op is Op.ConvTranspose1D ->
-                        when (val tryResult = Err(Error.BackwardNotSupported(op = "conv-transpose1d"))) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        when (val tryResult = Result.Err(Error.BackwardNotSupported(op = "conv-transpose1d"))) {
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     op is Op.ConvTranspose2D -> {
                         val arg2 = op.arg
@@ -919,18 +917,18 @@ public fun Tensor.backward(): Result<GradStore> {
                         val dilation2 = op.dilation
                         val gradArg2 =
                             when (val tryResult = grad1.conv2d(kernel2, padding2, stride2, dilation2, 1)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         val sumGrad4 =
                             when (val tryResult = grads.orInsert(arg2)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         sumGrad4 =
                             when (val tryResult = sumGrad4.add(gradArg2)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         val gradKernel4 =
                             when (
@@ -938,12 +936,12 @@ public fun Tensor.backward(): Result<GradStore> {
                                     when (
                                         val tryResult =
                                             when (val tryResult = grad1.transpose(0, 1)) {
-                                                is Result.Ok -> tryResult.value
-                                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                                is Result.Ok<*> -> tryResult.value
+                                                is Result.Err<*> -> return Result.Err(tryResult.error)
                                             }.conv2d(
                                                 when (val tryResult = arg2.transpose(0, 1)) {
-                                                    is Result.Ok -> tryResult.value
-                                                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                                    is Result.Ok<*> -> tryResult.value
+                                                    is Result.Err<*> -> return Result.Err(tryResult.error)
                                                 },
                                                 padding2,
                                                 dilation2,
@@ -951,47 +949,47 @@ public fun Tensor.backward(): Result<GradStore> {
                                                 1,
                                             )
                                     ) {
-                                        is Result.Ok -> tryResult.value
-                                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                        is Result.Ok<*> -> tryResult.value
+                                        is Result.Err<*> -> return Result.Err(tryResult.error)
                                     }.transpose(0, 1)
                             ) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         val sumGrad5 =
                             when (val tryResult = grads.orInsert(kernel2)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         val (_, _, k02, k11) =
                             when (val tryResult = kernel2.dims4()) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         val (_, _, gK02, gK11) =
                             when (val tryResult = gradKernel4.dims4()) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         val gradKernel5 =
                             if (gK02 != k02 || gK11 != k11) {
                                 when (
                                     val tryResult =
                                         when (val tryResult = gradKernel4.narrow(2, 0, k02)) {
-                                            is Result.Ok -> tryResult.value
-                                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                            is Result.Ok<*> -> tryResult.value
+                                            is Result.Err<*> -> return Result.Err(tryResult.error)
                                         }.narrow(3, 0, k11)
                                 ) {
-                                    is Result.Ok -> tryResult.value
-                                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                    is Result.Ok<*> -> tryResult.value
+                                    is Result.Err<*> -> return Result.Err(tryResult.error)
                                 }
                             } else {
                                 gradKernel4
                             }
                         sumGrad5 =
                             when (val tryResult = sumGrad5.add(gradKernel5)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                     }
                     op is Op.AvgPool2D -> {
@@ -1003,28 +1001,28 @@ public fun Tensor.backward(): Result<GradStore> {
                         }
                         val (n, c, h, w) =
                             when (val tryResult = arg3.dims4()) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         val gradArg3 =
                             when (val tryResult = grad1.upsampleNearest2d(h, w)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         val gradArg4 =
                             when (val tryResult = (gradArg3 * (1.0 / (kernelSize.first * kernelSize.second).toDouble()))) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         val sumGrad6 =
                             when (val tryResult = grads.orInsert(arg3)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         sumGrad6 =
                             when (val tryResult = sumGrad6.add(gradArg4)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                     }
                     op is Op.MaxPool2D -> {
@@ -1036,8 +1034,8 @@ public fun Tensor.backward(): Result<GradStore> {
                         }
                         val (n1, c1, h1, w1) =
                             when (val tryResult = arg4.dims4()) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         // For computing the max-pool gradient, we compute a mask where a 1 means
                         // that the element is the maximum, then we apply this mask to the
@@ -1045,24 +1043,24 @@ public fun Tensor.backward(): Result<GradStore> {
                         // we scale the gradient for this case).
                         val nodeUpsampled =
                             when (val tryResult = node.upsampleNearest2d(h1, w1)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         val mask =
                             when (
                                 val tryResult =
                                     when (val tryResult = arg4.eq(nodeUpsampled)) {
-                                        is Result.Ok -> tryResult.value
-                                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                        is Result.Ok<*> -> tryResult.value
+                                        is Result.Err<*> -> return Result.Err(tryResult.error)
                                     }.toDtype(arg4.dtype())
                             ) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         val avg =
                             when (val tryResult = mask.avgPool2dWithStride(kernelSize1, stride4)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         val gradArg5 =
                             when (
@@ -1070,27 +1068,27 @@ public fun Tensor.backward(): Result<GradStore> {
                                     when (
                                         val tryResult =
                                             when (val tryResult = (grad1 * avg)) {
-                                                is Result.Ok -> tryResult.value
-                                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                                is Result.Ok<*> -> tryResult.value
+                                                is Result.Err<*> -> return Result.Err(tryResult.error)
                                             }.upsampleNearest2d(h1, w1)
                                     ) {
-                                        is Result.Ok -> tryResult.value
-                                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                        is Result.Ok<*> -> tryResult.value
+                                        is Result.Err<*> -> return Result.Err(tryResult.error)
                                     } * mask
                                 )
                             ) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         val sumGrad7 =
                             when (val tryResult = grads.orInsert(arg4)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         sumGrad7 =
                             when (val tryResult = sumGrad7.add(gradArg5)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                     }
                     op is Op.UpsampleNearest1D -> {
@@ -1098,8 +1096,8 @@ public fun Tensor.backward(): Result<GradStore> {
                         val targetSize = op.targetSize
                         val (n2, c, size) =
                             when (val tryResult = arg5.dims3()) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         if (targetSize % size != 0) {
                             bail("backward not supported for non integer upscaling factors")
@@ -1107,18 +1105,18 @@ public fun Tensor.backward(): Result<GradStore> {
                         val scale = targetSize / size
                         val kernel3 =
                             when (val tryResult = Tensor.ones(Triple(c, 1, scale), arg5.dtype(), arg5.device())) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         val convSum =
                             when (val tryResult = grad1.conv1d(kernel3, 0, scale, 1, c)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         val sumGrad8 =
                             when (val tryResult = grads.orInsert(arg5)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         sumGrad8 = convSum
                     }
@@ -1128,8 +1126,8 @@ public fun Tensor.backward(): Result<GradStore> {
                         val targetW = op.targetW
                         val (n3, c1, h2, w2) =
                             when (val tryResult = arg6.dims4()) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         if (targetH % h2 != 0 || targetW % w2 != 0) {
                             bail("backward not supported for non integer upscaling factors")
@@ -1141,18 +1139,18 @@ public fun Tensor.backward(): Result<GradStore> {
                         }
                         val kernel4 =
                             when (val tryResult = Tensor.ones(listOf(c1, 1, scaleH, scaleW), arg6.dtype(), arg6.device())) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         val convSum1 =
                             when (val tryResult = grad1.conv2d(kernel4, 0, scaleH, 1, c1)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         val sumGrad9 =
                             when (val tryResult = grads.orInsert(arg6)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         sumGrad9 = convSum1
                     }
@@ -1163,8 +1161,8 @@ public fun Tensor.backward(): Result<GradStore> {
                         val (lhs6, rhs6, startRhs) = op
                         val rhsSumGrad6 =
                             when (val tryResult = grads.orInsert(rhs6)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         val rhsGrad4 =
                             when (
@@ -1173,96 +1171,96 @@ public fun Tensor.backward(): Result<GradStore> {
                                         0,
                                         startRhs,
                                         when (val tryResult = rhs6.dim(0)) {
-                                            is Result.Ok -> tryResult.value
-                                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                            is Result.Ok<*> -> tryResult.value
+                                            is Result.Err<*> -> return Result.Err(tryResult.error)
                                         },
                                     )
                             ) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         rhsSumGrad6 =
                             when (val tryResult = rhsSumGrad6.add(rhsGrad4)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         val lhsSumGrad6 =
                             when (val tryResult = grads.orInsert(lhs6)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         val lhsGrad4 =
                             when (
                                 val tryResult =
                                     grad1.sliceScatter0(
                                         when (val tryResult = rhs6.zerosLike()) {
-                                            is Result.Ok -> tryResult.value
-                                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                            is Result.Ok<*> -> tryResult.value
+                                            is Result.Err<*> -> return Result.Err(tryResult.error)
                                         },
                                         startRhs,
                                     )
                             ) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         lhsSumGrad6 =
                             when (val tryResult = lhsSumGrad6.add(lhsGrad4)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                     }
                     op is Op.Gather -> {
                         val (arg7, indexes, dim) = op
                         val sumGrad10 =
                             when (val tryResult = grads.orInsert(arg7)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         sumGrad10 =
                             when (val tryResult = sumGrad10.scatterAdd(indexes, grad1, dim)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                     }
                     op is Op.Scatter -> {
                         val (init, indexes1, src, dim1) = op
                         val initSumGrad =
                             when (val tryResult = grads.orInsert(init)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         initSumGrad =
                             when (val tryResult = initSumGrad.add(grad1)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         val srcGrad =
                             when (val tryResult = grad1.gather(indexes1, dim1)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         val srcSumGrad =
                             when (val tryResult = grads.orInsert(src)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         srcSumGrad =
                             when (val tryResult = srcSumGrad.add(srcGrad)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                     }
                     op is Op.ScatterAdd -> {
                         val (init1, indexes2, src1, dim2) = op
                         val initSumGrad1 =
                             when (val tryResult = grads.orInsert(init1)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         val mask1 =
                             when (val tryResult = init1.onesLike()) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         val mask2 =
                             when (
@@ -1270,89 +1268,89 @@ public fun Tensor.backward(): Result<GradStore> {
                                     mask1.scatter(
                                         indexes2,
                                         when (val tryResult = mask1.zerosLike()) {
-                                            is Result.Ok -> tryResult.value
-                                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                            is Result.Ok<*> -> tryResult.value
+                                            is Result.Err<*> -> return Result.Err(tryResult.error)
                                         },
                                         dim2,
                                     )
                             ) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         initSumGrad1 =
                             when (
                                 val tryResult =
                                     initSumGrad1.add(
                                         when (val tryResult = grad1.mul(mask2)) {
-                                            is Result.Ok -> tryResult.value
-                                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                            is Result.Ok<*> -> tryResult.value
+                                            is Result.Err<*> -> return Result.Err(tryResult.error)
                                         },
                                     )
                             ) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         val srcGrad1 =
                             when (val tryResult = grad1.gather(indexes2, dim2)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         val srcSumGrad1 =
                             when (val tryResult = grads.orInsert(src1)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         srcSumGrad1 =
                             when (val tryResult = srcSumGrad1.add(srcGrad1)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                     }
                     op is Op.IndexAdd -> {
                         val (init2, indexes3, src2, dim3) = op
                         val initSumGrad2 =
                             when (val tryResult = grads.orInsert(init2)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         initSumGrad2 =
                             when (val tryResult = initSumGrad2.add(grad1)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         val srcGrad2 =
                             when (val tryResult = grad1.indexSelect(indexes3, dim3)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         val srcSumGrad2 =
                             when (val tryResult = grads.orInsert(src2)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         srcSumGrad2 =
                             when (val tryResult = srcSumGrad2.add(srcGrad2)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                     }
                     op is Op.IndexSelect -> {
                         val (arg8, indexes4, dim4) = op
                         val sumGrad11 =
                             when (val tryResult = grads.orInsert(arg8)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         // indexSelect accepts strided ids but indexAdd requires contiguous ones.
                         val indexes5 =
                             when (val tryResult = indexes4.contiguous()) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         sumGrad11 =
                             when (val tryResult = sumGrad11.indexAdd(indexes5, grad1, dim4)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                     }
                     op is Op.Matmul -> {
@@ -1364,44 +1362,44 @@ public fun Tensor.backward(): Result<GradStore> {
                                 val tryResult =
                                     grad1.matmul(
                                         when (val tryResult = rhs7.t()) {
-                                            is Result.Ok -> tryResult.value
-                                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                            is Result.Ok<*> -> tryResult.value
+                                            is Result.Err<*> -> return Result.Err(tryResult.error)
                                         },
                                     )
                             ) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         val lhsSumGrad7 =
                             when (val tryResult = grads.orInsert(lhs7)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         lhsSumGrad7 =
                             when (val tryResult = lhsSumGrad7.add(lhsGrad5)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         val rhsGrad5 =
                             when (
                                 val tryResult =
                                     when (val tryResult = lhs7.t()) {
-                                        is Result.Ok -> tryResult.value
-                                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                        is Result.Ok<*> -> tryResult.value
+                                        is Result.Err<*> -> return Result.Err(tryResult.error)
                                     }.matmul(grad1)
                             ) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         val rhsSumGrad7 =
                             when (val tryResult = grads.orInsert(rhs7)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         rhsSumGrad7 =
                             when (val tryResult = rhsSumGrad7.add(rhsGrad5)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                     }
                     op is Op.Cat -> {
@@ -1411,18 +1409,18 @@ public fun Tensor.backward(): Result<GradStore> {
                             val len = arg9.dims()[dim5]
                             val argGrad =
                                 when (val tryResult = grad1.narrow(dim5, startIdx, len)) {
-                                    is Result.Ok -> tryResult.value
-                                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                    is Result.Ok<*> -> tryResult.value
+                                    is Result.Err<*> -> return Result.Err(tryResult.error)
                                 }
                             val sumGrad12 =
                                 when (val tryResult = grads.orInsert(arg9)) {
-                                    is Result.Ok -> tryResult.value
-                                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                    is Result.Ok<*> -> tryResult.value
+                                    is Result.Err<*> -> return Result.Err(tryResult.error)
                                 }
                             sumGrad12 =
                                 when (val tryResult = sumGrad12.add(argGrad)) {
-                                    is Result.Ok -> tryResult.value
-                                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                    is Result.Ok<*> -> tryResult.value
+                                    is Result.Err<*> -> return Result.Err(tryResult.error)
                                 }
                             startIdx += len
                         }
@@ -1433,72 +1431,72 @@ public fun Tensor.backward(): Result<GradStore> {
                         val nodeDims = node.dims()
                         // The number of dims that have been inserted on the left.
                         val leftDims = nodeDims.len() - argDims.len()
-                        var sumDims: List<Int> = (0 until leftDims).collect()
-                        for ((dim6, nodeDim, argDim) in (((nodeDims).slice(leftDims until nodeDims.size)).zip(argDims.iter())).enumerate()) {
+                        var sumDims: List<Int> = (0 until leftDims).toMutableList()
+                        for ((dim6, nodeDim, argDim) in (((nodeDims).slice(leftDims until nodeDims.size)).zip(argDims.iter())).mapIndexed { index, item -> Pair(index, item) }) {
                             if (nodeDim != argDim) {
-                                sumDims.push(dim6 + leftDims)
+                                sumDims.add(dim6 + leftDims)
                             }
                         }
                         var argGrad1 =
                             when (val tryResult = grad1.sumKeepdim(sumDims.asSlice())) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         for (i in 0 until leftDims) {
                             argGrad1 =
                                 when (val tryResult = argGrad1.squeeze(0)) {
-                                    is Result.Ok -> tryResult.value
-                                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                    is Result.Ok<*> -> tryResult.value
+                                    is Result.Err<*> -> return Result.Err(tryResult.error)
                                 }
                         }
                         val sumGrad13 =
                             when (val tryResult = grads.orInsert(arg10)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         sumGrad13 =
                             when (
                                 val tryResult =
                                     sumGrad13.add(
                                         when (val tryResult = argGrad1.broadcastAs(sumGrad13.dims())) {
-                                            is Result.Ok -> tryResult.value
-                                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                            is Result.Ok<*> -> tryResult.value
+                                            is Result.Err<*> -> return Result.Err(tryResult.error)
                                         },
                                     )
                             ) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                     }
                     op is Op.Reduce && op.field1 == ReduceOp.Sum -> {
                         val (arg11, _, reducedDims) = op
                         val grad2 =
                             when (val tryResult = broadcastBack(arg11, grad1, reducedDims)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         val sumGrad14 =
                             when (val tryResult = grads.orInsert(arg11)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         sumGrad14 =
                             when (val tryResult = sumGrad14.add(grad2)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                     }
                     op is Op.Reduce && op.field1 == ReduceOp.Max -> {
                         val (arg12, _, reducedDims1) = op
                         val node1 =
                             when (val tryResult = broadcastBack(arg12, node, reducedDims1)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         val grad3 =
                             when (val tryResult = broadcastBack(arg12, grad1, reducedDims1)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         val grad4 =
                             when (
@@ -1506,47 +1504,47 @@ public fun Tensor.backward(): Result<GradStore> {
                                     when (
                                         val tryResult =
                                             when (val tryResult = node1.eq(arg12)) {
-                                                is Result.Ok -> tryResult.value
-                                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                                is Result.Ok<*> -> tryResult.value
+                                                is Result.Err<*> -> return Result.Err(tryResult.error)
                                             }.toDtype(grad3.dtype())
                                     ) {
-                                        is Result.Ok -> tryResult.value
-                                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                        is Result.Ok<*> -> tryResult.value
+                                        is Result.Err<*> -> return Result.Err(tryResult.error)
                                     }.mul(grad3)
                             ) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         val sumGrad15 =
                             when (val tryResult = grads.orInsert(arg12)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         sumGrad15 =
                             when (
                                 val tryResult =
                                     sumGrad15.add(
                                         when (val tryResult = grad4.broadcastAs(sumGrad15.dims())) {
-                                            is Result.Ok -> tryResult.value
-                                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                            is Result.Ok<*> -> tryResult.value
+                                            is Result.Err<*> -> return Result.Err(tryResult.error)
                                         },
                                     )
                             ) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                     }
                     op is Op.Reduce && op.field1 == ReduceOp.Min -> {
                         val (arg13, _, reducedDims2) = op
                         val node2 =
                             when (val tryResult = broadcastBack(arg13, node, reducedDims2)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         val grad5 =
                             when (val tryResult = broadcastBack(arg13, grad1, reducedDims2)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         val grad6 =
                             when (
@@ -1554,68 +1552,68 @@ public fun Tensor.backward(): Result<GradStore> {
                                     when (
                                         val tryResult =
                                             when (val tryResult = node2.eq(arg13)) {
-                                                is Result.Ok -> tryResult.value
-                                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                                is Result.Ok<*> -> tryResult.value
+                                                is Result.Err<*> -> return Result.Err(tryResult.error)
                                             }.toDtype(grad5.dtype())
                                     ) {
-                                        is Result.Ok -> tryResult.value
-                                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                        is Result.Ok<*> -> tryResult.value
+                                        is Result.Err<*> -> return Result.Err(tryResult.error)
                                     }.mul(grad5)
                             ) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         val sumGrad16 =
                             when (val tryResult = grads.orInsert(arg13)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         sumGrad16 =
                             when (
                                 val tryResult =
                                     sumGrad16.add(
                                         when (val tryResult = grad6.broadcastAs(sumGrad16.dims())) {
-                                            is Result.Ok -> tryResult.value
-                                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                            is Result.Ok<*> -> tryResult.value
+                                            is Result.Err<*> -> return Result.Err(tryResult.error)
                                         },
                                     )
                             ) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                     }
                     op is Op.ToDType -> {
                         val (arg14) = op
                         val sumGrad17 =
                             when (val tryResult = grads.orInsert(arg14)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         sumGrad17 =
                             when (
                                 val tryResult =
                                     sumGrad17.add(
                                         when (val tryResult = grad1.toDtype(arg14.dtype())) {
-                                            is Result.Ok -> tryResult.value
-                                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                            is Result.Ok<*> -> tryResult.value
+                                            is Result.Err<*> -> return Result.Err(tryResult.error)
                                         },
                                     )
                             ) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                     }
                     op is Op.Copy -> {
                         val (arg15) = op
                         val sumGrad18 =
                             when (val tryResult = grads.orInsert(arg15)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         sumGrad18 =
                             when (val tryResult = sumGrad18.add(grad1)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                     }
                     op is Op.Affine -> {
@@ -1623,145 +1621,145 @@ public fun Tensor.backward(): Result<GradStore> {
                         val mul = op.mul
                         val argGrad2 =
                             when (val tryResult = grad1.affine(mul, 0.0)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         val sumGrad19 =
                             when (val tryResult = grads.orInsert(arg16)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         sumGrad19 =
                             when (val tryResult = sumGrad19.add(argGrad2)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                     }
                     op is Op.Unary && op.field1 == UnaryOp.Log -> {
                         val (arg17, _) = op
                         val sumGrad20 =
                             when (val tryResult = grads.orInsert(arg17)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         sumGrad20 =
                             when (
                                 val tryResult =
                                     sumGrad20.add(
                                         when (val tryResult = (grad1 / arg17)) {
-                                            is Result.Ok -> tryResult.value
-                                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                            is Result.Ok<*> -> tryResult.value
+                                            is Result.Err<*> -> return Result.Err(tryResult.error)
                                         },
                                     )
                             ) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                     }
                     op is Op.Unary && op.field1 == UnaryOp.Sin -> {
                         val (arg18, _) = op
                         val sumGrad21 =
                             when (val tryResult = grads.orInsert(arg18)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         sumGrad21 =
                             when (
                                 val tryResult =
                                     sumGrad21.add(
                                         when (val tryResult = (grad1 * arg18.cos())) {
-                                            is Result.Ok -> tryResult.value
-                                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                            is Result.Ok<*> -> tryResult.value
+                                            is Result.Err<*> -> return Result.Err(tryResult.error)
                                         },
                                     )
                             ) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                     }
                     op is Op.Unary && op.field1 == UnaryOp.Cos -> {
                         val (arg19, _) = op
                         val sumGrad22 =
                             when (val tryResult = grads.orInsert(arg19)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         sumGrad22 =
                             when (
                                 val tryResult =
                                     sumGrad22.sub(
                                         when (val tryResult = (grad1 * arg19.sin())) {
-                                            is Result.Ok -> tryResult.value
-                                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                            is Result.Ok<*> -> tryResult.value
+                                            is Result.Err<*> -> return Result.Err(tryResult.error)
                                         },
                                     )
                             ) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                     }
                     op is Op.Unary && op.field1 == UnaryOp.Tanh -> {
                         val (arg20, _) = op
                         val sumGrad23 =
                             when (val tryResult = grads.orInsert(arg20)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         val minusDtanh =
                             when (
                                 val tryResult = (
                                     when (val tryResult = node.sqr()) {
-                                        is Result.Ok -> tryResult.value
-                                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                        is Result.Ok<*> -> tryResult.value
+                                        is Result.Err<*> -> return Result.Err(tryResult.error)
                                     } - 1.0
                                 )
                             ) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         sumGrad23 =
                             when (
                                 val tryResult =
                                     sumGrad23.sub(
                                         when (val tryResult = (grad1 * minusDtanh)) {
-                                            is Result.Ok -> tryResult.value
-                                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                            is Result.Ok<*> -> tryResult.value
+                                            is Result.Err<*> -> return Result.Err(tryResult.error)
                                         },
                                     )
                             ) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                     }
                     op is Op.Unary && op.field1 == UnaryOp.Abs -> {
                         val (arg21, _) = op
                         val sumGrad24 =
                             when (val tryResult = grads.orInsert(arg21)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         val ones =
                             when (val tryResult = arg21.onesLike()) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         val absGrad =
                             when (
                                 val tryResult =
                                     arg21.ge(
                                         when (val tryResult = arg21.zerosLike()) {
-                                            is Result.Ok -> tryResult.value
-                                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                            is Result.Ok<*> -> tryResult.value
+                                            is Result.Err<*> -> return Result.Err(tryResult.error)
                                         },
                                     )
                             ) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }.whereCond(
                                 ones,
                                 when (val tryResult = ones.neg()) {
-                                    is Result.Ok -> tryResult.value
-                                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                    is Result.Ok<*> -> tryResult.value
+                                    is Result.Err<*> -> return Result.Err(tryResult.error)
                                 },
                             )
                         sumGrad24 =
@@ -1769,73 +1767,73 @@ public fun Tensor.backward(): Result<GradStore> {
                                 val tryResult =
                                     sumGrad24.add(
                                         when (val tryResult = (grad1 * absGrad)) {
-                                            is Result.Ok -> tryResult.value
-                                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                            is Result.Ok<*> -> tryResult.value
+                                            is Result.Err<*> -> return Result.Err(tryResult.error)
                                         },
                                     )
                             ) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                     }
                     op is Op.Unary && op.field1 == UnaryOp.Exp -> {
                         val (arg22, _) = op
                         val sumGrad25 =
                             when (val tryResult = grads.orInsert(arg22)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         sumGrad25 =
                             when (
                                 val tryResult =
                                     sumGrad25.add(
                                         when (val tryResult = (grad1 * node)) {
-                                            is Result.Ok -> tryResult.value
-                                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                            is Result.Ok<*> -> tryResult.value
+                                            is Result.Err<*> -> return Result.Err(tryResult.error)
                                         },
                                     )
                             ) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                     }
                     op is Op.Unary && op.field1 == UnaryOp.Neg -> {
                         val (arg23, _) = op
                         val sumGrad26 =
                             when (val tryResult = grads.orInsert(arg23)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         sumGrad26 =
                             when (val tryResult = sumGrad26.sub(grad1)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                     }
                     op is Op.Unary && op.field1 == UnaryOp.Recip -> {
                         val (arg24, _) = op
                         val sumGrad27 =
                             when (val tryResult = grads.orInsert(arg24)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         val grad7 =
                             when (
                                 val tryResult = (
                                     grad1 /
                                         when (val tryResult = arg24.sqr()) {
-                                            is Result.Ok -> tryResult.value
-                                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                            is Result.Ok<*> -> tryResult.value
+                                            is Result.Err<*> -> return Result.Err(tryResult.error)
                                         }
                                 )
                             ) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         sumGrad27 =
                             when (val tryResult = sumGrad27.sub(grad7)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                     }
                     op is Op.Narrow -> {
@@ -1848,8 +1846,8 @@ public fun Tensor.backward(): Result<GradStore> {
                                 val dims = argDims1.toVec()
                                 dims[dim7] = startIdx1
                                 when (val tryResult = Tensor.zeros(dims, grad1.dtype(), grad1.device())) {
-                                    is Result.Ok -> tryResult.value
-                                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                    is Result.Ok<*> -> tryResult.value
+                                    is Result.Err<*> -> return Result.Err(tryResult.error)
                                 }
                             }
                         val rightPad = argDims1[dim7] - startIdx1 - len1
@@ -1860,8 +1858,8 @@ public fun Tensor.backward(): Result<GradStore> {
                                 val dims1 = argDims1.toVec()
                                 dims1[dim7] = rightPad
                                 when (val tryResult = Tensor.zeros(dims1, grad1.dtype(), grad1.device())) {
-                                    is Result.Ok -> tryResult.value
-                                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                    is Result.Ok<*> -> tryResult.value
+                                    is Result.Err<*> -> return Result.Err(tryResult.error)
                                 }
                             }
                         val argGrad3 =
@@ -1872,36 +1870,36 @@ public fun Tensor.backward(): Result<GradStore> {
                                     matchVal1.first != null && matchVal1.second == null -> {
                                         val l = matchVal1.first
                                         when (val tryResult = Tensor.cat(listOf(l, grad1), dim7)) {
-                                            is Result.Ok -> tryResult.value
-                                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                            is Result.Ok<*> -> tryResult.value
+                                            is Result.Err<*> -> return Result.Err(tryResult.error)
                                         }
                                     }
                                     matchVal1.first == null && matchVal1.second != null -> {
                                         val r = matchVal1.second
                                         when (val tryResult = Tensor.cat(listOf(grad1, r), dim7)) {
-                                            is Result.Ok -> tryResult.value
-                                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                            is Result.Ok<*> -> tryResult.value
+                                            is Result.Err<*> -> return Result.Err(tryResult.error)
                                         }
                                     }
                                     else -> {
                                         val l1 = matchVal1.first
                                         val r1 = matchVal1.second
                                         when (val tryResult = Tensor.cat(listOf(l1, grad1, r1), dim7)) {
-                                            is Result.Ok -> tryResult.value
-                                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                            is Result.Ok<*> -> tryResult.value
+                                            is Result.Err<*> -> return Result.Err(tryResult.error)
                                         }
                                     }
                                 }
                             }
                         val sumGrad28 =
                             when (val tryResult = grads.orInsert(arg25)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         sumGrad28 =
                             when (val tryResult = sumGrad28.add(argGrad3)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                     }
                     op is Op.Unary && op.field1 == UnaryOp.Floor -> {}
@@ -1914,36 +1912,36 @@ public fun Tensor.backward(): Result<GradStore> {
                         val (arg26) = op
                         val argGrad4 =
                             when (val tryResult = grad1.reshape(arg26.dims())) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         val sumGrad29 =
                             when (val tryResult = grads.orInsert(arg26)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         sumGrad29 =
                             when (val tryResult = sumGrad29.add(argGrad4)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                     }
                     op is Op.Unary && op.field1 == UnaryOp.Ceil ->
-                        when (val tryResult = Err(Error.BackwardNotSupported(op = "ceil"))) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        when (val tryResult = Result.Err(Error.BackwardNotSupported(op = "ceil"))) {
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     op is Op.Unary && op.field1 == UnaryOp.Gelu -> {
                         val (arg27, _) = op
                         val sumGrad30 =
                             when (val tryResult = grads.orInsert(arg27)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         val cube =
                             when (val tryResult = arg27.powf(3.0)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         val tanh =
                             when (
@@ -1952,17 +1950,17 @@ public fun Tensor.backward(): Result<GradStore> {
                                         val tryResult = (
                                             0.0356774 * cube +
                                                 when (val tryResult = (0.797885 * arg27)) {
-                                                    is Result.Ok -> tryResult.value
-                                                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                                    is Result.Ok<*> -> tryResult.value
+                                                    is Result.Err<*> -> return Result.Err(tryResult.error)
                                                 }
                                         )
                                     ) {
-                                        is Result.Ok -> tryResult.value
-                                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                        is Result.Ok<*> -> tryResult.value
+                                        is Result.Err<*> -> return Result.Err(tryResult.error)
                                     }.tanh()
                             ) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         val geluGrad =
                             when (
@@ -1970,56 +1968,56 @@ public fun Tensor.backward(): Result<GradStore> {
                                     when (
                                         val tryResult = (
                                             when (val tryResult = (0.5 * tanh)) {
-                                                is Result.Ok -> tryResult.value
-                                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                                is Result.Ok<*> -> tryResult.value
+                                                is Result.Err<*> -> return Result.Err(tryResult.error)
                                             } + when (
                                                 val tryResult = (
                                                     0.0535161 * cube +
                                                         when (val tryResult = (0.398942 * arg27)) {
-                                                            is Result.Ok -> tryResult.value
-                                                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                                            is Result.Ok<*> -> tryResult.value
+                                                            is Result.Err<*> -> return Result.Err(tryResult.error)
                                                         }
                                                 )
                                             ) {
-                                                is Result.Ok -> tryResult.value
-                                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                                is Result.Ok<*> -> tryResult.value
+                                                is Result.Err<*> -> return Result.Err(tryResult.error)
                                             } * (
                                                 1.0 -
                                                     when (val tryResult = tanh.powf(2.0)) {
-                                                        is Result.Ok -> tryResult.value
-                                                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                                        is Result.Ok<*> -> tryResult.value
+                                                        is Result.Err<*> -> return Result.Err(tryResult.error)
                                                     }
                                             )
                                         )
                                     ) {
-                                        is Result.Ok -> tryResult.value
-                                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                        is Result.Ok<*> -> tryResult.value
+                                        is Result.Err<*> -> return Result.Err(tryResult.error)
                                     } + 0.5
                                 )
                             ) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         sumGrad30 =
                             when (
                                 val tryResult =
                                     sumGrad30.add(
                                         when (val tryResult = (grad1 * geluGrad)) {
-                                            is Result.Ok -> tryResult.value
-                                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                            is Result.Ok<*> -> tryResult.value
+                                            is Result.Err<*> -> return Result.Err(tryResult.error)
                                         },
                                     )
                             ) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                     }
                     op is Op.Unary && op.field1 == UnaryOp.Erf -> {
                         val (arg28, _) = op
                         val sumGrad31 =
                             when (val tryResult = grads.orInsert(arg28)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         // d/dx erf(x) = 2/sqrt(pi) * e^(-x^2)
                         val erfGrad =
@@ -2030,38 +2028,38 @@ public fun Tensor.backward(): Result<GradStore> {
                                             when (
                                                 val tryResult =
                                                     when (val tryResult = arg28.sqr()) {
-                                                        is Result.Ok -> tryResult.value
-                                                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                                        is Result.Ok<*> -> tryResult.value
+                                                        is Result.Err<*> -> return Result.Err(tryResult.error)
                                                     }.neg()
                                             ) {
-                                                is Result.Ok -> tryResult.value
-                                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                                is Result.Ok<*> -> tryResult.value
+                                                is Result.Err<*> -> return Result.Err(tryResult.error)
                                             }
                                         ).exp()
                                 ) {
-                                    is Result.Ok -> tryResult.value
-                                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                    is Result.Ok<*> -> tryResult.value
+                                    is Result.Err<*> -> return Result.Err(tryResult.error)
                                 }
                         sumGrad31 =
                             when (
                                 val tryResult =
                                     sumGrad31.add(
                                         when (val tryResult = (grad1 * erfGrad)) {
-                                            is Result.Ok -> tryResult.value
-                                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                            is Result.Ok<*> -> tryResult.value
+                                            is Result.Err<*> -> return Result.Err(tryResult.error)
                                         },
                                     )
                             ) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                     }
                     op is Op.Unary && op.field1 == UnaryOp.GeluErf -> {
                         val (arg29, _) = op
                         val sumGrad32 =
                             when (val tryResult = grads.orInsert(arg29)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         // d/dx geluErf(x) = 0.5 + 0.398942 e^(-x^2/2) x + 0.5 erf(x/sqrt(2))
                         val negHalfSquare =
@@ -2070,74 +2068,74 @@ public fun Tensor.backward(): Result<GradStore> {
                                     when (
                                         val tryResult =
                                             when (val tryResult = arg29.sqr()) {
-                                                is Result.Ok -> tryResult.value
-                                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                                is Result.Ok<*> -> tryResult.value
+                                                is Result.Err<*> -> return Result.Err(tryResult.error)
                                             }.neg()
                                     ) {
-                                        is Result.Ok -> tryResult.value
-                                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                        is Result.Ok<*> -> tryResult.value
+                                        is Result.Err<*> -> return Result.Err(tryResult.error)
                                     } / 2.0
                                 )
                             ) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         val scaledExpArg =
                             when (
                                 val tryResult = (
                                     0.398942 *
                                         when (val tryResult = negHalfSquare.exp()) {
-                                            is Result.Ok -> tryResult.value
-                                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                            is Result.Ok<*> -> tryResult.value
+                                            is Result.Err<*> -> return Result.Err(tryResult.error)
                                         } * arg29
                                 )
                             ) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         val argScaledSqrt =
                             when (val tryResult = (arg29 / 2.0.sqrt())) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         val erfScaledSqrt =
                             when (
                                 val tryResult = (
                                     0.5 *
                                         when (val tryResult = argScaledSqrt.erf()) {
-                                            is Result.Ok -> tryResult.value
-                                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                            is Result.Ok<*> -> tryResult.value
+                                            is Result.Err<*> -> return Result.Err(tryResult.error)
                                         }
                                 )
                             ) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         val geluErfGrad =
                             when (val tryResult = (0.5 + scaledExpArg + erfScaledSqrt)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         sumGrad32 =
                             when (
                                 val tryResult =
                                     sumGrad32.add(
                                         when (val tryResult = (grad1 * geluErfGrad)) {
-                                            is Result.Ok -> tryResult.value
-                                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                            is Result.Ok<*> -> tryResult.value
+                                            is Result.Err<*> -> return Result.Err(tryResult.error)
                                         },
                                     )
                             ) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                     }
                     op is Op.Unary && op.field1 == UnaryOp.Relu -> {
                         val (arg30, _) = op
                         val sumGrad33 =
                             when (val tryResult = grads.orInsert(arg30)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         val reluGrad =
                             when (
@@ -2146,38 +2144,38 @@ public fun Tensor.backward(): Result<GradStore> {
                                         val tryResult =
                                             arg30.ge(
                                                 when (val tryResult = arg30.zerosLike()) {
-                                                    is Result.Ok -> tryResult.value
-                                                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                                    is Result.Ok<*> -> tryResult.value
+                                                    is Result.Err<*> -> return Result.Err(tryResult.error)
                                                 },
                                             )
                                     ) {
-                                        is Result.Ok -> tryResult.value
-                                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                        is Result.Ok<*> -> tryResult.value
+                                        is Result.Err<*> -> return Result.Err(tryResult.error)
                                     }.toDtype(arg30.dtype())
                             ) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         sumGrad33 =
                             when (
                                 val tryResult =
                                     sumGrad33.add(
                                         when (val tryResult = (grad1 * reluGrad)) {
-                                            is Result.Ok -> tryResult.value
-                                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                            is Result.Ok<*> -> tryResult.value
+                                            is Result.Err<*> -> return Result.Err(tryResult.error)
                                         },
                                     )
                             ) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                     }
                     op is Op.Unary && op.field1 == UnaryOp.Silu -> {
                         val (arg31, _) = op
                         val sumGrad34 =
                             when (val tryResult = grads.orInsert(arg31)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         // d/dx silu = sigmoid(x) * (1 + x * (1 - sigmoid(x))) = sigmoid(x) * (1 - node) + node
                         val sigmoidArg =
@@ -2188,21 +2186,21 @@ public fun Tensor.backward(): Result<GradStore> {
                                             when (
                                                 val tryResult =
                                                     when (val tryResult = arg31.neg()) {
-                                                        is Result.Ok -> tryResult.value
-                                                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                                        is Result.Ok<*> -> tryResult.value
+                                                        is Result.Err<*> -> return Result.Err(tryResult.error)
                                                     }.exp()
                                             ) {
-                                                is Result.Ok -> tryResult.value
-                                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                                is Result.Ok<*> -> tryResult.value
+                                                is Result.Err<*> -> return Result.Err(tryResult.error)
                                             } + 1.0
                                         )
                                     ) {
-                                        is Result.Ok -> tryResult.value
-                                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                        is Result.Ok<*> -> tryResult.value
+                                        is Result.Err<*> -> return Result.Err(tryResult.error)
                                     }.recip()
                             ) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         val siluGrad = sigmoidArg * (1.0 - node) + node
                         sumGrad34 =
@@ -2210,13 +2208,13 @@ public fun Tensor.backward(): Result<GradStore> {
                                 val tryResult =
                                     sumGrad34.add(
                                         when (val tryResult = (grad1 * siluGrad)) {
-                                            is Result.Ok -> tryResult.value
-                                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                            is Result.Ok<*> -> tryResult.value
+                                            is Result.Err<*> -> return Result.Err(tryResult.error)
                                         },
                                     )
                             ) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                     }
                     op is Op.Elu -> {
@@ -2224,59 +2222,59 @@ public fun Tensor.backward(): Result<GradStore> {
                         // d/dx elu(x) = 1 for x > 0, alpha * e^x for x <= 0
                         val sumGrad35 =
                             when (val tryResult = grads.orInsert(arg32)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         val zeros1 =
                             when (val tryResult = arg32.zerosLike()) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         val positiveMask =
                             when (
                                 val tryResult =
                                     when (val tryResult = arg32.gt(zeros1)) {
-                                        is Result.Ok -> tryResult.value
-                                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                        is Result.Ok<*> -> tryResult.value
+                                        is Result.Err<*> -> return Result.Err(tryResult.error)
                                     }.toDtype(arg32.dtype())
                             ) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         val negativeMask =
                             when (
                                 val tryResult =
                                     when (val tryResult = arg32.le(zeros1)) {
-                                        is Result.Ok -> tryResult.value
-                                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                        is Result.Ok<*> -> tryResult.value
+                                        is Result.Err<*> -> return Result.Err(tryResult.error)
                                     }.toDtype(arg32.dtype())
                             ) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         // node == alpha * (e^x - 1) for x <= 0, reuse it
                         val negativeExpMask =
                             when (val tryResult = (negativeMask * (node + alpha))) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         val combinedMask =
                             when (val tryResult = (positiveMask + negativeExpMask)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         sumGrad35 =
                             when (
                                 val tryResult =
                                     sumGrad35.add(
                                         when (val tryResult = (grad1 * combinedMask)) {
-                                            is Result.Ok -> tryResult.value
-                                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                            is Result.Ok<*> -> tryResult.value
+                                            is Result.Err<*> -> return Result.Err(tryResult.error)
                                         },
                                     )
                             ) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                     }
                     op is Op.Powf -> {
@@ -2288,28 +2286,28 @@ public fun Tensor.backward(): Result<GradStore> {
                                         val tryResult = (
                                             grad1 *
                                                 when (val tryResult = arg33.powf(e - 1.0)) {
-                                                    is Result.Ok -> tryResult.value
-                                                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                                    is Result.Ok<*> -> tryResult.value
+                                                    is Result.Err<*> -> return Result.Err(tryResult.error)
                                                 }
                                         )
                                     ) {
-                                        is Result.Ok -> tryResult.value
-                                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                        is Result.Ok<*> -> tryResult.value
+                                        is Result.Err<*> -> return Result.Err(tryResult.error)
                                     } * e
                                 )
                             ) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         val sumGrad36 =
                             when (val tryResult = grads.orInsert(arg33)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         sumGrad36 =
                             when (val tryResult = sumGrad36.add(argGrad5)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                     }
                     op is Op.CustomOp1 -> {
@@ -2317,8 +2315,8 @@ public fun Tensor.backward(): Result<GradStore> {
                         when (
                             val matchVal2 =
                                 when (val tryResult = c2.bwd(arg34, node, grad1)) {
-                                    is Result.Ok -> tryResult.value
-                                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                    is Result.Ok<*> -> tryResult.value
+                                    is Result.Err<*> -> return Result.Err(tryResult.error)
                                 }
                         ) {
                             null -> {}
@@ -2326,13 +2324,13 @@ public fun Tensor.backward(): Result<GradStore> {
                                 val argGrad6 = matchVal2
                                 val sumGrad37 =
                                     when (val tryResult = grads.orInsert(arg34)) {
-                                        is Result.Ok -> tryResult.value
-                                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                        is Result.Ok<*> -> tryResult.value
+                                        is Result.Err<*> -> return Result.Err(tryResult.error)
                                     }
                                 sumGrad37 =
                                     when (val tryResult = sumGrad37.add(argGrad6)) {
-                                        is Result.Ok -> tryResult.value
-                                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                        is Result.Ok<*> -> tryResult.value
+                                        is Result.Err<*> -> return Result.Err(tryResult.error)
                                     }
                             }
                         }
@@ -2341,33 +2339,33 @@ public fun Tensor.backward(): Result<GradStore> {
                         val (arg1, arg2, c3) = op
                         val (argGrad1, argGrad2) =
                             when (val tryResult = c3.bwd(arg1, arg2, node, grad1)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         if (argGrad1 != null) {
                             val argGrad11 = argGrad1
                             val sumGrad38 =
                                 when (val tryResult = grads.orInsert(arg1)) {
-                                    is Result.Ok -> tryResult.value
-                                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                    is Result.Ok<*> -> tryResult.value
+                                    is Result.Err<*> -> return Result.Err(tryResult.error)
                                 }
                             sumGrad38 =
                                 when (val tryResult = sumGrad38.add(argGrad11)) {
-                                    is Result.Ok -> tryResult.value
-                                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                    is Result.Ok<*> -> tryResult.value
+                                    is Result.Err<*> -> return Result.Err(tryResult.error)
                                 }
                         }
                         if (argGrad2 != null) {
                             val argGrad21 = argGrad2
                             val sumGrad39 =
                                 when (val tryResult = grads.orInsert(arg2)) {
-                                    is Result.Ok -> tryResult.value
-                                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                    is Result.Ok<*> -> tryResult.value
+                                    is Result.Err<*> -> return Result.Err(tryResult.error)
                                 }
                             sumGrad39 =
                                 when (val tryResult = sumGrad39.add(argGrad21)) {
-                                    is Result.Ok -> tryResult.value
-                                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                    is Result.Ok<*> -> tryResult.value
+                                    is Result.Err<*> -> return Result.Err(tryResult.error)
                                 }
                         }
                     }
@@ -2375,46 +2373,46 @@ public fun Tensor.backward(): Result<GradStore> {
                         val (arg11, arg21, arg3, c4) = op
                         val (argGrad12, argGrad22, argGrad3) =
                             when (val tryResult = c4.bwd(arg11, arg21, arg3, node, grad1)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         if (argGrad12 != null) {
                             val argGrad13 = argGrad12
                             val sumGrad40 =
                                 when (val tryResult = grads.orInsert(arg11)) {
-                                    is Result.Ok -> tryResult.value
-                                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                    is Result.Ok<*> -> tryResult.value
+                                    is Result.Err<*> -> return Result.Err(tryResult.error)
                                 }
                             sumGrad40 =
                                 when (val tryResult = sumGrad40.add(argGrad13)) {
-                                    is Result.Ok -> tryResult.value
-                                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                    is Result.Ok<*> -> tryResult.value
+                                    is Result.Err<*> -> return Result.Err(tryResult.error)
                                 }
                         }
                         if (argGrad22 != null) {
                             val argGrad23 = argGrad22
                             val sumGrad41 =
                                 when (val tryResult = grads.orInsert(arg21)) {
-                                    is Result.Ok -> tryResult.value
-                                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                    is Result.Ok<*> -> tryResult.value
+                                    is Result.Err<*> -> return Result.Err(tryResult.error)
                                 }
                             sumGrad41 =
                                 when (val tryResult = sumGrad41.add(argGrad23)) {
-                                    is Result.Ok -> tryResult.value
-                                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                    is Result.Ok<*> -> tryResult.value
+                                    is Result.Err<*> -> return Result.Err(tryResult.error)
                                 }
                         }
                         if (argGrad3 != null) {
                             val argGrad31 = argGrad3
                             val sumGrad42 =
                                 when (val tryResult = grads.orInsert(arg3)) {
-                                    is Result.Ok -> tryResult.value
-                                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                    is Result.Ok<*> -> tryResult.value
+                                    is Result.Err<*> -> return Result.Err(tryResult.error)
                                 }
                             sumGrad42 =
                                 when (val tryResult = sumGrad42.add(argGrad31)) {
-                                    is Result.Ok -> tryResult.value
-                                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                    is Result.Ok<*> -> tryResult.value
+                                    is Result.Err<*> -> return Result.Err(tryResult.error)
                                 }
                         }
                     }
@@ -2424,22 +2422,22 @@ public fun Tensor.backward(): Result<GradStore> {
                             when (
                                 val tryResult =
                                     when (val tryResult = arg35.mul(grad1)) {
-                                        is Result.Ok -> tryResult.value
-                                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                        is Result.Ok<*> -> tryResult.value
+                                        is Result.Err<*> -> return Result.Err(tryResult.error)
                                     }.affine(2.0, 0.0)
                             ) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         val sumGrad43 =
                             when (val tryResult = grads.orInsert(arg35)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         sumGrad43 =
                             when (val tryResult = sumGrad43.add(argGrad7)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                     }
                     op is Op.Unary && op.field1 == UnaryOp.Sqrt -> {
@@ -2448,96 +2446,96 @@ public fun Tensor.backward(): Result<GradStore> {
                             when (
                                 val tryResult =
                                     when (val tryResult = grad1.div(node)) {
-                                        is Result.Ok -> tryResult.value
-                                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                        is Result.Ok<*> -> tryResult.value
+                                        is Result.Err<*> -> return Result.Err(tryResult.error)
                                     }.affine(0.5, 0.0)
                             ) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         val sumGrad44 =
                             when (val tryResult = grads.orInsert(arg36)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         sumGrad44 =
                             when (val tryResult = sumGrad44.add(argGrad8)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                     }
                     op is Op.ToDevice -> {
                         val (arg37) = op
                         val sumGrad45 =
                             when (val tryResult = grads.orInsert(arg37)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         val argGrad9 =
                             when (val tryResult = grad1.toDevice(sumGrad45.device())) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         sumGrad45 =
                             when (val tryResult = sumGrad45.add(argGrad9)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                     }
                     op is Op.Transpose -> {
                         val (arg38, dim1, dim2) = op
                         val argGrad10 =
                             when (val tryResult = grad1.transpose(dim1, dim2)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         val sumGrad46 =
                             when (val tryResult = grads.orInsert(arg38)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         sumGrad46 =
                             when (val tryResult = sumGrad46.add(argGrad10)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                     }
                     else -> {
                         val (arg39, dims2) = op
                         var invDims = mutableListOf(0, dims2.len())
-                        for ((i, dimIdx) in dims2.iter().enumerate()) {
+                        for ((i, dimIdx) in dims2.iter().mapIndexed { index, item -> Pair(index, item) }) {
                             invDims[dimIdx] = i
                         }
                         val argGrad11 =
                             when (val tryResult = grad1.permute(invDims)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         val sumGrad47 =
                             when (val tryResult = grads.orInsert(arg39)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         sumGrad47 =
                             when (val tryResult = sumGrad47.add(argGrad11)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                     }
                 }
             }
         }
     }
-    return Ok(grads)
+    return Result.Ok(grads)
 }
 
 /**
  * A store for gradients, associating a tensor id to the corresponding gradient tensor, used for back propagation.
  */
 public data class GradStore(
-    public var value: Map<TensorId, Tensor> = emptyMap(),
+    public var value: MutableMap<TensorId, Tensor> = MutableMap<TensorId, Tensor>(),
 ) {
-    public var field0: Map<TensorId, Tensor>
+    public var field0: MutableMap<TensorId, Tensor>
         get() = value
         set(v) {
             value = v
@@ -2561,12 +2559,12 @@ public data class GradStore(
     /**
      * Insert a gradient tensor associated with the given tensor, returning the previous gradient tensor if it existed
      */
-    public fun insert(tensor: Tensor, grad: Tensor): Tensor? = this.value.insert(tensor.id(), grad)
+    public fun insert(tensor: Tensor, grad: Tensor): Tensor? = this.value.put(tensor.id(), grad)
 
     /**
      * Insert a gradient tensor associated with the given tensor id, returning the previous gradient tensor if it existed
      */
-    public fun insertId(id: TensorId, grad: Tensor): Tensor? = this.value.insert(id, grad)
+    public fun insertId(id: TensorId, grad: Tensor): Tensor? = this.value.put(id, grad)
 
     /**
      * Get the gradient tensor associated with the given tensor, or, if it does not exist,
@@ -2583,13 +2581,13 @@ public data class GradStore(
                     val (entry1) = matchVal
                     val grad =
                         when (val tryResult = tensor.zerosLike()) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     entry1.insert(grad)
                 }
             }
-        return Ok(grad1)
+        return Result.Ok(grad1)
     }
 
     /**
@@ -2604,8 +2602,8 @@ public data class GradStore(
                     val (entry) = matchVal
                     val newGrad =
                         when (val tryResult = entry.get().add(grad)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     val doNotDetach = CANDLE_GRAD_DO_NOT_DETACH.with({ b -> b })
                     val newGrad1 =
@@ -2622,7 +2620,7 @@ public data class GradStore(
                 }
             }
         }
-        return Ok(Unit)
+        return Result.Ok(Unit)
     }
 
     /**

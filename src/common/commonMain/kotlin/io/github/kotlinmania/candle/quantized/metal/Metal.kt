@@ -1,8 +1,8 @@
 // port-lint: source quantized/metal.rs
 package io.github.kotlinmania.candle.quantized.metal
 
+import io.github.kotlinmania.candle.cpu.Cpu
 import io.github.kotlinmania.candle.cpubackend.CpuStorage
-import io.github.kotlinmania.candle.device.Device
 import io.github.kotlinmania.candle.dtype.DType
 import io.github.kotlinmania.candle.dummymetalbackend.MetalDevice
 import io.github.kotlinmania.candle.dummymetalbackend.MetalError
@@ -27,7 +27,6 @@ import io.github.kotlinmania.candle.quantized.kquants.BlockQ8K
 import io.github.kotlinmania.candle.quantized.kquants.GgmlType
 import io.github.kotlinmania.candle.shape.D
 import io.github.kotlinmania.candle.shape.Shape
-import io.github.kotlinmania.candle.storage.Storage
 import io.github.kotlinmania.candlemetalkernels.callQuantizedGetRows
 import io.github.kotlinmania.candlemetalkernels.callQuantizedMatmulMmT
 import io.github.kotlinmania.candlemetalkernels.callQuantizedMatmulMvT
@@ -36,7 +35,6 @@ import io.github.kotlinmania.half.Bf16
 import io.github.kotlinmania.half.F16
 import io.github.kotlinmania.half.f16.toFloat
 import io.github.kotlinmania.rustlang.core.mem.constPtrFromRustCast
-import io.github.kotlinmania.rustlang.core.result.fromResidual
 
 public data class QMetalStorage(
     public var dtype: GgmlDType = GgmlDType.entries.first(),
@@ -53,21 +51,21 @@ public data class QMetalStorage(
                         .withLabel("qstorage_dequantize_blit")
                         .build()
             ) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         run {
             val blit =
                 when (val tryResult = this.device.blitCommandEncoder()) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             blit.setLabel("blit_to_cpu")
             blit.copyFromBuffer(this.buffer, 0, buffer, 0, this.buffer.length())
         }
         when (val tryResult = this.device.flushAndWaitCurrent()) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
         val out = mutableListOf(0.0, elemCount)
         val blockLen = elemCount / this.dtype.blockSize()
@@ -143,29 +141,29 @@ public data class QMetalStorage(
                         .withLabel("qstorage_dequantized")
                         .build()
             ) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
-        return Ok(MetalStorage.new(buffer1, this.device.clone(), elemCount, DType.F32))
+        return Result.Ok(MetalStorage.new(buffer1, this.device.clone(), elemCount, DType.F32))
     }
 
     public fun quantize(src: MetalStorage): Result<Unit> {
         // Quantization only happens on CPU for now.
         val src1 =
             when (val tryResult = src.toCpu<Float>()) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val elemCount = src1.len()
-        val src2 = Storage.Cpu(CpuStorage.F32(src1))
+        val src2 = Cpu(CpuStorage.F32(src1))
         val qcpuStorage =
-            when (val tryResult = Device.Cpu.qzeros(elemCount, this.dtype)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            when (val tryResult = Cpu.qzeros(elemCount, this.dtype)) {
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         when (val tryResult = qcpuStorage.quantize(src2)) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
         val buffer =
             when (
@@ -174,36 +172,36 @@ public data class QMetalStorage(
                         .newBufferBuilder()
                         .withData(
                             when (val tryResult = qcpuStorage.data()) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             },
                         ).withLabel("qstorage_quantized")
                         .build()
             ) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         this.buffer = buffer
-        return Ok(Unit)
+        return Result.Ok(Unit)
     }
 
     public fun quantizeImatrix(src: MetalStorage, imatrixWeights: List<Float>, nPerRow: Int): Result<Unit> {
         // Quantization only happens on CPU for now.
         val src1 =
             when (val tryResult = src.toCpu<Float>()) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val elemCount = src1.len()
-        val src2 = Storage.Cpu(CpuStorage.F32(src1))
+        val src2 = Cpu(CpuStorage.F32(src1))
         val qcpuStorage =
-            when (val tryResult = Device.Cpu.qzeros(elemCount, this.dtype)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            when (val tryResult = Cpu.qzeros(elemCount, this.dtype)) {
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         when (val tryResult = qcpuStorage.quantizeImatrix(src2, imatrixWeights, nPerRow)) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
         val buffer =
             when (
@@ -212,37 +210,37 @@ public data class QMetalStorage(
                         .newBufferBuilder()
                         .withData(
                             when (val tryResult = qcpuStorage.data()) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             },
                         ).withLabel("qstorage_quantize_imatrix")
                         .build()
             ) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         this.buffer = buffer
-        return Ok(Unit)
+        return Result.Ok(Unit)
     }
 
     public fun quantizeImatrixOnto(src: CpuStorage, imatrixWeights: List<Float>, nPerRow: Int): Result<Unit> {
         // Quantization only happens on CPU for now.
         val elemCount =
             when (val tryResult = src.asSlice<Float>()) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }.len()
         val qcpuStorage =
-            when (val tryResult = Device.Cpu.qzeros(elemCount, this.dtype)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            when (val tryResult = Cpu.qzeros(elemCount, this.dtype)) {
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         if (qcpuStorage is QStorage.Cpu) {
             val (storage) = qcpuStorage
             storage.fromFloatImatrix(
                 when (val tryResult = src.asSlice<Float>()) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 },
                 imatrixWeights,
                 nPerRow,
@@ -257,37 +255,37 @@ public data class QMetalStorage(
                         .newBufferBuilder()
                         .withData(
                             when (val tryResult = qcpuStorage.data()) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             },
                         ).withLabel("qstorage_quantize_imatrix_onto")
                         .build()
             ) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         this.buffer = buffer
-        return Ok(Unit)
+        return Result.Ok(Unit)
     }
 
     public fun quantizeOnto(src: CpuStorage): Result<Unit> {
         // Quantization only happens on CPU for now.
         val elemCount =
             when (val tryResult = src.asSlice<Float>()) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }.len()
         val qcpuStorage =
-            when (val tryResult = Device.Cpu.qzeros(elemCount, this.dtype)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            when (val tryResult = Cpu.qzeros(elemCount, this.dtype)) {
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         if (qcpuStorage is QStorage.Cpu) {
             val (storage) = qcpuStorage
             storage.fromFloat(
                 when (val tryResult = src.asSlice<Float>()) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 },
             )
         } else {
@@ -300,17 +298,17 @@ public data class QMetalStorage(
                         .newBufferBuilder()
                         .withData(
                             when (val tryResult = qcpuStorage.data()) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             },
                         ).withLabel("qstorage_quantize_onto")
                         .build()
             ) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         this.buffer = buffer
-        return Ok(Unit)
+        return Result.Ok(Unit)
     }
 
     public fun storageSizeInBytes(): Int = this.buffer.length()
@@ -340,19 +338,19 @@ public data class QMetalStorage(
                         .withLabel("qembedding")
                         .build()
             ) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val encoder =
             when (val tryResult = device.commandEncoder()) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         when (val tryResult = callQuantizedGetRows(device.device(), encoder, device.kernels(), this.dtype.into(), hidden, hidden * this.dtype.typeSize() / this.dtype.blockSize(), idsLen, this.buffer, ids.buffer(), idsL.startOffset() * DType.U32.sizeInBytes(), dst).mapErr(MetalError::from)) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
-        return Ok(MetalStorage.new(dst, device.clone(), idsLen * hidden, DType.F32))
+        return Result.Ok(MetalStorage.new(dst, device.clone(), idsLen * hidden, DType.F32))
     }
 
     public fun fwdMv(selfShape: Shape, storage: MetalStorage, layout: Layout): Result<Pair<MetalStorage, Shape>> {
@@ -366,8 +364,8 @@ public data class QMetalStorage(
         }
         val (n, k) =
             when (val tryResult = selfShape.dims2()) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val dstShape = srcShape.dims().toVec()
         // We always use a single batch dimension and stack all the tensors in the batch on the
@@ -398,24 +396,24 @@ public data class QMetalStorage(
                         .withLabel("qmatmul")
                         .build()
             ) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val encoder =
             when (val tryResult = device.commandEncoder()) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         // In some cases it would be better to use the mm variant, though it has its drawbacks
         // around memory alignment.
         for (batchId in 0 until m) {
             when (val tryResult = callQuantizedMatmulMvT(device.device(), encoder, device.kernels(), this.dtype.into(), listOf(1, 1, n, k), storage.buffer(), (layout.startOffset() + batchId * k) * storage.dtype().sizeInBytes(), this.buffer, batchId * n * DType.F32.sizeInBytes(), dst).mapErr(MetalError::from)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         }
         val dstStorage = MetalStorage.new(dst, device.clone(), dstShape1.elemCount(), DType.F32)
-        return Ok(Pair(dstStorage, dstShape1))
+        return Result.Ok(Pair(dstStorage, dstShape1))
     }
 
     public fun fwd(selfShape: Shape, storage: MetalStorage, layout: Layout): Result<Pair<MetalStorage, Shape>> {
@@ -429,21 +427,21 @@ public data class QMetalStorage(
         }
         val n =
             when (val tryResult = selfShape.dim(D.Minus2)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val k =
             when (val tryResult = selfShape.dim(D.Minus1)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val dstShape = srcShape.dims().toVec()
         if (srcShape.rank() < selfShape.rank()) {
             bail("input rank ({}) must be >= weight rank ({})", srcShape.rank(), selfShape.rank())
         }
         if (when (val tryResult = srcShape.dim(D.Minus2)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             } == 1
         ) {
             return this.fwdMv(selfShape, storage, layout)
@@ -464,13 +462,13 @@ public data class QMetalStorage(
                         .withLabel("qmatmul")
                         .build()
             ) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val encoder =
             when (val tryResult = device.commandEncoder()) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         check(storage.dtype() == DType.F32)
         if (selfShape.rank() > 4) {
@@ -512,11 +510,11 @@ public data class QMetalStorage(
                     dst,
                 ).mapErr(MetalError::from)
         ) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
         val dstStorage = MetalStorage.new(dst, device.clone(), dstShape1.elemCount(), DType.F32)
-        return Ok(Pair(dstStorage, dstShape1))
+        return Result.Ok(Pair(dstStorage, dstShape1))
     }
 
     public fun data(): Result<List<UByte>> {
@@ -529,23 +527,23 @@ public data class QMetalStorage(
                         .withLabel("qstorage_data_blit")
                         .build()
             ) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         run {
             val blit =
                 when (val tryResult = this.device.blitCommandEncoder()) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             blit.setLabel("blit_to_cpu")
             blit.copyFromBuffer(this.buffer, 0, buffer, 0, this.buffer.length())
         }
         when (val tryResult = this.device.flushAndWaitCurrent()) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
-        return Ok(readToVec<UByte>(buffer, this.storageSizeInBytes()))
+        return Result.Ok(readToVec<UByte>(buffer, this.storageSizeInBytes()))
     }
 
     public companion object {
@@ -560,15 +558,15 @@ public data class QMetalStorage(
                             .withLabel("qstorage_zeros")
                             .build()
                 ) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
-            return Ok(QMetalStorage(buffer = buffer, device = device.clone(), dtype = dtype))
+            return Result.Ok(QMetalStorage(buffer = buffer, device = device.clone(), dtype = dtype))
         }
     }
 }
 
-public fun <T : GgmlType> loadQuantized(device: MetalDevice, data: List<T>): Result<QStorage> {
+public fun <VecDotType, T : GgmlType> loadQuantized(device: MetalDevice, data: List<T>): Result<QStorage> {
     val buffer =
         when (
             val tryResult =
@@ -578,11 +576,11 @@ public fun <T : GgmlType> loadQuantized(device: MetalDevice, data: List<T>): Res
                     .withLabel("qstorage_load_quantized")
                     .build()
         ) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
     val device1 = device.clone()
-    return Ok(QStorage.Metal(QMetalStorage(dtype = T.DTYPE, device = device1, buffer = buffer)))
+    return Result.Ok(QStorage.Metal(QMetalStorage(dtype = T.DTYPE, device = device1, buffer = buffer)))
 }
 
 public fun <T> readToVec(buffer: Buffer, n: Int): List<T> {
@@ -594,19 +592,19 @@ public fun <T> readToVec(buffer: Buffer, n: Int): List<T> {
 
 public fun fromGgmlDType(value: GgmlDType): io.github.kotlinmania.candlemetalkernels.GgmlDType =
     when (value) {
-        GgmlDType.q40 -> GgmlDType.Q4_0
-        GgmlDType.q41 -> GgmlDType.Q4_1
-        GgmlDType.q50 -> GgmlDType.Q5_0
-        GgmlDType.q51 -> GgmlDType.Q5_1
-        GgmlDType.q80 -> GgmlDType.Q8_0
-        GgmlDType.q81 -> GgmlDType.Q8_1
-        GgmlDType.q2k -> GgmlDType.Q2K
-        GgmlDType.q3k -> GgmlDType.Q3K
-        GgmlDType.q4k -> GgmlDType.Q4K
-        GgmlDType.q5k -> GgmlDType.Q5K
-        GgmlDType.q6k -> GgmlDType.Q6K
-        GgmlDType.q8k -> GgmlDType.Q8K
-        GgmlDType.f16 -> GgmlDType.F16
-        GgmlDType.f32 -> GgmlDType.F32
-        GgmlDType.bf16 -> GgmlDType.BF16
+        GgmlDType.q40 -> io.github.kotlinmania.candlemetalkernels.GgmlDType.Q4_0
+        GgmlDType.q41 -> io.github.kotlinmania.candlemetalkernels.GgmlDType.Q4_1
+        GgmlDType.q50 -> io.github.kotlinmania.candlemetalkernels.GgmlDType.Q5_0
+        GgmlDType.q51 -> io.github.kotlinmania.candlemetalkernels.GgmlDType.Q5_1
+        GgmlDType.q80 -> io.github.kotlinmania.candlemetalkernels.GgmlDType.Q8_0
+        GgmlDType.q81 -> io.github.kotlinmania.candlemetalkernels.GgmlDType.Q8_1
+        GgmlDType.q2k -> io.github.kotlinmania.candlemetalkernels.GgmlDType.Q2K
+        GgmlDType.q3k -> io.github.kotlinmania.candlemetalkernels.GgmlDType.Q3K
+        GgmlDType.q4k -> io.github.kotlinmania.candlemetalkernels.GgmlDType.Q4K
+        GgmlDType.q5k -> io.github.kotlinmania.candlemetalkernels.GgmlDType.Q5K
+        GgmlDType.q6k -> io.github.kotlinmania.candlemetalkernels.GgmlDType.Q6K
+        GgmlDType.q8k -> io.github.kotlinmania.candlemetalkernels.GgmlDType.Q8K
+        GgmlDType.f16 -> io.github.kotlinmania.candlemetalkernels.GgmlDType.F16
+        GgmlDType.f32 -> io.github.kotlinmania.candlemetalkernels.GgmlDType.F32
+        GgmlDType.bf16 -> io.github.kotlinmania.candlemetalkernels.GgmlDType.BF16
     }

@@ -61,15 +61,15 @@ public expect fun vDspVmaxD(arg0: ConstPtr, arg1: CLong, arg2: ConstPtr, arg3: C
 
 public expect fun vDspVmax(arg0: ConstPtr, arg1: CLong, arg2: ConstPtr, arg3: CLong, arg4: MutPtr, arg5: CLong, arg6: CUlong)
 
-public fun sgemm(transa: UByte, transb: UByte, m: Int, n: Int, k: Int, alpha: Float, a: List<Float>, lda: Int, b: List<Float>, ldb: Int, beta: Float, c: List<Float>, ldc: Int) {
+public fun sgemm(transa: UByte, transb: UByte, m: Int, n: Int, k: Int, alpha: Float, a: List<Float>, lda: Int, b: List<Float>, ldb: Int, beta: Float, c: MutableList<Float>, ldc: Int) {
     sgemmFfi((transa.toByte()), (transb.toByte()), m, n, k, alpha, a.asPtr(), lda, b.asPtr(), ldb, beta, c.asMutPtr(), ldc)
 }
 
-public fun dgemm(transa: UByte, transb: UByte, m: Int, n: Int, k: Int, alpha: Double, a: List<Double>, lda: Int, b: List<Double>, ldb: Int, beta: Double, c: List<Double>, ldc: Int) {
+public fun dgemm(transa: UByte, transb: UByte, m: Int, n: Int, k: Int, alpha: Double, a: List<Double>, lda: Int, b: List<Double>, ldb: Int, beta: Double, c: MutableList<Double>, ldc: Int) {
     dgemmFfi((transa.toByte()), (transb.toByte()), m, n, k, alpha, a.asPtr(), lda, b.asPtr(), ldb, beta, c.asMutPtr(), ldc)
 }
 
-public fun vsExp(a: List<Float>, y: List<Float>) {
+public fun vsExp(a: List<Float>, y: MutableList<Float>) {
     val aLen = a.size
     val yLen = y.size
     if (aLen != yLen) {
@@ -78,7 +78,7 @@ public fun vsExp(a: List<Float>, y: List<Float>) {
     vvexpf(y.asMutPtr(), a.asPtr(), (aLen))
 }
 
-public fun vdExp(a: List<Double>, y: List<Double>) {
+public fun vdExp(a: List<Double>, y: MutableList<Double>) {
     val aLen = a.size
     val yLen = y.size
     if (aLen != yLen) {
@@ -87,7 +87,7 @@ public fun vdExp(a: List<Double>, y: List<Double>) {
     vvexp(y.asMutPtr(), a.asPtr(), (aLen))
 }
 
-public fun vsSqrt(a: List<Float>, y: List<Float>) {
+public fun vsSqrt(a: List<Float>, y: MutableList<Float>) {
     val aLen = a.size
     val yLen = y.size
     if (aLen != yLen) {
@@ -96,7 +96,7 @@ public fun vsSqrt(a: List<Float>, y: List<Float>) {
     vvsqrtf(y.asMutPtr(), a.asPtr(), (aLen))
 }
 
-public fun vdSqrt(a: List<Double>, y: List<Double>) {
+public fun vdSqrt(a: List<Double>, y: MutableList<Double>) {
     val aLen = a.size
     val yLen = y.size
     if (aLen != yLen) {
@@ -105,7 +105,7 @@ public fun vdSqrt(a: List<Double>, y: List<Double>) {
     vvsqrt(y.asMutPtr(), a.asPtr(), (aLen))
 }
 
-public fun vsSin(a: List<Float>, y: List<Float>) {
+public fun vsSin(a: List<Float>, y: MutableList<Float>) {
     val aLen = a.size
     val yLen = y.size
     if (aLen != yLen) {
@@ -114,7 +114,7 @@ public fun vsSin(a: List<Float>, y: List<Float>) {
     vvsinf(y.asMutPtr(), a.asPtr(), (aLen))
 }
 
-public fun vdSin(a: List<Double>, y: List<Double>) {
+public fun vdSin(a: List<Double>, y: MutableList<Double>) {
     val aLen = a.size
     val yLen = y.size
     if (aLen != yLen) {
@@ -123,7 +123,7 @@ public fun vdSin(a: List<Double>, y: List<Double>) {
     vvsin(y.asMutPtr(), a.asPtr(), (aLen))
 }
 
-public fun vsCos(a: List<Float>, y: List<Float>) {
+public fun vsCos(a: List<Float>, y: MutableList<Float>) {
     val aLen = a.size
     val yLen = y.size
     if (aLen != yLen) {
@@ -132,7 +132,7 @@ public fun vsCos(a: List<Float>, y: List<Float>) {
     vvcosf(y.asMutPtr(), a.asPtr(), (aLen))
 }
 
-public fun vdCos(a: List<Double>, y: List<Double>) {
+public fun vdCos(a: List<Double>, y: MutableList<Double>) {
     val aLen = a.size
     val yLen = y.size
     if (aLen != yLen) {
@@ -141,7 +141,7 @@ public fun vdCos(a: List<Double>, y: List<Double>) {
     vvcos(y.asMutPtr(), a.asPtr(), (aLen))
 }
 
-public fun vsTanh(a: List<Float>, y: List<Float>) {
+public fun vsTanh(a: List<Float>, y: MutableList<Float>) {
     val aLen = a.size
     val yLen = y.size
     if (aLen != yLen) {
@@ -150,7 +150,7 @@ public fun vsTanh(a: List<Float>, y: List<Float>) {
     vvtanhf(y.asMutPtr(), a.asPtr(), (aLen))
 }
 
-public fun vdTanh(a: List<Double>, y: List<Double>) {
+public fun vdTanh(a: List<Double>, y: MutableList<Double>) {
     val aLen = a.size
     val yLen = y.size
     if (aLen != yLen) {
@@ -159,7 +159,7 @@ public fun vdTanh(a: List<Double>, y: List<Double>) {
     vvtanh(y.asMutPtr(), a.asPtr(), (aLen))
 }
 
-public fun vsLn(a: List<Float>, y: List<Float>) {
+public fun vsLn(a: List<Float>, y: MutableList<Float>) {
     val aLen = a.size
     val yLen = y.size
     if (aLen != yLen) {
@@ -168,7 +168,7 @@ public fun vsLn(a: List<Float>, y: List<Float>) {
     vvlogf(y.asMutPtr(), a.asPtr(), (aLen))
 }
 
-public fun vdLn(a: List<Double>, y: List<Double>) {
+public fun vdLn(a: List<Double>, y: MutableList<Double>) {
     val aLen = a.size
     val yLen = y.size
     if (aLen != yLen) {
@@ -177,43 +177,49 @@ public fun vdLn(a: List<Double>, y: List<Double>) {
     vvlog(y.asMutPtr(), a.asPtr(), (aLen))
 }
 
-public fun vsSqr(a: List<Float>, y: List<Float>) {
+public fun vsSqr(a: List<Float>, y: MutableList<Float>) {
     val y1 = y
     val aLen = a.size
     val yLen = y1.size
     if (aLen != yLen) {
         error("a and y have different lengths $aLen <> $yLen")
     }
-    (y1.zip(a)).forEach({ (y2, a1) -> y2 = a1 * a1 })
+    for (i in 0 until minOf(y1.size, a.size)) {
+        val a1 = a[i]
+        y1[i] = a1 * a1
+    }
 }
 
-public fun vdSqr(a: List<Double>, y: List<Double>) {
+public fun vdSqr(a: List<Double>, y: MutableList<Double>) {
     val y1 = y
     val aLen = a.size
     val yLen = y1.size
     if (aLen != yLen) {
         error("a and y have different lengths $aLen <> $yLen")
     }
-    (y1.zip(a)).forEach({ (y2, a1) -> y2 = a1 * a1 })
+    for (i in 0 until minOf(y1.size, a.size)) {
+        val a1 = a[i]
+        y1[i] = a1 * a1
+    }
 }
 
-public fun vsTanhInplace(y: List<Float>) {
+public fun vsTanhInplace(y: MutableList<Float>) {
     vvtanhf(y.asMutPtr(), y.asPtr(), (y.size))
 }
 
-public fun vdTanhInplace(y: List<Double>) {
+public fun vdTanhInplace(y: MutableList<Double>) {
     vvtanh(y.asMutPtr(), y.asPtr(), (y.size))
 }
 
-public fun vsExpInplace(y: List<Float>) {
+public fun vsExpInplace(y: MutableList<Float>) {
     vvexpf(y.asMutPtr(), y.asPtr(), (y.size))
 }
 
-public fun vdExpInplace(y: List<Double>) {
+public fun vdExpInplace(y: MutableList<Double>) {
     vvexp(y.asMutPtr(), y.asPtr(), (y.size))
 }
 
-public fun vsGelu(vs: List<Float>, ys: List<Float>) {
+public fun vsGelu(vs: List<Float>, ys: MutableList<Float>) {
     for ((v, y) in (vs.zip(ys))) {
         y = (2.0f / Float.PI).sqrt() * v * (1.0 + 0.044715 * v * v)
     }
@@ -223,7 +229,7 @@ public fun vsGelu(vs: List<Float>, ys: List<Float>) {
     }
 }
 
-public fun vdGelu(vs: List<Double>, ys: List<Double>) {
+public fun vdGelu(vs: List<Double>, ys: MutableList<Double>) {
     for ((v, y) in (vs.zip(ys))) {
         y = (2.0 / Double.PI).sqrt() * v * (1.0 + 0.044715 * v * v)
     }
@@ -233,7 +239,7 @@ public fun vdGelu(vs: List<Double>, ys: List<Double>) {
     }
 }
 
-public fun vsSilu(vs: List<Float>, ys: List<Float>) {
+public fun vsSilu(vs: List<Float>, ys: MutableList<Float>) {
     for ((v, y) in (vs.zip(ys))) {
         y = -v
     }
@@ -243,7 +249,7 @@ public fun vsSilu(vs: List<Float>, ys: List<Float>) {
     }
 }
 
-public fun vdSilu(vs: List<Double>, ys: List<Double>) {
+public fun vdSilu(vs: List<Double>, ys: MutableList<Double>) {
     for ((v, y) in (vs.zip(ys))) {
         y = -v
     }
@@ -253,7 +259,7 @@ public fun vdSilu(vs: List<Double>, ys: List<Double>) {
     }
 }
 
-public fun vsAdd(a: List<Float>, b: List<Float>, y: List<Float>) {
+public fun vsAdd(a: List<Float>, b: List<Float>, y: MutableList<Float>) {
     val aLen = a.size
     val bLen = b.size
     val yLen = y.size
@@ -263,7 +269,7 @@ public fun vsAdd(a: List<Float>, b: List<Float>, y: List<Float>) {
     vDspVadd(b.asPtr(), 1, a.asPtr(), 1, y.asMutPtr(), 1, aLen.toULong())
 }
 
-public fun vdAdd(a: List<Double>, b: List<Double>, y: List<Double>) {
+public fun vdAdd(a: List<Double>, b: List<Double>, y: MutableList<Double>) {
     val aLen = a.size
     val bLen = b.size
     val yLen = y.size
@@ -273,7 +279,7 @@ public fun vdAdd(a: List<Double>, b: List<Double>, y: List<Double>) {
     vDspVaddD(b.asPtr(), 1, a.asPtr(), 1, y.asMutPtr(), 1, aLen.toULong())
 }
 
-public fun vsSub(a: List<Float>, b: List<Float>, y: List<Float>) {
+public fun vsSub(a: List<Float>, b: List<Float>, y: MutableList<Float>) {
     val aLen = a.size
     val bLen = b.size
     val yLen = y.size
@@ -283,7 +289,7 @@ public fun vsSub(a: List<Float>, b: List<Float>, y: List<Float>) {
     vDspVsub(b.asPtr(), 1, a.asPtr(), 1, y.asMutPtr(), 1, aLen.toULong())
 }
 
-public fun vdSub(a: List<Double>, b: List<Double>, y: List<Double>) {
+public fun vdSub(a: List<Double>, b: List<Double>, y: MutableList<Double>) {
     val aLen = a.size
     val bLen = b.size
     val yLen = y.size
@@ -293,7 +299,7 @@ public fun vdSub(a: List<Double>, b: List<Double>, y: List<Double>) {
     vDspVsubD(b.asPtr(), 1, a.asPtr(), 1, y.asMutPtr(), 1, aLen.toULong())
 }
 
-public fun vsMul(a: List<Float>, b: List<Float>, y: List<Float>) {
+public fun vsMul(a: List<Float>, b: List<Float>, y: MutableList<Float>) {
     val aLen = a.size
     val bLen = b.size
     val yLen = y.size
@@ -303,7 +309,7 @@ public fun vsMul(a: List<Float>, b: List<Float>, y: List<Float>) {
     vDspVmul(b.asPtr(), 1, a.asPtr(), 1, y.asMutPtr(), 1, aLen.toULong())
 }
 
-public fun vdMul(a: List<Double>, b: List<Double>, y: List<Double>) {
+public fun vdMul(a: List<Double>, b: List<Double>, y: MutableList<Double>) {
     val aLen = a.size
     val bLen = b.size
     val yLen = y.size
@@ -313,7 +319,7 @@ public fun vdMul(a: List<Double>, b: List<Double>, y: List<Double>) {
     vDspVmulD(b.asPtr(), 1, a.asPtr(), 1, y.asMutPtr(), 1, aLen.toULong())
 }
 
-public fun vsDiv(a: List<Float>, b: List<Float>, y: List<Float>) {
+public fun vsDiv(a: List<Float>, b: List<Float>, y: MutableList<Float>) {
     val aLen = a.size
     val bLen = b.size
     val yLen = y.size
@@ -323,7 +329,7 @@ public fun vsDiv(a: List<Float>, b: List<Float>, y: List<Float>) {
     vDspVdiv(b.asPtr(), 1, a.asPtr(), 1, y.asMutPtr(), 1, aLen.toULong())
 }
 
-public fun vdDiv(a: List<Double>, b: List<Double>, y: List<Double>) {
+public fun vdDiv(a: List<Double>, b: List<Double>, y: MutableList<Double>) {
     val aLen = a.size
     val bLen = b.size
     val yLen = y.size
@@ -333,7 +339,7 @@ public fun vdDiv(a: List<Double>, b: List<Double>, y: List<Double>) {
     vDspVdivD(b.asPtr(), 1, a.asPtr(), 1, y.asMutPtr(), 1, aLen.toULong())
 }
 
-public fun vsMax(a: List<Float>, b: List<Float>, y: List<Float>) {
+public fun vsMax(a: List<Float>, b: List<Float>, y: MutableList<Float>) {
     val aLen = a.size
     val bLen = b.size
     val yLen = y.size
@@ -343,7 +349,7 @@ public fun vsMax(a: List<Float>, b: List<Float>, y: List<Float>) {
     vDspVmax(b.asPtr(), 1, a.asPtr(), 1, y.asMutPtr(), 1, aLen.toULong())
 }
 
-public fun vdMax(a: List<Double>, b: List<Double>, y: List<Double>) {
+public fun vdMax(a: List<Double>, b: List<Double>, y: MutableList<Double>) {
     val aLen = a.size
     val bLen = b.size
     val yLen = y.size
@@ -353,7 +359,7 @@ public fun vdMax(a: List<Double>, b: List<Double>, y: List<Double>) {
     vDspVmaxD(b.asPtr(), 1, a.asPtr(), 1, y.asMutPtr(), 1, aLen.toULong())
 }
 
-public fun vsMin(a: List<Float>, b: List<Float>, y: List<Float>) {
+public fun vsMin(a: List<Float>, b: List<Float>, y: MutableList<Float>) {
     val aLen = a.size
     val bLen = b.size
     val yLen = y.size
@@ -363,7 +369,7 @@ public fun vsMin(a: List<Float>, b: List<Float>, y: List<Float>) {
     vDspVmin(b.asPtr(), 1, a.asPtr(), 1, y.asMutPtr(), 1, aLen.toULong())
 }
 
-public fun vdMin(a: List<Double>, b: List<Double>, y: List<Double>) {
+public fun vdMin(a: List<Double>, b: List<Double>, y: MutableList<Double>) {
     val aLen = a.size
     val bLen = b.size
     val yLen = y.size

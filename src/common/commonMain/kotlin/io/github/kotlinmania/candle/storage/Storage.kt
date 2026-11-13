@@ -27,7 +27,6 @@ import io.github.kotlinmania.candle.scalar.Scalar
 import io.github.kotlinmania.candle.shape.Shape
 import io.github.kotlinmania.parkinglot.RwLockReadGuard
 import io.github.kotlinmania.parkinglot.RwLockWriteGuard
-import io.github.kotlinmania.rustlang.core.result.fromResidual
 
 // We do not want to implement Clone on Storage as cloning may fail because of
 // out of memory. Instead tryClone should be used.
@@ -46,25 +45,25 @@ public sealed class Storage {
         return when (this) {
             is Cpu -> {
                 val (storage) = this
-                Ok(Storage.Cpu(storage.clone()))
+                Result.Ok(Storage.Cpu(storage.clone()))
             }
             is Cuda -> {
                 val (storage1) = this
                 val storage2 =
                     when (val tryResult = storage1.tryClone(layout)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
-                Ok(Storage.Cuda(storage2))
+                Result.Ok(Storage.Cuda(storage2))
             }
             is Metal -> {
                 val (storage3) = this
                 val storage4 =
                     when (val tryResult = storage3.tryClone(layout)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
-                Ok(Storage.Metal(storage4))
+                Result.Ok(Storage.Metal(storage4))
             }
         }
     }
@@ -113,9 +112,9 @@ public sealed class Storage {
                 lhs == rhs1
             }
         return if (!sameDevice) {
-            Err(Error.DeviceMismatchBinaryOp(lhs = lhs, rhs = rhs1, op = op).bt())
+            Result.Err(Error.DeviceMismatchBinaryOp(lhs = lhs, rhs = rhs1, op = op).bt())
         } else {
-            Ok(Unit)
+            Result.Ok(Unit)
         }
     }
 
@@ -123,9 +122,9 @@ public sealed class Storage {
         val lhs = this.dtype()
         val rhs1 = rhs.dtype()
         return if (lhs != rhs1) {
-            Err(Error.DTypeMismatchBinaryOp(lhs = lhs, rhs = rhs1, op = op).bt())
+            Result.Err(Error.DTypeMismatchBinaryOp(lhs = lhs, rhs = rhs1, op = op).bt())
         } else {
-            Ok(Unit)
+            Result.Ok(Unit)
         }
     }
 
@@ -151,28 +150,28 @@ public sealed class Storage {
                 val (storage) = this
                 val storage1 =
                     when (val tryResult = storage.affine(layout, mul, add)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
-                Ok(Storage.Cpu(storage1))
+                Result.Ok(Storage.Cpu(storage1))
             }
             is Cuda -> {
                 val (storage2) = this
                 val storage3 =
                     when (val tryResult = storage2.affine(layout, mul, add)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
-                Ok(Storage.Cuda(storage3))
+                Result.Ok(Storage.Cuda(storage3))
             }
             is Metal -> {
                 val (storage4) = this
                 val storage5 =
                     when (val tryResult = storage4.affine(layout, mul, add)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
-                Ok(Storage.Metal(storage5))
+                Result.Ok(Storage.Metal(storage5))
             }
         }
     }
@@ -183,28 +182,28 @@ public sealed class Storage {
                 val (storage) = this
                 val storage1 =
                     when (val tryResult = storage.powf(layout, alpha)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
-                Ok(Storage.Cpu(storage1))
+                Result.Ok(Storage.Cpu(storage1))
             }
             is Cuda -> {
                 val (storage2) = this
                 val storage3 =
                     when (val tryResult = storage2.powf(layout, alpha)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
-                Ok(Storage.Cuda(storage3))
+                Result.Ok(Storage.Cuda(storage3))
             }
             is Metal -> {
                 val (storage4) = this
                 val storage5 =
                     when (val tryResult = storage4.powf(layout, alpha)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
-                Ok(Storage.Metal(storage5))
+                Result.Ok(Storage.Metal(storage5))
             }
         }
     }
@@ -215,40 +214,40 @@ public sealed class Storage {
                 val (storage) = this
                 val storage1 =
                     when (val tryResult = storage.elu(layout, alpha)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
-                Ok(Storage.Cpu(storage1))
+                Result.Ok(Storage.Cpu(storage1))
             }
             is Cuda -> {
                 val (storage2) = this
                 val storage3 =
                     when (val tryResult = storage2.elu(layout, alpha)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
-                Ok(Storage.Cuda(storage3))
+                Result.Ok(Storage.Cuda(storage3))
             }
             is Metal -> {
                 val (storage4) = this
                 val storage5 =
                     when (val tryResult = storage4.elu(layout, alpha)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
-                Ok(Storage.Metal(storage5))
+                Result.Ok(Storage.Metal(storage5))
             }
         }
     }
 
     internal fun cmp(op: CmpOp, rhs: Storage, lhsLayout: Layout, rhsLayout: Layout): Result<Storage> {
         when (val tryResult = this.sameDevice(rhs, "cmp")) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
         when (val tryResult = this.sameDtype(rhs, "cmp")) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
         return run {
             val matchVal = Pair(this, rhs)
@@ -258,37 +257,37 @@ public sealed class Storage {
                     val (rhs1) = matchVal.second as Storage.Cpu
                     val storage =
                         when (val tryResult = lhs.cmp(op, rhs1, lhsLayout, rhsLayout)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
-                    Ok(Storage.Cpu(storage))
+                    Result.Ok(Storage.Cpu(storage))
                 }
                 matchVal.first is Cuda && matchVal.second is Cuda -> {
                     val (lhs1) = matchVal.first as Cuda
                     val (rhs2) = matchVal.second as Cuda
                     val storage1 =
                         when (val tryResult = lhs1.cmp(op, rhs2, lhsLayout, rhsLayout)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
-                    Ok(Storage.Cuda(storage1))
+                    Result.Ok(Storage.Cuda(storage1))
                 }
                 matchVal.first is Metal && matchVal.second is Metal -> {
                     val (lhs2) = matchVal.first as Metal
                     val (rhs3) = matchVal.second as Metal
                     val storage2 =
                         when (val tryResult = lhs2.cmp(op, rhs3, lhsLayout, rhsLayout)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
-                    Ok(Storage.Metal(storage2))
+                    Result.Ok(Storage.Metal(storage2))
                 }
                 else -> {
                     val lhs3 = matchVal.first
                     val rhs4 = matchVal.second
                     // Should not happen because of the same device check above but we're defensive
                     // anyway.
-                    Err(Error.DeviceMismatchBinaryOp(lhs = lhs3.device().location(), rhs = rhs4.device().location(), op = "cmp").bt())
+                    Result.Err(Error.DeviceMismatchBinaryOp(lhs = lhs3.device().location(), rhs = rhs4.device().location(), op = "cmp").bt())
                 }
             }
         }
@@ -300,28 +299,28 @@ public sealed class Storage {
                 val (storage) = this
                 val storage1 =
                     when (val tryResult = storage.reduceOp(op, layout, s)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
-                Ok(Storage.Cpu(storage1))
+                Result.Ok(Storage.Cpu(storage1))
             }
             is Cuda -> {
                 val (storage2) = this
                 val storage3 =
                     when (val tryResult = storage2.reduceOp(op, layout, s)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
-                Ok(Storage.Cuda(storage3))
+                Result.Ok(Storage.Cuda(storage3))
             }
             is Metal -> {
                 val (storage4) = this
                 val storage5 =
                     when (val tryResult = storage4.reduceOp(op, layout, s)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
-                Ok(Storage.Metal(storage5))
+                Result.Ok(Storage.Metal(storage5))
             }
         }
     }
@@ -332,28 +331,28 @@ public sealed class Storage {
                 val (storage) = this
                 val storage1 =
                     when (val tryResult = storage.toDtype(layout, dtype)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
-                Ok(Storage.Cpu(storage1))
+                Result.Ok(Storage.Cpu(storage1))
             }
             is Cuda -> {
                 val (storage2) = this
                 val storage3 =
                     when (val tryResult = storage2.toDtype(layout, dtype)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
-                Ok(Storage.Cuda(storage3))
+                Result.Ok(Storage.Cuda(storage3))
             }
             is Metal -> {
                 val (storage4) = this
                 val storage5 =
                     when (val tryResult = storage4.toDtype(layout, dtype)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
-                Ok(Storage.Metal(storage5))
+                Result.Ok(Storage.Metal(storage5))
             }
         }
     }
@@ -364,36 +363,36 @@ public sealed class Storage {
                 val (storage) = this
                 val (storage1, shape) =
                     when (val tryResult = c.cpuFwd(storage, l)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
-                Ok(Pair(Storage.Cpu(storage1), shape))
+                Result.Ok(Pair(Storage.Cpu(storage1), shape))
             }
             is Cuda -> {
                 val (storage2) = this
                 val (storage3, shape1) =
                     when (val tryResult = c.cudaFwd(storage2, l)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
-                Ok(Pair(Storage.Cuda(storage3), shape1))
+                Result.Ok(Pair(Storage.Cuda(storage3), shape1))
             }
             is Metal -> {
                 val (storage4) = this
                 val (storage5, shape2) =
                     when (val tryResult = c.metalFwd(storage4, l)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
-                Ok(Pair(Storage.Metal(storage5), shape2))
+                Result.Ok(Pair(Storage.Metal(storage5), shape2))
             }
         }
     }
 
     internal fun applyOp2(l1: Layout, t2: Storage, l2: Layout, c: CustomOp2): Result<Pair<Storage, Shape>> {
         when (val tryResult = this.sameDevice(t2, c.name())) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
         return run {
             val matchVal = Pair(this, t2)
@@ -403,30 +402,30 @@ public sealed class Storage {
                     val (s2) = matchVal.second as Cpu
                     val (s, shape) =
                         when (val tryResult = c.cpuFwd(s1, l1, s2, l2)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
-                    Ok(Pair(Storage.Cpu(s), shape))
+                    Result.Ok(Pair(Storage.Cpu(s), shape))
                 }
                 matchVal.first is Cuda && matchVal.second is Cuda -> {
                     val (s11) = matchVal.first as Cuda
                     val (s21) = matchVal.second as Cuda
                     val (s1, shape1) =
                         when (val tryResult = c.cudaFwd(s11, l1, s21, l2)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
-                    Ok(Pair(Storage.Cuda(s1), shape1))
+                    Result.Ok(Pair(Storage.Cuda(s1), shape1))
                 }
                 matchVal.first is Metal && matchVal.second is Metal -> {
                     val (s12) = matchVal.first as Metal
                     val (s22) = matchVal.second as Metal
                     val (s2, shape2) =
                         when (val tryResult = c.metalFwd(s12, l1, s22, l2)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
-                    Ok(Pair(Storage.Metal(s2), shape2))
+                    Result.Ok(Pair(Storage.Metal(s2), shape2))
                 }
                 else -> error("unreachable")
             }
@@ -435,12 +434,12 @@ public sealed class Storage {
 
     internal fun applyOp3(l1: Layout, t2: Storage, l2: Layout, t3: Storage, l3: Layout, c: CustomOp3): Result<Pair<Storage, Shape>> {
         when (val tryResult = this.sameDevice(t2, c.name())) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
         when (val tryResult = this.sameDevice(t3, c.name())) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
         return run {
             val matchVal = Triple(this, t2, t3)
@@ -451,10 +450,10 @@ public sealed class Storage {
                     val (s3) = matchVal.third as Cpu
                     val (s, shape) =
                         when (val tryResult = c.cpuFwd(s1, l1, s2, l2, s3, l3)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
-                    Ok(Pair(Storage.Cpu(s), shape))
+                    Result.Ok(Pair(Storage.Cpu(s), shape))
                 }
                 matchVal.first is Cuda && matchVal.second is Cuda && matchVal.third is Cuda -> {
                     val (s11) = matchVal.first as Cuda
@@ -462,10 +461,10 @@ public sealed class Storage {
                     val (s31) = matchVal.third as Cuda
                     val (s1, shape1) =
                         when (val tryResult = c.cudaFwd(s11, l1, s21, l2, s31, l3)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
-                    Ok(Pair(Storage.Cuda(s1), shape1))
+                    Result.Ok(Pair(Storage.Cuda(s1), shape1))
                 }
                 matchVal.first is Metal && matchVal.second is Metal && matchVal.third is Metal -> {
                     val (s12) = matchVal.first as Metal
@@ -473,10 +472,10 @@ public sealed class Storage {
                     val (s32) = matchVal.third as Metal
                     val (s2, shape2) =
                         when (val tryResult = c.metalFwd(s12, l1, s22, l2, s32, l3)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
-                    Ok(Pair(Storage.Metal(s2), shape2))
+                    Result.Ok(Pair(Storage.Metal(s2), shape2))
                 }
                 else -> error("unreachable")
             }
@@ -496,8 +495,8 @@ public sealed class Storage {
             if (s is Src.Distinct) {
                 val (s1) = s
                 when (val tryResult = this.sameDevice(s1, c.name())) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             }
         }
@@ -598,40 +597,40 @@ public sealed class Storage {
                 val (storage) = this
                 val storage1 =
                     when (val tryResult = storage.unaryImpl<B>(layout)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
-                Ok(Storage.Cpu(storage1))
+                Result.Ok(Storage.Cpu(storage1))
             }
             is Cuda -> {
                 val (storage2) = this
                 val storage3 =
                     when (val tryResult = storage2.unaryImpl<B>(layout)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
-                Ok(Storage.Cuda(storage3))
+                Result.Ok(Storage.Cuda(storage3))
             }
             is Metal -> {
                 val (storage4) = this
                 val storage5 =
                     when (val tryResult = storage4.unaryImpl<B>(layout)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
-                Ok(Storage.Metal(storage5))
+                Result.Ok(Storage.Metal(storage5))
             }
         }
     }
 
     internal fun <B : BinaryOpT> binaryImpl(rhs: Storage, lhsLayout: Layout, rhsLayout: Layout): Result<Storage> {
         when (val tryResult = this.sameDevice(rhs, B.NAME)) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
         when (val tryResult = this.sameDtype(rhs, B.NAME)) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
         return run {
             val matchVal = Pair(this, rhs)
@@ -641,37 +640,37 @@ public sealed class Storage {
                     val (rhs1) = matchVal.second as Storage.Cpu
                     val storage =
                         when (val tryResult = lhs.binaryImpl<B>(rhs1, lhsLayout, rhsLayout)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
-                    Ok(Storage.Cpu(storage))
+                    Result.Ok(Storage.Cpu(storage))
                 }
                 matchVal.first is Cuda && matchVal.second is Cuda -> {
                     val (lhs1) = matchVal.first as Cuda
                     val (rhs2) = matchVal.second as Cuda
                     val storage1 =
                         when (val tryResult = lhs1.binaryImpl<B>(rhs2, lhsLayout, rhsLayout)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
-                    Ok(Storage.Cuda(storage1))
+                    Result.Ok(Storage.Cuda(storage1))
                 }
                 matchVal.first is Metal && matchVal.second is Metal -> {
                     val (lhs2) = matchVal.first as Metal
                     val (rhs3) = matchVal.second as Metal
                     val storage2 =
                         when (val tryResult = lhs2.binaryImpl<B>(rhs3, lhsLayout, rhsLayout)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
-                    Ok(Storage.Metal(storage2))
+                    Result.Ok(Storage.Metal(storage2))
                 }
                 else -> {
                     val lhs3 = matchVal.first
                     val rhs4 = matchVal.second
                     // Should not happen because of the same device check above but we're defensive
                     // anyway.
-                    Err(Error.DeviceMismatchBinaryOp(lhs = lhs3.device().location(), rhs = rhs4.device().location(), op = B.NAME).bt())
+                    Result.Err(Error.DeviceMismatchBinaryOp(lhs = lhs3.device().location(), rhs = rhs4.device().location(), op = B.NAME).bt())
                 }
             }
         }
@@ -679,12 +678,12 @@ public sealed class Storage {
 
     internal fun conv1d(l: Layout, kernel: Storage, kernelL: Layout, params: ParamsConv1D): Result<Storage> {
         when (val tryResult = this.sameDevice(kernel, "conv1d")) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
         when (val tryResult = this.sameDtype(kernel, "conv1d")) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
         return run {
             val matchVal = Pair(this, kernel)
@@ -694,35 +693,35 @@ public sealed class Storage {
                     val (kernel1) = matchVal.second as Storage.Cpu
                     val s =
                         when (val tryResult = inp.conv1d(l, kernel1, kernelL, params)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
-                    Ok(Storage.Cpu(s))
+                    Result.Ok(Storage.Cpu(s))
                 }
                 matchVal.first is Storage.Cuda && matchVal.second is Storage.Cuda -> {
                     val (inp1) = matchVal.first as Storage.Cuda
                     val (kernel2) = matchVal.second as Storage.Cuda
                     val s1 =
                         when (val tryResult = inp1.conv1d(l, kernel2, kernelL, params)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
-                    Ok(Storage.Cuda(s1))
+                    Result.Ok(Storage.Cuda(s1))
                 }
                 matchVal.first is Storage.Metal && matchVal.second is Storage.Metal -> {
                     val (inp2) = matchVal.first as Storage.Metal
                     val (kernel3) = matchVal.second as Storage.Metal
                     val s2 =
                         when (val tryResult = inp2.conv1d(l, kernel3, kernelL, params)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
-                    Ok(Storage.Metal(s2))
+                    Result.Ok(Storage.Metal(s2))
                 }
                 else -> {
                     val lhs = matchVal.first
                     val rhs = matchVal.second
-                    Err(Error.DeviceMismatchBinaryOp(lhs = lhs.device().location(), rhs = rhs.device().location(), op = "conv1d").bt())
+                    Result.Err(Error.DeviceMismatchBinaryOp(lhs = lhs.device().location(), rhs = rhs.device().location(), op = "conv1d").bt())
                 }
             }
         }
@@ -730,12 +729,12 @@ public sealed class Storage {
 
     internal fun convTranspose1d(l: Layout, kernel: Storage, kernelL: Layout, params: ParamsConvTranspose1D): Result<Storage> {
         when (val tryResult = this.sameDevice(kernel, "conv-transpose1d")) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
         when (val tryResult = this.sameDtype(kernel, "conv-transpose1d")) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
         return run {
             val matchVal = Pair(this, kernel)
@@ -745,35 +744,35 @@ public sealed class Storage {
                     val (kernel1) = matchVal.second as Storage.Cpu
                     val s =
                         when (val tryResult = inp.convTranspose1d(l, kernel1, kernelL, params)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
-                    Ok(Storage.Cpu(s))
+                    Result.Ok(Storage.Cpu(s))
                 }
                 matchVal.first is Storage.Cuda && matchVal.second is Storage.Cuda -> {
                     val (inp1) = matchVal.first as Storage.Cuda
                     val (kernel2) = matchVal.second as Storage.Cuda
                     val s1 =
                         when (val tryResult = inp1.convTranspose1d(l, kernel2, kernelL, params)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
-                    Ok(Storage.Cuda(s1))
+                    Result.Ok(Storage.Cuda(s1))
                 }
                 matchVal.first is Storage.Metal && matchVal.second is Storage.Metal -> {
                     val (inp2) = matchVal.first as Storage.Metal
                     val (kernel3) = matchVal.second as Storage.Metal
                     val s2 =
                         when (val tryResult = inp2.convTranspose1d(l, kernel3, kernelL, params)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
-                    Ok(Storage.Metal(s2))
+                    Result.Ok(Storage.Metal(s2))
                 }
                 else -> {
                     val lhs = matchVal.first
                     val rhs = matchVal.second
-                    Err(Error.DeviceMismatchBinaryOp(lhs = lhs.device().location(), rhs = rhs.device().location(), op = "conv-transpose1d").bt())
+                    Result.Err(Error.DeviceMismatchBinaryOp(lhs = lhs.device().location(), rhs = rhs.device().location(), op = "conv-transpose1d").bt())
                 }
             }
         }
@@ -781,12 +780,12 @@ public sealed class Storage {
 
     internal fun conv2d(l: Layout, kernel: Storage, kernelL: Layout, params: ParamsConv2D): Result<Storage> {
         when (val tryResult = this.sameDevice(kernel, "conv2d")) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
         when (val tryResult = this.sameDtype(kernel, "conv2d")) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
         return run {
             val matchVal = Pair(this, kernel)
@@ -796,35 +795,35 @@ public sealed class Storage {
                     val (kernel1) = matchVal.second as Storage.Cpu
                     val s =
                         when (val tryResult = inp.conv2d(l, kernel1, kernelL, params)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
-                    Ok(Storage.Cpu(s))
+                    Result.Ok(Storage.Cpu(s))
                 }
                 matchVal.first is Storage.Cuda && matchVal.second is Storage.Cuda -> {
                     val (inp1) = matchVal.first as Storage.Cuda
                     val (kernel2) = matchVal.second as Storage.Cuda
                     val s1 =
                         when (val tryResult = inp1.conv2d(l, kernel2, kernelL, params)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
-                    Ok(Storage.Cuda(s1))
+                    Result.Ok(Storage.Cuda(s1))
                 }
                 matchVal.first is Storage.Metal && matchVal.second is Storage.Metal -> {
                     val (inp2) = matchVal.first as Storage.Metal
                     val (kernel3) = matchVal.second as Storage.Metal
                     val s2 =
                         when (val tryResult = inp2.conv2d(l, kernel3, kernelL, params)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
-                    Ok(Storage.Metal(s2))
+                    Result.Ok(Storage.Metal(s2))
                 }
                 else -> {
                     val lhs = matchVal.first
                     val rhs = matchVal.second
-                    Err(Error.DeviceMismatchBinaryOp(lhs = lhs.device().location(), rhs = rhs.device().location(), op = "conv2d").bt())
+                    Result.Err(Error.DeviceMismatchBinaryOp(lhs = lhs.device().location(), rhs = rhs.device().location(), op = "conv2d").bt())
                 }
             }
         }
@@ -832,12 +831,12 @@ public sealed class Storage {
 
     internal fun convTranspose2d(l: Layout, kernel: Storage, kernelL: Layout, params: ParamsConvTranspose2D): Result<Storage> {
         when (val tryResult = this.sameDevice(kernel, "conv_transpose2d")) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
         when (val tryResult = this.sameDtype(kernel, "conv_transpose2d")) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
         return run {
             val matchVal = Pair(this, kernel)
@@ -847,35 +846,35 @@ public sealed class Storage {
                     val (kernel1) = matchVal.second as Storage.Cpu
                     val s =
                         when (val tryResult = inp.convTranspose2d(l, kernel1, kernelL, params)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
-                    Ok(Storage.Cpu(s))
+                    Result.Ok(Storage.Cpu(s))
                 }
                 matchVal.first is Storage.Cuda && matchVal.second is Storage.Cuda -> {
                     val (inp1) = matchVal.first as Storage.Cuda
                     val (kernel2) = matchVal.second as Storage.Cuda
                     val s1 =
                         when (val tryResult = inp1.convTranspose2d(l, kernel2, kernelL, params)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
-                    Ok(Storage.Cuda(s1))
+                    Result.Ok(Storage.Cuda(s1))
                 }
                 matchVal.first is Storage.Metal && matchVal.second is Storage.Metal -> {
                     val (inp2) = matchVal.first as Storage.Metal
                     val (kernel3) = matchVal.second as Storage.Metal
                     val s2 =
                         when (val tryResult = inp2.convTranspose2d(l, kernel3, kernelL, params)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
-                    Ok(Storage.Metal(s2))
+                    Result.Ok(Storage.Metal(s2))
                 }
                 else -> {
                     val lhs = matchVal.first
                     val rhs = matchVal.second
-                    Err(Error.DeviceMismatchBinaryOp(lhs = lhs.device().location(), rhs = rhs.device().location(), op = "conv_transpose2d").bt())
+                    Result.Err(Error.DeviceMismatchBinaryOp(lhs = lhs.device().location(), rhs = rhs.device().location(), op = "conv_transpose2d").bt())
                 }
             }
         }
@@ -887,28 +886,28 @@ public sealed class Storage {
                 val (storage) = this
                 val storage1 =
                     when (val tryResult = storage.avgPool2d(layout, kernelSize, stride)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
-                Ok(Storage.Cpu(storage1))
+                Result.Ok(Storage.Cpu(storage1))
             }
             is Cuda -> {
                 val (storage2) = this
                 val storage3 =
                     when (val tryResult = storage2.avgPool2d(layout, kernelSize, stride)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
-                Ok(Storage.Cuda(storage3))
+                Result.Ok(Storage.Cuda(storage3))
             }
             is Metal -> {
                 val (storage4) = this
                 val storage5 =
                     when (val tryResult = storage4.avgPool2d(layout, kernelSize, stride)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
-                Ok(Storage.Metal(storage5))
+                Result.Ok(Storage.Metal(storage5))
             }
         }
     }
@@ -919,28 +918,28 @@ public sealed class Storage {
                 val (storage) = this
                 val storage1 =
                     when (val tryResult = storage.maxPool2d(layout, kernelSize, stride)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
-                Ok(Storage.Cpu(storage1))
+                Result.Ok(Storage.Cpu(storage1))
             }
             is Cuda -> {
                 val (storage2) = this
                 val storage3 =
                     when (val tryResult = storage2.maxPool2d(layout, kernelSize, stride)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
-                Ok(Storage.Cuda(storage3))
+                Result.Ok(Storage.Cuda(storage3))
             }
             is Metal -> {
                 val (storage4) = this
                 val storage5 =
                     when (val tryResult = storage4.maxPool2d(layout, kernelSize, stride)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
-                Ok(Storage.Metal(storage5))
+                Result.Ok(Storage.Metal(storage5))
             }
         }
     }
@@ -951,28 +950,28 @@ public sealed class Storage {
                 val (storage) = this
                 val storage1 =
                     when (val tryResult = storage.upsampleNearest1d(layout, sz)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
-                Ok(Storage.Cpu(storage1))
+                Result.Ok(Storage.Cpu(storage1))
             }
             is Cuda -> {
                 val (storage2) = this
                 val storage3 =
                     when (val tryResult = storage2.upsampleNearest1d(layout, sz)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
-                Ok(Storage.Cuda(storage3))
+                Result.Ok(Storage.Cuda(storage3))
             }
             is Metal -> {
                 val (storage4) = this
                 val storage5 =
                     when (val tryResult = storage4.upsampleNearest1d(layout, sz)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
-                Ok(Storage.Metal(storage5))
+                Result.Ok(Storage.Metal(storage5))
             }
         }
     }
@@ -983,28 +982,28 @@ public sealed class Storage {
                 val (storage) = this
                 val storage1 =
                     when (val tryResult = storage.upsampleNearest2d(layout, h, w)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
-                Ok(Storage.Cpu(storage1))
+                Result.Ok(Storage.Cpu(storage1))
             }
             is Cuda -> {
                 val (storage2) = this
                 val storage3 =
                     when (val tryResult = storage2.upsampleNearest2d(layout, h, w)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
-                Ok(Storage.Cuda(storage3))
+                Result.Ok(Storage.Cuda(storage3))
             }
             is Metal -> {
                 val (storage4) = this
                 val storage5 =
                     when (val tryResult = storage4.upsampleNearest2d(layout, h, w)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
-                Ok(Storage.Metal(storage5))
+                Result.Ok(Storage.Metal(storage5))
             }
         }
     }
@@ -1015,44 +1014,44 @@ public sealed class Storage {
                 val (storage) = this
                 val storage1 =
                     when (val tryResult = storage.upsampleBilinear2d(layout, h, w, alignCorners, scaleH, scaleW)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
-                Ok(Storage.Cpu(storage1))
+                Result.Ok(Storage.Cpu(storage1))
             }
             is Cuda -> {
                 val (storage2) = this
                 val storage3 =
                     when (val tryResult = storage2.upsampleBilinear2d(layout, h, w, alignCorners, scaleH, scaleW)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
-                Ok(Storage.Cuda(storage3))
+                Result.Ok(Storage.Cuda(storage3))
             }
             is Metal -> {
                 val (storage4) = this
                 val storage5 =
                     when (val tryResult = storage4.upsampleBilinear2d(layout, h, w, alignCorners, scaleH, scaleW)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
-                Ok(Storage.Metal(storage5))
+                Result.Ok(Storage.Metal(storage5))
             }
         }
     }
 
     internal fun whereCond(layout: Layout, t: Storage, layoutT: Layout, f: Storage, layoutF: Layout): Result<Storage> {
         when (val tryResult = this.sameDevice(t, "where")) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
         when (val tryResult = this.sameDevice(f, "where")) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
         when (val tryResult = t.sameDtype(f, "where")) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
         return run {
             val matchVal = Triple(this, t, f)
@@ -1063,10 +1062,10 @@ public sealed class Storage {
                     val (f1) = matchVal.third as Storage.Cpu
                     val storage =
                         when (val tryResult = cond.whereCond(layout, t1, layoutT, f1, layoutF)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
-                    Ok(Storage.Cpu(storage))
+                    Result.Ok(Storage.Cpu(storage))
                 }
                 matchVal.first is Cuda && matchVal.second is Cuda && matchVal.third is Cuda -> {
                     val (cond1) = matchVal.first as Cuda
@@ -1074,10 +1073,10 @@ public sealed class Storage {
                     val (f2) = matchVal.third as Cuda
                     val storage1 =
                         when (val tryResult = cond1.whereCond(layout, t2, layoutT, f2, layoutF)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
-                    Ok(Storage.Cuda(storage1))
+                    Result.Ok(Storage.Cuda(storage1))
                 }
                 matchVal.first is Metal && matchVal.second is Metal && matchVal.third is Metal -> {
                     val (cond2) = matchVal.first as Metal
@@ -1085,15 +1084,15 @@ public sealed class Storage {
                     val (f3) = matchVal.third as Metal
                     val storage2 =
                         when (val tryResult = cond2.whereCond(layout, t3, layoutT, f3, layoutF)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
-                    Ok(Storage.Metal(storage2))
+                    Result.Ok(Storage.Metal(storage2))
                 }
                 else -> {
                     val lhs = matchVal.second
                     val rhs = matchVal.third
-                    Err(Error.DeviceMismatchBinaryOp(lhs = lhs.device().location(), rhs = rhs.device().location(), op = "where").bt())
+                    Result.Err(Error.DeviceMismatchBinaryOp(lhs = lhs.device().location(), rhs = rhs.device().location(), op = "where").bt())
                 }
             }
         }
@@ -1101,8 +1100,8 @@ public sealed class Storage {
 
     internal fun gather(l: Layout, indexes: Storage, indexesL: Layout, d: Int): Result<Storage> {
         when (val tryResult = this.sameDevice(indexes, "index-add")) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
         return run {
             val matchVal = Pair(this, indexes)
@@ -1112,30 +1111,30 @@ public sealed class Storage {
                     val (indexes1) = matchVal.second as Cpu
                     val storage =
                         when (val tryResult = s.gather(l, indexes1, indexesL, d)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
-                    Ok(Storage.Cpu(storage))
+                    Result.Ok(Storage.Cpu(storage))
                 }
                 matchVal.first is Cuda && matchVal.second is Cuda -> {
                     val (s1) = matchVal.first as Cuda
                     val (indexes2) = matchVal.second as Cuda
                     val storage1 =
                         when (val tryResult = s1.gather(l, indexes2, indexesL, d)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
-                    Ok(Storage.Cuda(storage1))
+                    Result.Ok(Storage.Cuda(storage1))
                 }
                 matchVal.first is Metal && matchVal.second is Metal -> {
                     val (s2) = matchVal.first as Metal
                     val (indexes3) = matchVal.second as Metal
                     val storage2 =
                         when (val tryResult = s2.gather(l, indexes3, indexesL, d)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
-                    Ok(Storage.Metal(storage2))
+                    Result.Ok(Storage.Metal(storage2))
                 }
                 else -> error("unreachable")
             }
@@ -1144,12 +1143,12 @@ public sealed class Storage {
 
     internal fun scatterSet(l: Layout, indexes: Storage, indexesL: Layout, source: Storage, sourceL: Layout, d: Int): Result<Unit> {
         when (val tryResult = this.sameDevice(indexes, "scatter-set")) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
         when (val tryResult = this.sameDevice(source, "scatter-set")) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
         run {
             val matchVal = Triple(this, indexes, source)
@@ -1159,8 +1158,8 @@ public sealed class Storage {
                     val (indexes1) = matchVal.second as Cpu
                     val (source1) = matchVal.third as Cpu
                     when (val tryResult = s.scatterSet(l, indexes1, indexesL, source1, sourceL, d)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                 }
                 matchVal.first is Cuda && matchVal.second is Cuda && matchVal.third is Cuda -> {
@@ -1168,8 +1167,8 @@ public sealed class Storage {
                     val (indexes2) = matchVal.second as Cuda
                     val (source2) = matchVal.third as Cuda
                     when (val tryResult = s1.scatterSet(l, indexes2, indexesL, source2, sourceL, d)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                 }
                 matchVal.first is Metal && matchVal.second is Metal && matchVal.third is Metal -> {
@@ -1177,24 +1176,24 @@ public sealed class Storage {
                     val (indexes3) = matchVal.second as Metal
                     val (source3) = matchVal.third as Metal
                     when (val tryResult = s2.scatterSet(l, indexes3, indexesL, source3, sourceL, d)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                 }
                 else -> error("unreachable")
             }
         }
-        return Ok(Unit)
+        return Result.Ok(Unit)
     }
 
     internal fun scatterAdd(l: Layout, indexes: Storage, indexesL: Layout, source: Storage, sourceL: Layout, d: Int): Result<Unit> {
         when (val tryResult = this.sameDevice(indexes, "scatter-add")) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
         when (val tryResult = this.sameDevice(source, "scatter-add")) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
         run {
             val matchVal = Triple(this, indexes, source)
@@ -1204,8 +1203,8 @@ public sealed class Storage {
                     val (indexes1) = matchVal.second as Cpu
                     val (source1) = matchVal.third as Cpu
                     when (val tryResult = s.scatterAddSet(l, indexes1, indexesL, source1, sourceL, d)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                 }
                 matchVal.first is Cuda && matchVal.second is Cuda && matchVal.third is Cuda -> {
@@ -1213,8 +1212,8 @@ public sealed class Storage {
                     val (indexes2) = matchVal.second as Cuda
                     val (source2) = matchVal.third as Cuda
                     when (val tryResult = s1.scatterAddSet(l, indexes2, indexesL, source2, sourceL, d)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                 }
                 matchVal.first is Metal && matchVal.second is Metal && matchVal.third is Metal -> {
@@ -1222,24 +1221,24 @@ public sealed class Storage {
                     val (indexes3) = matchVal.second as Metal
                     val (source3) = matchVal.third as Metal
                     when (val tryResult = s2.scatterAddSet(l, indexes3, indexesL, source3, sourceL, d)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                 }
                 else -> error("unreachable")
             }
         }
-        return Ok(Unit)
+        return Result.Ok(Unit)
     }
 
     internal fun indexAdd(l: Layout, indexes: Storage, indexesL: Layout, source: Storage, sourceL: Layout, d: Int): Result<Storage> {
         when (val tryResult = this.sameDevice(indexes, "index-add")) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
         when (val tryResult = this.sameDevice(source, "index-add")) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
         return run {
             val matchVal = Triple(this, indexes, source)
@@ -1250,10 +1249,10 @@ public sealed class Storage {
                     val (source1) = matchVal.third as Cpu
                     val storage =
                         when (val tryResult = s.indexAdd(l, indexes1, indexesL, source1, sourceL, d)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
-                    Ok(Storage.Cpu(storage))
+                    Result.Ok(Storage.Cpu(storage))
                 }
                 matchVal.first is Cuda && matchVal.second is Cuda && matchVal.third is Cuda -> {
                     val (s1) = matchVal.first as Cuda
@@ -1261,10 +1260,10 @@ public sealed class Storage {
                     val (source2) = matchVal.third as Cuda
                     val storage1 =
                         when (val tryResult = s1.indexAdd(l, indexes2, indexesL, source2, sourceL, d)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
-                    Ok(Storage.Cuda(storage1))
+                    Result.Ok(Storage.Cuda(storage1))
                 }
                 matchVal.first is Metal && matchVal.second is Metal && matchVal.third is Metal -> {
                     val (s2) = matchVal.first as Metal
@@ -1272,10 +1271,10 @@ public sealed class Storage {
                     val (source3) = matchVal.third as Metal
                     val storage2 =
                         when (val tryResult = s2.indexAdd(l, indexes3, indexesL, source3, sourceL, d)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
-                    Ok(Storage.Metal(storage2))
+                    Result.Ok(Storage.Metal(storage2))
                 }
                 else -> error("unreachable")
             }
@@ -1284,8 +1283,8 @@ public sealed class Storage {
 
     internal fun indexSelect(rhs: Storage, lhsL: Layout, rhsL: Layout, d: Int): Result<Storage> {
         when (val tryResult = this.sameDevice(rhs, "index-select")) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
         return run {
             val matchVal = Pair(this, rhs)
@@ -1295,35 +1294,35 @@ public sealed class Storage {
                     val (rhs1) = matchVal.second as Cpu
                     val storage =
                         when (val tryResult = lhs.indexSelect(rhs1, lhsL, rhsL, d)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
-                    Ok(Storage.Cpu(storage))
+                    Result.Ok(Storage.Cpu(storage))
                 }
                 matchVal.first is Cuda && matchVal.second is Cuda -> {
                     val (lhs1) = matchVal.first as Cuda
                     val (rhs2) = matchVal.second as Cuda
                     val storage1 =
                         when (val tryResult = lhs1.indexSelect(rhs2, lhsL, rhsL, d)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
-                    Ok(Storage.Cuda(storage1))
+                    Result.Ok(Storage.Cuda(storage1))
                 }
                 matchVal.first is Metal && matchVal.second is Metal -> {
                     val (lhs2) = matchVal.first as Metal
                     val (rhs3) = matchVal.second as Metal
                     val storage2 =
                         when (val tryResult = lhs2.indexSelect(rhs3, lhsL, rhsL, d)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
-                    Ok(Storage.Metal(storage2))
+                    Result.Ok(Storage.Metal(storage2))
                 }
                 else -> {
                     val lhs3 = matchVal.first
                     val rhs4 = matchVal.second
-                    Err(Error.DeviceMismatchBinaryOp(lhs = lhs3.device().location(), rhs = rhs4.device().location(), op = "index-select").bt())
+                    Result.Err(Error.DeviceMismatchBinaryOp(lhs = lhs3.device().location(), rhs = rhs4.device().location(), op = "index-select").bt())
                 }
             }
         }
@@ -1331,12 +1330,12 @@ public sealed class Storage {
 
     internal fun matmul(rhs: Storage, bmnk: List<Any?>, lhsLayout: Layout, rhsLayout: Layout): Result<Storage> {
         when (val tryResult = this.sameDevice(rhs, "matmul")) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
         when (val tryResult = this.sameDtype(rhs, "matmul")) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
         return run {
             val matchVal = Pair(this, rhs)
@@ -1346,35 +1345,35 @@ public sealed class Storage {
                     val (rhs1) = matchVal.second as Cpu
                     val storage =
                         when (val tryResult = lhs.matmul(rhs1, bmnk, lhsLayout, rhsLayout)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
-                    Ok(Storage.Cpu(storage))
+                    Result.Ok(Storage.Cpu(storage))
                 }
                 matchVal.first is Cuda && matchVal.second is Cuda -> {
                     val (lhs1) = matchVal.first as Cuda
                     val (rhs2) = matchVal.second as Cuda
                     val storage1 =
                         when (val tryResult = lhs1.matmul(rhs2, bmnk, lhsLayout, rhsLayout)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
-                    Ok(Storage.Cuda(storage1))
+                    Result.Ok(Storage.Cuda(storage1))
                 }
                 matchVal.first is Metal && matchVal.second is Metal -> {
                     val (lhs2) = matchVal.first as Metal
                     val (rhs3) = matchVal.second as Metal
                     val storage2 =
                         when (val tryResult = lhs2.matmul(rhs3, bmnk, lhsLayout, rhsLayout)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
-                    Ok(Storage.Metal(storage2))
+                    Result.Ok(Storage.Metal(storage2))
                 }
                 else -> {
                     val lhs3 = matchVal.first
                     val rhs4 = matchVal.second
-                    Err(Error.DeviceMismatchBinaryOp(lhs = lhs3.device().location(), rhs = rhs4.device().location(), op = "matmul").bt())
+                    Result.Err(Error.DeviceMismatchBinaryOp(lhs = lhs3.device().location(), rhs = rhs4.device().location(), op = "matmul").bt())
                 }
             }
         }
@@ -1393,27 +1392,27 @@ public sealed class Storage {
                 matchVal.first is Cuda && matchVal.second is Cuda -> {
                     val (src1) = matchVal.first as Cuda
                     val (dst2) = matchVal.second as Cuda
-                    Ok(
+                    Result.Ok(
                         when (val tryResult = src1.copyStridedSrc(dst2, dstOffset, srcL)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         },
                     )
                 }
                 matchVal.first is Metal && matchVal.second is Metal -> {
                     val (src2) = matchVal.first as Metal
                     val (dst3) = matchVal.second as Metal
-                    Ok(
+                    Result.Ok(
                         when (val tryResult = src2.copyStridedSrc(dst3, dstOffset, srcL)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         },
                     )
                 }
                 else -> {
                     val lhs = matchVal.first
                     val rhs = matchVal.second
-                    Err(Error.DeviceMismatchBinaryOp(lhs = lhs.device().location(), rhs = rhs.device().location(), op = "copy").bt())
+                    Result.Err(Error.DeviceMismatchBinaryOp(lhs = lhs.device().location(), rhs = rhs.device().location(), op = "copy").bt())
                 }
             }
         }
@@ -1431,27 +1430,27 @@ public sealed class Storage {
                 matchVal.first is Cuda && matchVal.second is Cuda -> {
                     val (src1) = matchVal.first as Cuda
                     val (dst2) = matchVal.second as Cuda
-                    Ok(
+                    Result.Ok(
                         when (val tryResult = src1.copy2d(dst2, d1, d2, srcS, dstS, srcO, dstO)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         },
                     )
                 }
                 matchVal.first is Metal && matchVal.second is Metal -> {
                     val (src2) = matchVal.first as Metal
                     val (dst3) = matchVal.second as Metal
-                    Ok(
+                    Result.Ok(
                         when (val tryResult = src2.copy2d(dst3, d1, d2, srcS, dstS, srcO, dstO)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         },
                     )
                 }
                 else -> {
                     val lhs = matchVal.first
                     val rhs = matchVal.second
-                    Err(Error.DeviceMismatchBinaryOp(lhs = lhs.device().location(), rhs = rhs.device().location(), op = "copy2d").bt())
+                    Result.Err(Error.DeviceMismatchBinaryOp(lhs = lhs.device().location(), rhs = rhs.device().location(), op = "copy2d").bt())
                 }
             }
         }

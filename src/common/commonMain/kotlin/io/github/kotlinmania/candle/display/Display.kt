@@ -1,6 +1,7 @@
 // port-lint: source display.rs
 package io.github.kotlinmania.candle.display
 
+import io.github.kotlinmania.candle.cpu.Cpu
 import io.github.kotlinmania.candle.cudabackend.utils.S
 import io.github.kotlinmania.candle.device.DeviceLocation
 import io.github.kotlinmania.candle.dtype.DType
@@ -12,7 +13,7 @@ import io.github.kotlinmania.half.Bf16
 import io.github.kotlinmania.half.F16
 import io.github.kotlinmania.rustlang.core.mem.PrimitiveLayouts
 import io.github.kotlinmania.rustlang.core.mem.TypeLayout
-import io.github.kotlinmania.rustlang.core.result.fromResidual
+import io.github.kotlinmania.rustlang.core.result.andThen
 
 // Pretty printing of tensors
 //
@@ -21,7 +22,7 @@ import io.github.kotlinmania.rustlang.core.result.fromResidual
 public fun <T : WithDType> Tensor.fmtDt(f: StringBuilder) {
     val deviceStr =
         when (val matchVal = this.device().location()) {
-            DeviceLocation.Cpu -> "".toOwned()
+            Cpu -> "".toOwned()
             is DeviceLocation.Cuda -> {
                 val gpuId = matchVal.gpuId
                 ", cuda:$gpuId"
@@ -31,21 +32,15 @@ public fun <T : WithDType> Tensor.fmtDt(f: StringBuilder) {
                 ", metal:$gpuId"
             }
         }
-    when (val tryResult = f.append("Tensor[")) {
-        is Result.Ok -> tryResult.value
-        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
-    }
+    f.append("Tensor[")
     run {
         val matchVal1 = this.dims()
         when {
             matchVal1.isEmpty() -> {
                 when (val matchVal2 = this.toScalar<T>()) {
                     is Ok -> {
-                        val (v) = matchVal2
-                        when (val tryResult = f.append("$v")) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
-                        }
+                        val v = matchVal2.value
+                        f.append("$v")
                     }
                     else -> {}
                 }
@@ -54,18 +49,12 @@ public fun <T : WithDType> Tensor.fmtDt(f: StringBuilder) {
                 val s = matchVal1[0]
                 when (val matchVal3 = this.toVec1<T>()) {
                     is Ok -> {
-                        val (vs) = matchVal3
-                        for ((i, v1) in vs.iter().enumerate()) {
+                        val vs = matchVal3.value
+                        for ((i, v1) in vs.iter().mapIndexed { index, item -> Pair(index, item) }) {
                             if (i > 0) {
-                                when (val tryResult = f.append(", ")) {
-                                    is Result.Ok -> tryResult.value
-                                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
-                                }
+                                f.append(", ")
                             }
-                            when (val tryResult = f.append("$v")) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
-                            }
+                            f.append("$v")
                         }
                     }
                     else -> {}
@@ -73,21 +62,12 @@ public fun <T : WithDType> Tensor.fmtDt(f: StringBuilder) {
             }
             else -> {
                 val dims = matchVal1
-                when (val tryResult = f.append("dims ")) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
-                }
-                for ((i1, d) in dims.iter().enumerate()) {
+                f.append("dims ")
+                for ((i1, d) in dims.iter().mapIndexed { index, item -> Pair(index, item) }) {
                     if (i1 > 0) {
-                        when (val tryResult = f.append(", ")) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
-                        }
+                        f.append(", ")
                     }
-                    when (val tryResult = f.append("$d")) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
-                    }
+                    f.append("$d")
                 }
             }
         }
@@ -171,12 +151,11 @@ public fun setSciMode(sciMode: Boolean?) {
 
 public class FmtSize(
     public var currentSize: Int = 0,
-) : Write {
+) : Appendable {
     public fun finalSize(): Int = this.currentSize
 
     public fun writeStr(s: String) {
-        this.currentSize += s.len()
-        Ok(Unit)
+        this.currentSize += s.length
     }
 
     public companion object {
@@ -198,13 +177,13 @@ public class FmtSize(
 }
 
 public interface TensorFormatter<Elem> {
-    public fun <T : Write> fmt(v: Elem, maxW: Int, f: T)
+    public fun <T : Appendable> fmt(v: Elem, maxW: Int, f: T)
 
     public fun maxWidth(toDisplay: Tensor): Int {
         var maxWidth = 1
         when (val matchVal = toDisplay.flattenAll().andThen({ t -> t.toVec1() })) {
             is Ok -> {
-                val (vs) = matchVal
+                val vs = matchVal.value
                 for (v in vs.iter()) {
                     val fmtSize = FmtSize.new()
                     maxWidth = Int.max(maxWidth, fmtSize.finalSize())
@@ -216,35 +195,22 @@ public interface TensorFormatter<Elem> {
     }
 
     public fun writeNewlineIndent(i: Int, f: StringBuilder) {
-        when (val tryResult = f.appendLine()) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
-        }
+        f.appendLine()
         for (unused in 0 until i) {
-            when (val tryResult = f.append(" ")) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
-            }
+            f.append(" ")
         }
-        Ok(Unit)
     }
 
     public fun fmtTensor(t: Tensor, indent: Int, maxW: Int, summarize: Boolean, po: PrinterOptions, f: StringBuilder) {
         val dims = t.dims()
         val edgeItems = po.edgeItems
-        when (val tryResult = f.append("[")) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
-        }
+        f.append("[")
         when {
             dims.isEmpty() -> {
                 when (val matchVal = t.toScalar<Elem>()) {
                     is Ok -> {
-                        val (v) = matchVal
-                        when (val tryResult = this.fmt(v, maxW, f)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
-                        }
+                        val v = matchVal.value
+                        this.fmt(v, maxW, f)
                     }
                     else -> {}
                 }
@@ -253,36 +219,21 @@ public interface TensorFormatter<Elem> {
                 val v1 = dims[0]
                 when (val matchVal1 = t.narrow(0, 0, edgeItems).andThen({ t1 -> t1.toVec1<Elem>() })) {
                     is Ok -> {
-                        val (vs) = matchVal1
+                        val vs = matchVal1.value
                         for (v2 in vs.intoIter()) {
-                            when (val tryResult = this.fmt(v2, maxW, f)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
-                            }
-                            when (val tryResult = f.append(", ")) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
-                            }
+                            this.fmt(v2, maxW, f)
+                            f.append(", ")
                         }
                     }
                     else -> {}
                 }
-                when (val tryResult = f.append("...")) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
-                }
+                f.append("...")
                 when (val matchVal2 = t.narrow(0, v1 - edgeItems, edgeItems).andThen({ t1 -> t1.toVec1<Elem>() })) {
                     is Ok -> {
-                        val (vs1) = matchVal2
+                        val vs1 = matchVal2.value
                         for (v3 in vs1.intoIter()) {
-                            when (val tryResult = f.append(", ")) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
-                            }
-                            when (val tryResult = this.fmt(v3, maxW, f)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
-                            }
+                            f.append(", ")
+                            this.fmt(v3, maxW, f)
                         }
                     }
                     else -> {}
@@ -292,29 +243,17 @@ public interface TensorFormatter<Elem> {
                 val elementsPerLine = Int.max(1, po.lineWidth / (maxW + 2))
                 when (val matchVal3 = t.toVec1<Elem>()) {
                     is Ok -> {
-                        val (vs2) = matchVal3
-                        for ((i, v4) in vs2.intoIter().enumerate()) {
+                        val vs2 = matchVal3.value
+                        for ((i, v4) in vs2.intoIter().mapIndexed { index, item -> Pair(index, item) }) {
                             if (i > 0) {
                                 if (i % elementsPerLine == 0) {
-                                    when (val tryResult = f.append(",")) {
-                                        is Result.Ok -> tryResult.value
-                                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
-                                    }
-                                    when (val tryResult = TensorFormatter.writeNewlineIndent(indent, f)) {
-                                        is Result.Ok -> tryResult.value
-                                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
-                                    }
+                                    f.append(",")
+                                    TensorFormatter.writeNewlineIndent(indent, f)
                                 } else {
-                                    when (val tryResult = f.append(", ")) {
-                                        is Result.Ok -> tryResult.value
-                                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
-                                    }
+                                    f.append(", ")
                                 }
                             }
-                            when (val tryResult = this.fmt(v4, maxW, f)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
-                            }
+                            this.fmt(v4, maxW, f)
                         }
                     }
                     else -> {}
@@ -326,68 +265,38 @@ public interface TensorFormatter<Elem> {
                         run {
                             val matchVal4 = t.get(i1)
                             when (matchVal4) {
-                                is Result.Ok -> {
+                                is Result.Ok<*> -> {
                                     val t1 = matchVal4.value
-                                    when (val tryResult = this.fmtTensor(t1, indent + 1, maxW, summarize, po, f)) {
-                                        is Result.Ok -> tryResult.value
-                                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
-                                    }
+                                    this.fmtTensor(t1, indent + 1, maxW, summarize, po, f)
                                 }
-                                is Result.Err -> {
-                                    val e = matchVal4.value
-                                    when (val tryResult = f.append("$e")) {
-                                        is Result.Ok -> tryResult.value
-                                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
-                                    }
+                                is Result.Err<*> -> {
+                                    val e = matchVal4.error
+                                    f.append("$e")
                                 }
                             }
                         }
-                        when (val tryResult = f.append(",")) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
-                        }
-                        when (val tryResult = TensorFormatter.writeNewlineIndent(indent, f)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
-                        }
+                        f.append(",")
+                        TensorFormatter.writeNewlineIndent(indent, f)
                     }
-                    when (val tryResult = f.append("...")) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
-                    }
-                    when (val tryResult = TensorFormatter.writeNewlineIndent(indent, f)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
-                    }
+                    f.append("...")
+                    TensorFormatter.writeNewlineIndent(indent, f)
                     for (i2 in dims[0] - edgeItems until dims[0]) {
                         run {
                             val matchVal5 = t.get(i2)
                             when (matchVal5) {
-                                is Result.Ok -> {
+                                is Result.Ok<*> -> {
                                     val t2 = matchVal5.value
-                                    when (val tryResult = this.fmtTensor(t2, indent + 1, maxW, summarize, po, f)) {
-                                        is Result.Ok -> tryResult.value
-                                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
-                                    }
+                                    this.fmtTensor(t2, indent + 1, maxW, summarize, po, f)
                                 }
-                                is Result.Err -> {
-                                    val e1 = matchVal5.value
-                                    when (val tryResult = f.append("$e")) {
-                                        is Result.Ok -> tryResult.value
-                                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
-                                    }
+                                is Result.Err<*> -> {
+                                    val e1 = matchVal5.error
+                                    f.append("$e")
                                 }
                             }
                         }
                         if (i2 + 1 != dims[0]) {
-                            when (val tryResult = f.append(",")) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
-                            }
-                            when (val tryResult = TensorFormatter.writeNewlineIndent(indent, f)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
-                            }
+                            f.append(",")
+                            TensorFormatter.writeNewlineIndent(indent, f)
                         }
                     }
                 } else {
@@ -395,41 +304,25 @@ public interface TensorFormatter<Elem> {
                         run {
                             val matchVal6 = t.get(i3)
                             when (matchVal6) {
-                                is Result.Ok -> {
+                                is Result.Ok<*> -> {
                                     val t3 = matchVal6.value
-                                    when (val tryResult = this.fmtTensor(t3, indent + 1, maxW, summarize, po, f)) {
-                                        is Result.Ok -> tryResult.value
-                                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
-                                    }
+                                    this.fmtTensor(t3, indent + 1, maxW, summarize, po, f)
                                 }
-                                is Result.Err -> {
-                                    val e2 = matchVal6.value
-                                    when (val tryResult = f.append("$e")) {
-                                        is Result.Ok -> tryResult.value
-                                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
-                                    }
+                                is Result.Err<*> -> {
+                                    val e2 = matchVal6.error
+                                    f.append("$e")
                                 }
                             }
                         }
                         if (i3 + 1 != dims[0]) {
-                            when (val tryResult = f.append(",")) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
-                            }
-                            when (val tryResult = TensorFormatter.writeNewlineIndent(indent, f)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
-                            }
+                            f.append(",")
+                            TensorFormatter.writeNewlineIndent(indent, f)
                         }
                     }
                 }
             }
         }
-        when (val tryResult = f.append("]")) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
-        }
-        Ok(Unit)
+        f.append("]")
     }
 }
 
@@ -438,8 +331,8 @@ public class FloatFormatter<S : WithDType>(
     public var sciMode: Boolean = false,
     public var precision: Int = 0,
     public var phantom: Unit = Unit,
-) : TensorFormatter {
-    public override fun <T : Write> fmt(v: S, maxW: Int, f: T) {
+) : TensorFormatter<S> {
+    public override fun <T : Appendable> fmt(v: S, maxW: Int, f: T) {
         if (this.sciMode) {
             f.append("$v")
         } else if (this.intMode) {
@@ -463,12 +356,12 @@ public class FloatFormatter<S : WithDType>(
                 when (
                     val tryResult =
                         when (val tryResult = t.flattenAll()) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }.toVec1()
                 ) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }.intoIter().filter({ v: S -> v.isFinite() && !v.isZero() }).collect<Vec>()
             if (!values.isEmpty()) {
                 var nonzeroFiniteMin = maxValueSFn()
@@ -515,15 +408,15 @@ public class FloatFormatter<S : WithDType>(
                     sciMode = v2
                 }
             }
-            return Ok(FloatFormatter(intMode = intMode, sciMode = sciMode, precision = po.precision, phantom = Unit))
+            return Result.Ok(FloatFormatter(intMode = intMode, sciMode = sciMode, precision = po.precision, phantom = Unit))
         }
     }
 }
 
 public class IntFormatter<S : WithDType>(
     public var phantom: Unit = Unit,
-) : TensorFormatter {
-    public override fun <T : Write> fmt(v: S, maxW: Int, f: T) {
+) : TensorFormatter<S> {
+    public override fun <T : Appendable> fmt(v: S, maxW: Int, f: T) {
         f.append("$v")
     }
 
@@ -535,24 +428,24 @@ public class IntFormatter<S : WithDType>(
 public fun getSummarizedData(t: Tensor, edgeItems: Int): Result<Tensor> {
     val dims = t.dims()
     return if (dims.isEmpty()) {
-        Ok(t.clone())
+        Result.Ok(t.clone())
     } else if (dims.len() == 1) {
         if (dims[0] > 2 * edgeItems) {
             Tensor.cat(
                 listOf(
                     when (val tryResult = t.narrow(0, 0, edgeItems)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     },
                     when (val tryResult = t.narrow(0, dims[0] - edgeItems, edgeItems)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     },
                 ),
                 0,
             )
         } else {
-            Ok(t.clone())
+            Result.Ok(t.clone())
         }
     } else if (dims[0] > 2 * edgeItems) {
         val vs: Vec =
@@ -563,16 +456,16 @@ public fun getSummarizedData(t: Tensor, edgeItems: Int): Result<Tensor> {
                             closure@{ i ->
                                 getSummarizedData(
                                     when (val tryResult = t.get(i)) {
-                                        is Result.Ok -> tryResult.value
-                                        is Result.Err -> return@closure Result.fromResidual(Result.Err(tryResult.value))
+                                        is Result.Ok<*> -> tryResult.value
+                                        is Result.Err<*> -> return@closure Result.Err(tryResult.error)
                                     },
                                     edgeItems,
                                 )
                             },
                         ).collect<Result<Vec>>()
             ) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         for (i in (dims[0] - edgeItems) until dims[0]) {
             vs.push(
@@ -580,14 +473,14 @@ public fun getSummarizedData(t: Tensor, edgeItems: Int): Result<Tensor> {
                     val tryResult =
                         getSummarizedData(
                             when (val tryResult = t.get(i)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             },
                             edgeItems,
                         )
                 ) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 },
             )
         }
@@ -601,16 +494,16 @@ public fun getSummarizedData(t: Tensor, edgeItems: Int): Result<Tensor> {
                             closure1@{ i1 ->
                                 getSummarizedData(
                                     when (val tryResult = t.get(i1)) {
-                                        is Result.Ok -> tryResult.value
-                                        is Result.Err -> return@closure1 Result.fromResidual(Result.Err(tryResult.value))
+                                        is Result.Ok<*> -> tryResult.value
+                                        is Result.Err<*> -> return@closure1 Result.Err(tryResult.error)
                                     },
                                     edgeItems,
                                 )
                             },
                         ).collect<Result<Vec>>()
             ) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         Tensor.cat(vs1, 0)
     }

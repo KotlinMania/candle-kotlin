@@ -6,24 +6,6 @@ import io.github.kotlinmania.candle.cpu.erf.erfF64
 import io.github.kotlinmania.candle.customop.CustomOp1
 import io.github.kotlinmania.candle.customop.CustomOp2
 import io.github.kotlinmania.candle.customop.CustomOp3
-import io.github.kotlinmania.candle.mkl.vdCos
-import io.github.kotlinmania.candle.mkl.vdExp
-import io.github.kotlinmania.candle.mkl.vdGelu
-import io.github.kotlinmania.candle.mkl.vdLn
-import io.github.kotlinmania.candle.mkl.vdSilu
-import io.github.kotlinmania.candle.mkl.vdSin
-import io.github.kotlinmania.candle.mkl.vdSqr
-import io.github.kotlinmania.candle.mkl.vdSqrt
-import io.github.kotlinmania.candle.mkl.vdTanh
-import io.github.kotlinmania.candle.mkl.vsCos
-import io.github.kotlinmania.candle.mkl.vsExp
-import io.github.kotlinmania.candle.mkl.vsGelu
-import io.github.kotlinmania.candle.mkl.vsLn
-import io.github.kotlinmania.candle.mkl.vsSilu
-import io.github.kotlinmania.candle.mkl.vsSin
-import io.github.kotlinmania.candle.mkl.vsSqr
-import io.github.kotlinmania.candle.mkl.vsSqrt
-import io.github.kotlinmania.candle.mkl.vsTanh
 import io.github.kotlinmania.candle.tensor.Tensor
 import io.github.kotlinmania.float8.F8e4m3
 import io.github.kotlinmania.half.Bf16
@@ -32,8 +14,6 @@ import io.github.kotlinmania.numtraits.float.Float
 import io.github.kotlinmania.rustlang.core.mem.TypeLayout
 
 // Tensor Operation Enums and Traits
-
-public typealias Target = Op?
 
 public enum class CmpOp(
     public val value: UInt,
@@ -316,25 +296,29 @@ public interface UnaryOpT<T> {
 
     public fun bf16Vec(xs: List<Bf16>, ys: MutableList<Bf16>) {
         for (i in 0 until minOf(xs.size, ys.size)) {
-            ys[i] = bf16(xs[i])
+            val x = xs[i]
+            ys[i] = T.Bf16(x)
         }
     }
 
     public fun f16Vec(xs: List<F16>, ys: MutableList<F16>) {
         for (i in 0 until minOf(xs.size, ys.size)) {
-            ys[i] = f16(xs[i])
+            val x = xs[i]
+            ys[i] = T.F16(x)
         }
     }
 
     public fun f32Vec(xs: List<Float>, ys: MutableList<Float>) {
         for (i in 0 until minOf(xs.size, ys.size)) {
-            ys[i] = f32(xs[i])
+            val x = xs[i]
+            ys[i] = T.f32(x)
         }
     }
 
     public fun f64Vec(xs: List<Double>, ys: MutableList<Double>) {
         for (i in 0 until minOf(xs.size, ys.size)) {
-            ys[i] = f64(xs[i])
+            val x = xs[i]
+            ys[i] = T.f64(x)
         }
     }
 }
@@ -368,109 +352,136 @@ public interface BinaryOpT<T> {
 
     public fun bf16Vec(xs1: List<Bf16>, xs2: List<Bf16>, ys: MutableList<Bf16>) {
         for (i in 0 until minOf(xs1.size, xs2.size, ys.size)) {
-            ys[i] = bf16(xs1[i], xs2[i])
+            val a = xs1[i]
+            val b = xs2[i]
+            ys[i] = T.Bf16(a, b)
         }
     }
 
     public fun f16Vec(xs1: List<F16>, xs2: List<F16>, ys: MutableList<F16>) {
         for (i in 0 until minOf(xs1.size, xs2.size, ys.size)) {
-            ys[i] = f16(xs1[i], xs2[i])
+            val a = xs1[i]
+            val b = xs2[i]
+            ys[i] = T.F16(a, b)
         }
     }
 
     public fun f32Vec(xs1: List<Float>, xs2: List<Float>, ys: MutableList<Float>) {
         for (i in 0 until minOf(xs1.size, xs2.size, ys.size)) {
-            ys[i] = f32(xs1[i], xs2[i])
+            val a = xs1[i]
+            val b = xs2[i]
+            ys[i] = T.f32(a, b)
         }
     }
 
     public fun f64Vec(xs1: List<Double>, xs2: List<Double>, ys: MutableList<Double>) {
         for (i in 0 until minOf(xs1.size, xs2.size, ys.size)) {
-            ys[i] = f64(xs1[i], xs2[i])
+            val a = xs1[i]
+            val b = xs2[i]
+            ys[i] = T.f64(a, b)
         }
     }
 
     public fun u8Vec(xs1: List<UByte>, xs2: List<UByte>, ys: MutableList<UByte>) {
         for (i in 0 until minOf(xs1.size, xs2.size, ys.size)) {
-            ys[i] = u8(xs1[i], xs2[i])
+            val a = xs1[i]
+            val b = xs2[i]
+            ys[i] = T.u8(a, b)
         }
     }
 
     public fun u32Vec(xs1: List<UInt>, xs2: List<UInt>, ys: MutableList<UInt>) {
         for (i in 0 until minOf(xs1.size, xs2.size, ys.size)) {
-            ys[i] = u32(xs1[i], xs2[i])
+            val a = xs1[i]
+            val b = xs2[i]
+            ys[i] = T.u32(a, b)
         }
     }
 
     public fun i16Vec(xs1: List<Short>, xs2: List<Short>, ys: MutableList<Short>) {
         for (i in 0 until minOf(xs1.size, xs2.size, ys.size)) {
-            ys[i] = i16(xs1[i], xs2[i])
+            val a = xs1[i]
+            val b = xs2[i]
+            ys[i] = T.i16(a, b)
         }
     }
 
     public fun i32Vec(xs1: List<Int>, xs2: List<Int>, ys: MutableList<Int>) {
         for (i in 0 until minOf(xs1.size, xs2.size, ys.size)) {
-            ys[i] = i32(xs1[i], xs2[i])
+            val a = xs1[i]
+            val b = xs2[i]
+            ys[i] = T.i32(a, b)
         }
     }
 
     public fun i64Vec(xs1: List<Long>, xs2: List<Long>, ys: MutableList<Long>) {
         for (i in 0 until minOf(xs1.size, xs2.size, ys.size)) {
-            ys[i] = i64(xs1[i], xs2[i])
+            val a = xs1[i]
+            val b = xs2[i]
+            ys[i] = T.i64(a, b)
         }
     }
 
     public fun bf16ScalarVec(scalar: Bf16, xs: List<Bf16>, ys: MutableList<Bf16>) {
         for (i in 0 until minOf(xs.size, ys.size)) {
-            ys[i] = bf16(xs[i], scalar)
+            val x = xs[i]
+            ys[i] = T.Bf16(x, scalar)
         }
     }
 
     public fun f16ScalarVec(scalar: F16, xs: List<F16>, ys: MutableList<F16>) {
         for (i in 0 until minOf(xs.size, ys.size)) {
-            ys[i] = f16(xs[i], scalar)
+            val x = xs[i]
+            ys[i] = T.F16(x, scalar)
         }
     }
 
     public fun f32ScalarVec(scalar: Float, xs: List<Float>, ys: MutableList<Float>) {
         for (i in 0 until minOf(xs.size, ys.size)) {
-            ys[i] = f32(xs[i], scalar)
+            val x = xs[i]
+            ys[i] = T.f32(x, scalar)
         }
     }
 
     public fun f64ScalarVec(scalar: Double, xs: List<Double>, ys: MutableList<Double>) {
         for (i in 0 until minOf(xs.size, ys.size)) {
-            ys[i] = f64(xs[i], scalar)
+            val x = xs[i]
+            ys[i] = T.f64(x, scalar)
         }
     }
 
     public fun u8ScalarVec(scalar: UByte, xs: List<UByte>, ys: MutableList<UByte>) {
         for (i in 0 until minOf(xs.size, ys.size)) {
-            ys[i] = u8(xs[i], scalar)
+            val x = xs[i]
+            ys[i] = T.u8(x, scalar)
         }
     }
 
     public fun u32ScalarVec(scalar: UInt, xs: List<UInt>, ys: MutableList<UInt>) {
         for (i in 0 until minOf(xs.size, ys.size)) {
-            ys[i] = u32(xs[i], scalar)
+            val x = xs[i]
+            ys[i] = T.u32(x, scalar)
         }
     }
 
     public fun i16ScalarVec(scalar: Short, xs: List<Short>, ys: MutableList<Short>) {
         for (i in 0 until minOf(xs.size, ys.size)) {
-            ys[i] = i16(xs[i], scalar)
+            val x = xs[i]
+            ys[i] = T.i16(x, scalar)
         }
     }
 
     public fun i32ScalarVec(scalar: Int, xs: List<Int>, ys: MutableList<Int>) {
         for (i in 0 until minOf(xs.size, ys.size)) {
-            ys[i] = i32(xs[i], scalar)
+            val x = xs[i]
+            ys[i] = T.i32(x, scalar)
         }
     }
 
     public fun i64ScalarVec(scalar: Long, xs: List<Long>, ys: MutableList<Long>) {
         for (i in 0 until minOf(xs.size, ys.size)) {
-            ys[i] = i64(xs[i], scalar)
+            val x = xs[i]
+            ys[i] = T.i64(x, scalar)
         }
     }
 }
@@ -513,35 +524,35 @@ public class Add : BinaryOpT<Add> {
 
         public fun f8e4m3(v1: F8e4m3, v2: F8e4m3): F8e4m3 = { v11, v21 -> v11 + v21(v11, v21) }
 
-        public fun f32Vec(lhs: List<Float>, rhs: List<Float>, res: List<Float>) {
+        public fun f32Vec(lhs: List<Float>, rhs: List<Float>, res: MutableList<Float>) {
             Float.vecAdd(lhs, rhs, res)
         }
 
-        public fun f64Vec(lhs: List<Double>, rhs: List<Double>, res: List<Double>) {
+        public fun f64Vec(lhs: List<Double>, rhs: List<Double>, res: MutableList<Double>) {
             Double.vecAdd(lhs, rhs, res)
         }
 
-        public fun bf16Vec(lhs: List<Bf16>, rhs: List<Bf16>, res: List<Bf16>) {
+        public fun bf16Vec(lhs: List<Bf16>, rhs: List<Bf16>, res: MutableList<Bf16>) {
             Bf16.vecAdd(lhs, rhs, res)
         }
 
-        public fun f16Vec(lhs: List<F16>, rhs: List<F16>, res: List<F16>) {
+        public fun f16Vec(lhs: List<F16>, rhs: List<F16>, res: MutableList<F16>) {
             F16.vecAdd(lhs, rhs, res)
         }
 
-        public fun bf16ScalarVec(scalar: Bf16, xs: List<Bf16>, ys: List<Bf16>) {
+        public fun bf16ScalarVec(scalar: Bf16, xs: List<Bf16>, ys: MutableList<Bf16>) {
             Bf16.scalarAdd(scalar, xs, ys)
         }
 
-        public fun f16ScalarVec(scalar: F16, xs: List<F16>, ys: List<F16>) {
+        public fun f16ScalarVec(scalar: F16, xs: List<F16>, ys: MutableList<F16>) {
             F16.scalarAdd(scalar, xs, ys)
         }
 
-        public fun f32ScalarVec(scalar: Float, xs: List<Float>, ys: List<Float>) {
+        public fun f32ScalarVec(scalar: Float, xs: List<Float>, ys: MutableList<Float>) {
             Float.scalarAdd(scalar, xs, ys)
         }
 
-        public fun f64ScalarVec(scalar: Double, xs: List<Double>, ys: List<Double>) {
+        public fun f64ScalarVec(scalar: Double, xs: List<Double>, ys: MutableList<Double>) {
             Double.scalarAdd(scalar, xs, ys)
         }
     }
@@ -625,35 +636,35 @@ public class Mul : BinaryOpT<Mul> {
 
         public fun f8e4m3(v1: F8e4m3, v2: F8e4m3): F8e4m3 = { v11, v21 -> v11 * v21(v11, v21) }
 
-        public fun f32Vec(lhs: List<Float>, rhs: List<Float>, res: List<Float>) {
+        public fun f32Vec(lhs: List<Float>, rhs: List<Float>, res: MutableList<Float>) {
             Float.vecMul(lhs, rhs, res)
         }
 
-        public fun f64Vec(lhs: List<Double>, rhs: List<Double>, res: List<Double>) {
+        public fun f64Vec(lhs: List<Double>, rhs: List<Double>, res: MutableList<Double>) {
             Double.vecMul(lhs, rhs, res)
         }
 
-        public fun bf16Vec(lhs: List<Bf16>, rhs: List<Bf16>, res: List<Bf16>) {
+        public fun bf16Vec(lhs: List<Bf16>, rhs: List<Bf16>, res: MutableList<Bf16>) {
             Bf16.vecMul(lhs, rhs, res)
         }
 
-        public fun f16Vec(lhs: List<F16>, rhs: List<F16>, res: List<F16>) {
+        public fun f16Vec(lhs: List<F16>, rhs: List<F16>, res: MutableList<F16>) {
             F16.vecMul(lhs, rhs, res)
         }
 
-        public fun bf16ScalarVec(scalar: Bf16, xs: List<Bf16>, ys: List<Bf16>) {
+        public fun bf16ScalarVec(scalar: Bf16, xs: List<Bf16>, ys: MutableList<Bf16>) {
             Bf16.scalarMul(scalar, xs, ys)
         }
 
-        public fun f16ScalarVec(scalar: F16, xs: List<F16>, ys: List<F16>) {
+        public fun f16ScalarVec(scalar: F16, xs: List<F16>, ys: MutableList<F16>) {
             F16.scalarMul(scalar, xs, ys)
         }
 
-        public fun f32ScalarVec(scalar: Float, xs: List<Float>, ys: List<Float>) {
+        public fun f32ScalarVec(scalar: Float, xs: List<Float>, ys: MutableList<Float>) {
             Float.scalarMul(scalar, xs, ys)
         }
 
-        public fun f64ScalarVec(scalar: Double, xs: List<Double>, ys: List<Double>) {
+        public fun f64ScalarVec(scalar: Double, xs: List<Double>, ys: MutableList<Double>) {
             Double.scalarMul(scalar, xs, ys)
         }
     }
@@ -966,24 +977,6 @@ public class Exp : UnaryOpT<Exp> {
         }
 
         public fun f8e4m3(v: F8e4m3): F8e4m3 = v.exp()
-
-        public fun f32Vec(xs: List<Float>, ys: List<Float>) {
-            vsExp(xs, ys)
-        }
-
-        public fun f64Vec(xs: List<Double>, ys: List<Double>) {
-            vdExp(xs, ys)
-        }
-
-        public fun f32VecUnaryOpT(xs: List<Float>, ys: List<Float>) {
-            io.github.kotlinmania.candle.accelerate
-                .vsExp(xs, ys)
-        }
-
-        public fun f64VecUnaryOpT(xs: List<Double>, ys: List<Double>) {
-            io.github.kotlinmania.candle.accelerate
-                .vdExp(xs, ys)
-        }
     }
 }
 
@@ -1034,24 +1027,6 @@ public class Log : UnaryOpT<Log> {
         }
 
         public fun f8e4m3(v: F8e4m3): F8e4m3 = v.ln()
-
-        public fun f32Vec(xs: List<Float>, ys: List<Float>) {
-            vsLn(xs, ys)
-        }
-
-        public fun f64Vec(xs: List<Double>, ys: List<Double>) {
-            vdLn(xs, ys)
-        }
-
-        public fun f32VecUnaryOpT(xs: List<Float>, ys: List<Float>) {
-            io.github.kotlinmania.candle.accelerate
-                .vsLn(xs, ys)
-        }
-
-        public fun f64VecUnaryOpT(xs: List<Double>, ys: List<Double>) {
-            io.github.kotlinmania.candle.accelerate
-                .vdLn(xs, ys)
-        }
     }
 }
 
@@ -1102,24 +1077,6 @@ public class Sin : UnaryOpT<Sin> {
         }
 
         public fun f8e4m3(v: F8e4m3): F8e4m3 = v.sin()
-
-        public fun f32Vec(xs: List<Float>, ys: List<Float>) {
-            vsSin(xs, ys)
-        }
-
-        public fun f64Vec(xs: List<Double>, ys: List<Double>) {
-            vdSin(xs, ys)
-        }
-
-        public fun f32VecUnaryOpT(xs: List<Float>, ys: List<Float>) {
-            io.github.kotlinmania.candle.accelerate
-                .vsSin(xs, ys)
-        }
-
-        public fun f64VecUnaryOpT(xs: List<Double>, ys: List<Double>) {
-            io.github.kotlinmania.candle.accelerate
-                .vdSin(xs, ys)
-        }
     }
 }
 
@@ -1170,24 +1127,6 @@ public class Cos : UnaryOpT<Cos> {
         }
 
         public fun f8e4m3(v: F8e4m3): F8e4m3 = v.cos()
-
-        public fun f32Vec(xs: List<Float>, ys: List<Float>) {
-            vsCos(xs, ys)
-        }
-
-        public fun f64Vec(xs: List<Double>, ys: List<Double>) {
-            vdCos(xs, ys)
-        }
-
-        public fun f32VecUnaryOpT(xs: List<Float>, ys: List<Float>) {
-            io.github.kotlinmania.candle.accelerate
-                .vsCos(xs, ys)
-        }
-
-        public fun f64VecUnaryOpT(xs: List<Double>, ys: List<Double>) {
-            io.github.kotlinmania.candle.accelerate
-                .vdCos(xs, ys)
-        }
     }
 }
 
@@ -1378,24 +1317,6 @@ public class Sqr : UnaryOpT<Sqr> {
         }
 
         public fun f8e4m3(v: F8e4m3): F8e4m3 = v * v
-
-        public fun f32Vec(xs: List<Float>, ys: List<Float>) {
-            vsSqr(xs, ys)
-        }
-
-        public fun f64Vec(xs: List<Double>, ys: List<Double>) {
-            vdSqr(xs, ys)
-        }
-
-        public fun f32VecUnaryOpT(xs: List<Float>, ys: List<Float>) {
-            io.github.kotlinmania.candle.accelerate
-                .vsSqr(xs, ys)
-        }
-
-        public fun f64VecUnaryOpT(xs: List<Double>, ys: List<Double>) {
-            io.github.kotlinmania.candle.accelerate
-                .vdSqr(xs, ys)
-        }
     }
 }
 
@@ -1446,24 +1367,6 @@ public class Sqrt : UnaryOpT<Sqrt> {
         }
 
         public fun f8e4m3(v: F8e4m3): F8e4m3 = v.sqrt()
-
-        public fun f32Vec(xs: List<Float>, ys: List<Float>) {
-            vsSqrt(xs, ys)
-        }
-
-        public fun f64Vec(xs: List<Double>, ys: List<Double>) {
-            vdSqrt(xs, ys)
-        }
-
-        public fun f32VecUnaryOpT(xs: List<Float>, ys: List<Float>) {
-            io.github.kotlinmania.candle.accelerate
-                .vsSqrt(xs, ys)
-        }
-
-        public fun f64VecUnaryOpT(xs: List<Double>, ys: List<Double>) {
-            io.github.kotlinmania.candle.accelerate
-                .vdSqrt(xs, ys)
-        }
     }
 }
 
@@ -1488,9 +1391,9 @@ public class Gelu : UnaryOpT<Gelu> {
 
         public val V: Gelu = Gelu()
 
-        public fun bf16(v: Bf16): Bf16 = fromF32Const(0.5) * v * (ONE + Tanh(fromF32Const(SQRT_TWO_OVER_PI_F32) * v * (ONE + fromF32Const(0.044715) * v * v)))
+        public fun bf16(v: Bf16): Bf16 = Bf16.fromF32Const(0.5) * v * (Bf16.ONE + Bf16.Tanh(Bf16.fromF32Const(SQRT_TWO_OVER_PI_F32) * v * (Bf16.ONE + Bf16.fromF32Const(0.044715) * v * v)))
 
-        public fun f16(v: F16): F16 = fromF32Const(0.5) * v * (ONE + Tanh(fromF32Const(SQRT_TWO_OVER_PI_F32) * v * (ONE + fromF32Const(0.044715) * v * v)))
+        public fun f16(v: F16): F16 = F16.fromF32Const(0.5) * v * (F16.ONE + F16.Tanh(F16.fromF32Const(SQRT_TWO_OVER_PI_F32) * v * (F16.ONE + F16.fromF32Const(0.044715) * v * v)))
 
         public fun f32(v: Float): Float = 0.5f * v * (1.0f + Float.Tanh(SQRT_TWO_OVER_PI_F32 * v * (1.0f + 0.044715f * v * v)))
 
@@ -1506,27 +1409,9 @@ public class Gelu : UnaryOpT<Gelu> {
 
         public fun i64(arg0: Long): Long = 0L
 
-        public fun f8e4m3(v: F8e4m3): F8e4m3 = fromF32(0.5) * v * (ONE + Tanh(fromF32(SQRT_TWO_OVER_PI_F32) * v * (ONE + fromF32(0.044715) * v * v)))
+        public fun f8e4m3(v: F8e4m3): F8e4m3 = F8e4m3.fromF32(0.5) * v * (F8e4m3.ONE + F8e4m3.Tanh(F8e4m3.fromF32(SQRT_TWO_OVER_PI_F32) * v * (F8e4m3.ONE + F8e4m3.fromF32(0.044715) * v * v)))
 
         public val KERNEL: String = "ugelu"
-
-        public fun f32Vec(xs: List<Float>, ys: List<Float>) {
-            vsGelu(xs, ys)
-        }
-
-        public fun f64Vec(xs: List<Double>, ys: List<Double>) {
-            vdGelu(xs, ys)
-        }
-
-        public fun f32VecUnaryOpT(xs: List<Float>, ys: List<Float>) {
-            io.github.kotlinmania.candle.accelerate
-                .vsGelu(xs, ys)
-        }
-
-        public fun f64VecUnaryOpT(xs: List<Double>, ys: List<Double>) {
-            io.github.kotlinmania.candle.accelerate
-                .vdGelu(xs, ys)
-        }
     }
 }
 
@@ -1548,9 +1433,9 @@ public class GeluErf : UnaryOpT<GeluErf> {
 
         public val V: GeluErf = GeluErf()
 
-        public fun bf16(v: Bf16): Bf16 = fromF64(GeluErf.f64(v.toF64()))
+        public fun bf16(v: Bf16): Bf16 = Bf16.fromF64(GeluErf.f64(v.toF64()))
 
-        public fun f16(v: F16): F16 = fromF64(GeluErf.f64(v.toF64()))
+        public fun f16(v: F16): F16 = F16.fromF64(GeluErf.f64(v.toF64()))
 
         public fun f32(v: Float): Float = (erfF32(v * Float.FRAC_1_SQRT_2) + 1.0f) * 0.5f * v
 
@@ -1566,7 +1451,7 @@ public class GeluErf : UnaryOpT<GeluErf> {
 
         public fun i64(arg0: Long): Long = 0L
 
-        public fun f8e4m3(v: F8e4m3): F8e4m3 = fromF32(GeluErf.f32(v.toF32()))
+        public fun f8e4m3(v: F8e4m3): F8e4m3 = F8e4m3.fromF32(GeluErf.f32(v.toF32()))
     }
 }
 
@@ -1592,9 +1477,9 @@ public class Erf : UnaryOpT<Erf> {
 
         public val V: Erf = Erf()
 
-        public fun bf16(v: Bf16): Bf16 = fromF64(Erf.f64(v.toF64()))
+        public fun bf16(v: Bf16): Bf16 = Bf16.fromF64(Erf.f64(v.toF64()))
 
-        public fun f16(v: F16): F16 = fromF64(Erf.f64(v.toF64()))
+        public fun f16(v: F16): F16 = F16.fromF64(Erf.f64(v.toF64()))
 
         public fun f32(v: Float): Float = erfF32(v)
 
@@ -1610,7 +1495,7 @@ public class Erf : UnaryOpT<Erf> {
 
         public fun i64(arg0: Long): Long = 0L
 
-        public fun f8e4m3(v: F8e4m3): F8e4m3 = fromF64(Erf.f64(v.toF64()))
+        public fun f8e4m3(v: F8e4m3): F8e4m3 = F8e4m3.fromF64(Erf.f64(v.toF64()))
     }
 }
 
@@ -1632,9 +1517,9 @@ public class Relu : UnaryOpT<Relu> {
 
         public val V: Relu = Relu()
 
-        public fun bf16(v: Bf16): Bf16 = v.max(ZERO)
+        public fun bf16(v: Bf16): Bf16 = v.max(Bf16.ZERO)
 
-        public fun f16(v: F16): F16 = v.max(ZERO)
+        public fun f16(v: F16): F16 = v.max(F16.ZERO)
 
         public fun f32(v: Float): Float = v.max(0.0f)
 
@@ -1650,7 +1535,7 @@ public class Relu : UnaryOpT<Relu> {
 
         public fun i64(v: Long): Long = v.max(0)
 
-        public fun f8e4m3(v: F8e4m3): F8e4m3 = v.max(ZERO)
+        public fun f8e4m3(v: F8e4m3): F8e4m3 = v.max(F8e4m3.ZERO)
     }
 }
 
@@ -1673,9 +1558,9 @@ public class Silu : UnaryOpT<Silu> {
 
         public val V: Silu = Silu()
 
-        public fun bf16(v: Bf16): Bf16 = v / (ONE + (-v).exp())
+        public fun bf16(v: Bf16): Bf16 = v / (Bf16.ONE + (-v).exp())
 
-        public fun f16(v: F16): F16 = v / (ONE + (-v).exp())
+        public fun f16(v: F16): F16 = v / (F16.ONE + (-v).exp())
 
         public fun f32(v: Float): Float = v / (1.0f + (-v).exp())
 
@@ -1691,27 +1576,9 @@ public class Silu : UnaryOpT<Silu> {
 
         public fun i64(arg0: Long): Long = 0L
 
-        public fun f8e4m3(v: F8e4m3): F8e4m3 = v / (ONE + (-v).exp())
+        public fun f8e4m3(v: F8e4m3): F8e4m3 = v / (F8e4m3.ONE + (-v).exp())
 
         public val KERNEL: String = "usilu"
-
-        public fun f32Vec(xs: List<Float>, ys: List<Float>) {
-            vsSilu(xs, ys)
-        }
-
-        public fun f64Vec(xs: List<Double>, ys: List<Double>) {
-            vdSilu(xs, ys)
-        }
-
-        public fun f32VecUnaryOpT(xs: List<Float>, ys: List<Float>) {
-            io.github.kotlinmania.candle.accelerate
-                .vsSilu(xs, ys)
-        }
-
-        public fun f64VecUnaryOpT(xs: List<Double>, ys: List<Double>) {
-            io.github.kotlinmania.candle.accelerate
-                .vdSilu(xs, ys)
-        }
     }
 }
 
@@ -1762,24 +1629,6 @@ public class Tanh : UnaryOpT<Tanh> {
         }
 
         public fun f8e4m3(v: F8e4m3): F8e4m3 = v.tanh()
-
-        public fun f32Vec(xs: List<Float>, ys: List<Float>) {
-            vsTanh(xs, ys)
-        }
-
-        public fun f64Vec(xs: List<Double>, ys: List<Double>) {
-            vdTanh(xs, ys)
-        }
-
-        public fun f32VecUnaryOpT(xs: List<Float>, ys: List<Float>) {
-            io.github.kotlinmania.candle.accelerate
-                .vsTanh(xs, ys)
-        }
-
-        public fun f64VecUnaryOpT(xs: List<Double>, ys: List<Double>) {
-            io.github.kotlinmania.candle.accelerate
-                .vdTanh(xs, ys)
-        }
     }
 }
 
@@ -1921,9 +1770,9 @@ public class Sign : UnaryOpT<Sign> {
 
         public val V: Sign = Sign()
 
-        public fun bf16(v: Bf16): Bf16 = from((if (v > ZERO) 1 else 0).toByte()) - from((if (v < ZERO) 1 else 0).toByte())
+        public fun bf16(v: Bf16): Bf16 = Bf16.from((if (v > Bf16.ZERO) 1 else 0).toByte()) - Bf16.from((if (v < Bf16.ZERO) 1 else 0).toByte())
 
-        public fun f16(v: F16): F16 = from((if (v > ZERO) 1 else 0).toByte()) - from((if (v < ZERO) 1 else 0).toByte())
+        public fun f16(v: F16): F16 = F16.from((if (v > F16.ZERO) 1 else 0).toByte()) - F16.from((if (v < F16.ZERO) 1 else 0).toByte())
 
         public fun f32(v: Float): Float = Float.from(v > 0.0f) - Float.from(v < 0.0f)
 
@@ -1940,12 +1789,12 @@ public class Sign : UnaryOpT<Sign> {
         public fun i64(v: Long): Long = (if (v > 0L) 1L else 0L) - (if (v < 0L) 1L else 0L)
 
         public fun f8e4m3(v: F8e4m3): F8e4m3 =
-            if (v > ZERO) {
-                ONE
-            } else if (v < ZERO) {
-                -ONE
+            if (v > F8e4m3.ZERO) {
+                F8e4m3.ONE
+            } else if (v < F8e4m3.ZERO) {
+                -F8e4m3.ONE
             } else {
-                ZERO
+                F8e4m3.ZERO
             }
     }
 }
@@ -2006,10 +1855,10 @@ public data class BackpropOp(
             return BackpropOp(op)
         }
 
-        internal fun <A : AsRef<Tensor>> new(args: List<A>, f: (List<Tensor>) -> Op): BackpropOp {
+        internal fun new(args: List<Tensor>, f: (List<Tensor>) -> Op): BackpropOp {
             val op =
                 if (args.any({ arg -> arg.asRef().trackOp() })) {
-                    val args1: List<Tensor> = args.map({ arg -> arg.asRef().clone() }).collect()
+                    val args1: List<Tensor> = args.map({ arg -> arg.asRef().clone() }).toMutableList()
                     f(args1)
                 } else {
                     null

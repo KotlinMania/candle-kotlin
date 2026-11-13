@@ -1,7 +1,7 @@
 // port-lint: source scalar.rs
 package io.github.kotlinmania.candle.scalar
 
-import io.github.kotlinmania.candle.device.Device
+import io.github.kotlinmania.candle.cpu.Cpu
 import io.github.kotlinmania.candle.dtype.DType
 import io.github.kotlinmania.candle.dtype.WithDType
 import io.github.kotlinmania.candle.error.Result
@@ -9,11 +9,10 @@ import io.github.kotlinmania.candle.tensor.Tensor
 import io.github.kotlinmania.float8.F8e4m3
 import io.github.kotlinmania.half.Bf16
 import io.github.kotlinmania.half.F16
-import io.github.kotlinmania.rustlang.core.result.fromResidual
 
 // TensorScalar Enum and Trait
 
-public sealed class Scalar : From<T> {
+public sealed class Scalar {
     public data class U8(
         public var value: UByte,
     ) : Scalar()
@@ -115,11 +114,11 @@ public sealed class Scalar : From<T> {
                 DType.i16 -> Scalar.i16(0)
                 DType.i32 -> Scalar.i32(0)
                 DType.i64 -> Scalar.i64(0)
-                DType.bf16 -> Scalar.bf16(ZERO)
-                DType.f16 -> Scalar.f16(ZERO)
+                DType.bf16 -> Scalar.bf16(Bf16.ZERO)
+                DType.f16 -> Scalar.f16(F16.ZERO)
                 DType.f32 -> Scalar.f32(0.0)
                 DType.f64 -> Scalar.f64(0.0)
-                DType.f8e4m3 -> Scalar.f8e4m3(ZERO)
+                DType.f8e4m3 -> Scalar.f8e4m3(F8e4m3.ZERO)
                 DType.f6e2m3, DType.f6e3m2, DType.f4, DType.f8e8m0 -> {
                     error("Cannot create zero scalar for dummy type $dtype")
                 }
@@ -132,11 +131,11 @@ public sealed class Scalar : From<T> {
                 DType.i16 -> Scalar.i16(1)
                 DType.i32 -> Scalar.i32(1)
                 DType.i64 -> Scalar.i64(1)
-                DType.bf16 -> Scalar.bf16(ONE)
-                DType.f16 -> Scalar.f16(ONE)
+                DType.bf16 -> Scalar.bf16(Bf16.ONE)
+                DType.f16 -> Scalar.f16(F16.ONE)
                 DType.f32 -> Scalar.f32(1.0)
                 DType.f64 -> Scalar.f64(1.0)
-                DType.f8e4m3 -> Scalar.f8e4m3(ONE)
+                DType.f8e4m3 -> Scalar.f8e4m3(F8e4m3.ONE)
                 DType.f6e2m3, DType.f6e3m2, DType.f4, DType.f8e8m0 -> {
                     error("Cannot create one scalar for dummy type $dtype")
                 }
@@ -157,13 +156,13 @@ public interface TensorOrScalar {
     public fun toTensorScalar(): Result<TensorScalar>
 }
 
-public fun Tensor.toTensorScalar(): Result<TensorScalar> = Ok(TensorScalar.Tensor(this.clone()))
+public fun Tensor.toTensorScalar(): Result<TensorScalar> = Result.Ok(TensorScalar.Tensor(this.clone()))
 
 public fun <T : WithDType> T.toTensorScalar(): Result<TensorScalar> {
     val scalar =
-        when (val tryResult = Tensor.new(this, Device.Cpu)) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+        when (val tryResult = Tensor.new(this, Cpu)) {
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
-    return Ok(TensorScalar.Scalar(scalar))
+    return Result.Ok(TensorScalar.Scalar(scalar))
 }

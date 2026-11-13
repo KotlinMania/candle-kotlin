@@ -5,7 +5,6 @@ import io.github.kotlinmania.candle.Module
 import io.github.kotlinmania.candle.ModuleT
 import io.github.kotlinmania.candle.ToUsize2
 import io.github.kotlinmania.candle.cpubackend.CpuStorage
-import io.github.kotlinmania.candle.cudabackend.utils.S
 import io.github.kotlinmania.candle.device.Device
 import io.github.kotlinmania.candle.device.NdArray
 import io.github.kotlinmania.candle.dtype.DType
@@ -15,7 +14,6 @@ import io.github.kotlinmania.candle.error.Error
 import io.github.kotlinmania.candle.error.Result
 import io.github.kotlinmania.candle.error.bail
 import io.github.kotlinmania.candle.layout.Layout
-import io.github.kotlinmania.candle.one
 import io.github.kotlinmania.candle.op.Abs
 import io.github.kotlinmania.candle.op.Add
 import io.github.kotlinmania.candle.op.BackpropOp
@@ -59,16 +57,12 @@ import io.github.kotlinmania.candle.storage.StorageMutRef
 import io.github.kotlinmania.candle.storage.StorageRef
 import io.github.kotlinmania.candle.stridedindex.StridedBlocks
 import io.github.kotlinmania.candle.stridedindex.StridedIndex
-import io.github.kotlinmania.candle.zero
 import io.github.kotlinmania.parkinglot.RwLock
 import io.github.kotlinmania.rustlang.core.mem.PrimitiveLayouts
 import io.github.kotlinmania.rustlang.core.mem.TypeLayout
-import io.github.kotlinmania.rustlang.core.result.fromResidual
-import io.github.kotlinmania.rustlang.std.sync.atomic
+import io.github.kotlinmania.rustlang.core.result.andThen
 
 // Tensors are N-dimensional matrixes of elements using a single data type.
-
-public typealias Target = Tensor
 
 /**
  * Unique identifier for tensors.
@@ -115,8 +109,7 @@ public class Tensor internal constructor(
     Add<B>,
     Sub<B>,
     Mul<B>,
-    Div<B>,
-    From<Pair<Storage, S>> {
+    Div<B> {
     // As we provide inner mutability on the tensor content, the alternatives are:
     // - Using a mutex, this would have the highest cost when retrieving the storage but would
     // prevent errors when concurrent access takes place. Mutex would also be subject to
@@ -148,9 +141,9 @@ public class Tensor internal constructor(
 
     public fun constSet(value: Scalar): Result<Unit> = this.storageMut().constSet(value, this.layout())
 
-    public fun zeroSet(): Result<Unit> = this.constSet(zero(this.dtype()))
+    public fun zeroSet(): Result<Unit> = this.constSet(Scalar.zero(this.dtype()))
 
-    public fun oneSet(): Result<Unit> = this.constSet(one(this.dtype()))
+    public fun oneSet(): Result<Unit> = this.constSet(Scalar.one(this.dtype()))
 
     /**
      * Creates a new tensor filled with ones with same shape, dtype, and device as the other tensor.
@@ -209,9 +202,9 @@ public class Tensor internal constructor(
         val lhs = this.shape()
         val rhs1 = rhs.shape()
         return if (lhs != rhs1) {
-            Err(Error.ShapeMismatchBinaryOp(lhs = lhs.clone(), rhs = rhs1.clone(), op = op).bt())
+            Result.Err(Error.ShapeMismatchBinaryOp(lhs = lhs.clone(), rhs = rhs1.clone(), op = op).bt())
         } else {
-            Ok(lhs)
+            Result.Ok(lhs)
         }
     }
 
@@ -224,73 +217,73 @@ public class Tensor internal constructor(
     public fun add(rhs: Tensor): Result<Tensor> {
         val shape =
             when (val tryResult = this.sameShapeBinaryOp(rhs, "add")) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         if (shape.elemCount() == 0) {
-            return Ok(this.clone())
+            return Result.Ok(this.clone())
         }
         val storage =
             when (val tryResult = this.storage().binaryImpl<Add>(rhs.storage(), this.layout(), rhs.layout())) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val op = BackpropOp.new2(this, rhs, { t1, t2 -> Op.Binary(t1, t2, BinaryOp.Add) })
-        return Ok(fromStorage(storage, shape.clone(), op, false))
+        return Result.Ok(fromStorage(storage, shape.clone(), op, false))
     }
 
     public fun mul(rhs: Tensor): Result<Tensor> {
         val shape =
             when (val tryResult = this.sameShapeBinaryOp(rhs, "mul")) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         if (shape.elemCount() == 0) {
-            return Ok(this.clone())
+            return Result.Ok(this.clone())
         }
         val storage =
             when (val tryResult = this.storage().binaryImpl<Mul>(rhs.storage(), this.layout(), rhs.layout())) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val op = BackpropOp.new2(this, rhs, { t1, t2 -> Op.Binary(t1, t2, BinaryOp.Mul) })
-        return Ok(fromStorage(storage, shape.clone(), op, false))
+        return Result.Ok(fromStorage(storage, shape.clone(), op, false))
     }
 
     public fun sub(rhs: Tensor): Result<Tensor> {
         val shape =
             when (val tryResult = this.sameShapeBinaryOp(rhs, "sub")) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         if (shape.elemCount() == 0) {
-            return Ok(this.clone())
+            return Result.Ok(this.clone())
         }
         val storage =
             when (val tryResult = this.storage().binaryImpl<Sub>(rhs.storage(), this.layout(), rhs.layout())) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val op = BackpropOp.new2(this, rhs, { t1, t2 -> Op.Binary(t1, t2, BinaryOp.Sub) })
-        return Ok(fromStorage(storage, shape.clone(), op, false))
+        return Result.Ok(fromStorage(storage, shape.clone(), op, false))
     }
 
     public fun div(rhs: Tensor): Result<Tensor> {
         val shape =
             when (val tryResult = this.sameShapeBinaryOp(rhs, "div")) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         if (shape.elemCount() == 0) {
-            return Ok(this.clone())
+            return Result.Ok(this.clone())
         }
         val storage =
             when (val tryResult = this.storage().binaryImpl<Div>(rhs.storage(), this.layout(), rhs.layout())) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val op = BackpropOp.new2(this, rhs, { t1, t2 -> Op.Binary(t1, t2, BinaryOp.Div) })
-        return Ok(fromStorage(storage, shape.clone(), op, false))
+        return Result.Ok(fromStorage(storage, shape.clone(), op, false))
     }
 
     public fun <T : TensorOrScalar> maximum(rhs: T): Result<Tensor> {
@@ -298,8 +291,8 @@ public class Tensor internal constructor(
             when (
                 val matchVal =
                     when (val tryResult = rhs.toTensorScalar()) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
             ) {
                 is Tensor -> {
@@ -313,34 +306,34 @@ public class Tensor internal constructor(
                             when (
                                 val tryResult =
                                     when (val tryResult = rhs2.toDtype(this.dtype())) {
-                                        is Result.Ok -> tryResult.value
-                                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                        is Result.Ok<*> -> tryResult.value
+                                        is Result.Err<*> -> return Result.Err(tryResult.error)
                                     }.toDevice(this.device())
                             ) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }.broadcastAs(this.shape())
                     ) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                 }
             }
         val shape =
             when (val tryResult = this.sameShapeBinaryOp(rhs3, "maximum")) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         if (this.elemCount() == 0) {
-            return Ok(this.clone())
+            return Result.Ok(this.clone())
         }
         val storage =
             when (val tryResult = this.storage().binaryImpl<Maximum>(rhs3.storage(), this.layout(), rhs3.layout())) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val op = BackpropOp.new2(this, rhs3, { t1, t2 -> Op.Binary(t1, t2, BinaryOp.Maximum) })
-        return Ok(fromStorage(storage, shape.clone(), op, false))
+        return Result.Ok(fromStorage(storage, shape.clone(), op, false))
     }
 
     public fun <T : TensorOrScalar> minimum(rhs: T): Result<Tensor> {
@@ -348,8 +341,8 @@ public class Tensor internal constructor(
             when (
                 val matchVal =
                     when (val tryResult = rhs.toTensorScalar()) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
             ) {
                 is Tensor -> {
@@ -363,42 +356,42 @@ public class Tensor internal constructor(
                             when (
                                 val tryResult =
                                     when (val tryResult = rhs2.toDtype(this.dtype())) {
-                                        is Result.Ok -> tryResult.value
-                                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                        is Result.Ok<*> -> tryResult.value
+                                        is Result.Err<*> -> return Result.Err(tryResult.error)
                                     }.toDevice(this.device())
                             ) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }.broadcastAs(this.shape())
                     ) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                 }
             }
         val shape =
             when (val tryResult = this.sameShapeBinaryOp(rhs3, "minimum")) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         if (this.elemCount() == 0) {
-            return Ok(this.clone())
+            return Result.Ok(this.clone())
         }
         val storage =
             when (val tryResult = this.storage().binaryImpl<Minimum>(rhs3.storage(), this.layout(), rhs3.layout())) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val op = BackpropOp.new2(this, rhs3, { t1, t2 -> Op.Binary(t1, t2, BinaryOp.Minimum) })
-        return Ok(fromStorage(storage, shape.clone(), op, false))
+        return Result.Ok(fromStorage(storage, shape.clone(), op, false))
     }
 
     public fun broadcastAdd(rhs: Tensor): Result<Tensor> {
         val lhs = this
         val shape =
             when (val tryResult = lhs.shape().broadcastShapeBinaryOp(rhs.shape(), "broadcast_add")) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val lBroadcast = shape != lhs.shape()
         val rBroadcast = shape != rhs.shape()
@@ -407,25 +400,25 @@ public class Tensor internal constructor(
             when {
                 matchVal.first == true && matchVal.second == true ->
                     when (val tryResult = lhs.broadcastAs(shape)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }.add(
                         when (val tryResult = rhs.broadcastAs(shape)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         },
                     )
                 matchVal.first == false && matchVal.second == true ->
                     lhs.add(
                         when (val tryResult = rhs.broadcastAs(shape)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         },
                     )
                 matchVal.first == true && matchVal.second == false ->
                     when (val tryResult = lhs.broadcastAs(shape)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }.add(rhs)
                 else -> lhs.add(rhs)
             }
@@ -436,8 +429,8 @@ public class Tensor internal constructor(
         val lhs = this
         val shape =
             when (val tryResult = lhs.shape().broadcastShapeBinaryOp(rhs.shape(), "broadcast_mul")) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val lBroadcast = shape != lhs.shape()
         val rBroadcast = shape != rhs.shape()
@@ -446,25 +439,25 @@ public class Tensor internal constructor(
             when {
                 matchVal.first == true && matchVal.second == true ->
                     when (val tryResult = lhs.broadcastAs(shape)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }.mul(
                         when (val tryResult = rhs.broadcastAs(shape)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         },
                     )
                 matchVal.first == false && matchVal.second == true ->
                     lhs.mul(
                         when (val tryResult = rhs.broadcastAs(shape)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         },
                     )
                 matchVal.first == true && matchVal.second == false ->
                     when (val tryResult = lhs.broadcastAs(shape)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }.mul(rhs)
                 else -> lhs.mul(rhs)
             }
@@ -475,8 +468,8 @@ public class Tensor internal constructor(
         val lhs = this
         val shape =
             when (val tryResult = lhs.shape().broadcastShapeBinaryOp(rhs.shape(), "broadcast_sub")) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val lBroadcast = shape != lhs.shape()
         val rBroadcast = shape != rhs.shape()
@@ -485,25 +478,25 @@ public class Tensor internal constructor(
             when {
                 matchVal.first == true && matchVal.second == true ->
                     when (val tryResult = lhs.broadcastAs(shape)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }.sub(
                         when (val tryResult = rhs.broadcastAs(shape)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         },
                     )
                 matchVal.first == false && matchVal.second == true ->
                     lhs.sub(
                         when (val tryResult = rhs.broadcastAs(shape)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         },
                     )
                 matchVal.first == true && matchVal.second == false ->
                     when (val tryResult = lhs.broadcastAs(shape)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }.sub(rhs)
                 else -> lhs.sub(rhs)
             }
@@ -514,8 +507,8 @@ public class Tensor internal constructor(
         val lhs = this
         val shape =
             when (val tryResult = lhs.shape().broadcastShapeBinaryOp(rhs.shape(), "broadcast_div")) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val lBroadcast = shape != lhs.shape()
         val rBroadcast = shape != rhs.shape()
@@ -524,25 +517,25 @@ public class Tensor internal constructor(
             when {
                 matchVal.first == true && matchVal.second == true ->
                     when (val tryResult = lhs.broadcastAs(shape)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }.div(
                         when (val tryResult = rhs.broadcastAs(shape)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         },
                     )
                 matchVal.first == false && matchVal.second == true ->
                     lhs.div(
                         when (val tryResult = rhs.broadcastAs(shape)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         },
                     )
                 matchVal.first == true && matchVal.second == false ->
                     when (val tryResult = lhs.broadcastAs(shape)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }.div(rhs)
                 else -> lhs.div(rhs)
             }
@@ -553,8 +546,8 @@ public class Tensor internal constructor(
         val lhs = this
         val shape =
             when (val tryResult = lhs.shape().broadcastShapeBinaryOp(rhs.shape(), "broadcast_maximum")) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val lBroadcast = shape != lhs.shape()
         val rBroadcast = shape != rhs.shape()
@@ -563,25 +556,25 @@ public class Tensor internal constructor(
             when {
                 matchVal.first == true && matchVal.second == true ->
                     when (val tryResult = lhs.broadcastAs(shape)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }.maximum(
                         when (val tryResult = rhs.broadcastAs(shape)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         },
                     )
                 matchVal.first == false && matchVal.second == true ->
                     lhs.maximum(
                         when (val tryResult = rhs.broadcastAs(shape)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         },
                     )
                 matchVal.first == true && matchVal.second == false ->
                     when (val tryResult = lhs.broadcastAs(shape)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }.maximum(rhs)
                 else -> lhs.maximum(rhs)
             }
@@ -592,8 +585,8 @@ public class Tensor internal constructor(
         val lhs = this
         val shape =
             when (val tryResult = lhs.shape().broadcastShapeBinaryOp(rhs.shape(), "broadcast_minimum")) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val lBroadcast = shape != lhs.shape()
         val rBroadcast = shape != rhs.shape()
@@ -602,25 +595,25 @@ public class Tensor internal constructor(
             when {
                 matchVal.first == true && matchVal.second == true ->
                     when (val tryResult = lhs.broadcastAs(shape)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }.minimum(
                         when (val tryResult = rhs.broadcastAs(shape)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         },
                     )
                 matchVal.first == false && matchVal.second == true ->
                     lhs.minimum(
                         when (val tryResult = rhs.broadcastAs(shape)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         },
                     )
                 matchVal.first == true && matchVal.second == false ->
                     when (val tryResult = lhs.broadcastAs(shape)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }.minimum(rhs)
                 else -> lhs.minimum(rhs)
             }
@@ -631,8 +624,8 @@ public class Tensor internal constructor(
         val lhs = this
         val shape =
             when (val tryResult = lhs.shape().broadcastShapeBinaryOp(rhs.shape(), "broadcast_eq")) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val lBroadcast = shape != lhs.shape()
         val rBroadcast = shape != rhs.shape()
@@ -641,25 +634,25 @@ public class Tensor internal constructor(
             when {
                 matchVal.first == true && matchVal.second == true ->
                     when (val tryResult = lhs.broadcastAs(shape)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }.eq(
                         when (val tryResult = rhs.broadcastAs(shape)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         },
                     )
                 matchVal.first == false && matchVal.second == true ->
                     lhs.eq(
                         when (val tryResult = rhs.broadcastAs(shape)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         },
                     )
                 matchVal.first == true && matchVal.second == false ->
                     when (val tryResult = lhs.broadcastAs(shape)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }.eq(rhs)
                 else -> lhs.eq(rhs)
             }
@@ -670,8 +663,8 @@ public class Tensor internal constructor(
         val lhs = this
         val shape =
             when (val tryResult = lhs.shape().broadcastShapeBinaryOp(rhs.shape(), "broadcast_ne")) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val lBroadcast = shape != lhs.shape()
         val rBroadcast = shape != rhs.shape()
@@ -680,25 +673,25 @@ public class Tensor internal constructor(
             when {
                 matchVal.first == true && matchVal.second == true ->
                     when (val tryResult = lhs.broadcastAs(shape)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }.ne(
                         when (val tryResult = rhs.broadcastAs(shape)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         },
                     )
                 matchVal.first == false && matchVal.second == true ->
                     lhs.ne(
                         when (val tryResult = rhs.broadcastAs(shape)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         },
                     )
                 matchVal.first == true && matchVal.second == false ->
                     when (val tryResult = lhs.broadcastAs(shape)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }.ne(rhs)
                 else -> lhs.ne(rhs)
             }
@@ -709,8 +702,8 @@ public class Tensor internal constructor(
         val lhs = this
         val shape =
             when (val tryResult = lhs.shape().broadcastShapeBinaryOp(rhs.shape(), "broadcast_lt")) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val lBroadcast = shape != lhs.shape()
         val rBroadcast = shape != rhs.shape()
@@ -719,25 +712,25 @@ public class Tensor internal constructor(
             when {
                 matchVal.first == true && matchVal.second == true ->
                     when (val tryResult = lhs.broadcastAs(shape)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }.lt(
                         when (val tryResult = rhs.broadcastAs(shape)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         },
                     )
                 matchVal.first == false && matchVal.second == true ->
                     lhs.lt(
                         when (val tryResult = rhs.broadcastAs(shape)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         },
                     )
                 matchVal.first == true && matchVal.second == false ->
                     when (val tryResult = lhs.broadcastAs(shape)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }.lt(rhs)
                 else -> lhs.lt(rhs)
             }
@@ -748,8 +741,8 @@ public class Tensor internal constructor(
         val lhs = this
         val shape =
             when (val tryResult = lhs.shape().broadcastShapeBinaryOp(rhs.shape(), "broadcast_le")) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val lBroadcast = shape != lhs.shape()
         val rBroadcast = shape != rhs.shape()
@@ -758,25 +751,25 @@ public class Tensor internal constructor(
             when {
                 matchVal.first == true && matchVal.second == true ->
                     when (val tryResult = lhs.broadcastAs(shape)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }.le(
                         when (val tryResult = rhs.broadcastAs(shape)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         },
                     )
                 matchVal.first == false && matchVal.second == true ->
                     lhs.le(
                         when (val tryResult = rhs.broadcastAs(shape)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         },
                     )
                 matchVal.first == true && matchVal.second == false ->
                     when (val tryResult = lhs.broadcastAs(shape)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }.le(rhs)
                 else -> lhs.le(rhs)
             }
@@ -787,8 +780,8 @@ public class Tensor internal constructor(
         val lhs = this
         val shape =
             when (val tryResult = lhs.shape().broadcastShapeBinaryOp(rhs.shape(), "broadcast_gt")) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val lBroadcast = shape != lhs.shape()
         val rBroadcast = shape != rhs.shape()
@@ -797,25 +790,25 @@ public class Tensor internal constructor(
             when {
                 matchVal.first == true && matchVal.second == true ->
                     when (val tryResult = lhs.broadcastAs(shape)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }.gt(
                         when (val tryResult = rhs.broadcastAs(shape)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         },
                     )
                 matchVal.first == false && matchVal.second == true ->
                     lhs.gt(
                         when (val tryResult = rhs.broadcastAs(shape)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         },
                     )
                 matchVal.first == true && matchVal.second == false ->
                     when (val tryResult = lhs.broadcastAs(shape)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }.gt(rhs)
                 else -> lhs.gt(rhs)
             }
@@ -826,8 +819,8 @@ public class Tensor internal constructor(
         val lhs = this
         val shape =
             when (val tryResult = lhs.shape().broadcastShapeBinaryOp(rhs.shape(), "broadcast_ge")) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val lBroadcast = shape != lhs.shape()
         val rBroadcast = shape != rhs.shape()
@@ -836,25 +829,25 @@ public class Tensor internal constructor(
             when {
                 matchVal.first == true && matchVal.second == true ->
                     when (val tryResult = lhs.broadcastAs(shape)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }.ge(
                         when (val tryResult = rhs.broadcastAs(shape)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         },
                     )
                 matchVal.first == false && matchVal.second == true ->
                     lhs.ge(
                         when (val tryResult = rhs.broadcastAs(shape)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         },
                     )
                 matchVal.first == true && matchVal.second == false ->
                     when (val tryResult = lhs.broadcastAs(shape)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }.ge(rhs)
                 else -> lhs.ge(rhs)
             }
@@ -864,267 +857,267 @@ public class Tensor internal constructor(
     public fun recip(): Result<Tensor> {
         val shape = this.shape()
         if (shape.elemCount() == 0) {
-            return Ok(this.clone())
+            return Result.Ok(this.clone())
         }
         val storage =
             when (val tryResult = this.storage().unaryImpl<Recip>(this.layout())) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val op = BackpropOp.new1(this, { s -> Op.Unary(s, UnaryOp.Recip) })
-        return Ok(fromStorage(storage, shape.clone(), op, false))
+        return Result.Ok(fromStorage(storage, shape.clone(), op, false))
     }
 
     public fun neg(): Result<Tensor> {
         val shape = this.shape()
         if (shape.elemCount() == 0) {
-            return Ok(this.clone())
+            return Result.Ok(this.clone())
         }
         val storage =
             when (val tryResult = this.storage().unaryImpl<Neg>(this.layout())) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val op = BackpropOp.new1(this, { s -> Op.Unary(s, UnaryOp.Neg) })
-        return Ok(fromStorage(storage, shape.clone(), op, false))
+        return Result.Ok(fromStorage(storage, shape.clone(), op, false))
     }
 
     public fun exp(): Result<Tensor> {
         val shape = this.shape()
         if (shape.elemCount() == 0) {
-            return Ok(this.clone())
+            return Result.Ok(this.clone())
         }
         val storage =
             when (val tryResult = this.storage().unaryImpl<Exp>(this.layout())) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val op = BackpropOp.new1(this, { s -> Op.Unary(s, UnaryOp.Exp) })
-        return Ok(fromStorage(storage, shape.clone(), op, false))
+        return Result.Ok(fromStorage(storage, shape.clone(), op, false))
     }
 
     public fun log(): Result<Tensor> {
         val shape = this.shape()
         if (shape.elemCount() == 0) {
-            return Ok(this.clone())
+            return Result.Ok(this.clone())
         }
         val storage =
             when (val tryResult = this.storage().unaryImpl<Log>(this.layout())) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val op = BackpropOp.new1(this, { s -> Op.Unary(s, UnaryOp.Log) })
-        return Ok(fromStorage(storage, shape.clone(), op, false))
+        return Result.Ok(fromStorage(storage, shape.clone(), op, false))
     }
 
     public fun sin(): Result<Tensor> {
         val shape = this.shape()
         if (shape.elemCount() == 0) {
-            return Ok(this.clone())
+            return Result.Ok(this.clone())
         }
         val storage =
             when (val tryResult = this.storage().unaryImpl<Sin>(this.layout())) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val op = BackpropOp.new1(this, { s -> Op.Unary(s, UnaryOp.Sin) })
-        return Ok(fromStorage(storage, shape.clone(), op, false))
+        return Result.Ok(fromStorage(storage, shape.clone(), op, false))
     }
 
     public fun cos(): Result<Tensor> {
         val shape = this.shape()
         if (shape.elemCount() == 0) {
-            return Ok(this.clone())
+            return Result.Ok(this.clone())
         }
         val storage =
             when (val tryResult = this.storage().unaryImpl<Cos>(this.layout())) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val op = BackpropOp.new1(this, { s -> Op.Unary(s, UnaryOp.Cos) })
-        return Ok(fromStorage(storage, shape.clone(), op, false))
+        return Result.Ok(fromStorage(storage, shape.clone(), op, false))
     }
 
     public fun tanh(): Result<Tensor> {
         val shape = this.shape()
         if (shape.elemCount() == 0) {
-            return Ok(this.clone())
+            return Result.Ok(this.clone())
         }
         val storage =
             when (val tryResult = this.storage().unaryImpl<Tanh>(this.layout())) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val op = BackpropOp.new1(this, { s -> Op.Unary(s, UnaryOp.Tanh) })
-        return Ok(fromStorage(storage, shape.clone(), op, false))
+        return Result.Ok(fromStorage(storage, shape.clone(), op, false))
     }
 
     public fun abs(): Result<Tensor> {
         val shape = this.shape()
         if (shape.elemCount() == 0) {
-            return Ok(this.clone())
+            return Result.Ok(this.clone())
         }
         val storage =
             when (val tryResult = this.storage().unaryImpl<Abs>(this.layout())) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val op = BackpropOp.new1(this, { s -> Op.Unary(s, UnaryOp.Abs) })
-        return Ok(fromStorage(storage, shape.clone(), op, false))
+        return Result.Ok(fromStorage(storage, shape.clone(), op, false))
     }
 
     public fun sqr(): Result<Tensor> {
         val shape = this.shape()
         if (shape.elemCount() == 0) {
-            return Ok(this.clone())
+            return Result.Ok(this.clone())
         }
         val storage =
             when (val tryResult = this.storage().unaryImpl<Sqr>(this.layout())) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val op = BackpropOp.new1(this, { s -> Op.Unary(s, UnaryOp.Sqr) })
-        return Ok(fromStorage(storage, shape.clone(), op, false))
+        return Result.Ok(fromStorage(storage, shape.clone(), op, false))
     }
 
     public fun sqrt(): Result<Tensor> {
         val shape = this.shape()
         if (shape.elemCount() == 0) {
-            return Ok(this.clone())
+            return Result.Ok(this.clone())
         }
         val storage =
             when (val tryResult = this.storage().unaryImpl<Sqrt>(this.layout())) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val op = BackpropOp.new1(this, { s -> Op.Unary(s, UnaryOp.Sqrt) })
-        return Ok(fromStorage(storage, shape.clone(), op, false))
+        return Result.Ok(fromStorage(storage, shape.clone(), op, false))
     }
 
     public fun gelu(): Result<Tensor> {
         val shape = this.shape()
         if (shape.elemCount() == 0) {
-            return Ok(this.clone())
+            return Result.Ok(this.clone())
         }
         val storage =
             when (val tryResult = this.storage().unaryImpl<Gelu>(this.layout())) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val op = BackpropOp.new1(this, { s -> Op.Unary(s, UnaryOp.Gelu) })
-        return Ok(fromStorage(storage, shape.clone(), op, false))
+        return Result.Ok(fromStorage(storage, shape.clone(), op, false))
     }
 
     public fun geluErf(): Result<Tensor> {
         val shape = this.shape()
         if (shape.elemCount() == 0) {
-            return Ok(this.clone())
+            return Result.Ok(this.clone())
         }
         val storage =
             when (val tryResult = this.storage().unaryImpl<GeluErf>(this.layout())) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val op = BackpropOp.new1(this, { s -> Op.Unary(s, UnaryOp.GeluErf) })
-        return Ok(fromStorage(storage, shape.clone(), op, false))
+        return Result.Ok(fromStorage(storage, shape.clone(), op, false))
     }
 
     public fun erf(): Result<Tensor> {
         val shape = this.shape()
         if (shape.elemCount() == 0) {
-            return Ok(this.clone())
+            return Result.Ok(this.clone())
         }
         val storage =
             when (val tryResult = this.storage().unaryImpl<Erf>(this.layout())) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val op = BackpropOp.new1(this, { s -> Op.Unary(s, UnaryOp.Erf) })
-        return Ok(fromStorage(storage, shape.clone(), op, false))
+        return Result.Ok(fromStorage(storage, shape.clone(), op, false))
     }
 
     public fun relu(): Result<Tensor> {
         val shape = this.shape()
         if (shape.elemCount() == 0) {
-            return Ok(this.clone())
+            return Result.Ok(this.clone())
         }
         val storage =
             when (val tryResult = this.storage().unaryImpl<Relu>(this.layout())) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val op = BackpropOp.new1(this, { s -> Op.Unary(s, UnaryOp.Relu) })
-        return Ok(fromStorage(storage, shape.clone(), op, false))
+        return Result.Ok(fromStorage(storage, shape.clone(), op, false))
     }
 
     public fun silu(): Result<Tensor> {
         val shape = this.shape()
         if (shape.elemCount() == 0) {
-            return Ok(this.clone())
+            return Result.Ok(this.clone())
         }
         val storage =
             when (val tryResult = this.storage().unaryImpl<Silu>(this.layout())) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val op = BackpropOp.new1(this, { s -> Op.Unary(s, UnaryOp.Silu) })
-        return Ok(fromStorage(storage, shape.clone(), op, false))
+        return Result.Ok(fromStorage(storage, shape.clone(), op, false))
     }
 
     public fun ceil(): Result<Tensor> {
         val shape = this.shape()
         if (shape.elemCount() == 0) {
-            return Ok(this.clone())
+            return Result.Ok(this.clone())
         }
         val storage =
             when (val tryResult = this.storage().unaryImpl<Ceil>(this.layout())) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val op = BackpropOp.new1(this, { s -> Op.Unary(s, UnaryOp.Ceil) })
-        return Ok(fromStorage(storage, shape.clone(), op, false))
+        return Result.Ok(fromStorage(storage, shape.clone(), op, false))
     }
 
     public fun floor(): Result<Tensor> {
         val shape = this.shape()
         if (shape.elemCount() == 0) {
-            return Ok(this.clone())
+            return Result.Ok(this.clone())
         }
         val storage =
             when (val tryResult = this.storage().unaryImpl<Floor>(this.layout())) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val op = BackpropOp.new1(this, { s -> Op.Unary(s, UnaryOp.Floor) })
-        return Ok(fromStorage(storage, shape.clone(), op, false))
+        return Result.Ok(fromStorage(storage, shape.clone(), op, false))
     }
 
     public fun round(): Result<Tensor> {
         val shape = this.shape()
         if (shape.elemCount() == 0) {
-            return Ok(this.clone())
+            return Result.Ok(this.clone())
         }
         val storage =
             when (val tryResult = this.storage().unaryImpl<Round>(this.layout())) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val op = BackpropOp.new1(this, { s -> Op.Unary(s, UnaryOp.Round) })
-        return Ok(fromStorage(storage, shape.clone(), op, false))
+        return Result.Ok(fromStorage(storage, shape.clone(), op, false))
     }
 
     public fun sign(): Result<Tensor> {
         val shape = this.shape()
         if (shape.elemCount() == 0) {
-            return Ok(this.clone())
+            return Result.Ok(this.clone())
         }
         val storage =
             when (val tryResult = this.storage().unaryImpl<Sign>(this.layout())) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val op = BackpropOp.new1(this, { s -> Op.Unary(s, UnaryOp.Sign) })
-        return Ok(fromStorage(storage, shape.clone(), op, false))
+        return Result.Ok(fromStorage(storage, shape.clone(), op, false))
     }
 
     /**
@@ -1138,12 +1131,12 @@ public class Tensor internal constructor(
         return when (
             val tryResult =
                 when (val tryResult = (this * mult)) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }.round()
         ) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         } * (1.0 / mult)
     }
 
@@ -1153,19 +1146,19 @@ public class Tensor internal constructor(
      */
     public fun <S : WithDType> toScalar(cpuStorageAsSliceSFn: (Any?) -> Any?): Result<S> {
         if (this.rank() != 0) {
-            when (val tryResult = Err(Error.UnexpectedNumberOfDims(expected = 0, got = this.rank(), shape = this.shape().clone()).bt())) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            when (val tryResult = Result.Err(Error.UnexpectedNumberOfDims(expected = 0, got = this.rank(), shape = this.shape().clone()).bt())) {
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         }
         val fromCpuStorage =
             closure@{ cpuStorage: CpuStorage ->
                 val data =
                     when (val tryResult = cpuStorageAsSliceSFn(cpuStorage)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return@closure Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return@closure Result.Err(tryResult.error)
                     }
-                Ok(data[this.layout().startOffset()])
+                Result.Ok(data[this.layout().startOffset()])
             }
         return when (val matchVal = this.storage()) {
             is Storage.Cpu -> {
@@ -1176,8 +1169,8 @@ public class Tensor internal constructor(
                 val (storage) = matchVal
                 fromCpuStorage(
                     when (val tryResult = storage.toCpuStorage()) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     },
                 )
             }
@@ -1185,8 +1178,8 @@ public class Tensor internal constructor(
                 val (storage1) = matchVal
                 fromCpuStorage(
                     when (val tryResult = storage1.toCpuStorage()) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     },
                 )
             }
@@ -1209,31 +1202,31 @@ public class Tensor internal constructor(
             if (this.rank() < repeats1.len()) {
                 val shape1 = listOf(mutableListOf(1, repeats1.len() - this.rank()), this.dims().toVec()).concat()
                 when (val tryResult = this.reshape(shape1)) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             } else {
                 this.clone()
             }
-        for ((idx, repeat) in repeats1.iter().enumerate()) {
+        for ((idx, repeat) in repeats1.iter().mapIndexed { index, item -> Pair(index, item) }) {
             inp =
                 when (repeat) {
                     0 ->
                         when (val tryResult = inp.narrow(idx, 0, 0)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     1 -> inp
                     else -> {
                         val repeat1 = repeat
                         when (val tryResult = Tensor.cat(mutableListOf(inp, repeat1), idx)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     }
                 }
         }
-        return Ok(inp)
+        return Result.Ok(inp)
     }
 
     /**
@@ -1252,15 +1245,15 @@ public class Tensor internal constructor(
      */
     public fun affine(mul: Double, add: Double): Result<Tensor> {
         if (this.elemCount() == 0) {
-            return Ok(this.clone())
+            return Result.Ok(this.clone())
         }
         val storage =
             when (val tryResult = this.storage().affine(this.layout(), mul, add)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val op = BackpropOp.new1(this, { arg -> Op.Affine(arg = arg, mul = mul, add = add) })
-        return Ok(fromStorage(storage, this.shape(), op, false))
+        return Result.Ok(fromStorage(storage, this.shape(), op, false))
     }
 
     /**
@@ -1268,15 +1261,15 @@ public class Tensor internal constructor(
      */
     public fun elu(alpha: Double): Result<Tensor> {
         if (this.elemCount() == 0) {
-            return Ok(this.clone())
+            return Result.Ok(this.clone())
         }
         val storage =
             when (val tryResult = this.storage().elu(this.layout(), alpha)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val op = BackpropOp.new1(this, { t -> Op.Elu(t, alpha) })
-        return Ok(fromStorage(storage, this.shape(), op, false))
+        return Result.Ok(fromStorage(storage, this.shape(), op, false))
     }
 
     /**
@@ -1284,25 +1277,25 @@ public class Tensor internal constructor(
      */
     public fun powf(e: Double): Result<Tensor> {
         if (this.elemCount() == 0) {
-            return Ok(this.clone())
+            return Result.Ok(this.clone())
         }
         val storage =
             when (val tryResult = this.storage().powf(this.layout(), e)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val op = BackpropOp.new1(this, { t -> Op.Powf(t, e) })
-        return Ok(fromStorage(storage, this.shape(), op, false))
+        return Result.Ok(fromStorage(storage, this.shape(), op, false))
     }
 
     internal fun checkDim(dim: Int, op: String): Result<Unit> {
         return if (dim >= this.dims().size) {
-            when (val tryResult = Err(Error.DimOutOfRange(shape = this.shape().clone(), dim = dim, op = op).bt())) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            when (val tryResult = Result.Err(Error.DimOutOfRange(shape = this.shape().clone(), dim = dim, op = op).bt())) {
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         } else {
-            Ok(Unit)
+            Result.Ok(Unit)
         }
     }
 
@@ -1313,13 +1306,13 @@ public class Tensor internal constructor(
     public fun <D : Dim> chunk(chunks: Int, dim: D): Result<List<Tensor>> {
         val dim1 =
             when (val tryResult = dim.toIndex(this.shape(), "chunk")) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val size =
             when (val tryResult = this.dim(dim1)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         return if (size < chunks) {
             (0 until size).map({ i -> this.narrow(dim1, i, 1) }).collect()
@@ -1337,13 +1330,13 @@ public class Tensor internal constructor(
                     }
                 val tensor =
                     when (val tryResult = this.narrow(dim1, sumChunkSize, chunkSize1)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                 tensors.add(tensor)
                 sumChunkSize += chunkSize1
             }
-            Ok(tensors)
+            Result.Ok(tensors)
         }
     }
 
@@ -1367,42 +1360,42 @@ public class Tensor internal constructor(
         val dims = this.dims()
         val dim1 =
             when (val tryResult = dim.toIndex(this.shape(), "narrow")) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val err =
             { msg ->
-                Err(Error.NarrowInvalidArgs(shape = this.shape().clone(), dim = dim1, start = start, len = len, msg = msg).bt())
+                Result.Err(Error.NarrowInvalidArgs(shape = this.shape().clone(), dim = dim1, start = start, len = len, msg = msg).bt())
             }
         if (start > dims[dim1]) {
             when (val tryResult = err("start > dim_len")) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         }
         if (start.saturatingAdd(len) > dims[dim1]) {
             when (val tryResult = err("start + len > dim_len")) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         }
         return if (start == 0 && dims[dim1] == len) {
-            Ok(this.clone())
+            Result.Ok(this.clone())
         } else {
             val op = BackpropOp.new1(this, { t -> Op.Narrow(t, dim1, start, len) })
             val layout =
                 when (val tryResult = this.layout().narrow(dim1, start, len)) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             val tensor = Tensor(id = TensorId.new(), storage = this.storage.clone(), layout = layout, op = op, isVariable = false, dtype = this.dtype, device = this.device.clone())
-            Ok(Tensor(tensor))
+            Result.Ok(Tensor(tensor))
         }
     }
 
     public fun squeezeDims(dims: List<Int>): Result<Tensor> =
         when {
-            dims.isEmpty() -> Ok(this)
+            dims.isEmpty() -> Result.Ok(this)
             dims.size == 1 -> {
                 val i = dims[0]
                 this.squeeze(i)
@@ -1410,10 +1403,8 @@ public class Tensor internal constructor(
             else -> {
                 val dims1 = dims
                 val dims2 =
-                    this
-                        .dims()
-                        .enumerate()
-                        .filterMap({ (dimIdx, v) ->
+                    (this.dims().mapIndexed { index, item -> Pair(index, item) })
+                        .mapNotNull({ (dimIdx, v) ->
                             if (dims1.contains(dimIdx)) {
                                 null
                             } else {
@@ -1428,13 +1419,13 @@ public class Tensor internal constructor(
     public fun <D : Dim> reduceImpl(dim: D, keepdim: Boolean, op: ReduceOp): Result<Tensor> {
         val dim1 =
             when (val tryResult = dim.toIndex(this.shape(), op.name())) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val storage =
             when (val tryResult = this.storage().reduceOp(op, this.layout(), listOf(dim1))) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val dims = this.dims().toVec()
         dims[dim1] = 1
@@ -1447,7 +1438,7 @@ public class Tensor internal constructor(
             }
         val res = fromStorage(storage, dims, op1, false)
         return if (keepdim) {
-            Ok(res)
+            Result.Ok(res)
         } else {
             res.squeezeDims(listOf(dim1))
         }
@@ -1456,13 +1447,13 @@ public class Tensor internal constructor(
     public fun <D : Dims> sumImpl(sumDims: D, keepdim: Boolean): Result<Tensor> {
         val sumDims1 =
             when (val tryResult = sumDims.toIndexes(this.shape(), "sum")) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val storage =
             when (val tryResult = this.storage().reduceOp(ReduceOp.Sum, this.layout(), sumDims1)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val dims = this.dims().toVec()
         for (sumDim in sumDims1.iter()) {
@@ -1471,7 +1462,7 @@ public class Tensor internal constructor(
         val op = BackpropOp.new1(this, { a -> Op.Reduce(a, ReduceOp.Sum, dims.toVec()) })
         val sum = fromStorage(storage, dims, op, false)
         return if (keepdim) {
-            Ok(sum)
+            Result.Ok(sum)
         } else {
             sum.squeezeDims(sumDims1)
         }
@@ -1493,27 +1484,27 @@ public class Tensor internal constructor(
     public fun <D> roll(shift: Int, dim: D): Result<Tensor> where D : Dim {
         val dim1 =
             when (val tryResult = dim.toIndex(this.shape(), "roll")) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val dimSize =
             when (val tryResult = this.dim(dim1)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val shift1 = shift.remEuclid(dimSize.toInt()).toInt()
         return if (shift1 == 0) {
-            Ok(this.clone())
+            Result.Ok(this.clone())
         } else {
             val a =
                 when (val tryResult = this.narrow(dim1, 0, dimSize - shift1)) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             val b =
                 when (val tryResult = this.narrow(dim1, dimSize - shift1, shift1)) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             Tensor.cat(listOf(b, a), dim1)
         }
@@ -1571,14 +1562,14 @@ public class Tensor internal constructor(
     public fun <D : Dims> meanKeepdim(meanDims: D): Result<Tensor> {
         val meanDims1 =
             when (val tryResult = meanDims.toIndexes(this.shape(), "mean-keepdim")) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val reducedDim: Int = meanDims1.iter().map({ i -> this.dims()[i] }).product()
         val scale = 1.0 / (reducedDim.toDouble())
         return when (val tryResult = this.sumImpl(meanDims1, true)) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         } * scale
     }
 
@@ -1590,14 +1581,14 @@ public class Tensor internal constructor(
     public fun <D : Dims> mean(meanDims: D): Result<Tensor> {
         val meanDims1 =
             when (val tryResult = meanDims.toIndexes(this.shape(), "mean")) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val reducedDim: Int = meanDims1.iter().map({ i -> this.dims()[i] }).product()
         val scale = 1.0 / (reducedDim.toDouble())
         return when (val tryResult = this.sumImpl(meanDims1, false)) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         } * scale
     }
 
@@ -1607,33 +1598,33 @@ public class Tensor internal constructor(
     public fun <D : Dim> varKeepdim(dim: D): Result<Tensor> {
         val dim1 =
             when (val tryResult = dim.toIndex(this.shape(), "var")) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val mean =
             when (val tryResult = this.meanKeepdim(dim1)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val squares =
             when (
                 val tryResult =
                     when (val tryResult = this.broadcastSub(mean)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }.sqr()
             ) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         return when (val tryResult = squares.sumImpl(dim1, true)) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         } /
             (
                 when (val tryResult = this.dim(dim1)) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 } - 1
             ).toDouble()
     }
@@ -1644,12 +1635,12 @@ public class Tensor internal constructor(
     public fun <D : Dim> variable(dim: D): Result<Tensor> {
         val dim1 =
             when (val tryResult = dim.toIndex(this.shape(), "var")) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         return when (val tryResult = this.varKeepdim(dim1)) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }.squeeze(dim1)
     }
 
@@ -1700,8 +1691,8 @@ public class Tensor internal constructor(
             when (
                 val matchVal =
                     when (val tryResult = rhs.toTensorScalar()) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
             ) {
                 is Tensor -> {
@@ -1715,31 +1706,31 @@ public class Tensor internal constructor(
                             when (
                                 val tryResult =
                                     when (val tryResult = rhs2.toDtype(this.dtype())) {
-                                        is Result.Ok -> tryResult.value
-                                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                        is Result.Ok<*> -> tryResult.value
+                                        is Result.Err<*> -> return Result.Err(tryResult.error)
                                     }.toDevice(this.device())
                             ) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }.broadcastAs(this.shape())
                     ) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                 }
             }
         val shape =
             when (val tryResult = this.sameShapeBinaryOp(rhs3, "cmp")) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val storage =
             when (val tryResult = this.storage().cmp(op, rhs3.storage(), this.layout(), rhs3.layout())) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val op1 = BackpropOp.new1(this, { a -> Op.Cmp(a, op) })
-        return Ok(fromStorage(storage, shape.dims(), op1, false))
+        return Result.Ok(fromStorage(storage, shape.dims(), op1, false))
     }
 
     /**
@@ -1781,8 +1772,8 @@ public class Tensor internal constructor(
      */
     public fun <T1 : TensorOrScalar, T2 : TensorOrScalar> clamp(min: T1, max: T2): Result<Tensor> {
         return when (val tryResult = this.maximum(min)) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }.minimum(max)
     }
 
@@ -1795,16 +1786,16 @@ public class Tensor internal constructor(
     public fun interpolate1d(targetSize: Int): Result<Tensor> {
         val (n, c, l) =
             when (val tryResult = this.dims3()) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val op = BackpropOp.new1(this, { arg -> Op.UpsampleNearest1D(arg = arg, targetSize = targetSize) })
         val storage =
             when (val tryResult = this.storage().upsampleNearest1d(this.layout(), targetSize)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
-        return Ok(fromStorage(storage, Triple(n, c, targetSize), op, false))
+        return Result.Ok(fromStorage(storage, Triple(n, c, targetSize), op, false))
     }
 
     /**
@@ -1822,16 +1813,16 @@ public class Tensor internal constructor(
     public fun interpolate2d(targetH: Int, targetW: Int): Result<Tensor> {
         val (n, c, h, w) =
             when (val tryResult = this.dims4()) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val op = BackpropOp.new1(this, { arg -> Op.UpsampleNearest2D(arg = arg, targetH = targetH, targetW = targetW) })
         val storage =
             when (val tryResult = this.storage().upsampleNearest2d(this.layout(), targetH, targetW)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
-        return Ok(fromStorage(storage, listOf(n, c, targetH, targetW), op, false))
+        return Result.Ok(fromStorage(storage, listOf(n, c, targetH, targetW), op, false))
     }
 
     /**
@@ -1866,17 +1857,17 @@ public class Tensor internal constructor(
     public fun upsampleBilinear2d(targetH: Int, targetW: Int, alignCorners: Boolean): Result<Tensor> {
         val (n, c, h, w) =
             when (val tryResult = this.dims4()) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val op = BackpropOp.new1(this, { arg -> Op.UpsampleBilinear2D(arg = arg, targetH = targetH, targetW = targetW, alignCorners = alignCorners) })
         // Pass None for scale factors (size mode)
         val storage =
             when (val tryResult = this.storage().upsampleBilinear2d(this.layout(), targetH, targetW, alignCorners, null, null)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
-        return Ok(fromStorage(storage, listOf(n, c, targetH, targetW), op, false))
+        return Result.Ok(fromStorage(storage, listOf(n, c, targetH, targetW), op, false))
     }
 
     /**
@@ -1906,25 +1897,25 @@ public class Tensor internal constructor(
     public fun upsampleBilinear2dWithScale(scaleH: Double, scaleW: Double, alignCorners: Boolean): Result<Tensor> {
         val (n, c, heightIn, widthIn) =
             when (val tryResult = this.dims4()) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         // Calculate output size (floor, matching PyTorch)
         val heightOut = (heightIn.toDouble() * scaleH).floor().toInt()
         val widthOut = (widthIn.toDouble() * scaleW).floor().toInt()
         // Early return if size unchanged
         if (heightIn == heightOut && widthIn == widthOut) {
-            return Ok(this.clone())
+            return Result.Ok(this.clone())
         }
         val op = BackpropOp.new1(this, { arg -> Op.UpsampleBilinear2D(arg = arg, targetH = heightOut, targetW = widthOut, alignCorners = alignCorners) })
         // Pass original scale factors (scaleFactor mode)
         // This ensures PyTorch-compatible scale calculation
         val storage =
             when (val tryResult = this.storage().upsampleBilinear2d(this.layout(), heightOut, widthOut, alignCorners, scaleH, scaleW)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
-        return Ok(fromStorage(storage, listOf(n, c, heightOut, widthOut), op, false))
+        return Result.Ok(fromStorage(storage, listOf(n, c, heightOut, widthOut), op, false))
     }
 
     /**
@@ -1949,8 +1940,8 @@ public class Tensor internal constructor(
         val stride1 = stride.toUsize2()
         val (n, c, h, w) =
             when (val tryResult = this.dims4()) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         if (h < kernelSize1.value || w < kernelSize1.field1) {
             bail("kernel-size {kernel_size:?} is larger than the input size {h},{w}")
@@ -1961,10 +1952,10 @@ public class Tensor internal constructor(
         val op = BackpropOp.new1(this, { arg -> Op.AvgPool2D(arg = arg, kernelSize = kernelSize1, stride = stride1) })
         val storage =
             when (val tryResult = this.storage().avgPool2d(this.layout(), kernelSize1, stride1)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
-        return Ok(fromStorage(storage, listOf(n, c, hOut, wOut), op, false))
+        return Result.Ok(fromStorage(storage, listOf(n, c, hOut, wOut), op, false))
     }
 
     /**
@@ -1989,8 +1980,8 @@ public class Tensor internal constructor(
         val stride1 = stride.toUsize2()
         val (n, c, h, w) =
             when (val tryResult = this.dims4()) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         if (h < kernelSize1.value || w < kernelSize1.field1) {
             bail("kernel-size {kernel_size:?} is larger than the input size {h},{w}")
@@ -2001,10 +1992,10 @@ public class Tensor internal constructor(
         val op = BackpropOp.new1(this, { arg -> Op.MaxPool2D(arg = arg, kernelSize = kernelSize1, stride = stride1) })
         val storage =
             when (val tryResult = this.storage().maxPool2d(this.layout(), kernelSize1, stride1)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
-        return Ok(fromStorage(storage, listOf(n, c, hOut, wOut), op, false))
+        return Result.Ok(fromStorage(storage, listOf(n, c, hOut, wOut), op, false))
     }
 
     /**
@@ -2027,7 +2018,7 @@ public class Tensor internal constructor(
      */
     public fun dot(rhs: Tensor): Result<Tensor> {
         if (this.dims().size != 1 || rhs.dims().size != 1) {
-            return Err(Error.ShapeMismatchBinaryOp(lhs = this.shape().clone(), rhs = rhs.shape().clone(), op = "dot"))
+            return Result.Err(Error.ShapeMismatchBinaryOp(lhs = this.shape().clone(), rhs = rhs.shape().clone(), op = "dot"))
         }
         return (this * rhs).andThen({ ret -> ret.sumAll() })
     }
@@ -2076,20 +2067,20 @@ public class Tensor internal constructor(
         val lhsDims = this.dims()
         val rhsDims = rhs.dims()
         if (lhsDims.size != 2 || rhsDims.size != 1 || lhsDims[1] != rhsDims[0]) {
-            return Err(Error.ShapeMismatchBinaryOp(lhs = this.shape().clone(), rhs = rhs.shape().clone(), op = "mv"))
+            return Result.Err(Error.ShapeMismatchBinaryOp(lhs = this.shape().clone(), rhs = rhs.shape().clone(), op = "mv"))
         }
         // Direct matmul after ensuring rhs is column vector
         return when (
             val tryResult =
                 this.matmul(
                     when (val tryResult = rhs.unsqueeze(1)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     },
                 )
         ) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }.squeeze(1)
     }
 
@@ -2108,9 +2099,9 @@ public class Tensor internal constructor(
         val bDims = rhs.shape().dims()
         val dim = aDims.len()
         if (dim < 2 || bDims.len() != dim) {
-            when (val tryResult = Err(Error.ShapeMismatchBinaryOp(lhs = this.shape().clone(), rhs = rhs.shape().clone(), op = "matmul").bt())) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            when (val tryResult = Result.Err(Error.ShapeMismatchBinaryOp(lhs = this.shape().clone(), rhs = rhs.shape().clone(), op = "matmul").bt())) {
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         }
         val m = aDims[dim - 2]
@@ -2121,9 +2112,9 @@ public class Tensor internal constructor(
         val batching: Int = ((aDims).slice(0 until dim - 2)).iter().product()
         val batchingB: Int = ((bDims).slice(0 until dim - 2)).iter().product()
         if (k != k2 || batching != batchingB) {
-            when (val tryResult = Err(Error.ShapeMismatchBinaryOp(lhs = this.shape().clone(), rhs = rhs.shape().clone(), op = "matmul").bt())) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            when (val tryResult = Result.Err(Error.ShapeMismatchBinaryOp(lhs = this.shape().clone(), rhs = rhs.shape().clone(), op = "matmul").bt())) {
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         }
         if (cShape.elemCount() == 0 || k == 0) {
@@ -2131,29 +2122,29 @@ public class Tensor internal constructor(
                 val lhsStorage = this.storage()
                 val rhsStorage = rhs.storage()
                 when (val tryResult = lhsStorage.sameDevice(rhsStorage, "matmul")) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
                 when (val tryResult = lhsStorage.sameDtype(rhsStorage, "matmul")) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             }
             val storage =
                 when (val tryResult = this.device().zeros(cShape, this.dtype())) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             val op = BackpropOp.new2(this, rhs, Op.Matmul)
-            return Ok(fromStorage(storage, cShape, op, false))
+            return Result.Ok(fromStorage(storage, cShape, op, false))
         }
         val storage1 =
             when (val tryResult = this.storage().matmul(rhs.storage(), listOf(batching, m, n, k), this.layout(), rhs.layout())) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val op1 = BackpropOp.new2(this, rhs, Op.Matmul)
-        return Ok(fromStorage(storage1, cShape, op1, false))
+        return Result.Ok(fromStorage(storage1, cShape, op1, false))
     }
 
     /**
@@ -2167,8 +2158,8 @@ public class Tensor internal constructor(
         val lhs = this
         val (lShape, rShape) =
             when (val tryResult = lhs.shape().broadcastShapeMatmul(rhs.shape())) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val lBroadcast = lShape != lhs.shape()
         val rBroadcast = rShape != rhs.shape()
@@ -2180,22 +2171,22 @@ public class Tensor internal constructor(
                     when (
                         val tryResult =
                             when (val tryResult = lhs.broadcastAs(lShape)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }.contiguous()
                     ) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }.matmul(
                         when (
                             val tryResult =
                                 when (val tryResult = rhs.broadcastAs(rShape)) {
-                                    is Result.Ok -> tryResult.value
-                                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                    is Result.Ok<*> -> tryResult.value
+                                    is Result.Err<*> -> return Result.Err(tryResult.error)
                                 }.contiguous()
                         ) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         },
                     )
                 // A rank-2 rhs is only broadcast over the batch dimensions, so the whole product is
@@ -2214,12 +2205,12 @@ public class Tensor internal constructor(
                     when (
                         val tryResult =
                             when (val tryResult = lhs.reshape(Pair(batch * m, k))) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }.matmul(rhs)
                     ) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }.reshape(outDims)
                 }
                 matchVal.first == false && matchVal.second == true ->
@@ -2227,24 +2218,24 @@ public class Tensor internal constructor(
                         when (
                             val tryResult =
                                 when (val tryResult = rhs.broadcastAs(rShape)) {
-                                    is Result.Ok -> tryResult.value
-                                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                    is Result.Ok<*> -> tryResult.value
+                                    is Result.Err<*> -> return Result.Err(tryResult.error)
                                 }.contiguous()
                         ) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         },
                     )
                 matchVal.first == true && matchVal.second == false ->
                     when (
                         val tryResult =
                             when (val tryResult = lhs.broadcastAs(lShape)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }.contiguous()
                     ) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }.matmul(rhs)
                 else -> lhs.matmul(rhs)
             }
@@ -2259,16 +2250,16 @@ public class Tensor internal constructor(
     public fun whereCond(onTrue: Tensor, onFalse: Tensor): Result<Tensor> {
         val shape =
             when (val tryResult = this.sameShapeBinaryOp(onFalse, "where_cond")) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val storage =
             when (val tryResult = this.storage().whereCond(this.layout(), onTrue.storage(), onTrue.layout(), onFalse.storage(), onFalse.layout())) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val op = BackpropOp.new3(this, onTrue, onFalse, Op.WhereCond)
-        return Ok(fromStorage(storage, shape, op, false))
+        return Result.Ok(fromStorage(storage, shape, op, false))
     }
 
     /**
@@ -2295,9 +2286,9 @@ public class Tensor internal constructor(
      */
     public fun embedding(ids: Tensor): Result<Tensor> {
         if (this.rank() != 2 || ids.rank() != 1) {
-            when (val tryResult = Err(Error.ShapeMismatchBinaryOp(lhs = this.shape().clone(), rhs = ids.shape().clone(), op = "embedding").bt())) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            when (val tryResult = Result.Err(Error.ShapeMismatchBinaryOp(lhs = this.shape().clone(), rhs = ids.shape().clone(), op = "embedding").bt())) {
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         }
         return this.indexSelect(ids, 0)
@@ -2311,7 +2302,7 @@ public class Tensor internal constructor(
                 true
             } else {
                 var mismatch = false
-                for ((i, d1, d2) in (selfDims.zip(sourceDims)).enumerate()) {
+                for ((i, d1, d2) in (selfDims.zip(sourceDims)).mapIndexed { index, item -> Pair(index, item) }) {
                     if (i != dim && d1 != d2) {
                         mismatch = true
                         break
@@ -2320,50 +2311,50 @@ public class Tensor internal constructor(
                 mismatch
             }
         if (mismatch1) {
-            when (val tryResult = Err(Error.ShapeMismatchBinaryOp(op = "scatter (self, src)", lhs = this.shape().clone(), rhs = source.shape().clone()).bt())) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            when (val tryResult = Result.Err(Error.ShapeMismatchBinaryOp(op = "scatter (self, src)", lhs = this.shape().clone(), rhs = source.shape().clone()).bt())) {
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         }
         if (indexes.dims() != source.dims()) {
-            when (val tryResult = Err(Error.ShapeMismatchBinaryOp(op = "scatter (indexes, src)", lhs = indexes.shape().clone(), rhs = source.shape().clone()).bt())) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            when (val tryResult = Result.Err(Error.ShapeMismatchBinaryOp(op = "scatter (indexes, src)", lhs = indexes.shape().clone(), rhs = source.shape().clone()).bt())) {
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         }
-        return Ok(Unit)
+        return Result.Ok(Unit)
     }
 
     public fun <D : Dim> scatter(indexes: Tensor, source: Tensor, dim: D): Result<Tensor> {
         val dim1 =
             when (val tryResult = dim.toIndex(this.shape(), "scatter")) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         when (val tryResult = this.scatterChecks(indexes, source, dim1)) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
         val shape = this.shape()
         val storage =
             when (val tryResult = this.device().allocUninit(shape, this.dtype())) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         when (val tryResult = this.storage().copyStridedSrc(storage, 0, this.layout())) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
         val layout = Layout.contiguous(shape)
         when (val tryResult = storage.scatterSet(layout, indexes.storage(), indexes.layout(), source.storage(), source.layout(), dim1)) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
         val op =
             BackpropOp.new3(this, indexes, source, { t1, t2, t3 ->
                 Op.Scatter(t1, t2, t3, dim1)
             })
-        return Ok(fromStorage(storage, this.shape(), op, false))
+        return Result.Ok(fromStorage(storage, this.shape(), op, false))
     }
 
     public fun <D : Dim> scatterSet(indexes: Tensor, source: Tensor, dim: D): Result<Unit> {
@@ -2372,50 +2363,50 @@ public class Tensor internal constructor(
         }
         val dim1 =
             when (val tryResult = dim.toIndex(this.shape(), "scatter-set")) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         when (val tryResult = this.scatterChecks(indexes, source, dim1)) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
         when (val tryResult = this.storageMut().scatterSet(this.layout(), indexes.storage(), indexes.layout(), source.storage(), source.layout(), dim1)) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
-        return Ok(Unit)
+        return Result.Ok(Unit)
     }
 
     public fun <D : Dim> scatterAdd(indexes: Tensor, source: Tensor, dim: D): Result<Tensor> {
         val dim1 =
             when (val tryResult = dim.toIndex(this.shape(), "scatter-add")) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         when (val tryResult = this.scatterChecks(indexes, source, dim1)) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
         val shape = this.shape()
         val storage =
             when (val tryResult = this.device().allocUninit(shape, this.dtype())) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         when (val tryResult = this.storage().copyStridedSrc(storage, 0, this.layout())) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
         val layout = Layout.contiguous(shape)
         when (val tryResult = storage.scatterAdd(layout, indexes.storage(), indexes.layout(), source.storage(), source.layout(), dim1)) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
         val op =
             BackpropOp.new3(this, indexes, source, { t1, t2, t3 ->
                 Op.ScatterAdd(t1, t2, t3, dim1)
             })
-        return Ok(fromStorage(storage, this.shape(), op, false))
+        return Result.Ok(fromStorage(storage, this.shape(), op, false))
     }
 
     public fun <D : Dim> scatterAddSet(indexes: Tensor, source: Tensor, dim: D): Result<Unit> {
@@ -2424,18 +2415,18 @@ public class Tensor internal constructor(
         }
         val dim1 =
             when (val tryResult = dim.toIndex(this.shape(), "scatter-add-set")) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         when (val tryResult = this.scatterChecks(indexes, source, dim1)) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
         when (val tryResult = this.storageMut().scatterAdd(this.layout(), indexes.storage(), indexes.layout(), source.storage(), source.layout(), dim1)) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
-        return Ok(Unit)
+        return Result.Ok(Unit)
     }
 
     /**
@@ -2444,8 +2435,8 @@ public class Tensor internal constructor(
     public fun <D : Dim> sliceScatter(src: Tensor, dim: D, start: Int): Result<Tensor> {
         val dim1 =
             when (val tryResult = dim.toIndex(this.shape(), "slice-scatter")) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         return if (dim1 == 0) {
             this.sliceScatter0(src, start)
@@ -2454,18 +2445,18 @@ public class Tensor internal constructor(
             when (
                 val tryResult =
                     when (val tryResult = this.transpose(0, dim1)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }.sliceScatter0(
                         when (val tryResult = src.transpose(0, dim1)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         },
                         start,
                     )
             ) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }.transpose(0, dim1)
         }
     }
@@ -2475,26 +2466,26 @@ public class Tensor internal constructor(
      */
     public fun sliceScatter0(src: Tensor, start: Int): Result<Tensor> {
         if (this.dtype() != src.dtype()) {
-            when (val tryResult = Err(Error.DTypeMismatchBinaryOp(lhs = this.dtype(), rhs = src.dtype(), op = "slice-scatter").bt())) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            when (val tryResult = Result.Err(Error.DTypeMismatchBinaryOp(lhs = this.dtype(), rhs = src.dtype(), op = "slice-scatter").bt())) {
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         }
         if (this.device().location() != src.device.location()) {
-            when (val tryResult = Err(Error.DeviceMismatchBinaryOp(lhs = this.device().location(), rhs = src.device().location(), op = "slice-scatter").bt())) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            when (val tryResult = Result.Err(Error.DeviceMismatchBinaryOp(lhs = this.device().location(), rhs = src.device().location(), op = "slice-scatter").bt())) {
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         }
         if (this.rank() != src.rank()) {
-            when (val tryResult = Err(Error.UnexpectedNumberOfDims(expected = this.rank(), got = src.rank(), shape = src.shape().clone()).bt())) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            when (val tryResult = Result.Err(Error.UnexpectedNumberOfDims(expected = this.rank(), got = src.rank(), shape = src.shape().clone()).bt())) {
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         }
         val shapeOk =
-            (this.dims().zip(src.dims())).enumerate().all({ (dimIdx, pair) ->
-                val (d1, d2) = pair
+            (this.dims().zip(src.dims())).mapIndexed { index, item -> Pair(index, item) }.all({ (dimIdx, tuple0) ->
+                val (d1, d2) = tuple0
                 if (0 == dimIdx) {
                     d2 + start <= d1
                 } else {
@@ -2502,27 +2493,27 @@ public class Tensor internal constructor(
                 }
             })
         if (!shapeOk) {
-            when (val tryResult = Err(Error.ShapeMismatchBinaryOp(op = "slice-scatter (self, src)", lhs = this.shape().clone(), rhs = src.shape().clone()).bt())) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            when (val tryResult = Result.Err(Error.ShapeMismatchBinaryOp(op = "slice-scatter (self, src)", lhs = this.shape().clone(), rhs = src.shape().clone()).bt())) {
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         }
         val storage =
             when (val tryResult = this.device().allocUninit(this.shape(), this.dtype())) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         when (val tryResult = this.storage().copyStridedSrc(storage, 0, this.layout())) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
         val offset = start * ((src.dims()).slice(1 until src.dims().size)).iter().product<Int>()
         when (val tryResult = src.storage().copyStridedSrc(storage, offset, src.layout())) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
         val op = BackpropOp.new2(this, src, { t1, t2 -> Op.SliceScatter0(t1, t2, start) })
-        return Ok(fromStorage(storage, this.shape(), op, false))
+        return Result.Ok(fromStorage(storage, this.shape(), op, false))
     }
 
     /**
@@ -2531,8 +2522,8 @@ public class Tensor internal constructor(
     public fun <D : Dim> indexAdd(indexes: Tensor, source: Tensor, dim: D): Result<Tensor> {
         val dim1 =
             when (val tryResult = dim.toIndex(this.shape(), "index-add")) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val sourceDims = source.dims()
         val selfDims = this.dims()
@@ -2541,7 +2532,7 @@ public class Tensor internal constructor(
                 true
             } else {
                 var mismatch = false
-                for ((i, d1, d2) in (selfDims.zip(sourceDims)).enumerate()) {
+                for ((i, d1, d2) in (selfDims.zip(sourceDims)).mapIndexed { index, item -> Pair(index, item) }) {
                     if (i != dim1 && d1 != d2) {
                         mismatch = true
                         break
@@ -2550,9 +2541,9 @@ public class Tensor internal constructor(
                 mismatch
             }
         if (mismatch1) {
-            when (val tryResult = Err(Error.ShapeMismatchBinaryOp(op = "index-add (self, source)", lhs = this.shape().clone(), rhs = source.shape().clone()).bt())) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            when (val tryResult = Result.Err(Error.ShapeMismatchBinaryOp(op = "index-add (self, source)", lhs = this.shape().clone(), rhs = source.shape().clone()).bt())) {
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         }
         // The number of element in indexes must match the dimension on which the add is
@@ -2560,25 +2551,25 @@ public class Tensor internal constructor(
         // the target tensor self)
         val indexesLen =
             when (val tryResult = indexes.dims1()) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         if (sourceDims[dim1] != indexesLen) {
-            when (val tryResult = Err(Error.ShapeMismatchBinaryOp(op = "index-add (ids, source))", lhs = indexes.shape().clone(), rhs = source.shape().clone()).bt())) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            when (val tryResult = Result.Err(Error.ShapeMismatchBinaryOp(op = "index-add (ids, source))", lhs = indexes.shape().clone(), rhs = source.shape().clone()).bt())) {
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         }
         val storage =
             when (val tryResult = this.storage().indexAdd(this.layout(), indexes.storage(), indexes.layout(), source.storage(), source.layout(), dim1)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val op =
             BackpropOp.new3(this, indexes, source, { t1, t2, t3 ->
                 Op.IndexAdd(t1, t2, t3, dim1)
             })
-        return Ok(fromStorage(storage, this.shape(), op, false))
+        return Result.Ok(fromStorage(storage, this.shape(), op, false))
     }
 
     /**
@@ -2597,8 +2588,8 @@ public class Tensor internal constructor(
     public fun <D : Dim> gather(indexes: Tensor, dim: D): Result<Tensor> {
         val dim1 =
             when (val tryResult = dim.toIndex(this.shape(), "gather")) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val selfDims = this.dims()
         val indexesDims = indexes.dims()
@@ -2607,7 +2598,7 @@ public class Tensor internal constructor(
                 true
             } else {
                 var mismatch = false
-                for ((i, d1, d2) in (selfDims.zip(indexesDims)).enumerate()) {
+                for ((i, d1, d2) in (selfDims.zip(indexesDims)).mapIndexed { index, item -> Pair(index, item) }) {
                     if (i != dim1 && d1 < d2) {
                         mismatch = true
                         break
@@ -2616,18 +2607,18 @@ public class Tensor internal constructor(
                 mismatch
             }
         if (mismatch1) {
-            when (val tryResult = Err(Error.ShapeMismatchBinaryOp(op = "gather", lhs = this.shape().clone(), rhs = indexes.shape().clone()).bt())) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            when (val tryResult = Result.Err(Error.ShapeMismatchBinaryOp(op = "gather", lhs = this.shape().clone(), rhs = indexes.shape().clone()).bt())) {
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         }
         val storage =
             when (val tryResult = this.storage().gather(this.layout(), indexes.storage(), indexes.layout(), dim1)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val op = BackpropOp.new2(this, indexes, { t1, t2 -> Op.Gather(t1, t2, dim1) })
-        return Ok(fromStorage(storage, indexes.shape(), op, false))
+        return Result.Ok(fromStorage(storage, indexes.shape(), op, false))
     }
 
     /**
@@ -2642,8 +2633,8 @@ public class Tensor internal constructor(
     public fun <D : Dim> indexSelect(indexes: Tensor, dim: D): Result<Tensor> {
         val dim1 =
             when (val tryResult = dim.toIndex(this.shape(), "index-select")) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val indexesLen =
             run {
@@ -2654,21 +2645,21 @@ public class Tensor internal constructor(
                         l
                     }
                     else ->
-                        when (val tryResult = Err(Error.ShapeMismatchBinaryOp(lhs = this.shape().clone(), rhs = indexes.shape().clone(), op = "index-select").bt())) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        when (val tryResult = Result.Err(Error.ShapeMismatchBinaryOp(lhs = this.shape().clone(), rhs = indexes.shape().clone(), op = "index-select").bt())) {
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                 }
             }
         val storage =
             when (val tryResult = this.storage().indexSelect(indexes.storage(), this.layout(), indexes.layout(), dim1)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val dims = this.dims().toVec()
         dims[dim1] = indexesLen
         val op = BackpropOp.new2(this, indexes, { t1, t2 -> Op.IndexSelect(t1, t2, dim1) })
-        return Ok(fromStorage(storage, dims, op, false))
+        return Result.Ok(fromStorage(storage, dims, op, false))
     }
 
     /**
@@ -2690,17 +2681,17 @@ public class Tensor internal constructor(
      */
     public fun <S : WithDType> toVec1(cpuStorageAsSliceSFn: (Any?) -> Any?): Result<List<S>> {
         if (this.rank() != 1) {
-            when (val tryResult = Err(Error.UnexpectedNumberOfDims(expected = 1, got = this.rank(), shape = this.shape().clone()).bt())) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            when (val tryResult = Result.Err(Error.UnexpectedNumberOfDims(expected = 1, got = this.rank(), shape = this.shape().clone()).bt())) {
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         }
         val fromCpuStorage =
             closure1@{ cpuStorage: CpuStorage ->
                 val data =
                     when (val tryResult = cpuStorageAsSliceSFn(cpuStorage)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return@closure1 Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return@closure1 Result.Err(tryResult.error)
                     }
                 val data1 =
                     when (val matchVal = this.layout.contiguousOffsets()) {
@@ -2711,7 +2702,7 @@ public class Tensor internal constructor(
                             ((data).slice(o1 until o2)).toVec()
                         }
                     }
-                Ok(data1)
+                Result.Ok(data1)
             }
         return when (val matchVal = this.storage()) {
             is Storage.Cpu -> {
@@ -2722,8 +2713,8 @@ public class Tensor internal constructor(
                 val (storage1) = matchVal
                 fromCpuStorage(
                     when (val tryResult = storage1.toCpuStorage()) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     },
                 )
             }
@@ -2731,8 +2722,8 @@ public class Tensor internal constructor(
                 val (storage2) = matchVal
                 fromCpuStorage(
                     when (val tryResult = storage2.toCpuStorage()) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     },
                 )
             }
@@ -2745,15 +2736,15 @@ public class Tensor internal constructor(
     public fun <S : WithDType> toVec2(cpuStorageAsSliceSFn: (Any?) -> Any?): Result<List<List<S>>> {
         val (dim1, dim2) =
             when (val tryResult = this.dims2()) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val fromCpuStorage =
             closure2@{ cpuStorage: CpuStorage ->
                 val data =
                     when (val tryResult = cpuStorageAsSliceSFn(cpuStorage)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return@closure2 Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return@closure2 Result.Err(tryResult.error)
                     }
                 var rows = mutableListOf()
                 when (val matchVal = this.layout.contiguousOffsets()) {
@@ -2774,7 +2765,7 @@ public class Tensor internal constructor(
                         }
                     }
                 }
-                Ok(rows)
+                Result.Ok(rows)
             }
         return when (val matchVal = this.storage()) {
             is Storage.Cpu -> {
@@ -2785,8 +2776,8 @@ public class Tensor internal constructor(
                 val (storage1) = matchVal
                 fromCpuStorage(
                     when (val tryResult = storage1.toCpuStorage()) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     },
                 )
             }
@@ -2794,8 +2785,8 @@ public class Tensor internal constructor(
                 val (storage2) = matchVal
                 fromCpuStorage(
                     when (val tryResult = storage2.toCpuStorage()) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     },
                 )
             }
@@ -2808,15 +2799,15 @@ public class Tensor internal constructor(
     public fun <S : WithDType> toVec3(cpuStorageAsSliceSFn: (Any?) -> Any?): Result<List<List<List<S>>>> {
         val (dim1, dim2, dim3) =
             when (val tryResult = this.dims3()) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val fromCpuStorage =
             closure3@{ cpuStorage: CpuStorage ->
                 val data =
                     when (val tryResult = cpuStorageAsSliceSFn(cpuStorage)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return@closure3 Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return@closure3 Result.Err(tryResult.error)
                     }
                 var topRows = mutableListOf()
                 when (val matchVal = this.layout.contiguousOffsets()) {
@@ -2847,7 +2838,7 @@ public class Tensor internal constructor(
                         }
                     }
                 }
-                Ok(topRows)
+                Result.Ok(topRows)
             }
         return when (val matchVal = this.storage()) {
             is Storage.Cpu -> {
@@ -2858,8 +2849,8 @@ public class Tensor internal constructor(
                 val (storage1) = matchVal
                 fromCpuStorage(
                     when (val tryResult = storage1.toCpuStorage()) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     },
                 )
             }
@@ -2867,8 +2858,8 @@ public class Tensor internal constructor(
                 val (storage2) = matchVal
                 fromCpuStorage(
                     when (val tryResult = storage2.toCpuStorage()) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     },
                 )
             }
@@ -2891,10 +2882,10 @@ public class Tensor internal constructor(
     public fun <D : Dim> dim(dim: D): Result<Int> {
         val dim1 =
             when (val tryResult = dim.toIndex(this.shape(), "dim")) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
-        return Ok(this.dims()[dim1])
+        return Result.Ok(this.dims()[dim1])
     }
 
     public fun stride(): List<Int> = this.layout.stride()
@@ -2924,11 +2915,11 @@ public class Tensor internal constructor(
      */
     public fun maxAll(): Result<Tensor> {
         return if (this.rank() == 0) {
-            Ok(this.clone())
+            Result.Ok(this.clone())
         } else {
             when (val tryResult = this.flattenAll()) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }.max(0)
         }
     }
@@ -2948,11 +2939,11 @@ public class Tensor internal constructor(
      */
     public fun minAll(): Result<Tensor> {
         return if (this.rank() == 0) {
-            Ok(this.clone())
+            Result.Ok(this.clone())
         } else {
             when (val tryResult = this.flattenAll()) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }.min(0)
         }
     }
@@ -2977,8 +2968,8 @@ public class Tensor internal constructor(
 
     public fun meanAll(): Result<Tensor> {
         return when (val tryResult = this.sumAll()) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         } / this.elemCount().toDouble()
     }
 
@@ -2992,8 +2983,8 @@ public class Tensor internal constructor(
                     else -> {
                         val dim = startDim
                         when (val tryResult = dim.toIndex(this.shape(), "flatten")) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     }
                 }
@@ -3003,8 +2994,8 @@ public class Tensor internal constructor(
                     else -> {
                         val dim1 = endDim
                         when (val tryResult = dim1.toIndex(this.shape(), "flatten")) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     }
                 }
@@ -3017,7 +3008,7 @@ public class Tensor internal constructor(
                 }
                 this.reshape(dstDims)
             } else {
-                Ok(this.clone())
+                Result.Ok(this.clone())
             }
         }
     }
@@ -3025,13 +3016,13 @@ public class Tensor internal constructor(
     /**
      * Flattens the input tensor on the dimension indexes from `0` to `endDim` (inclusive).
      */
-    public fun <D : Dim> flattenTo(endDim: D): Result<Tensor> = this.flatten(None, endDim)
+    public fun <D : Dim> flattenTo(endDim: D): Result<Tensor> = this.flatten(null, endDim)
 
     /**
      * Flattens the input tensor on the dimension indexes from `startDim` (inclusive) to the last
      * dimension.
      */
-    public fun <D : Dim> flattenFrom(startDim: D): Result<Tensor> = this.flatten(startDim, None)
+    public fun <D : Dim> flattenFrom(startDim: D): Result<Tensor> = this.flatten(startDim, null)
 
     /**
      * Flattens the input tensor by reshaping it into a one dimension tensor.
@@ -3045,7 +3036,7 @@ public class Tensor internal constructor(
      * check(tensor1.toVec1<Float>().getOrElse { return Result.failure(it) } == listOf(0.0, 1.0, 2.0, 3.0, 4.0, 5.0))
      * ```
      */
-    public fun flattenAll(): Result<Tensor> = this.flatten(None, None)
+    public fun flattenAll(): Result<Tensor> = this.flatten(null, null)
 
     /**
      * Returns the sub-tensor fixing the index at `i` on the first dimension.
@@ -3064,11 +3055,11 @@ public class Tensor internal constructor(
     public fun get(i: Int): Result<Tensor> {
         val dims = this.dims()
         return if (dims.isEmpty()) {
-            Ok(this.clone())
+            Result.Ok(this.clone())
         } else {
             when (val tryResult = this.narrow(0, i, 1)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }.reshape(((dims).slice(1 until dims.size)))
         }
     }
@@ -3092,12 +3083,12 @@ public class Tensor internal constructor(
     public fun <D : Dim> getOnDim(dim: D, index: Int): Result<Tensor> {
         val dim1 =
             when (val tryResult = dim.toIndex(this.shape(), "get_on_dim")) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         return when (val tryResult = this.narrow(dim1, index, 1)) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }.squeeze(dim1)
     }
 
@@ -3117,9 +3108,9 @@ public class Tensor internal constructor(
     public fun t(): Result<Tensor> {
         val rank = this.rank()
         if (rank < 2) {
-            when (val tryResult = Err(Error.UnexpectedNumberOfDims(expected = 2, got = rank, shape = this.shape().clone()).bt())) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            when (val tryResult = Result.Err(Error.UnexpectedNumberOfDims(expected = 2, got = rank, shape = this.shape().clone()).bt())) {
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         }
         return this.transpose(rank - 2, rank - 1)
@@ -3132,16 +3123,16 @@ public class Tensor internal constructor(
     public fun <D1 : Dim, D2 : Dim> transpose(dim1: D1, dim2: D2): Result<Tensor> {
         val dim11 =
             when (val tryResult = dim1.toIndex(this.shape(), "transpose")) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val dim21 =
             when (val tryResult = dim2.toIndex(this.shape(), "transpose")) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         if (dim11 == dim21) {
-            return Ok(this.clone())
+            return Result.Ok(this.clone())
         }
         val op = BackpropOp.new1(this, { t -> Op.Transpose(t, dim11, dim21) })
         val tensor =
@@ -3150,15 +3141,15 @@ public class Tensor internal constructor(
                 storage = this.storage.clone(),
                 layout =
                     when (val tryResult = this.layout.transpose(dim11, dim21)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     },
                 op = op,
                 isVariable = false,
                 dtype = this.dtype,
                 device = this.device.clone(),
             )
-        return Ok(Tensor(tensor))
+        return Result.Ok(Tensor(tensor))
     }
 
     /**
@@ -3178,8 +3169,8 @@ public class Tensor internal constructor(
     public fun <D : Dims> permute(dims: D): Result<Tensor> {
         val dims1 =
             when (val tryResult = dims.toIndexes(this.shape(), "permute")) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         // O(n^2) permutation check but these arrays are small.
         val isPermutation = dims1.len() == this.rank() && (0 until dims1.len()).all({ i -> dims1.contains(i) })
@@ -3193,15 +3184,15 @@ public class Tensor internal constructor(
                 storage = this.storage.clone(),
                 layout =
                     when (val tryResult = this.layout.permute(dims1)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     },
                 op = op,
                 isVariable = false,
                 dtype = this.dtype,
                 device = this.device.clone(),
             )
-        return Ok(Tensor(tensor))
+        return Result.Ok(Tensor(tensor))
     }
 
     /**
@@ -3226,8 +3217,8 @@ public class Tensor internal constructor(
                 storage =
                     RwLock.new(
                         when (val tryResult = this.storage().tryClone(this.layout())) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         },
                     ),
                 layout = this.layout.clone(),
@@ -3236,7 +3227,7 @@ public class Tensor internal constructor(
                 dtype = this.dtype,
                 device = this.device.clone(),
             )
-        return Ok(Tensor(tensor))
+        return Result.Ok(Tensor(tensor))
     }
 
     /**
@@ -3258,7 +3249,7 @@ public class Tensor internal constructor(
      */
     public fun toDevice(device: Device): Result<Tensor> {
         return if (this.device().sameDevice(device)) {
-            Ok(this.clone())
+            Result.Ok(this.clone())
         } else {
             val storage6 =
                 run {
@@ -3269,8 +3260,8 @@ public class Tensor internal constructor(
                             val (cuda) = matchVal.second as Device.Cuda
                             Storage.Cuda(
                                 when (val tryResult = cuda.storageFromCpuStorage(storage)) {
-                                    is Result.Ok -> tryResult.value
-                                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                    is Result.Ok<*> -> tryResult.value
+                                    is Result.Err<*> -> return Result.Err(tryResult.error)
                                 },
                             )
                         }
@@ -3279,8 +3270,8 @@ public class Tensor internal constructor(
                             val (metal) = matchVal.second as Device.Metal
                             Storage.Metal(
                                 when (val tryResult = metal.storageFromCpuStorage(storage1)) {
-                                    is Result.Ok -> tryResult.value
-                                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                    is Result.Ok<*> -> tryResult.value
+                                    is Result.Err<*> -> return Result.Err(tryResult.error)
                                 },
                             )
                         }
@@ -3288,8 +3279,8 @@ public class Tensor internal constructor(
                             val (storage2) = matchVal.first as Storage.Cuda
                             Storage.Cpu(
                                 when (val tryResult = storage2.toCpuStorage()) {
-                                    is Result.Ok -> tryResult.value
-                                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                    is Result.Ok<*> -> tryResult.value
+                                    is Result.Err<*> -> return Result.Err(tryResult.error)
                                 },
                             )
                         }
@@ -3297,8 +3288,8 @@ public class Tensor internal constructor(
                             val (storage3) = matchVal.first as Storage.Metal
                             Storage.Cpu(
                                 when (val tryResult = storage3.toCpuStorage()) {
-                                    is Result.Ok -> tryResult.value
-                                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                    is Result.Ok<*> -> tryResult.value
+                                    is Result.Err<*> -> return Result.Err(tryResult.error)
                                 },
                             )
                         }
@@ -3308,8 +3299,8 @@ public class Tensor internal constructor(
                             // can't clone storage if it's the same device because of the underlying device ptr
                             val dstStorage =
                                 when (val tryResult = storage4.transferToDevice(cuda1)) {
-                                    is Result.Ok -> tryResult.value
-                                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                    is Result.Ok<*> -> tryResult.value
+                                    is Result.Err<*> -> return Result.Err(tryResult.error)
                                 }
                             Storage.Cuda(dstStorage)
                         }
@@ -3324,7 +3315,7 @@ public class Tensor internal constructor(
                 }
             val op = BackpropOp.new1(this, Op.ToDevice)
             val tensor = Tensor(id = TensorId.new(), storage = RwLock.new(storage6), layout = this.layout.clone(), op = op, isVariable = false, dtype = this.dtype, device = device.clone())
-            Ok(Tensor(tensor))
+            Result.Ok(Tensor(tensor))
         }
     }
 
@@ -3355,15 +3346,15 @@ public class Tensor internal constructor(
                 storage = this.storage.clone(),
                 layout =
                     when (val tryResult = this.layout.broadcastAs(shape)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     },
                 op = BackpropOp.new1(this, Op.Broadcast),
                 isVariable = false,
                 dtype = this.dtype,
                 device = this.device.clone(),
             )
-        return Ok(Tensor(tensor))
+        return Result.Ok(Tensor(tensor))
     }
 
     /**
@@ -3386,16 +3377,16 @@ public class Tensor internal constructor(
      */
     public fun toDtype(dtype: DType): Result<Tensor> {
         return if (this.dtype() == dtype) {
-            Ok(this.clone())
+            Result.Ok(this.clone())
         } else {
             val shape = this.shape()
             val storage =
                 when (val tryResult = this.storage().toDtype(this.layout(), dtype)) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             val op = BackpropOp.new1(this, Op.ToDType)
-            Ok(fromStorage(storage, shape.clone(), op, false))
+            Result.Ok(fromStorage(storage, shape.clone(), op, false))
         }
     }
 
@@ -3405,20 +3396,20 @@ public class Tensor internal constructor(
      */
     public fun contiguous(): Result<Tensor> {
         return if (this.isContiguous()) {
-            Ok(this.clone())
+            Result.Ok(this.clone())
         } else {
             val shape = this.shape()
             val storage =
                 when (val tryResult = this.device().allocUninit(shape, this.dtype())) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             when (val tryResult = this.storage().copyStridedSrc(storage, 0, this.layout())) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
             val op = BackpropOp.new1(this, Op.Copy)
-            Ok(fromStorage(storage, shape.clone(), op, false))
+            Result.Ok(fromStorage(storage, shape.clone(), op, false))
         }
     }
 
@@ -3429,15 +3420,15 @@ public class Tensor internal constructor(
         val shape = this.shape()
         val storage =
             when (val tryResult = this.device().allocUninit(shape, this.dtype())) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         when (val tryResult = this.storage().copyStridedSrc(storage, 0, this.layout())) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
         val op = BackpropOp.new1(this, Op.Copy)
-        return Ok(fromStorage(storage, shape.clone(), op, false))
+        return Result.Ok(fromStorage(storage, shape.clone(), op, false))
     }
 
     /**
@@ -3448,14 +3439,14 @@ public class Tensor internal constructor(
         val shape = this.shape().clone()
         val storage =
             when (val tryResult = this.device().allocUninit(shape, this.dtype())) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         when (val tryResult = this.storage().copyStridedSrc(storage, 0, this.layout())) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
-        return Ok(fromStorage(storage, shape, BackpropOp.none(), true))
+        return Result.Ok(fromStorage(storage, shape, BackpropOp.none(), true))
     }
 
     /**
@@ -3481,27 +3472,27 @@ public class Tensor internal constructor(
     public fun <S : ShapeWithOneHole> reshape(s: S): Result<Tensor> {
         val shape =
             when (val tryResult = s.intoShape(this.elemCount())) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         if (shape.elemCount() != this.elemCount()) {
-            return Err(Error.ShapeMismatchBinaryOp(lhs = this.shape().clone(), rhs = shape, op = "reshape").bt())
+            return Result.Err(Error.ShapeMismatchBinaryOp(lhs = this.shape().clone(), rhs = shape, op = "reshape").bt())
         }
         val op = BackpropOp.new1(this, Op.Reshape)
         return if (this.isContiguous()) {
             val tensor = Tensor(id = TensorId.new(), storage = this.storage.clone(), layout = Layout.contiguousWithOffset(shape, this.layout.startOffset()), op = op, isVariable = false, dtype = this.dtype, device = this.device.clone())
-            Ok(Tensor(tensor))
+            Result.Ok(Tensor(tensor))
         } else {
             val storage =
                 when (val tryResult = this.device().allocUninit(shape, this.dtype())) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             when (val tryResult = this.storage().copyStridedSrc(storage, 0, this.layout())) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
-            Ok(fromStorage(storage, shape, op, false))
+            Result.Ok(fromStorage(storage, shape, op, false))
         }
     }
 
@@ -3522,8 +3513,8 @@ public class Tensor internal constructor(
         val dims = this.dims()
         val dim1 =
             when (val tryResult = dim.toIndex(this.shape(), "squeeze")) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         return if (dims[dim1] == 1) {
             val dims1 = dims.toVec()
@@ -3531,9 +3522,9 @@ public class Tensor internal constructor(
             dims1.remove(dim1)
             strides.remove(dim1)
             val tensor = Tensor(id = TensorId.new(), storage = this.storage.clone(), layout = Layout.new(dims1.into(), strides, this.layout.startOffset()), op = BackpropOp.new1(this, Op.Reshape), isVariable = false, dtype = this.dtype, device = this.device.clone())
-            Ok(Tensor(tensor))
+            Result.Ok(Tensor(tensor))
         } else {
-            Ok(this.clone())
+            Result.Ok(this.clone())
         }
     }
 
@@ -3553,8 +3544,8 @@ public class Tensor internal constructor(
         val strides = this.stride().toVec()
         val dim1 =
             when (val tryResult = dim.toIndexPlusOne(this.shape(), "unsqueeze")) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         // Cannot panic because toIndexPlusOne already checks dimensions
         dims.insert(dim1, 1)
@@ -3568,7 +3559,7 @@ public class Tensor internal constructor(
             }
         strides.insert(dim1, stride)
         val tensor = Tensor(id = TensorId.new(), storage = this.storage.clone(), layout = Layout.new(dims.into(), strides, this.layout.startOffset()), op = BackpropOp.new1(this, Op.Reshape), isVariable = false, dtype = this.dtype, device = this.device.clone())
-        return Ok(Tensor(tensor))
+        return Result.Ok(Tensor(tensor))
     }
 
     /**
@@ -3577,53 +3568,53 @@ public class Tensor internal constructor(
      */
     public fun <D : Dim> padWithZeros(dim: D, left: Int, right: Int): Result<Tensor> {
         return if (left == 0 && right == 0) {
-            Ok(this.clone())
+            Result.Ok(this.clone())
         } else if (left == 0) {
             val dim1 =
                 when (val tryResult = dim.toIndex(this.shape(), "pad_with_zeros")) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             val dims = this.dims().toVec()
             dims[dim1] = right
             val right1 =
                 when (val tryResult = Tensor.zeros(dims.asSlice(), this.dtype, this.device())) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             Tensor.cat(listOf(this, right1), dim1)
         } else if (right == 0) {
             val dim2 =
                 when (val tryResult = dim.toIndex(this.shape(), "pad_with_zeros")) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             val dims1 = this.dims().toVec()
             dims1[dim2] = left
             val left1 =
                 when (val tryResult = Tensor.zeros(dims1.asSlice(), this.dtype, this.device())) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             Tensor.cat(listOf(left1, this), dim2)
         } else {
             val dim3 =
                 when (val tryResult = dim.toIndex(this.shape(), "pad_with_zeros")) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             val dims2 = this.dims().toVec()
             dims2[dim3] = left
             val left2 =
                 when (val tryResult = Tensor.zeros(dims2.asSlice(), this.dtype, this.device())) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             dims2[dim3] = right
             val right2 =
                 when (val tryResult = Tensor.zeros(dims2.asSlice(), this.dtype, this.device())) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             Tensor.cat(listOf(left2, this, right2), dim3)
         }
@@ -3635,14 +3626,14 @@ public class Tensor internal constructor(
      */
     public fun <D : Dim> padWithSame(dim: D, left: Int, right: Int): Result<Tensor> {
         return if (left == 0 && right == 0) {
-            Ok(this.clone())
+            Result.Ok(this.clone())
         } else if (this.elemCount() == 0) {
             bail("cannot use pad_with_same on an empty tensor")
         } else if (left == 0) {
             val dim1 =
                 when (val tryResult = dim.toIndex(this.shape(), "pad_with_same")) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             val r =
                 when (
@@ -3650,14 +3641,14 @@ public class Tensor internal constructor(
                         this.narrow(
                             dim1,
                             when (val tryResult = this.dim(dim1)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             } - 1,
                             1,
                         )
                 ) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             val v = mutableListOf(this)
             for (unused in 0 until right) {
@@ -3667,13 +3658,13 @@ public class Tensor internal constructor(
         } else if (right == 0) {
             val dim2 =
                 when (val tryResult = dim.toIndex(this.shape(), "pad_with_same")) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             val l =
                 when (val tryResult = this.narrow(dim2, 0, 1)) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             val v1 = mutableListOf()
             for (unused1 in 0 until left) {
@@ -3684,13 +3675,13 @@ public class Tensor internal constructor(
         } else {
             val dim3 =
                 when (val tryResult = dim.toIndex(this.shape(), "pad_with_same")) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             val l1 =
                 when (val tryResult = this.narrow(dim3, 0, 1)) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             val r1 =
                 when (
@@ -3698,14 +3689,14 @@ public class Tensor internal constructor(
                         this.narrow(
                             dim3,
                             when (val tryResult = this.dim(dim3)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             } - 1,
                             1,
                         )
                 ) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             val v2 = mutableListOf()
             for (unused2 in 0 until left) {
@@ -3771,13 +3762,13 @@ public class Tensor internal constructor(
         return if (rank <= axis) {
             bail("axis {axis} is too large, tensor rank {rank}")
         } else if (0L <= axis) {
-            Ok(axis.toInt())
+            Result.Ok(axis.toInt())
         } else {
             val naxis = rank + axis
             if (naxis < 0L) {
                 bail("axis {axis} is too small, tensor rank {rank}")
             }
-            Ok(naxis.toInt())
+            Result.Ok(naxis.toInt())
         }
     }
 
@@ -3790,45 +3781,45 @@ public class Tensor internal constructor(
     public fun <D : Dim> cumsum(dim: D): Result<Tensor> {
         val dim1 =
             when (val tryResult = dim.toIndex(this.shape(), "cumsum")) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val rank = this.rank()
         if (rank == 0) {
-            return Ok(this.clone())
+            return Result.Ok(this.clone())
         }
         val nAxis =
             when (val tryResult = this.dim(dim1)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val triu =
             when (val tryResult = Tensor.triu2(nAxis, this.dtype(), this.device())) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         return if (rank == 1) {
             when (
                 val tryResult =
                     when (val tryResult = this.unsqueeze(0)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }.matmul(triu)
             ) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }.squeeze(0)
         } else {
             val last = rank - 1
             val t =
                 when (val tryResult = this.transpose(dim1, last)) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             val t1 =
                 when (val tryResult = t.broadcastMatmul(triu)) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             t1.transpose(dim1, last)
         }
@@ -3851,10 +3842,10 @@ public class Tensor internal constructor(
         var src2 = src1.clone()
         var mask =
             when (val tryResult = Tensor.ones(src2.shape(), DType.U8, src2.device())) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
-        for ((i, range) in ranges.enumerate()) {
+        for ((i, range) in ranges.mapIndexed { index, item -> Pair(index, item) }) {
             val startIncluded =
                 when (val matchVal = range.startBound()) {
                     Bound.Unbounded -> 0
@@ -3890,13 +3881,13 @@ public class Tensor internal constructor(
             }
             src2 =
                 when (val tryResult = src2.padWithZeros(i, startIncluded, selfDims[i] - endExcluded)) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             mask =
                 when (val tryResult = mask.padWithZeros(i, startIncluded, selfDims[i] - endExcluded)) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
         }
         return mask.whereCond(src2, this)
@@ -3908,47 +3899,47 @@ public class Tensor internal constructor(
     public fun <D : Dims> logSumExp(sumDims: D): Result<Tensor> {
         val sumDims1 =
             when (val tryResult = sumDims.toIndexes(this.shape(), "log-sum-exp")) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         if (sumDims1.isEmpty()) {
-            return Ok(this.clone())
+            return Result.Ok(this.clone())
         }
         val max =
             when (
                 val tryResult =
                     ((sumDims1).slice(1 until sumDims1.size)).iter().tryFold(
                         when (val tryResult = this.maxKeepdim(sumDims1[0])) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         },
                         { max, dim ->
                             max.maxKeepdim(dim)
                         },
                     )
             ) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val exp =
             when (
                 val tryResult =
                     when (val tryResult = this.broadcastSub(max)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }.exp()
             ) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val sum =
             when (val tryResult = exp.sum(sumDims1.clone())) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         return when (val tryResult = sum.log()) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         } + max.squeezeDims(sumDims1)
     }
 
@@ -3960,13 +3951,13 @@ public class Tensor internal constructor(
             val tryResult =
                 rhs.mul(
                     when (val tryResult = this.log()) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     },
                 )
         ) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }.exp()
     }
 
@@ -3978,13 +3969,13 @@ public class Tensor internal constructor(
             val tryResult =
                 rhs.broadcastMul(
                     when (val tryResult = this.log()) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     },
                 )
         ) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }.exp()
     }
 
@@ -4004,22 +3995,22 @@ public class Tensor internal constructor(
         for (dim in dims) {
             val size =
                 when (val tryResult = result.dim(dim)) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
-            val indices: List<Long> = (0 until size).rev().map({ x -> x.toLong() }).collect()
+            val indices: List<Long> = (0 until size).rev().map({ x -> x.toLong() }).toMutableList()
             val indicesTensor =
                 when (val tryResult = Tensor.fromVec(indices, size, result.device())) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             result =
                 when (val tryResult = result.indexSelect(indicesTensor, dim)) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
         }
-        return Ok(result)
+        return Result.Ok(result)
     }
 
     /**
@@ -4032,8 +4023,8 @@ public class Tensor internal constructor(
         val strides = this.stride().toVec()
         val dim1 =
             when (val tryResult = dim.toIndex(this.shape(), "unfold")) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val maxLen =
             if (this.dims().isEmpty()) {
@@ -4057,59 +4048,59 @@ public class Tensor internal constructor(
             strides[dim1] *= step
         }
         val tensor = Tensor(id = TensorId.new(), storage = this.storage.clone(), layout = Layout.new(sizes.into(), strides, this.layout.startOffset()), op = BackpropOp.new1(this, Op.Reshape), isVariable = false, dtype = this.dtype, device = this.device.clone())
-        return Ok(Tensor(tensor))
+        return Result.Ok(Tensor(tensor))
     }
 
-    public fun add(rhs: B): Result<Tensor> = Tensor.add(this, rhs.borrow())
+    public fun addB(rhs: Tensor): Result<Tensor> = Tensor.add(this, rhs)
 
-    public fun add(rhs: Result<B>): Result<Tensor> {
+    public fun add(rhs: Result<Tensor>): Result<Tensor> {
         return Tensor.add(
             this,
             when (val tryResult = rhs) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }.borrow(),
         )
     }
 
     public fun add(rhs: Double): Result<Tensor> = this.affine({ 1.0(rhs) }, { v -> v(rhs) })
 
-    public fun sub(rhs: B): Result<Tensor> = Tensor.sub(this, rhs.borrow())
+    public fun subB(rhs: Tensor): Result<Tensor> = Tensor.sub(this, rhs)
 
-    public fun sub(rhs: Result<B>): Result<Tensor> {
+    public fun sub(rhs: Result<Tensor>): Result<Tensor> {
         return Tensor.sub(
             this,
             when (val tryResult = rhs) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }.borrow(),
         )
     }
 
     public fun sub(rhs: Double): Result<Tensor> = this.affine({ 1.0(rhs) }, { v: Double -> -v(rhs) })
 
-    public fun mul(rhs: B): Result<Tensor> = Tensor.mul(this, rhs.borrow())
+    public fun mulB(rhs: Tensor): Result<Tensor> = Tensor.mul(this, rhs)
 
-    public fun mul(rhs: Result<B>): Result<Tensor> {
+    public fun mul(rhs: Result<Tensor>): Result<Tensor> {
         return Tensor.mul(
             this,
             when (val tryResult = rhs) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }.borrow(),
         )
     }
 
     public fun mul(rhs: Double): Result<Tensor> = this.affine({ v -> v(rhs) }, { 0.0(rhs) })
 
-    public fun div(rhs: B): Result<Tensor> = Tensor.div(this, rhs.borrow())
+    public fun divB(rhs: Tensor): Result<Tensor> = Tensor.div(this, rhs)
 
-    public fun div(rhs: Result<B>): Result<Tensor> {
+    public fun div(rhs: Result<Tensor>): Result<Tensor> {
         return Tensor.div(
             this,
             when (val tryResult = rhs) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }.borrow(),
         )
     }
@@ -4141,15 +4132,15 @@ public class Tensor internal constructor(
             val shape1 = shape
             val storage =
                 when (val tryResult = device.allocUninit(shape1, dtype)) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             val layout = Layout.contiguous(shape1.clone())
-            when (val tryResult = storage.constSet(one(dtype), layout)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            when (val tryResult = storage.constSet(Scalar.one(dtype), layout)) {
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
-            return Ok(fromStorage(storage, shape1, none, isVariable))
+            return Result.Ok(fromStorage(storage, shape1, none, isVariable))
         }
 
         /**
@@ -4174,10 +4165,10 @@ public class Tensor internal constructor(
             val shape1 = shape
             val storage =
                 when (val tryResult = device.zeros(shape1, dtype)) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
-            return Ok(fromStorage(storage, shape1, none, isVariable))
+            return Result.Ok(fromStorage(storage, shape1, none, isVariable))
         }
 
         /**
@@ -4202,10 +4193,10 @@ public class Tensor internal constructor(
             val shape1 = shape
             val storage =
                 when (val tryResult = device.allocUninit(shape1, dtype)) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
-            return Ok(fromStorage(storage, shape1, none, isVariable))
+            return Result.Ok(fromStorage(storage, shape1, none, isVariable))
         }
 
         /**
@@ -4229,22 +4220,22 @@ public class Tensor internal constructor(
             val s1 = s
             val storage =
                 when (val tryResult = device.randUniform(lo, up, s1)) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             val none = BackpropOp.none()
-            return Ok(fromStorage(storage, s1, none, isVariable))
+            return Result.Ok(fromStorage(storage, s1, none, isVariable))
         }
 
         internal fun randF64Impl(lo: Double, up: Double, s: Shape, dtype: DType, device: Device, isVariable: Boolean): Result<Tensor> {
             val s1 = s
             val storage =
                 when (val tryResult = device.randUniformF64(lo, up, s1, dtype)) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             val none = BackpropOp.none()
-            return Ok(fromStorage(storage, s1, none, isVariable))
+            return Result.Ok(fromStorage(storage, s1, none, isVariable))
         }
 
         /**
@@ -4256,22 +4247,22 @@ public class Tensor internal constructor(
             val s1 = s
             val storage =
                 when (val tryResult = device.randNormal(mean, std, s1)) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             val none = BackpropOp.none()
-            return Ok(fromStorage(storage, s1, none, isVariable))
+            return Result.Ok(fromStorage(storage, s1, none, isVariable))
         }
 
         internal fun randnF64Impl(mean: Double, std: Double, s: Shape, dtype: DType, device: Device, isVariable: Boolean): Result<Tensor> {
             val s1 = s
             val storage =
                 when (val tryResult = device.randNormalF64(mean, std, s1, dtype)) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             val none = BackpropOp.none()
-            return Ok(fromStorage(storage, s1, none, isVariable))
+            return Result.Ok(fromStorage(storage, s1, none, isVariable))
         }
 
         /**
@@ -4284,19 +4275,19 @@ public class Tensor internal constructor(
             val n: Int = shape.elemCount()
             val bufferSize: Int =
                 when (val tryResult = array.shape()) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }.elemCount()
             if (bufferSize != n) {
-                return Err(Error.ShapeMismatch(bufferSize = bufferSize, shape = shape).bt())
+                return Result.Err(Error.ShapeMismatch(bufferSize = bufferSize, shape = shape).bt())
             }
             val storage =
                 when (val tryResult = device.storage(array)) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             val none = BackpropOp.none()
-            return Ok(fromStorage(storage, shape, none, isVariable))
+            return Result.Ok(fromStorage(storage, shape, none, isVariable))
         }
 
         /**
@@ -4305,8 +4296,8 @@ public class Tensor internal constructor(
         public fun <A : NdArray> new(array: A, device: Device): Result<Tensor> {
             val shape =
                 when (val tryResult = array.shape()) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             return Tensor.newImpl(array, shape, device, false)
         }
@@ -4326,15 +4317,15 @@ public class Tensor internal constructor(
             val shape1 = shape
             val storage =
                 when (val tryResult = device.allocUninit(shape1, D.DTYPE)) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             val layout = Layout.contiguous(shape1.clone())
             when (val tryResult = storage.constSet(value.toScalar(), layout)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
-            return Ok(fromStorage(storage, shape1, none, false))
+            return Result.Ok(fromStorage(storage, shape1, none, false))
         }
 
         /**
@@ -4401,16 +4392,16 @@ public class Tensor internal constructor(
         internal fun <S : ShapeWithOneHole, D : WithDType> fromVecImpl(data: List<D>, shape: S, device: Device, isVariable: Boolean): Result<Tensor> {
             val shape1 =
                 when (val tryResult = shape.intoShape(data.size)) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             val storage =
                 when (val tryResult = device.storageOwned(data)) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             val none = BackpropOp.none()
-            return Ok(fromStorage(storage, shape1, none, isVariable))
+            return Result.Ok(fromStorage(storage, shape1, none, isVariable))
         }
 
         /**
@@ -4442,16 +4433,16 @@ public class Tensor internal constructor(
         public fun <S : ShapeWithOneHole, D : WithDType> fromSlice(array: List<D>, shape: S, device: Device): Result<Tensor> {
             val shape1 =
                 when (val tryResult = shape.intoShape(array.size)) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             val storage =
                 when (val tryResult = device.storageFromSlice(array)) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             val none = BackpropOp.none()
-            return Ok(fromStorage(storage, shape1, none, false))
+            return Result.Ok(fromStorage(storage, shape1, none, false))
         }
 
         /**
@@ -4497,11 +4488,11 @@ public class Tensor internal constructor(
          *
          * * Will return `Err` if `args` contains less than 2 tensors.
          */
-        public fun <A : AsRef<Tensor>> meshgrid(args: List<A>, xyIndexing: Boolean): Result<List<Tensor>> {
+        public fun meshgrid(args: List<Tensor>, xyIndexing: Boolean): Result<List<Tensor>> {
             if (args.size <= 1) {
-                when (val tryResult = Err(Error.OpRequiresAtLeastTwoTensors(op = "meshgrid").bt())) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                when (val tryResult = Result.Err(Error.OpRequiresAtLeastTwoTensors(op = "meshgrid").bt())) {
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             }
             val args1: Vec =
@@ -4514,8 +4505,8 @@ public class Tensor internal constructor(
             for (arg in args1.iter()) {
                 shape.add(
                     when (val tryResult = arg.asRef().dims1()) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     },
                 )
             }
@@ -4525,22 +4516,22 @@ public class Tensor internal constructor(
                 ones[idx] = shape[idx]
                 val arg1 =
                     when (val tryResult = args1[idx].asRef().reshape(ones)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                 val repeats = shape.toMutableList()
                 repeats[idx] = 1
                 val repeatedTensor =
                     when (val tryResult = arg1.repeat(repeats)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                 grids.add(repeatedTensor)
             }
             if (xyIndexing) {
                 grids.reverse()
             }
-            return Ok(grids)
+            return Result.Ok(grids)
         }
 
         /**
@@ -4557,22 +4548,22 @@ public class Tensor internal constructor(
          * check(c1.shape().dims() == listOf(2, 3, 2))
          * ```
          */
-        public fun <A : AsRef<Tensor>, D : Dim> stack(args: List<A>, dim: D): Result<Tensor> {
+        public fun <D : Dim> stack(args: List<Tensor>, dim: D): Result<Tensor> {
             if (args.isEmpty()) {
-                when (val tryResult = Err(Error.OpRequiresAtLeastOneTensor(op = "stack").bt())) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                when (val tryResult = Result.Err(Error.OpRequiresAtLeastOneTensor(op = "stack").bt())) {
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             }
             val dim1 =
                 when (val tryResult = dim.toIndexPlusOne(args[0].asRef().shape(), "stack")) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             val args1 =
                 when (val tryResult = args.map({ t -> t.asRef().unsqueeze(dim1) }).collect<Result<Vec>>()) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             return Tensor.cat(args1, dim1)
         }
@@ -4583,34 +4574,34 @@ public class Tensor internal constructor(
         public fun tril2(n: Int, dtype: DType, device: Device): Result<Tensor> {
             val t =
                 when (val tryResult = Tensor.arange(0u, n.toUInt(), device)) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             val t1 =
                 when (
                     val tryResult =
                         when (val tryResult = t.reshape(Pair(1, n))) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }.broadcastAs(Pair(n, n))
                 ) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             val t2 =
                 when (
                     val tryResult =
                         when (val tryResult = t.reshape(Pair(n, 1))) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }.broadcastAs(Pair(n, n))
                 ) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             return when (val tryResult = t1.le(t2)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }.toDtype(dtype)
         }
 
@@ -4620,34 +4611,34 @@ public class Tensor internal constructor(
         public fun triu2(n: Int, dtype: DType, device: Device): Result<Tensor> {
             val t =
                 when (val tryResult = Tensor.arange(0u, n.toUInt(), device)) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             val t1 =
                 when (
                     val tryResult =
                         when (val tryResult = t.reshape(Pair(1, n))) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }.broadcastAs(Pair(n, n))
                 ) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             val t2 =
                 when (
                     val tryResult =
                         when (val tryResult = t.reshape(Pair(n, 1))) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }.broadcastAs(Pair(n, n))
                 ) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             return when (val tryResult = t1.ge(t2)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }.toDtype(dtype)
         }
 
@@ -4657,34 +4648,34 @@ public class Tensor internal constructor(
         public fun eye(n: Int, dtype: DType, device: Device): Result<Tensor> {
             val t =
                 when (val tryResult = Tensor.arange(0u, n.toUInt(), device)) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             val t1 =
                 when (
                     val tryResult =
                         when (val tryResult = t.reshape(Pair(1, n))) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }.broadcastAs(Pair(n, n))
                 ) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             val t2 =
                 when (
                     val tryResult =
                         when (val tryResult = t.reshape(Pair(n, 1))) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }.broadcastAs(Pair(n, n))
                 ) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             return when (val tryResult = t1.eq(t2)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }.toDtype(dtype)
         }
 
@@ -4702,81 +4693,81 @@ internal fun fromStorage(storage: Storage, shape: Shape, op: BackpropOp, isVaria
     return Tensor(tensor)
 }
 
-public fun <B : Borrow<Tensor>> Result<B>.add(rhs: Tensor): Result<Tensor> {
+public fun Result<B>.add(rhs: Tensor): Result<Tensor> {
     return Tensor.add(
         when (val tryResult = this) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }.borrow(),
         rhs,
     )
 }
 
-public fun <B : Borrow<Tensor>> Result<B>.addTensor(rhs: Tensor): Result<Tensor> {
+public fun Result<B>.addTensor(rhs: Tensor): Result<Tensor> {
     return Tensor.add(
         when (val tryResult = this) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }.borrow(),
         rhs,
     )
 }
 
-public fun <B : Borrow<Tensor>> Result<B>.sub(rhs: Tensor): Result<Tensor> {
+public fun Result<B>.sub(rhs: Tensor): Result<Tensor> {
     return Tensor.sub(
         when (val tryResult = this) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }.borrow(),
         rhs,
     )
 }
 
-public fun <B : Borrow<Tensor>> Result<B>.subTensor(rhs: Tensor): Result<Tensor> {
+public fun Result<B>.subTensor(rhs: Tensor): Result<Tensor> {
     return Tensor.sub(
         when (val tryResult = this) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }.borrow(),
         rhs,
     )
 }
 
-public fun <B : Borrow<Tensor>> Result<B>.mul(rhs: Tensor): Result<Tensor> {
+public fun Result<B>.mul(rhs: Tensor): Result<Tensor> {
     return Tensor.mul(
         when (val tryResult = this) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }.borrow(),
         rhs,
     )
 }
 
-public fun <B : Borrow<Tensor>> Result<B>.mulTensor(rhs: Tensor): Result<Tensor> {
+public fun Result<B>.mulTensor(rhs: Tensor): Result<Tensor> {
     return Tensor.mul(
         when (val tryResult = this) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }.borrow(),
         rhs,
     )
 }
 
-public fun <B : Borrow<Tensor>> Result<B>.div(rhs: Tensor): Result<Tensor> {
+public fun Result<B>.div(rhs: Tensor): Result<Tensor> {
     return Tensor.div(
         when (val tryResult = this) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }.borrow(),
         rhs,
     )
 }
 
-public fun <B : Borrow<Tensor>> Result<B>.divTensor(rhs: Tensor): Result<Tensor> {
+public fun Result<B>.divTensor(rhs: Tensor): Result<Tensor> {
     return Tensor.div(
         when (val tryResult = this) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }.borrow(),
         rhs,
     )
@@ -4796,14 +4787,14 @@ public fun Double.subTensor(rhs: Tensor): Result<Tensor> = rhs.affine(-1.0, this
 
 public fun Double.div(rhs: Tensor): Result<Tensor> {
     return when (val tryResult = rhs.recip()) {
-        is Result.Ok -> tryResult.value
-        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+        is Result.Ok<*> -> tryResult.value
+        is Result.Err<*> -> return Result.Err(tryResult.error)
     } * this
 }
 
 public fun Double.divTensor(rhs: Tensor): Result<Tensor> {
     return when (val tryResult = rhs.recip()) {
-        is Result.Ok -> tryResult.value
-        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+        is Result.Ok<*> -> tryResult.value
+        is Result.Err<*> -> return Result.Err(tryResult.error)
     } * this
 }

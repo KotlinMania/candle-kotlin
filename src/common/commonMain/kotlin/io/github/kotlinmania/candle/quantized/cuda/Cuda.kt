@@ -1,10 +1,10 @@
 // port-lint: source quantized/cuda.rs
 package io.github.kotlinmania.candle.quantized.cuda
 
+import io.github.kotlinmania.candle.cpu.Cpu
 import io.github.kotlinmania.candle.cpubackend.CpuStorage
 import io.github.kotlinmania.candle.cudabackend.CudaStorage
 import io.github.kotlinmania.candle.cudabackend.CudaStorageSlice
-import io.github.kotlinmania.candle.device.Device
 import io.github.kotlinmania.candle.dummycudabackend.CudaDevice
 import io.github.kotlinmania.candle.error.Error
 import io.github.kotlinmania.candle.error.Result
@@ -27,7 +27,6 @@ import io.github.kotlinmania.candle.quantized.kquants.BlockQ81
 import io.github.kotlinmania.candle.quantized.kquants.BlockQ8K
 import io.github.kotlinmania.candle.quantized.kquants.GgmlType
 import io.github.kotlinmania.candle.shape.Shape
-import io.github.kotlinmania.candle.storage.Storage
 import io.github.kotlinmania.candlekernels.QUANTIZED
 import io.github.kotlinmania.cudarc.driver.CudaSlice
 import io.github.kotlinmania.cudarc.driver.CudaStream
@@ -38,7 +37,6 @@ import io.github.kotlinmania.half.Bf16
 import io.github.kotlinmania.half.F16
 import io.github.kotlinmania.rustlang.core.mem.constPtrFromRustCast
 import io.github.kotlinmania.rustlang.core.ptr.ConstPtr
-import io.github.kotlinmania.rustlang.core.result.fromResidual
 import io.github.kotlinmania.candle.cudabackend.device.builderArg as barg
 
 public class PaddedCudaSlice internal constructor(
@@ -98,13 +96,13 @@ public data class QCudaStorage(
         ) {
             val inputStorage =
                 when (val tryResult = input.asCudaSlice<Float>()) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             val idsStorage =
                 when (val tryResult = ids.asCudaSlice<UInt>()) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             indexedMoeForwardFusedQ81Input(this.data.inner.slice(0 until Int.MAX_VALUE), selfShape, this.dtype(), inputStorage, inputL.shape(), idsStorage.slice(0 until Int.MAX_VALUE), idsL.shape(), this.device)
         } else {
@@ -113,7 +111,7 @@ public data class QCudaStorage(
     }
 
     public fun dequantize(elemCount: Int): Result<CudaStorage> {
-        fun deq(buffer: List<UByte>, n: Int, dst: List<Float>, toFloatTFn: (Any?) -> Any?) {
+        fun <VecDotType> deq(buffer: List<UByte>, n: Int, dst: MutableList<Float>, toFloatTFn: (Any?) -> Any?) {
             val slice = fromRawParts(constPtrFromRustCast(buffer.asPtr()), n)
             val vec = slice.toVec()
             toFloatTFn(vec, dst)
@@ -129,8 +127,8 @@ public data class QCudaStorage(
         // Run the dequantization on cpu.
         val buffer =
             when (val tryResult = this.device.cloneDtoh(this.data.inner.slice(0 until this.data.len))) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val out = mutableListOf(0.0, elemCount)
         val blockLen = elemCount / this.dtype.blockSize()
@@ -163,40 +161,40 @@ public data class QCudaStorage(
                 is CudaStorageSlice.F32 -> {
                     val (data) = matchVal
                     when (val tryResult = this.device.cloneDtoh(data)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                 }
                 else -> bail("only f32 can be quantized")
             }
         val srcLen = src1.len()
-        val src2 = Storage.Cpu(CpuStorage.F32(src1))
+        val src2 = Cpu(CpuStorage.F32(src1))
         val qcpuStorage =
-            when (val tryResult = Device.Cpu.qzeros(srcLen, this.dtype)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            when (val tryResult = Cpu.qzeros(srcLen, this.dtype)) {
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         when (val tryResult = qcpuStorage.quantize(src2)) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
         val data1 =
             when (val tryResult = qcpuStorage.data()) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val paddedLen = data1.len() + MATRIX_ROW_PADDING * this.dtype.typeSize() / this.dtype.blockSize()
         var inner =
             when (val tryResult = this.device.alloc<UByte>(paddedLen)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         when (val tryResult = this.device.memcpyHtod(data1, inner.sliceMut(0 until data1.len()))) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
         this.data = PaddedCudaSlice(inner = inner, len = data1.len())
-        return Ok(Unit)
+        return Result.Ok(Unit)
     }
 
     public fun quantizeImatrix(src: CudaStorage, imatrixWeights: List<Float>, nPerRow: Int): Result<Unit> {
@@ -206,60 +204,60 @@ public data class QCudaStorage(
                 is CudaStorageSlice.F32 -> {
                     val (data) = matchVal
                     when (val tryResult = this.device.cloneDtoh(data)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                 }
                 else -> bail("only f32 can be quantized")
             }
         val srcLen = src1.len()
-        val src2 = Storage.Cpu(CpuStorage.F32(src1))
+        val src2 = Cpu(CpuStorage.F32(src1))
         val qcpuStorage =
-            when (val tryResult = Device.Cpu.qzeros(srcLen, this.dtype)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            when (val tryResult = Cpu.qzeros(srcLen, this.dtype)) {
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         when (val tryResult = qcpuStorage.quantizeImatrix(src2, imatrixWeights, nPerRow)) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
         val data1 =
             when (val tryResult = qcpuStorage.data()) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val paddedLen = data1.len() + MATRIX_ROW_PADDING * this.dtype.typeSize() / this.dtype.blockSize()
         var inner =
             when (val tryResult = this.device.alloc<UByte>(paddedLen)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         when (val tryResult = this.device.memcpyHtod(data1, inner.sliceMut(0 until data1.len()))) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
         this.data = PaddedCudaSlice(inner = inner, len = data1.len())
-        return Ok(Unit)
+        return Result.Ok(Unit)
     }
 
     public fun quantizeImatrixOnto(src: CpuStorage, imatrixWeights: List<Float>, nPerRow: Int): Result<Unit> {
         // Run the quantization on cpu.
         val srcLen =
             when (val tryResult = src.asSlice<Float>()) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }.len()
         val qcpuStorage =
-            when (val tryResult = Device.Cpu.qzeros(srcLen, this.dtype)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            when (val tryResult = Cpu.qzeros(srcLen, this.dtype)) {
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         if (qcpuStorage is QStorage.Cpu) {
             val (storage) = qcpuStorage
             storage.fromFloatImatrix(
                 when (val tryResult = src.asSlice<Float>()) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 },
                 imatrixWeights,
                 nPerRow,
@@ -269,41 +267,41 @@ public data class QCudaStorage(
         }
         val data =
             when (val tryResult = qcpuStorage.data()) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val paddedLen = data.len() + MATRIX_ROW_PADDING * this.dtype.typeSize() / this.dtype.blockSize()
         var inner =
             when (val tryResult = this.device.alloc<UByte>(paddedLen)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         when (val tryResult = this.device.memcpyHtod(data, inner.sliceMut(0 until data.len()))) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
         this.data = PaddedCudaSlice(inner = inner, len = data.len())
-        return Ok(Unit)
+        return Result.Ok(Unit)
     }
 
     public fun quantizeOnto(src: CpuStorage): Result<Unit> {
         // Run the quantization on cpu.
         val srcLen =
             when (val tryResult = src.asSlice<Float>()) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }.len()
         val qcpuStorage =
-            when (val tryResult = Device.Cpu.qzeros(srcLen, this.dtype)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            when (val tryResult = Cpu.qzeros(srcLen, this.dtype)) {
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         if (qcpuStorage is QStorage.Cpu) {
             val (storage) = qcpuStorage
             storage.fromFloat(
                 when (val tryResult = src.asSlice<Float>()) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 },
             )
         } else {
@@ -311,21 +309,21 @@ public data class QCudaStorage(
         }
         val data =
             when (val tryResult = qcpuStorage.data()) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val paddedLen = data.len() + MATRIX_ROW_PADDING * this.dtype.typeSize() / this.dtype.blockSize()
         var inner =
             when (val tryResult = this.device.alloc<UByte>(paddedLen)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         when (val tryResult = this.device.memcpyHtod(data, inner.sliceMut(0 until data.len()))) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
         this.data = PaddedCudaSlice(inner = inner, len = data.len())
-        return Ok(Unit)
+        return Result.Ok(Unit)
     }
 
     public fun storageSizeInBytes(): Int = this.data.len
@@ -343,15 +341,15 @@ public data class QCudaStorage(
         }
         val ids1 =
             when (val tryResult = ids.asCudaSlice<UInt>()) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val ids2 =
             when (val matchVal = idsL.contiguousOffsets()) {
                 null ->
-                    when (val tryResult = Err(Error.RequiresContiguous(op = "quantized-embedding").bt())) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    when (val tryResult = Result.Err(Error.RequiresContiguous(op = "quantized-embedding").bt())) {
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                 else -> {
                     val o1 = matchVal.first
@@ -368,14 +366,14 @@ public data class QCudaStorage(
             when (
                 val matchVal =
                     when (val tryResult = tryFwd(this, selfShape, storage, layout)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
             ) {
                 null -> {}
                 else -> {
                     val result = matchVal
-                    return Ok(result)
+                    return Result.Ok(result)
                 }
             }
             when (
@@ -385,14 +383,14 @@ public data class QCudaStorage(
                             io.github.kotlinmania.candle.quantized.fastmmq
                                 .tryFwd(this, selfShape, storage, layout)
                     ) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
             ) {
                 null -> {}
                 else -> {
                     val result1 = matchVal1
-                    return Ok(result1)
+                    return Result.Ok(result1)
                 }
             }
         }
@@ -427,7 +425,7 @@ public data class QCudaStorage(
     }
 
     public fun devicePtr(): Result<ConstPtr> =
-        Ok(
+        Result.Ok(
             constPtrFromRustCast(
                 this.data.inner
                     .devicePtr(this.data.inner.stream())
@@ -437,26 +435,26 @@ public data class QCudaStorage(
 
     public fun devicePtrWithGuard(stream: CudaStream): Result<Pair<ConstPtr, SyncOnDrop>> {
         val (ptr, guard) = this.data.inner.devicePtr(stream)
-        return Ok(Pair(constPtrFromRustCast(ptr), guard))
+        return Result.Ok(Pair(constPtrFromRustCast(ptr), guard))
     }
 
     public fun dequantizeMatmulVec(selfShape: Shape, rhs: CudaStorage, rhsL: Layout): Result<Pair<CudaStorage, Shape>> {
         val (nrows, ncols) =
             when (val tryResult = selfShape.dims2()) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val rhs1 =
             when (val tryResult = rhs.asCudaSlice<Float>()) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val rhs2 =
             when (val matchVal = rhsL.contiguousOffsets()) {
                 null ->
-                    when (val tryResult = Err(Error.RequiresContiguous(op = "dmmv").bt())) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    when (val tryResult = Result.Err(Error.RequiresContiguous(op = "dmmv").bt())) {
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                 else -> {
                     val o1 = matchVal.first
@@ -488,26 +486,26 @@ public data class QCudaStorage(
         val out =
             if (FORCE_DMMV.load(Ordering.Relaxed)) {
                 when (val tryResult = dequantizeMulMatVec(this.data, rhs2, this.dtype, ncols, nrows, this.device())) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             } else {
                 when (val tryResult = mulMatVecViaQ81(this.data, rhs2, this.dtype, ncols, nrows, bSize, this.device())) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             }
         val outShape = rhsL.shape().dims().toVec()
         outShape.pop()
         outShape.push(nrows)
-        return Ok(Pair(out, outShape.into()))
+        return Result.Ok(Pair(out, outShape.into()))
     }
 
     public fun dequantizeMatmul(selfShape: Shape, storage: CudaStorage, layout: Layout): Result<Pair<CudaStorage, Shape>> {
         val (n, k) =
             when (val tryResult = selfShape.dims2()) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val (b1, m2, k22) =
             run {
@@ -537,30 +535,30 @@ public data class QCudaStorage(
             if (FORCE_DMMV.load(Ordering.Relaxed)) {
                 val dataF32 =
                     when (val tryResult = this.dequantize(n * k)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                 val rhsL =
                     when (val tryResult = Layout.new(Pair(k, n).into(), mutableListOf(1, k), 0).broadcastAs(Triple(b1, k, n))) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                 when (val tryResult = storage.matmul(dataF32, listOf(b1, m2, n, k), layout, rhsL)) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             } else {
                 val storage1 =
                     when (val tryResult = storage.asCudaSlice<Float>()) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                 val storage2 =
                     when (val matchVal1 = layout.contiguousOffsets()) {
                         null ->
-                            when (val tryResult = Err(Error.RequiresContiguous(op = "quantized-matmul").bt())) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            when (val tryResult = Result.Err(Error.RequiresContiguous(op = "quantized-matmul").bt())) {
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         else -> {
                             val o1 = matchVal1.first
@@ -569,14 +567,14 @@ public data class QCudaStorage(
                         }
                     }
                 when (val tryResult = mulMatViaQ81(this.data, storage2, this.dtype, n, k, k, b1 * m2, this.device())) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             }
         val outShape = layout.shape().dims().toVec()
         outShape.pop()
         outShape.push(n)
-        return Ok(Pair(out, outShape.into()))
+        return Result.Ok(Pair(out, outShape.into()))
     }
 
     public companion object {
@@ -585,10 +583,10 @@ public data class QCudaStorage(
             val paddedSizeInBytes = ceilDiv(elCount + MATRIX_ROW_PADDING, dtype.blockSize()) * dtype.typeSize()
             val inner =
                 when (val tryResult = device.allocZeros<UByte>(paddedSizeInBytes)) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
-            return Ok(QCudaStorage(data = PaddedCudaSlice(inner = inner, len = sizeInBytes), device = device.clone(), dtype = dtype))
+            return Result.Ok(QCudaStorage(data = PaddedCudaSlice(inner = inner, len = sizeInBytes), device = device.clone(), dtype = dtype))
         }
     }
 }
@@ -637,8 +635,8 @@ public fun quantizeQ81(src: CudaView<Float>, dst: CudaSlice<UByte>, k: Int, ky: 
     // gridDim.y limit
     val func =
         when (val tryResult = dev.getOrLoadFunc("quantize_q8_1", QUANTIZED)) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
     var rowsProcessed = 0
     while (rowsProcessed < totalRows) {
@@ -660,12 +658,12 @@ public fun quantizeQ81(src: CudaView<Float>, dst: CudaSlice<UByte>, k: Int, ky: 
         builder.arg(dstChunk)
         barg(builder, k, kxPadded)
         when (val tryResult = builder.launch(cfg).w()) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
         rowsProcessed += rowsInChunk
     }
-    return Ok(Unit)
+    return Result.Ok(Unit)
 }
 
 public fun dequantizeF32(data: PaddedCudaSlice, dtype: GgmlDType, elemCount: Int, dev: CudaDevice): Result<CudaStorage> {
@@ -687,13 +685,13 @@ public fun dequantizeF32(data: PaddedCudaSlice, dtype: GgmlDType, elemCount: Int
         }
     val func =
         when (val tryResult = dev.getOrLoadFunc(kernelName, QUANTIZED)) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
     val dst =
         when (val tryResult = dev.alloc<Float>(elemCount)) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
     // See e.g.
     // https://github.com/ggerganov/llama.cpp/blob/cbbd1efa06f8c09f9dff58ff9d9af509cc4c152b/ggml-cuda.cu#L7270
@@ -703,8 +701,8 @@ public fun dequantizeF32(data: PaddedCudaSlice, dtype: GgmlDType, elemCount: Int
         builder.arg(data.inner)
         builder.arg(dst)
         when (val tryResult = builder.launch(cfg).w()) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
     } else {
         val nb32 =
@@ -717,11 +715,11 @@ public fun dequantizeF32(data: PaddedCudaSlice, dtype: GgmlDType, elemCount: Int
         builder1.arg(dst)
         barg(builder1, nb32.toInt())
         when (val tryResult = builder1.launch(cfg).w()) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
     }
-    return Ok(CudaStorage.wrapCudaSlice(dst, dev.clone()))
+    return Result.Ok(CudaStorage.wrapCudaSlice(dst, dev.clone()))
 }
 
 public fun dequantizeF16(data: PaddedCudaSlice, dtype: GgmlDType, elemCount: Int, dev: CudaDevice): Result<CudaStorage> {
@@ -743,13 +741,13 @@ public fun dequantizeF16(data: PaddedCudaSlice, dtype: GgmlDType, elemCount: Int
         }
     val func =
         when (val tryResult = dev.getOrLoadFunc(kernelName, QUANTIZED)) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
     val dst =
         when (val tryResult = dev.alloc<F16>(elemCount)) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
     // See e.g.
     // https://github.com/ggerganov/llama.cpp/blob/cbbd1efa06f8c09f9dff58ff9d9af509cc4c152b/ggml-cuda.cu#L7270
@@ -759,8 +757,8 @@ public fun dequantizeF16(data: PaddedCudaSlice, dtype: GgmlDType, elemCount: Int
         builder.arg(data.inner)
         builder.arg(dst)
         when (val tryResult = builder.launch(cfg).w()) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
     } else {
         val nb32 =
@@ -773,11 +771,11 @@ public fun dequantizeF16(data: PaddedCudaSlice, dtype: GgmlDType, elemCount: Int
         builder1.arg(dst)
         barg(builder1, nb32.toInt())
         when (val tryResult = builder1.launch(cfg).w()) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
     }
-    return Ok(CudaStorage.wrapCudaSlice(dst, dev.clone()))
+    return Result.Ok(CudaStorage.wrapCudaSlice(dst, dev.clone()))
 }
 
 public fun getRows(data: PaddedCudaSlice, dtype: GgmlDType, hidden: Int, ids: CudaView<UInt>, dev: CudaDevice): Result<CudaStorage> {
@@ -800,17 +798,17 @@ public fun getRows(data: PaddedCudaSlice, dtype: GgmlDType, hidden: Int, ids: Cu
         }
     val func =
         when (val tryResult = dev.getOrLoadFunc(kernelName, QUANTIZED)) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
     val idsLen = ids.len()
     val dst =
         when (val tryResult = dev.alloc<Float>(idsLen * hidden)) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
     if (idsLen == 0) {
-        return Ok(CudaStorage.wrapCudaSlice(dst, dev.clone()))
+        return Result.Ok(CudaStorage.wrapCudaSlice(dst, dev.clone()))
     }
     if (!canStrideY && blockNumY > UShort.MAX_VALUE.toInt()) {
         bail("quantized embedding hidden size {hidden} exceeds CUDA grid y limit")
@@ -829,10 +827,10 @@ public fun getRows(data: PaddedCudaSlice, dtype: GgmlDType, hidden: Int, ids: Cu
     builder.arg(dst)
     barg(builder, hidden.toLong(), rowStride)
     when (val tryResult = builder.launch(cfg).w()) {
-        is Result.Ok -> tryResult.value
-        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+        is Result.Ok<*> -> tryResult.value
+        is Result.Err<*> -> return Result.Err(tryResult.error)
     }
-    return Ok(CudaStorage.wrapCudaSlice(dst, dev.clone()))
+    return Result.Ok(CudaStorage.wrapCudaSlice(dst, dev.clone()))
 }
 
 public fun dequantizeMulMatVec(data: PaddedCudaSlice, y: CudaView<Float>, dtype: GgmlDType, ncols: Int, nrows: Int, dev: CudaDevice): Result<CudaStorage> {
@@ -859,13 +857,13 @@ public fun dequantizeMulMatVec(data: PaddedCudaSlice, y: CudaView<Float>, dtype:
         }
     val func =
         when (val tryResult = dev.getOrLoadFunc(kernelName, QUANTIZED)) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
     val dst =
         when (val tryResult = dev.alloc<Float>(nrows)) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
     val blockNumY = ceilDiv(nrows, GGML_CUDA_MMV_Y)
     val cfg = LaunchConfig(gridDim = Triple(blockNumY.toUInt(), 1, 1), blockDim = Triple(WARP_SIZE.toUInt(), GGML_CUDA_MMV_Y.toUInt(), 1), sharedMemBytes = 0)
@@ -875,10 +873,10 @@ public fun dequantizeMulMatVec(data: PaddedCudaSlice, y: CudaView<Float>, dtype:
     builder.arg(dst)
     barg(builder, ncols, nrows)
     when (val tryResult = builder.launch(cfg).w()) {
-        is Result.Ok -> tryResult.value
-        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+        is Result.Ok<*> -> tryResult.value
+        is Result.Err<*> -> return Result.Err(tryResult.error)
     }
-    return Ok(CudaStorage.wrapCudaSlice(dst, dev.clone()))
+    return Result.Ok(CudaStorage.wrapCudaSlice(dst, dev.clone()))
 }
 
 public fun mulMatVecViaQ81(data: PaddedCudaSlice, y: CudaView<Float>, dtype: GgmlDType, ncols: Int, nrows: Int, bSize: Int, dev: CudaDevice): Result<CudaStorage> {
@@ -897,12 +895,12 @@ public fun mulMatVecViaQ81(data: PaddedCudaSlice, y: CudaView<Float>, dtype: Ggm
     val ySizeInBytes = bSize * ncolsPadded * GgmlDType.Q8_1.typeSize() / GgmlDType.Q8_1.blockSize()
     val yQ81 =
         when (val tryResult = dev.allocZeros<UByte>(ySizeInBytes)) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
     when (val tryResult = quantizeQ81(y, yQ81, ncols, bSize, dev)) {
-        is Result.Ok -> tryResult.value
-        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+        is Result.Ok<*> -> tryResult.value
+        is Result.Err<*> -> return Result.Err(tryResult.error)
     }
     val kernelName =
         when (dtype) {
@@ -921,13 +919,13 @@ public fun mulMatVecViaQ81(data: PaddedCudaSlice, y: CudaView<Float>, dtype: Ggm
     val kernelName1 = "$kernelName$bSize"
     val func =
         when (val tryResult = dev.getOrLoadFunc(kernelName1, QUANTIZED)) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
     val dst =
         when (val tryResult = dev.allocZeros<Float>(nrows * bSize)) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
     // https://github.com/ggerganov/llama.cpp/blob/facb8b56f8fd3bb10a693bf0943ae9d69d0828ef/ggml-cuda/mmvq.cu#L98
     val (nblocks, nwarps) =
@@ -948,10 +946,10 @@ public fun mulMatVecViaQ81(data: PaddedCudaSlice, y: CudaView<Float>, dtype: Ggm
     builder.arg(dst)
     barg(builder, ncols, nrows, ncolsPadded, nrows)
     when (val tryResult = builder.launch(cfg).w()) {
-        is Result.Ok -> tryResult.value
-        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+        is Result.Ok<*> -> tryResult.value
+        is Result.Err<*> -> return Result.Err(tryResult.error)
     }
-    return Ok(CudaStorage.wrapCudaSlice(dst, dev.clone()))
+    return Result.Ok(CudaStorage.wrapCudaSlice(dst, dev.clone()))
 }
 
 public fun mulMatViaQ81(data: PaddedCudaSlice, y: CudaView<Float>, dtype: GgmlDType, xRows: Int, xCols: Int, yRows: Int, yCols: Int, dev: CudaDevice): Result<CudaStorage> {
@@ -971,12 +969,12 @@ public fun mulMatViaQ81(data: PaddedCudaSlice, y: CudaView<Float>, dtype: GgmlDT
     val ySizeInBytes = kPadded * yCols * GgmlDType.Q8_1.typeSize() / GgmlDType.Q8_1.blockSize()
     val yQ81 =
         when (val tryResult = dev.allocZeros<UByte>(ySizeInBytes)) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
     when (val tryResult = quantizeQ81(y, yQ81, k, yCols, dev)) {
-        is Result.Ok -> tryResult.value
-        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+        is Result.Ok<*> -> tryResult.value
+        is Result.Err<*> -> return Result.Err(tryResult.error)
     }
     val (kernelName, mmqX, mmqY) =
         when (dtype) {
@@ -994,13 +992,13 @@ public fun mulMatViaQ81(data: PaddedCudaSlice, y: CudaView<Float>, dtype: GgmlDT
         }
     val func =
         when (val tryResult = dev.getOrLoadFunc(kernelName, QUANTIZED)) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
     val dst =
         when (val tryResult = dev.allocZeros<Float>(xRows * yCols)) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
     val cfg = LaunchConfig(gridDim = Triple(ceilDiv(xRows, mmqY).toUInt(), ceilDiv(yCols, mmqX).toUInt(), 1), blockDim = Triple(WARP_SIZE.toUInt(), 4, 1), sharedMemBytes = 0)
     val builder = func.builder()
@@ -1009,17 +1007,17 @@ public fun mulMatViaQ81(data: PaddedCudaSlice, y: CudaView<Float>, dtype: GgmlDT
     builder.arg(dst)
     barg(builder, xCols, xRows, yCols, kPadded, xRows)
     when (val tryResult = builder.launch(cfg).w()) {
-        is Result.Ok -> tryResult.value
-        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+        is Result.Ok<*> -> tryResult.value
+        is Result.Err<*> -> return Result.Err(tryResult.error)
     }
-    return Ok(CudaStorage.wrapCudaSlice(dst, dev.clone()))
+    return Result.Ok(CudaStorage.wrapCudaSlice(dst, dev.clone()))
 }
 
 public fun indexedMoeForwardFusedQ81Input(weight: CudaView<UByte>, wShape: Shape, wDtype: GgmlDType, input: CudaSlice<Float>, inShape: Shape, ids: CudaView<UInt>, idxShape: Shape, dev: CudaDevice): Result<Pair<CudaStorage, Shape>> {
     val (_, n, k) =
         when (val tryResult = wShape.dims3()) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
     val batch = inShape.dims()[0]
     val inputDim1 = inShape.dims()[1]
@@ -1037,20 +1035,20 @@ public fun indexedMoeForwardFusedQ81Input(weight: CudaView<UByte>, wShape: Shape
     val ySizeInBytes = totalRows * dstRowSizeBytes
     val inputQuant =
         when (val tryResult = dev.allocZeros<UByte>(ySizeInBytes)) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
     val inputView = input.slice(0 until Int.MAX_VALUE)
     when (val tryResult = quantizeQ81(inputView, inputQuant, k, totalRows, dev)) {
-        is Result.Ok -> tryResult.value
-        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+        is Result.Ok<*> -> tryResult.value
+        is Result.Err<*> -> return Result.Err(tryResult.error)
     }
     // output buffer
     val outsize = batch * topk * n
     val out =
         when (val tryResult = dev.allocZeros<Float>(outsize)) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
     val kernelName =
         when (wDtype) {
@@ -1064,8 +1062,8 @@ public fun indexedMoeForwardFusedQ81Input(weight: CudaView<UByte>, wShape: Shape
         }
     val func =
         when (val tryResult = dev.getOrLoadFunc(kernelName, QUANTIZED)) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
     val (nblocks, nwarps) = Pair(n.toUInt(), 4)
     val cfg = LaunchConfig(gridDim = Triple(nblocks, batch.toUInt(), topk.toUInt()), blockDim = Triple(WARP_SIZE.toUInt(), nwarps, 1), sharedMemBytes = 0)
@@ -1076,28 +1074,28 @@ public fun indexedMoeForwardFusedQ81Input(weight: CudaView<UByte>, wShape: Shape
     builder.arg(out)
     barg(builder, n.toInt(), k.toInt(), batch.toInt(), topk.toInt(), kPadded, inputDim1.toInt())
     when (val tryResult = builder.launch(cfg).w()) {
-        is Result.Ok -> tryResult.value
-        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+        is Result.Ok<*> -> tryResult.value
+        is Result.Err<*> -> return Result.Err(tryResult.error)
     }
     val outShape = inShape.dims().toVec()
     outShape.pop()
     outShape.push(n)
     outShape[1] = topk
-    return Ok(Pair(CudaStorage.wrapCudaSlice(out, dev.clone()), outShape.into()))
+    return Result.Ok(Pair(CudaStorage.wrapCudaSlice(out, dev.clone()), outShape.into()))
 }
 
-public fun <T : GgmlType> loadQuantized(device: CudaDevice, data: List<T>): Result<QStorage> {
+public fun <VecDotType, T : GgmlType> loadQuantized(device: CudaDevice, data: List<T>): Result<QStorage> {
     val data1 = fromRawParts(constPtrFromRustCast(data.asPtr()), sizeOfVal(data))
     val dtype = T.DTYPE
     val paddedLen = data1.len() + MATRIX_ROW_PADDING * dtype.typeSize() / dtype.blockSize()
     var inner =
         when (val tryResult = device.allocZeros<UByte>(paddedLen)) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
     when (val tryResult = device.memcpyHtod(data1, inner.sliceMut(0 until data1.len()))) {
-        is Result.Ok -> tryResult.value
-        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+        is Result.Ok<*> -> tryResult.value
+        is Result.Err<*> -> return Result.Err(tryResult.error)
     }
-    return Ok(QStorage.Cuda(QCudaStorage(data = PaddedCudaSlice(inner = inner, len = data1.len()), device = device.clone(), dtype = dtype)))
+    return Result.Ok(QStorage.Cuda(QCudaStorage(data = PaddedCudaSlice(inner = inner, len = data1.len()), device = device.clone(), dtype = dtype)))
 }

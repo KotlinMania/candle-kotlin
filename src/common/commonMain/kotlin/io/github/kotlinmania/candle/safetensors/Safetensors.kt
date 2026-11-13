@@ -20,12 +20,10 @@ import io.github.kotlinmania.float8.F8e4m3
 import io.github.kotlinmania.half.Bf16
 import io.github.kotlinmania.half.F16
 import io.github.kotlinmania.memmap2.Mmap
+import io.github.kotlinmania.memmap2.MmapOptions
 import io.github.kotlinmania.rustlang.core.mem.TypeLayout
 import io.github.kotlinmania.rustlang.core.mem.constPtrFromRustCast
 import io.github.kotlinmania.rustlang.core.mem.mutPtrFromRustCast
-import io.github.kotlinmania.rustlang.core.result.fromResidual
-import io.github.kotlinmania.rustlang.std.borrow.Cow
-import io.github.kotlinmania.rustlang.std.path.Path
 import io.github.kotlinmania.yoke.Yoke
 import io.github.kotlinmania.safetensors.tensor as st
 
@@ -60,23 +58,23 @@ public fun fromDtype(value: DType): st.Dtype =
 
 public fun tryFromDType(value: st.Dtype): Result<DType> =
     when (value) {
-        st.Dtype.u8 -> Ok(DType.U8)
-        st.Dtype.u32 -> Ok(DType.U32)
-        st.Dtype.i16 -> Ok(DType.I16)
-        st.Dtype.i32 -> Ok(DType.I32)
-        st.Dtype.i64 -> Ok(DType.I64)
-        st.Dtype.bf16 -> Ok(DType.BF16)
-        st.Dtype.f16 -> Ok(DType.F16)
-        st.Dtype.f32 -> Ok(DType.F32)
-        st.Dtype.f64 -> Ok(DType.F64)
-        st.Dtype.f8E4m3 -> Ok(DType.F8E4M3)
-        st.Dtype.f6E2m3 -> Ok(DType.F6E2M3)
-        st.Dtype.f6E3m2 -> Ok(DType.F6E3M2)
-        st.Dtype.f4 -> Ok(DType.F4)
-        st.Dtype.f8E8m0 -> Ok(DType.F8E8M0)
+        st.Dtype.u8 -> Result.Ok(DType.U8)
+        st.Dtype.u32 -> Result.Ok(DType.U32)
+        st.Dtype.i16 -> Result.Ok(DType.I16)
+        st.Dtype.i32 -> Result.Ok(DType.I32)
+        st.Dtype.i64 -> Result.Ok(DType.I64)
+        st.Dtype.bf16 -> Result.Ok(DType.BF16)
+        st.Dtype.f16 -> Result.Ok(DType.F16)
+        st.Dtype.f32 -> Result.Ok(DType.F32)
+        st.Dtype.f64 -> Result.Ok(DType.F64)
+        st.Dtype.f8E4m3 -> Result.Ok(DType.F8E4M3)
+        st.Dtype.f6E2m3 -> Result.Ok(DType.F6E2M3)
+        st.Dtype.f6E3m2 -> Result.Ok(DType.F6E3M2)
+        st.Dtype.f4 -> Result.Ok(DType.F4)
+        st.Dtype.f8E8m0 -> Result.Ok(DType.F8E8M0)
         else -> {
             val dtype = value
-            Err(Error.UnsupportedSafeTensorDtype(dtype))
+            Result.Err(Error.UnsupportedSafeTensorDtype(dtype))
         }
     }
 
@@ -84,10 +82,10 @@ public fun Tensor.dtypeView(): st.Dtype = this.dtype().into()
 
 public fun Tensor.shapeView(): List<Int> = this.shape().dims()
 
-public fun Tensor.data(): Cow<List<UByte>> {
+public fun Tensor.data(): List<UByte> {
     // This copies data from GPU to CPU.
     // Note: Avoid the unwrap here.
-    return Cow.Owned(convertBack(this).unwrap())
+    return convertBack(this).unwrap()
 }
 
 public fun Tensor.dataLen(): Int {
@@ -100,12 +98,12 @@ public fun Tensor.dtype(): st.Dtype = this.dtype().into()
 
 public fun Tensor.shape(): List<Int> = this.dims()
 
-public fun <P : AsRef<Path>> Tensor.saveSafetensors(name: String, filename: P): Result<Unit> {
+public fun Tensor.saveSafetensors(name: String, filename: Path): Result<Unit> {
     val data = listOf(Pair(name, this.clone()))
-    return Ok(
-        when (val tryResult = st.serializeToFile(data, null, filename.asRef())) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+    return Result.Ok(
+        when (val tryResult = st.serializeToFile(data, null, filename)) {
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         },
     )
 }
@@ -143,8 +141,8 @@ public fun <T, U : WithDType> convertSliceWithCast(data: List<UByte>, shape: Lis
         val data1: List<T> = fromRawParts(constPtrFromRustCast(data.asPtr()), elemCount)
         val data2 =
             when (val tryResult = data1.map({ t -> conv(t) }).collect<Result<Vec>>()) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         Tensor.fromVec(data2, shape, device)
     } else {
@@ -161,8 +159,8 @@ public fun <T, U : WithDType> convertSliceWithCast(data: List<UByte>, shape: Lis
         }
         val c1 =
             when (val tryResult = c.map(conv).collect<Result<Vec>>()) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         Tensor.fromVec(c1, shape, device)
     }
@@ -223,12 +221,12 @@ public fun Tensor.Companion.fromRawBuffer(data: List<UByte>, dtype: DType, shape
                         val (device1) = device
                         var slice =
                             when (val tryResult = device1.alloc<UByte>(data.size)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         when (val tryResult = device1.memcpyHtod(data, slice)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                         val slice1 =
                             when (dtype) {
@@ -252,15 +250,15 @@ public fun Tensor.Companion.fromRawBuffer(data: List<UByte>, dtype: DType, shape
                                         .withLabel("safetensors_view")
                                         .build()
                             ) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         val storage1 = MetalStorage.new(buffer, device2.clone(), data.size, dtype)
                         Storage.Metal(storage1)
                     }
                 }
             val op = BackpropOp.none()
-            Ok(fromStorage(storage2, shape, op, false))
+            Result.Ok(fromStorage(storage2, shape, op, false))
         }
     }
 }
@@ -297,12 +295,12 @@ public fun convertDummy(view: st.TensorView, device: Device): Result<Tensor> {
                 val (device1) = device
                 var slice =
                     when (val tryResult = device1.alloc<UByte>(data.len())) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                 when (val tryResult = device1.memcpyHtod(data, slice)) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
                 val slice1 =
                     when (dtype) {
@@ -326,8 +324,8 @@ public fun convertDummy(view: st.TensorView, device: Device): Result<Tensor> {
                                 .withLabel("safetensors_load")
                                 .build()
                     ) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                 val storage1 = MetalStorage.new(buffer, device2.clone(), data.len(), dtype)
                 Storage.Metal(storage1)
@@ -335,139 +333,143 @@ public fun convertDummy(view: st.TensorView, device: Device): Result<Tensor> {
         }
     // Create tensor with correct dtype
     val op = BackpropOp.none()
-    return Ok(fromStorage(storage2, shape, op, false))
+    return Result.Ok(fromStorage(storage2, shape, op, false))
 }
 
 public fun convertBack(tensor: Tensor): Result<List<UByte>> {
     // Note: This makes an unnecessary copy when the tensor is on the cpu.
     val tensor1 =
         when (val tryResult = tensor.flattenAll()) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
     return when (tensor1.dtype()) {
         DType.u8 ->
-            Ok(
+            Result.Ok(
                 convertBack<UByte>(
                     when (val tryResult = tensor1.toVec1()) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     },
                 ),
             )
         DType.u32 ->
-            Ok(
+            Result.Ok(
                 convertBack<UInt>(
                     when (val tryResult = tensor1.toVec1()) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     },
                 ),
             )
         DType.i16 ->
-            Ok(
+            Result.Ok(
                 convertBack<Short>(
                     when (val tryResult = tensor1.toVec1()) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     },
                 ),
             )
         DType.i32 ->
-            Ok(
+            Result.Ok(
                 convertBack<Int>(
                     when (val tryResult = tensor1.toVec1()) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     },
                 ),
             )
         DType.i64 ->
-            Ok(
+            Result.Ok(
                 convertBack<Long>(
                     when (val tryResult = tensor1.toVec1()) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     },
                 ),
             )
         DType.f16 ->
-            Ok(
+            Result.Ok(
                 convertBack<F16>(
                     when (val tryResult = tensor1.toVec1()) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     },
                 ),
             )
         DType.bf16 ->
-            Ok(
+            Result.Ok(
                 convertBack<Bf16>(
                     when (val tryResult = tensor1.toVec1()) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     },
                 ),
             )
         DType.f32 ->
-            Ok(
+            Result.Ok(
                 convertBack<Float>(
                     when (val tryResult = tensor1.toVec1()) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     },
                 ),
             )
         DType.f64 ->
-            Ok(
+            Result.Ok(
                 convertBack<Double>(
                     when (val tryResult = tensor1.toVec1()) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     },
                 ),
             )
         DType.f8e4m3 ->
-            Ok(
+            Result.Ok(
                 convertBack<F8e4m3>(
                     when (val tryResult = tensor1.toVec1()) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     },
                 ),
             )
         DType.f6e2m3, DType.f6e3m2, DType.f4, DType.f8e8m0 -> {
-            Err(Error.Msg("Internal error: dtype mismatch in storage".toString()).bt())
+            Result.Err(Error.Msg("Internal error: dtype mismatch in storage".toString()).bt())
         }
     }
 }
 
-public fun <P : AsRef<Path>> load(filename: P, device: Device): Result<Map<String, Tensor>> {
+public fun load(filename: Path, device: Device): Result<MutableMap<String, Tensor>> {
     val data =
-        when (val tryResult = read(filename.asRef())) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+        when (val tryResult = read(filename)) {
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
     return loadBuffer(data, device)
 }
 
-public fun loadBuffer(data: List<UByte>, device: Device): Result<Map<String, Tensor>> {
+public fun loadBuffer(data: List<UByte>, device: Device): Result<MutableMap<String, Tensor>> {
     val st =
-        when (val tryResult = SafeTensors.deserialize(data)) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+        when (
+            val tryResult =
+                io.github.kotlinmania.safetensors.SafeTensors
+                    .deserialize(data)
+        ) {
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
     return st
         .tensors()
         .intoIter()
         .map(
             closure@{ (name, view) ->
-                Ok(
+                Result.Ok(
                     Pair(
                         name,
                         when (val tryResult = view.load(device)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return@closure Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return@closure Result.Err(tryResult.error)
                         },
                     ),
                 )
@@ -475,17 +477,17 @@ public fun loadBuffer(data: List<UByte>, device: Device): Result<Map<String, Ten
         ).collect()
 }
 
-public fun <K : AsRef<String>, P : AsRef<Path>> save(tensors: Map<K, Tensor>, filename: P): Result<Unit> {
-    return Ok(
-        when (val tryResult = st.serializeToFile(tensors, null, filename.asRef())) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+public fun <K : AsRef<String>> save(tensors: MutableMap<K, Tensor>, filename: Path): Result<Unit> {
+    return Result.Ok(
+        when (val tryResult = st.serializeToFile(tensors, null, filename)) {
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         },
     )
 }
 
 public data class SafeTensors(
-    public var value: SafeTensors = SafeTensors(),
+    public var value: SafeTensors,
 ) {
     public var field0: SafeTensors
         get() = value
@@ -496,7 +498,7 @@ public data class SafeTensors(
 
 public class MmapedSafetensors internal constructor(
     safetensorsCtorArg: List<Yoke<SafeTensors, Mmap>>,
-    public var routing: Map<String, Int>?,
+    public var routing: MutableMap<String, Int>?,
 ) {
     public var safetensors: List<Yoke<SafeTensors, Mmap>> = safetensorsCtorArg
         internal set
@@ -508,9 +510,9 @@ public class MmapedSafetensors internal constructor(
 
     public operator fun component1(): List<Yoke<SafeTensors, Mmap>> = this.safetensors
 
-    public operator fun component2(): Map<String, Int>? = this.routing
+    public operator fun component2(): MutableMap<String, Int>? = this.routing
 
-    public fun copy(safetensors: List<Yoke<SafeTensors, Mmap>> = this.safetensors, routing: Map<String, Int>? = this.routing): MmapedSafetensors = MmapedSafetensors(safetensorsCtorArg = safetensors, routing = routing)
+    public fun copy(safetensors: List<Yoke<SafeTensors, Mmap>> = this.safetensors, routing: MutableMap<String, Int>? = this.routing): MmapedSafetensors = MmapedSafetensors(safetensorsCtorArg = safetensors, routing = routing)
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
@@ -528,8 +530,8 @@ public class MmapedSafetensors internal constructor(
 
     public fun load(name: String, dev: Device): Result<Tensor> {
         return when (val tryResult = this.get(name)) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }.load(dev)
     }
 
@@ -538,7 +540,7 @@ public class MmapedSafetensors internal constructor(
         for (safetensors in ArrayDeque(this.safetensors)) {
             tensors.add(safetensors.get().first.tensors())
         }
-        return ArrayDeque(tensors).flatten().collect()
+        return ArrayDeque(tensors).flatten().toMutableList()
     }
 
     public fun get(name: String): Result<st.TensorView> {
@@ -548,19 +550,14 @@ public class MmapedSafetensors internal constructor(
                 else -> {
                     val routing = matchVal
                     val index =
-                        when (
-                            val tryResult =
-                                routing.get(name).okOrElse({
-                                    Error.CannotFindTensor(path = name.toString()).bt()
-                                })
-                        ) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        when (val tryResult = (routing.get(name)?.let { Result.Ok(it) } ?: Result.Err(Error.CannotFindTensor(path = name.toString()).bt()))) {
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     index
                 }
             }
-        return Ok(
+        return Result.Ok(
             when (
                 val tryResult =
                     this.safetensors[index1]
@@ -568,8 +565,8 @@ public class MmapedSafetensors internal constructor(
                         .first
                         .tensor(name)
             ) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             },
         )
     }
@@ -577,7 +574,7 @@ public class MmapedSafetensors internal constructor(
     public companion object {
         public operator fun invoke(
             safetensors: List<Yoke<SafeTensors, Mmap>> = emptyList(),
-            routing: Map<String, Int>? = null,
+            routing: MutableMap<String, Int>? = null,
         ): MmapedSafetensors =
             MmapedSafetensors(
                 safetensorsCtorArg = safetensors,
@@ -591,17 +588,17 @@ public class MmapedSafetensors internal constructor(
          *
          * The unchecked is inherited from [memmap2.MmapOptions].
          */
-        public fun <P : AsRef<Path>> new(p: P): Result<MmapedSafetensors> {
-            val p1 = p.asRef()
+        public fun new(p: Path): Result<MmapedSafetensors> {
+            val p1 = p
             val file =
                 when (val tryResult = File.open(p1).mapErr({ e -> Error.from(e).withPath(p1) })) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             val file1 =
                 when (val tryResult = MmapOptions.new().map(file).mapErr({ e -> Error.from(e).withPath(p1) })) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             val safetensors =
                 when (
@@ -610,18 +607,23 @@ public class MmapedSafetensors internal constructor(
                             file1,
                             closure1@{ data: List<UByte> ->
                                 val st =
-                                    when (val tryResult = SafeTensors.deserialize(data).mapErr({ e -> Error.from(e).withPath(p1) })) {
-                                        is Result.Ok -> tryResult.value
-                                        is Result.Err -> return@closure1 Result.fromResidual(Result.Err(tryResult.value))
+                                    when (
+                                        val tryResult =
+                                            io.github.kotlinmania.safetensors.SafeTensors
+                                                .deserialize(data)
+                                                .mapErr({ e -> Error.from(e).withPath(p1) })
+                                    ) {
+                                        is Result.Ok<*> -> tryResult.value
+                                        is Result.Err<*> -> return@closure1 Result.Err(tryResult.error)
                                     }
-                                Ok(SafeTensors(st))
+                                Result.Ok(SafeTensors(st))
                             },
                         )
                 ) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
-            return Ok(MmapedSafetensors(safetensors = mutableListOf(safetensors), routing = null))
+            return Result.Ok(MmapedSafetensors(safetensors = mutableListOf(safetensors), routing = null))
         }
 
         /**
@@ -633,20 +635,20 @@ public class MmapedSafetensors internal constructor(
          *
          * The unchecked is inherited from [memmap2.MmapOptions].
          */
-        public fun <P : AsRef<Path>> multi(paths: List<P>): Result<MmapedSafetensors> {
-            var routing = HashMap.new()
+        public fun multi(paths: List<Path>): Result<MmapedSafetensors> {
+            var routing = mutableMapOf()
             var safetensors = mutableListOf()
-            for ((index, p) in paths.enumerate()) {
+            for ((index, p) in paths.mapIndexed { index, item -> Pair(index, item) }) {
                 val p1 = p.asRef()
                 val file =
                     when (val tryResult = File.open(p1).mapErr({ e -> Error.from(e).withPath(p1) })) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                 val file1 =
                     when (val tryResult = MmapOptions.new().map(file).mapErr({ e -> Error.from(e).withPath(p1) })) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                 val data =
                     when (
@@ -655,23 +657,28 @@ public class MmapedSafetensors internal constructor(
                                 file1,
                                 closure2@{ data: List<UByte> ->
                                     val st =
-                                        when (val tryResult = SafeTensors.deserialize(data).mapErr({ e -> Error.from(e).withPath(p1) })) {
-                                            is Result.Ok -> tryResult.value
-                                            is Result.Err -> return@closure2 Result.fromResidual(Result.Err(tryResult.value))
+                                        when (
+                                            val tryResult =
+                                                io.github.kotlinmania.safetensors.SafeTensors
+                                                    .deserialize(data)
+                                                    .mapErr({ e -> Error.from(e).withPath(p1) })
+                                        ) {
+                                            is Result.Ok<*> -> tryResult.value
+                                            is Result.Err<*> -> return@closure2 Result.Err(tryResult.error)
                                         }
-                                    Ok(SafeTensors(st))
+                                    Result.Ok(SafeTensors(st))
                                 },
                             )
                     ) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                 for (k in data.get().first.names()) {
-                    routing.insert(k.toString(), index)
+                    routing.put(k.toString(), index)
                 }
                 safetensors.add(data)
             }
-            return Ok(MmapedSafetensors(safetensors = safetensors, routing = routing))
+            return Result.Ok(MmapedSafetensors(safetensors = safetensors, routing = routing))
         }
     }
 }
@@ -681,18 +688,18 @@ public data class SliceSafetensors(
 ) {
     public fun load(name: String, dev: Device): Result<Tensor> {
         return when (val tryResult = this.safetensors.tensor(name)) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }.load(dev)
     }
 
     public fun tensors(): List<Pair<String, st.TensorView>> = this.safetensors.tensors()
 
     public fun get(name: String): Result<st.TensorView> {
-        return Ok(
+        return Result.Ok(
             when (val tryResult = this.safetensors.tensor(name)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             },
         )
     }
@@ -703,11 +710,15 @@ public data class SliceSafetensors(
          */
         public fun new(buffer: List<UByte>): Result<SliceSafetensors> {
             val safetensors =
-                when (val tryResult = SafeTensors.deserialize(buffer)) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                when (
+                    val tryResult =
+                        io.github.kotlinmania.safetensors.SafeTensors
+                            .deserialize(buffer)
+                ) {
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
-            return Ok(SliceSafetensors(safetensors = safetensors))
+            return Result.Ok(SliceSafetensors(safetensors = safetensors))
         }
     }
 }
@@ -737,8 +748,8 @@ public class BufferedSafetensors internal constructor(
 
     public fun load(name: String, dev: Device): Result<Tensor> {
         return when (val tryResult = this.get(name)) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }.load(dev)
     }
 
@@ -749,7 +760,7 @@ public class BufferedSafetensors internal constructor(
             .tensors()
 
     public fun get(name: String): Result<st.TensorView> {
-        return Ok(
+        return Result.Ok(
             when (
                 val tryResult =
                     this.safetensors
@@ -757,8 +768,8 @@ public class BufferedSafetensors internal constructor(
                         .first
                         .tensor(name)
             ) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             },
         )
     }
@@ -782,18 +793,22 @@ public class BufferedSafetensors internal constructor(
                             buffer,
                             closure3@{ data: List<UByte> ->
                                 val st =
-                                    when (val tryResult = SafeTensors.deserialize(data)) {
-                                        is Result.Ok -> tryResult.value
-                                        is Result.Err -> return@closure3 Result.fromResidual(Result.Err(tryResult.value))
+                                    when (
+                                        val tryResult =
+                                            io.github.kotlinmania.safetensors.SafeTensors
+                                                .deserialize(data)
+                                    ) {
+                                        is Result.Ok<*> -> tryResult.value
+                                        is Result.Err<*> -> return@closure3 Result.Err(tryResult.error)
                                     }
-                                Ok(SafeTensors(st))
+                                Result.Ok(SafeTensors(st))
                             },
                         )
                 ) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
-            return Ok(BufferedSafetensors(safetensors = safetensors))
+            return Result.Ok(BufferedSafetensors(safetensors = safetensors))
         }
     }
 }
@@ -804,11 +819,16 @@ public data class MmapedFile(
 ) {
     public fun deserialize(): Result<SafeTensors> {
         val st =
-            when (val tryResult = SafeTensors.deserialize(this.inner).mapErr({ e -> Error.from(e).withPath(this.path) })) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            when (
+                val tryResult =
+                    io.github.kotlinmania.safetensors.SafeTensors
+                        .deserialize(this.inner)
+                        .mapErr({ e -> Error.from(e).withPath(this.path) })
+            ) {
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
-        return Ok(st)
+        return Result.Ok(st)
     }
 
     public companion object {
@@ -820,19 +840,19 @@ public data class MmapedFile(
          *
          * The unchecked is inherited from [memmap2.MmapOptions].
          */
-        public fun <P : AsRef<Path>> new(p: P): Result<MmapedFile> {
-            val p1 = p.asRef()
+        public fun new(p: Path): Result<MmapedFile> {
+            val p1 = p
             val file =
                 when (val tryResult = File.open(p1).mapErr({ e -> Error.from(e).withPath(p1) })) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             val inner =
                 when (val tryResult = MmapOptions.new().map(file).mapErr({ e -> Error.from(e).withPath(p1) })) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
-            return Ok(MmapedFile(inner = inner, path = p1.toPathBuf()))
+            return Result.Ok(MmapedFile(inner = inner, path = p1.toPathBuf()))
         }
     }
 }

@@ -11,7 +11,7 @@ import io.github.kotlinmania.candle.layout.Layout
 import io.github.kotlinmania.cudarc.driver.CudaSlice
 import io.github.kotlinmania.cudarc.driver.DeviceRepr
 import io.github.kotlinmania.cudarc.driver.ValidAsZeroBits
-import io.github.kotlinmania.rustlang.core.result.fromResidual
+import io.github.kotlinmania.rustlang.core.F16
 
 public typealias S = CudaStorageSlice
 
@@ -25,8 +25,8 @@ public interface Map1 {
                     val (s1) = s
                     S.u8(
                         when (val tryResult = this.f(s1, d, l)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         },
                     )
                 }
@@ -34,8 +34,8 @@ public interface Map1 {
                     val (s2) = s
                     S.u32(
                         when (val tryResult = this.f(s2, d, l)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         },
                     )
                 }
@@ -43,8 +43,8 @@ public interface Map1 {
                     val (s3) = s
                     S.i16(
                         when (val tryResult = this.f(s3, d, l)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         },
                     )
                 }
@@ -52,8 +52,8 @@ public interface Map1 {
                     val (s4) = s
                     S.i32(
                         when (val tryResult = this.f(s4, d, l)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         },
                     )
                 }
@@ -61,8 +61,8 @@ public interface Map1 {
                     val (s5) = s
                     S.i64(
                         when (val tryResult = this.f(s5, d, l)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         },
                     )
                 }
@@ -70,8 +70,8 @@ public interface Map1 {
                     val (s6) = s
                     S.bf16(
                         when (val tryResult = this.f(s6, d, l)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         },
                     )
                 }
@@ -79,8 +79,8 @@ public interface Map1 {
                     val (s7) = s
                     S.f16(
                         when (val tryResult = this.f(s7, d, l)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         },
                     )
                 }
@@ -88,8 +88,8 @@ public interface Map1 {
                     val (s8) = s
                     S.f32(
                         when (val tryResult = this.f(s8, d, l)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         },
                     )
                 }
@@ -97,8 +97,8 @@ public interface Map1 {
                     val (s9) = s
                     S.f64(
                         when (val tryResult = this.f(s9, d, l)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         },
                     )
                 }
@@ -106,8 +106,8 @@ public interface Map1 {
                     val (s10) = s
                     S.f8e4m3(
                         when (val tryResult = this.f(s10, d, l)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         },
                     )
                 }
@@ -124,7 +124,7 @@ public interface Map1 {
                     bail("Map1 does not uspport this dtype.")
                 }
             }
-        return Ok(out)
+        return Result.Ok(out)
     }
 }
 
@@ -141,8 +141,8 @@ public interface Map2 {
                         val (s21) = matchVal.second as S.U8
                         S.u8(
                             when (val tryResult = this.f(s11, l1, s21, l2, d)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             },
                         )
                     }
@@ -151,8 +151,8 @@ public interface Map2 {
                         val (s22) = matchVal.second as S.U32
                         S.u32(
                             when (val tryResult = this.f(s12, l1, s22, l2, d)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             },
                         )
                     }
@@ -161,8 +161,8 @@ public interface Map2 {
                         val (s23) = matchVal.second as S.I16
                         S.i16(
                             when (val tryResult = this.f(s13, l1, s23, l2, d)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             },
                         )
                     }
@@ -171,8 +171,8 @@ public interface Map2 {
                         val (s24) = matchVal.second as S.I32
                         S.i32(
                             when (val tryResult = this.f(s14, l1, s24, l2, d)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             },
                         )
                     }
@@ -181,8 +181,8 @@ public interface Map2 {
                         val (s25) = matchVal.second as S.I64
                         S.i64(
                             when (val tryResult = this.f(s15, l1, s25, l2, d)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             },
                         )
                     }
@@ -191,8 +191,8 @@ public interface Map2 {
                         val (s26) = matchVal.second as S.Bf16
                         S.bf16(
                             when (val tryResult = this.f(s16, l1, s26, l2, d)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             },
                         )
                     }
@@ -201,8 +201,8 @@ public interface Map2 {
                         val (s27) = matchVal.second as S.F16
                         S.f16(
                             when (val tryResult = this.f(s17, l1, s27, l2, d)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             },
                         )
                     }
@@ -211,8 +211,8 @@ public interface Map2 {
                         val (s28) = matchVal.second as S.F32
                         S.f32(
                             when (val tryResult = this.f(s18, l1, s28, l2, d)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             },
                         )
                     }
@@ -221,8 +221,8 @@ public interface Map2 {
                         val (s29) = matchVal.second as S.F64
                         S.f64(
                             when (val tryResult = this.f(s19, l1, s29, l2, d)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             },
                         )
                     }
@@ -231,19 +231,19 @@ public interface Map2 {
                         val (s210) = matchVal.second as S.F8e4m3
                         S.f8e4m3(
                             when (val tryResult = this.f(s110, l1, s210, l2, d)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             },
                         )
                     }
                     else ->
-                        when (val tryResult = Err(CudaError.InternalError("dtype mismatch in binary op"))) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        when (val tryResult = Result.Err(CudaError.InternalError("dtype mismatch in binary op"))) {
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                 }
             }
-        return Ok(out)
+        return Result.Ok(out)
     }
 }
 
@@ -261,8 +261,8 @@ public interface Map3 {
                         val (s31) = matchVal.third as S.U8
                         S.u8(
                             when (val tryResult = this.f(s11, l1, s21, l2, s31, l3, d)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             },
                         )
                     }
@@ -272,8 +272,8 @@ public interface Map3 {
                         val (s32) = matchVal.third as S.U32
                         S.u32(
                             when (val tryResult = this.f(s12, l1, s22, l2, s32, l3, d)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             },
                         )
                     }
@@ -283,8 +283,8 @@ public interface Map3 {
                         val (s33) = matchVal.third as S.I64
                         S.i64(
                             when (val tryResult = this.f(s13, l1, s23, l2, s33, l3, d)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             },
                         )
                     }
@@ -294,8 +294,8 @@ public interface Map3 {
                         val (s34) = matchVal.third as S.Bf16
                         S.bf16(
                             when (val tryResult = this.f(s14, l1, s24, l2, s34, l3, d)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             },
                         )
                     }
@@ -305,8 +305,8 @@ public interface Map3 {
                         val (s35) = matchVal.third as S.F16
                         S.f16(
                             when (val tryResult = this.f(s15, l1, s25, l2, s35, l3, d)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             },
                         )
                     }
@@ -316,8 +316,8 @@ public interface Map3 {
                         val (s36) = matchVal.third as S.F32
                         S.f32(
                             when (val tryResult = this.f(s16, l1, s26, l2, s36, l3, d)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             },
                         )
                     }
@@ -327,8 +327,8 @@ public interface Map3 {
                         val (s37) = matchVal.third as S.F64
                         S.f64(
                             when (val tryResult = this.f(s17, l1, s27, l2, s37, l3, d)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             },
                         )
                     }
@@ -338,19 +338,19 @@ public interface Map3 {
                         val (s38) = matchVal.third as S.F8e4m3
                         S.f8e4m3(
                             when (val tryResult = this.f(s18, l1, s28, l2, s38, l3, d)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             },
                         )
                     }
                     else ->
-                        when (val tryResult = Err(CudaError.InternalError("dtype mismatch in ternary op"))) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        when (val tryResult = Result.Err(CudaError.InternalError("dtype mismatch in ternary op"))) {
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                 }
             }
-        return Ok(out)
+        return Result.Ok(out)
     }
 }
 
@@ -412,9 +412,9 @@ public interface Map2InPlace {
                     this.f(dst10, dstL, src10, srcL, d)
                 }
                 else ->
-                    when (val tryResult = Err(CudaError.InternalError("dtype mismatch in binary op"))) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    when (val tryResult = Result.Err(CudaError.InternalError("dtype mismatch in binary op"))) {
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
             }
         }
@@ -430,71 +430,71 @@ public interface Map1Any {
                 is S.U8 -> {
                     val (s1) = s
                     when (val tryResult = this.f(s1, d, l, S.U8)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                 }
                 is S.U32 -> {
                     val (s2) = s
                     when (val tryResult = this.f(s2, d, l, S.U32)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                 }
                 is S.I16 -> {
                     val (s3) = s
                     when (val tryResult = this.f(s3, d, l, S.I16)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                 }
                 is S.I32 -> {
                     val (s4) = s
                     when (val tryResult = this.f(s4, d, l, S.I32)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                 }
                 is S.I64 -> {
                     val (s5) = s
                     when (val tryResult = this.f(s5, d, l, S.I64)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                 }
                 is S.Bf16 -> {
                     val (s6) = s
                     when (val tryResult = this.f(s6, d, l, S.BF16)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                 }
                 is S.F16 -> {
                     val (s7) = s
                     when (val tryResult = this.f(s7, d, l, S.F16)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                 }
                 is S.F32 -> {
                     val (s8) = s
                     when (val tryResult = this.f(s8, d, l, S.F32)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                 }
                 is S.F64 -> {
                     val (s9) = s
                     when (val tryResult = this.f(s9, d, l, S.F64)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                 }
                 is S.F8e4m3 -> {
                     val (s10) = s
                     when (val tryResult = this.f(s10, d, l, S.F8E4M3)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                 }
                 is S.F4 -> {
@@ -510,7 +510,7 @@ public interface Map1Any {
                     bail("Map1 does not uspport this dtype.")
                 }
             }
-        return Ok(out)
+        return Result.Ok(out)
     }
 }
 
@@ -526,73 +526,73 @@ public interface Map2Any {
                         val (s11) = matchVal.first as S.U8
                         val (s21) = matchVal.second as S.U8
                         when (val tryResult = this.f(s11, l1, s21, l2, d)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     }
                     matchVal.first is S.U32 && matchVal.second is S.U32 -> {
                         val (s12) = matchVal.first as S.U32
                         val (s22) = matchVal.second as S.U32
                         when (val tryResult = this.f(s12, l1, s22, l2, d)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     }
                     matchVal.first is S.I64 && matchVal.second is S.I64 -> {
                         val (s13) = matchVal.first as S.I64
                         val (s23) = matchVal.second as S.I64
                         when (val tryResult = this.f(s13, l1, s23, l2, d)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     }
                     matchVal.first is S.Bf16 && matchVal.second is S.Bf16 -> {
                         val (s14) = matchVal.first as S.Bf16
                         val (s24) = matchVal.second as S.Bf16
                         when (val tryResult = this.f(s14, l1, s24, l2, d)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     }
                     matchVal.first is S.F16 && matchVal.second is S.F16 -> {
                         val (s15) = matchVal.first as S.F16
                         val (s25) = matchVal.second as S.F16
                         when (val tryResult = this.f(s15, l1, s25, l2, d)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     }
                     matchVal.first is S.F32 && matchVal.second is S.F32 -> {
                         val (s16) = matchVal.first as S.F32
                         val (s26) = matchVal.second as S.F32
                         when (val tryResult = this.f(s16, l1, s26, l2, d)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     }
                     matchVal.first is S.F64 && matchVal.second is S.F64 -> {
                         val (s17) = matchVal.first as S.F64
                         val (s27) = matchVal.second as S.F64
                         when (val tryResult = this.f(s17, l1, s27, l2, d)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     }
                     matchVal.first is S.F8e4m3 && matchVal.second is S.F8e4m3 -> {
                         val (s18) = matchVal.first as S.F8e4m3
                         val (s28) = matchVal.second as S.F8e4m3
                         when (val tryResult = this.f(s18, l1, s28, l2, d)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     }
                     else ->
-                        when (val tryResult = Err(CudaError.InternalError("dtype mismatch in binary op")).w()) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        when (val tryResult = Result.Err(CudaError.InternalError("dtype mismatch in binary op")).w()) {
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                 }
             }
-        return Ok(out)
+        return Result.Ok(out)
     }
 }

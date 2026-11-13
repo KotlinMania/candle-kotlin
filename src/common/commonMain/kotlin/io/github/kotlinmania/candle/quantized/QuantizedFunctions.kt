@@ -4,9 +4,11 @@ import io.github.kotlinmania.candle.cpubackend.CpuStorage
 import io.github.kotlinmania.candle.device.Device
 import io.github.kotlinmania.candle.error.Result
 import io.github.kotlinmania.candle.error.bail
+import io.github.kotlinmania.candle.quantized.cuda.QCudaStorage
 import io.github.kotlinmania.candle.quantized.kquants.GgmlType
 import io.github.kotlinmania.candle.quantized.kquants.matmul
 import io.github.kotlinmania.candle.quantized.kquants.matmulF16
+import io.github.kotlinmania.candle.quantized.metal.QMetalStorage
 import io.github.kotlinmania.candle.shape.Shape
 import io.github.kotlinmania.candle.utils.barrierPool
 import io.github.kotlinmania.half.Bf16
@@ -18,7 +20,6 @@ import io.github.kotlinmania.rustlang.core.mem.TypeLayout
 import io.github.kotlinmania.rustlang.core.mem.constPtrFromRustCast
 import io.github.kotlinmania.rustlang.core.ptr.ConstPtr
 import io.github.kotlinmania.rustlang.core.ptr.MutPtr
-import io.github.kotlinmania.rustlang.core.result.fromResidual
 
 public fun <T> asTSlice(data: List<UByte>, typeLayoutT: TypeLayout<T>): List<T> {
     val size = sizeOf<T>(typeLayoutT = typeLayoutT)
@@ -36,7 +37,7 @@ public fun checkShape(shape: Shape, blockSize: Int): Result<Unit> {
     if (!dims[dims.len() - 1].isMultipleOf(blockSize)) {
         bail("quantized tensor must have their last dim divisible by block size {shape:?} {}", blockSize)
     }
-    return Ok(Unit)
+    return Result.Ok(Unit)
 }
 
 public fun widenBf16(src: List<Bf16>): List<Float> {
@@ -48,7 +49,7 @@ public fun widenBf16(src: List<Bf16>): List<Float> {
         for (unit in range) {
             val lo = unit * WIDEN_CHUNK
             val hi = src.size.min(lo + WIDEN_CHUNK)
-            for ((i, v) in ((src).slice(lo until hi)).enumerate()) {
+            for ((i, v) in ((src).slice(lo until hi)).mapIndexed { index, item -> Pair(index, item) }) {
                 (PrimitiveLayouts.F32).writeNative((MutPtr((outPtr1).rawAddress + ((lo + i).toLong() * (PrimitiveLayouts.F32).strideBytes))).rawAddress, v.toF32())
             }
         }
@@ -67,7 +68,7 @@ public fun narrowBf16(src: List<Float>): List<Bf16> {
         for (unit in range) {
             val lo = unit * WIDEN_CHUNK
             val hi = src.size.min(lo + WIDEN_CHUNK)
-            for ((i, v) in ((src).slice(lo until hi)).enumerate()) {
+            for ((i, v) in ((src).slice(lo until hi)).mapIndexed { index, item -> Pair(index, item) }) {
                 (ObjectSlotLayout<Bf16>()).writeNative((MutPtr((outPtr1).rawAddress + ((lo + i).toLong() * (ObjectSlotLayout<Bf16>()).strideBytes))).rawAddress, fromF32(v))
             }
         }
@@ -81,34 +82,34 @@ public fun Device.qzeros(elemCount: Int, dtype: GgmlDType): Result<QStorage> {
     return when (this) {
         Device.Cpu -> {
             val storage = dtype.cpuZeros(elemCount)
-            Ok(QStorage.Cpu(storage))
+            Result.Ok(QStorage.Cpu(storage))
         }
         is Device.Metal -> {
             val (metal) = this
             val storage1 =
                 when (val tryResult = QMetalStorage.zeros(metal, elemCount, dtype)) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
-            Ok(QStorage.Metal(storage1))
+            Result.Ok(QStorage.Metal(storage1))
         }
         is Device.Cuda -> {
             val (cuda) = this
             val storage2 =
                 when (val tryResult = QCudaStorage.zeros(cuda, elemCount, dtype)) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
-            Ok(QStorage.Cuda(storage2))
+            Result.Ok(QStorage.Cuda(storage2))
         }
     }
 }
 
-public fun <T : GgmlType> List<T>.matmulT(mkn: Triple<ULong, ULong, ULong>, lhs: List<Float>, dst: List<Float>): Result<Unit> = matmul(mkn, lhs, this.asSlice(), dst)
+public fun <VecDotType, T : GgmlType> List<T>.matmulT(mkn: Triple<ULong, ULong, ULong>, lhs: List<Float>, dst: MutableList<Float>): Result<Unit> = matmul(mkn, lhs, this.asSlice(), dst)
 
-public fun <T : GgmlType> List<T>.matmulTF16(mkn: Triple<ULong, ULong, ULong>, lhs: List<F16>, dst: List<F16>): Result<Unit> = matmulF16(mkn, lhs, this.asSlice(), dst)
+public fun <VecDotType, T : GgmlType> List<T>.matmulTF16(mkn: Triple<ULong, ULong, ULong>, lhs: List<F16>, dst: MutableList<F16>): Result<Unit> = matmulF16(mkn, lhs, this.asSlice(), dst)
 
-public fun <T : GgmlType> List<T>.embedding(ids: List<UInt>, rows: Int, hidden: Int, toFloatTFn: (Any?) -> Any?): Result<CpuStorage> {
+public fun <VecDotType, T : GgmlType> List<T>.embedding(ids: List<UInt>, rows: Int, hidden: Int, toFloatTFn: (Any?) -> Any?): Result<CpuStorage> {
     if (!hidden.isMultipleOf(T.BLCK_SIZE)) {
         bail("quantized embedding hidden size {hidden} is not divisible by block size {}", T.BLCK_SIZE)
     }
@@ -117,7 +118,7 @@ public fun <T : GgmlType> List<T>.embedding(ids: List<UInt>, rows: Int, hidden: 
         bail("quantized tensor has {} blocks, expected {}", this.size, rows * rowBlocks)
     }
     val out = mutableListOf(0.0f, ids.size * hidden)
-    for ((outRow, rowId) in ids.enumerate()) {
+    for ((outRow, rowId) in ids.mapIndexed { index, item -> Pair(index, item) }) {
         val row = rowId.toInt()
         if (row >= rows) {
             bail("embedding id {row} is out of range for {rows} rows")
@@ -126,29 +127,29 @@ public fun <T : GgmlType> List<T>.embedding(ids: List<UInt>, rows: Int, hidden: 
         val dst = ((out).slice(outRow * hidden until (outRow + 1) * hidden))
         toFloatTFn(src, dst)
     }
-    return Ok(CpuStorage.f32(out))
+    return Result.Ok(CpuStorage.f32(out))
 }
 
-public fun <T : GgmlType> List<T>.size(typeLayoutT: TypeLayout<T>): Int = this.size * sizeOf<T>(typeLayoutT = typeLayoutT)
+public fun <VecDotType, T : GgmlType> List<T>.size(typeLayoutT: TypeLayout<T>): Int = this.size * sizeOf<T>(typeLayoutT = typeLayoutT)
 
-public fun <T : GgmlType> List<T>.fromFloat(xs: List<Float>, fromFloatTFn: (Any?) -> Any?) {
+public fun <VecDotType, T : GgmlType> List<T>.fromFloat(xs: List<Float>, fromFloatTFn: (Any?) -> Any?) {
     fromFloatTFn(xs, this)
 }
 
-public fun <T : GgmlType> List<T>.fromFloatImatrix(xs: List<Float>, imatrixWeights: List<Float>, nPerRow: ULong, fromFloatImatrixTFn: (Any?) -> Any?) {
+public fun <VecDotType, T : GgmlType> List<T>.fromFloatImatrix(xs: List<Float>, imatrixWeights: List<Float>, nPerRow: ULong, fromFloatImatrixTFn: (Any?) -> Any?) {
     fromFloatImatrixTFn(xs, this, imatrixWeights, nPerRow)
 }
 
-public fun <T : GgmlType> List<T>.dtype(): GgmlDType = T.DTYPE
+public fun <VecDotType, T : GgmlType> List<T>.dtype(): GgmlDType = T.DTYPE
 
-public fun <T : GgmlType> List<T>.blockSize(): Int = T.BLCK_SIZE
+public fun <VecDotType, T : GgmlType> List<T>.blockSize(): Int = T.BLCK_SIZE
 
-public fun <T : GgmlType> List<T>.dequantize(elemCount: Int, toFloatTFn: (Any?) -> Any?): Result<CpuStorage> {
+public fun <VecDotType, T : GgmlType> List<T>.dequantize(elemCount: Int, toFloatTFn: (Any?) -> Any?): Result<CpuStorage> {
     val ys = mutableListOf(0.0f, elemCount)
     toFloatTFn(this.asSlice(), ys)
-    return Ok(CpuStorage.f32(ys))
+    return Result.Ok(CpuStorage.f32(ys))
 }
 
-public fun <T : GgmlType> List<T>.storageSizeInBytes(typeLayoutT: TypeLayout<T>): Int = this.size * sizeOf<T>(typeLayoutT = typeLayoutT)
+public fun <VecDotType, T : GgmlType> List<T>.storageSizeInBytes(typeLayoutT: TypeLayout<T>): Int = this.size * sizeOf<T>(typeLayoutT = typeLayoutT)
 
-public fun <T : GgmlType> List<T>.asPtrQuantizedType(): ConstPtr = this.asPtr()
+public fun <VecDotType, T : GgmlType> List<T>.asPtrQuantizedType(): ConstPtr = this.asPtr()

@@ -20,9 +20,7 @@ import io.github.kotlinmania.rustlang.core.mem.constPtrFromRustCast
 import io.github.kotlinmania.rustlang.core.mem.mutPtrFromRustCast
 import io.github.kotlinmania.rustlang.core.ptr.ConstPtr
 import io.github.kotlinmania.rustlang.core.ptr.MutPtr
-import io.github.kotlinmania.rustlang.core.result.fromResidual
-import io.github.kotlinmania.rustlang.std.sync.Mutex
-import io.github.kotlinmania.rustlang.std.sync.OnceLock
+import io.github.kotlinmania.rustlang.core.result.unwrapOr
 
 // CUDA fast path for GGUF tiled matmul (prompt/prefill phase).
 // Handles batch > 8 (complement to fastMmvq which handles batch 1-8).
@@ -163,24 +161,24 @@ public class WorkspaceSlot internal constructor(
     }
 }
 
-public typealias WsMap = Mutex<Map<DeviceId, Mutex<WorkspaceSlot>>>
+public typealias WsMap = Mutex<MutableMap<DeviceId, Mutex<WorkspaceSlot>>>
 
 public var MMQ_WORKSPACE: OnceLock<WsMap> = OnceLock.new()
 
 public var FIXUP_WORKSPACE: OnceLock<WsMap> = OnceLock.new()
 
 public fun workspaceEnsure(ws: OnceLock<WsMap>, dev: CudaDevice, bytes: Int): Result<Pair<ULong, MutexGuard<WorkspaceSlot>>> {
-    val map = ws.getOrInit({ Mutex.new(HashMap.new()) })
+    val map = ws.getOrInit({ Mutex.new(mutableMapOf()) })
     val deviceKey = dev.id()
     val deviceMtx: Mutex<WorkspaceSlot> =
         run {
             val guard = map.lock().unwrap()
-            when (val matchVal = guard.get(deviceKey).copied()) {
+            when (val matchVal = guard.get(deviceKey)) {
                 null -> {
                     val slice =
                         when (val tryResult = dev.alloc<UByte>(bytes.max(1))) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     val leaked = Box.leak(Mutex.new(WorkspaceSlot(slice = slice, cap = bytes.max(1))))
                     guard.insert(deviceKey, leaked)
@@ -196,13 +194,13 @@ public fun workspaceEnsure(ws: OnceLock<WsMap>, dev: CudaDevice, bytes: Int): Re
     if (slot.cap < bytes) {
         slot.slice =
             when (val tryResult = dev.alloc<UByte>(bytes)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         slot.cap = bytes
     }
     val ptr = slot.slice.devicePtr(slot.slice.stream()).first
-    return Ok(Pair(ptr, slot))
+    return Result.Ok(Pair(ptr, slot))
 }
 
 // ---------------------------------------------------------------------------
@@ -236,10 +234,10 @@ public data class DeviceInfo(
     }
 }
 
-public var DEVICE_INFO: OnceLock<Mutex<Map<DeviceId, DeviceInfo>>> = OnceLock.new()
+public var DEVICE_INFO: OnceLock<Mutex<MutableMap<DeviceId, DeviceInfo>>> = OnceLock.new()
 
 public fun getDeviceInfo(dev: CudaDevice): DeviceInfo {
-    val map = DEVICE_INFO.getOrInit({ Mutex.new(HashMap.new()) })
+    val map = DEVICE_INFO.getOrInit({ Mutex.new(mutableMapOf()) })
     val key = dev.id()
     val guard = map.lock().unwrap()
     when (val matchVal = guard.get(key)) {
@@ -250,11 +248,11 @@ public fun getDeviceInfo(dev: CudaDevice): DeviceInfo {
         }
     }
     val cuDevice = dev.cudaStream().context().cuDevice()
-    val major = result.device.getAttribute(cuDevice, sys.CudeviceAttribute.CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MAJOR).unwrapOr(8)
-    val minor = result.device.getAttribute(cuDevice, sys.CudeviceAttribute.CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MINOR).unwrapOr(0)
-    val nsm = result.device.getAttribute(cuDevice, sys.CudeviceAttribute.CU_DEVICE_ATTRIBUTE_MULTIPROCESSOR_COUNT).unwrapOr(1)
-    val smpbo = result.device.getAttribute(cuDevice, sys.CudeviceAttribute.CU_DEVICE_ATTRIBUTE_MAX_SHARED_MEMORY_PER_BLOCK_OPTIN).unwrapOr(49152)
-    val warpSize = result.device.getAttribute(cuDevice, sys.CudeviceAttribute.CU_DEVICE_ATTRIBUTE_WARP_SIZE).unwrapOr(32)
+    val major = Result.device.getAttribute(cuDevice, sys.CudeviceAttribute.CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MAJOR).unwrapOr(8)
+    val minor = Result.device.getAttribute(cuDevice, sys.CudeviceAttribute.CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MINOR).unwrapOr(0)
+    val nsm = Result.device.getAttribute(cuDevice, sys.CudeviceAttribute.CU_DEVICE_ATTRIBUTE_MULTIPROCESSOR_COUNT).unwrapOr(1)
+    val smpbo = Result.device.getAttribute(cuDevice, sys.CudeviceAttribute.CU_DEVICE_ATTRIBUTE_MAX_SHARED_MEMORY_PER_BLOCK_OPTIN).unwrapOr(49152)
+    val warpSize = Result.device.getAttribute(cuDevice, sys.CudeviceAttribute.CU_DEVICE_ATTRIBUTE_WARP_SIZE).unwrapOr(32)
     val info1 = DeviceInfo(cc = major * 100 + minor * 10, nsm = nsm, smpbo = smpbo.toLong(), warpSize = warpSize)
     guard.insert(key, info1)
     return info1
@@ -278,7 +276,7 @@ public fun tryFwd(qstorage: QCudaStorage, selfShape: Shape, rhs: CudaStorage, rh
     val MAX_SMS: Int = 256
     val wDtype = qstorage.dtype()
     if (!supports(wDtype)) {
-        return Ok(null)
+        return Result.Ok(null)
     }
     val inputDtype = rhs.dtype()
     if (!when (inputDtype) {
@@ -286,12 +284,12 @@ public fun tryFwd(qstorage: QCudaStorage, selfShape: Shape, rhs: CudaStorage, rh
             else -> false
         }
     ) {
-        return Ok(null)
+        return Result.Ok(null)
     }
     val (nrows, ncols) =
         when (val tryResult = selfShape.dims2()) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
     val (bSize, k2) =
         run {
@@ -309,24 +307,24 @@ public fun tryFwd(qstorage: QCudaStorage, selfShape: Shape, rhs: CudaStorage, rh
                     Pair(b1, k1)
                 }
                 else -> {
-                    return Ok(null)
+                    return Result.Ok(null)
                 }
             }
         }
     if (ncols != k2) {
-        return Ok(null)
+        return Result.Ok(null)
     }
     if (bSize == 0) {
-        return Ok(null)
+        return Result.Ok(null)
     }
     val qk = qkFor(wDtype)
     if (k2 % qk != 0) {
-        return Ok(null)
+        return Result.Ok(null)
     }
     val (o1, o2) =
         when (val matchVal1 = rhsL.contiguousOffsets()) {
             null -> {
-                return Ok(null)
+                return Result.Ok(null)
             }
             else -> {
                 val offsets = matchVal1
@@ -341,8 +339,8 @@ public fun tryFwd(qstorage: QCudaStorage, selfShape: Shape, rhs: CudaStorage, rh
         if (inputDtype != DType.F32) {
             val layoutForCast = Layout.contiguousWithOffset(rhsL.shape(), rhsL.startOffset())
             when (val tryResult = rhs.toDtype(layoutForCast, DType.F32)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         } else {
             null
@@ -351,8 +349,8 @@ public fun tryFwd(qstorage: QCudaStorage, selfShape: Shape, rhs: CudaStorage, rh
     val rhsF32Ref = (rhsF32Storage ?: rhs)
     val rhsF32Slice =
         when (val tryResult = rhsF32Ref.asCudaSlice<Float>()) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
     // For the converted case, offset is 0 (toDtype returns contiguous from 0).
     // For the original f32 case, apply the original offsets.
@@ -375,37 +373,37 @@ public fun tryFwd(qstorage: QCudaStorage, selfShape: Shape, rhs: CudaStorage, rh
     val workspaceBytes = workspaceMain + workspaceExtra
     val (scratchPtr, workspaceGuard) =
         when (val tryResult = workspaceEnsure(MMQ_WORKSPACE, dev, workspaceBytes)) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
     val scratchPtr1 = mutPtrFromRustCast(scratchPtr)
     val fixupBytes = MAX_SMS * MMQ_X_MAX * MMQ_Y_MAX * sizeOf<Float>(typeLayoutT = PrimitiveLayouts.F32)
     val (fixupPtr, fixupGuard) =
         when (val tryResult = workspaceEnsure(FIXUP_WORKSPACE, dev, fixupBytes)) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
     val fixupPtr1 = mutPtrFromRustCast(fixupPtr)
     val weightPtr =
         constPtrFromRustCast(
             when (val tryResult = qstorage.devicePtr()) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             },
         )
     val strideRowX = (k2 / qk).toLong()
     val di = getDeviceInfo(dev)
     val out =
         when (val tryResult = dev.alloc<Float>(nrows * bSize)) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
     val strideColDst = nrows.toLong()
     val outPtr = mutPtrFromRustCast(out.devicePtr(stream).first)
     run {
         val quantize = quantizeLauncher(dsLayoutFor(wDtype))
         quantize(rhsPtr, ConstPtr(0L), scratchPtr1, 0, k2.toLong(), k2.toLong(), 0, 0, kPadded1.toLong(), bSize.toLong(), 1, 1, streamPtr)
-        val launcher = mmqLauncher(wDtype).expect("supports() checked")
+        val launcher = (mmqLauncher(wDtype) ?: error("supports() checked"))
         launcher(fixupPtr1, weightPtr, ConstPtr(scratchPtr1.rawAddress, scratchPtr1.rawMeta), outPtr, k2.toLong(), nrows.toLong(), bSize.toLong(), strideRowX, strideColDst, di.cc, di.nsm, di.smpbo, di.warpSize, streamPtr)
     }
     val outShape = rhsL.shape().dims().toVec()
@@ -413,15 +411,15 @@ public fun tryFwd(qstorage: QCudaStorage, selfShape: Shape, rhs: CudaStorage, rh
     outShape.push(nrows)
     val outStorage = CudaStorage.wrapCudaSlice(out, dev.clone())
     return if (inputDtype == DType.F32) {
-        Ok(Pair(outStorage, outShape.into()))
+        Result.Ok(Pair(outStorage, outShape.into()))
     } else {
         // Cast f32 output back to input dtype
         val outLayout = Layout.contiguous(Shape.from(outShape.clone()))
         val castStorage =
             when (val tryResult = outStorage.toDtype(outLayout, inputDtype)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
-        Ok(Pair(castStorage, outShape.into()))
+        Result.Ok(Pair(castStorage, outShape.into()))
     }
 }

@@ -8,7 +8,6 @@ import io.github.kotlinmania.candle.shape.D
 import io.github.kotlinmania.candle.shape.Shape
 import io.github.kotlinmania.candle.tensor.Tensor
 import io.github.kotlinmania.rustlang.core.mem.TypeLayout
-import io.github.kotlinmania.rustlang.core.result.fromResidual
 
 // StreamTensror useful for streaming ops.
 
@@ -18,9 +17,9 @@ public interface Dim : io.github.kotlinmania.candle.shape.Dim
  * A stream tensor is used in streaming module. It can either contain an actual tensor or be
  * empty.
  */
-public class StreamTensor(
+public data class StreamTensor(
     public var value: Tensor? = null,
-) : From<Tensor?> {
+) {
     public var field0: Tensor?
         get() = value
         set(v) {
@@ -49,8 +48,8 @@ public class StreamTensor(
                         val rhs1 = matchVal.second
                         val xs =
                             when (val tryResult = Tensor.cat(listOf(lhs, rhs1), dim)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         xs
                     }
@@ -65,12 +64,12 @@ public class StreamTensor(
                     else -> null
                 }
             }
-        return Ok(StreamTensor(xs3))
+        return Result.Ok(StreamTensor(xs3))
     }
 
     public fun <D : Dim> seqLen(dim: D): Result<Int> =
         when (val matchVal = this.value) {
-            null -> Ok(0)
+            null -> Result.Ok(0)
             else -> {
                 val v = matchVal
                 v.dim(dim)
@@ -89,22 +88,22 @@ public class StreamTensor(
                     val t = matchVal
                     val seqLen =
                         when (val tryResult = t.dim(dim)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     if (seqLen <= offset) {
                         null
                     } else {
                         val t1 =
                             when (val tryResult = t.narrow(dim, offset, Int.min(len, seqLen - offset))) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         t1
                     }
                 }
             }
-        return Ok(StreamTensor(t2))
+        return Result.Ok(StreamTensor(t2))
     }
 
     /**
@@ -113,23 +112,23 @@ public class StreamTensor(
      */
     public fun <D : Dim> split(dim: D, lhsLen: Int): Result<Pair<StreamTensor, StreamTensor>> {
         return when (val matchVal = this.value) {
-            null -> Ok(Pair(StreamTensor.empty(), StreamTensor.empty()))
+            null -> Result.Ok(Pair(StreamTensor.empty(), StreamTensor.empty()))
             else -> {
                 val t = matchVal
                 val seqLen =
                     when (val tryResult = t.dim(dim)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                 val lhsLen1 = Int.min(seqLen, lhsLen)
                 if (lhsLen1 == 0) {
-                    Ok(Pair(StreamTensor.empty(), t.clone().into()))
+                    Result.Ok(Pair(StreamTensor.empty(), t.clone().into()))
                 } else {
                     val lhs =
                         StreamTensor.fromTensor(
                             when (val tryResult = t.narrow(dim, 0, lhsLen1)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             },
                         )
                     val rhsLen = seqLen - lhsLen1
@@ -139,12 +138,12 @@ public class StreamTensor(
                         } else {
                             StreamTensor.fromTensor(
                                 when (val tryResult = t.narrow(dim, lhsLen1, rhsLen)) {
-                                    is Result.Ok -> tryResult.value
-                                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                    is Result.Ok<*> -> tryResult.value
+                                    is Result.Err<*> -> return Result.Err(tryResult.error)
                                 },
                             )
                         }
-                    Ok(Pair(lhs, rhs))
+                    Result.Ok(Pair(lhs, rhs))
                 }
             }
         }
@@ -154,14 +153,14 @@ public class StreamTensor(
 
     public fun <M : Module> apply(m: M): Result<StreamTensor> {
         return when (val matchVal = this.value) {
-            null -> Ok(StreamTensor.empty())
+            null -> Result.Ok(StreamTensor.empty())
             else -> {
                 val t = matchVal
-                Ok(
+                Result.Ok(
                     StreamTensor.fromTensor(
                         when (val tryResult = t.apply(m)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         },
                     ),
                 )
@@ -222,34 +221,34 @@ public data class StreamingBinOp(
     public fun step(lhs: StreamTensor, rhs: StreamTensor): Result<StreamTensor> {
         val lhs1 =
             when (val tryResult = StreamTensor.cat2(this.prevLhs, lhs, this.dim)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val rhs1 =
             when (val tryResult = StreamTensor.cat2(this.prevRhs, rhs, this.dim)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val lhsLen =
             when (val tryResult = lhs1.seqLen(this.dim)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val rhsLen =
             when (val tryResult = rhs1.seqLen(this.dim)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val commonLen = Int.min(lhsLen, rhsLen)
         val (lhs2, prevLhs) =
             when (val tryResult = lhs1.split(this.dim, commonLen)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val (rhs2, prevRhs) =
             when (val tryResult = rhs1.split(this.dim, commonLen)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val ys1 =
             run {
@@ -260,8 +259,8 @@ public data class StreamingBinOp(
                         val rhs3 = matchVal.second
                         val ys =
                             when (val tryResult = this.forward(lhs3, rhs3)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         StreamTensor.fromTensor(ys)
                     }
@@ -275,7 +274,7 @@ public data class StreamingBinOp(
             }
         this.prevLhs = prevLhs
         this.prevRhs = prevRhs
-        return Ok(ys1)
+        return Result.Ok(ys1)
     }
 
     public companion object {
@@ -287,7 +286,7 @@ public data class StreamingBinOp(
  * Simple wrapper that doesn't do any buffering.
  */
 public class Map<T : Module>(
-    public var value: T = T(),
+    public var value: T,
 ) : StreamingModule {
     public var field0: T
         get() = value

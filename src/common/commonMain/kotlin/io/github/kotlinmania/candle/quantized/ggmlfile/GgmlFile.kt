@@ -26,19 +26,19 @@ import io.github.kotlinmania.rustlang.core.mem.ObjectSlotLayout
 import io.github.kotlinmania.rustlang.core.mem.PrimitiveLayouts
 import io.github.kotlinmania.rustlang.core.mem.TypeLayout
 import io.github.kotlinmania.rustlang.core.mem.constPtrFromRustCast
-import io.github.kotlinmania.rustlang.core.result.fromResidual
 
 // Support for the GGML file format.
 
 // https://github.com/ggerganov/llama.cpp/blob/468ea24fb4633a0d681f7ac84089566c1c6190cb/llama.h#L37
-public sealed class Magic : TryFrom<UInt> {
-    public data object Ggjt : Magic()
-    public data object Ggla : Magic()
-    public data object Ggmf : Magic()
-    public data object Ggml : Magic()
-    public data object Ggsn : Magic()
-
-    public fun rustEquals(other: Magic): Boolean = this == other
+public enum class Magic(
+    public val value: UInt,
+) {
+    Ggjt(0u),
+    Ggla(1u),
+    Ggmf(2u),
+    Ggml(3u),
+    Ggsn(4u),
+    ;
 
     public companion object {
         public fun tryFrom(value: UInt): Result<Magic> {
@@ -51,7 +51,7 @@ public sealed class Magic : TryFrom<UInt> {
                     0x6767736e -> Magic.Ggsn
                     else -> bail("unknown magic {value:08x}")
                 }
-            return Ok(magic)
+            return Result.Ok(magic)
         }
     }
 }
@@ -76,21 +76,21 @@ public enum class VersionedMagic(
         public fun <R : Read> read(reader: R): Result<VersionedMagic> {
             val magic =
                 when (val tryResult = reader.readU32<LittleEndian>()) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             val magic1 =
                 when (val tryResult = Magic.tryFrom(magic)) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             if (magic1 == Magic.Ggml) {
-                return Ok(VersionedMagic.GgmlUnversioned)
+                return Result.Ok(VersionedMagic.GgmlUnversioned)
             }
             val version =
                 when (val tryResult = reader.readU32<LittleEndian>()) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             val versionedMagic =
                 run {
@@ -103,7 +103,7 @@ public enum class VersionedMagic(
                         else -> bail("ggml: unsupported magic/version {magic:?}/{version}")
                     }
                 }
-            return Ok(versionedMagic)
+            return Result.Ok(versionedMagic)
         }
     }
 }
@@ -146,40 +146,40 @@ public data class HParams(
         public fun <R : Read> read(reader: R): Result<HParams> {
             val nVocab =
                 when (val tryResult = reader.readU32<LittleEndian>()) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             val nEmbd =
                 when (val tryResult = reader.readU32<LittleEndian>()) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             val nMult =
                 when (val tryResult = reader.readU32<LittleEndian>()) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             val nHead =
                 when (val tryResult = reader.readU32<LittleEndian>()) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             val nLayer =
                 when (val tryResult = reader.readU32<LittleEndian>()) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             val nRot =
                 when (val tryResult = reader.readU32<LittleEndian>()) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             val ftype =
                 when (val tryResult = reader.readU32<LittleEndian>()) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
-            return Ok(HParams(nVocab = nVocab, nEmbd = nEmbd, nMult = nMult, nHead = nHead, nLayer = nLayer, nRot = nRot, ftype = ftype))
+            return Result.Ok(HParams(nVocab = nVocab, nEmbd = nEmbd, nMult = nMult, nHead = nHead, nLayer = nLayer, nRot = nRot, ftype = ftype))
         }
     }
 }
@@ -195,28 +195,28 @@ public data class Vocab(
                 val len =
                     (
                         when (val tryResult = reader.readU32<LittleEndian>()) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     ).toInt()
                 val word = mutableListOf(0u.toUByte(), len)
                 when (val tryResult = reader.readExact(word)) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
                 val score =
                     when (val tryResult = reader.readF32<LittleEndian>()) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                 tokenScorePairs.add(Pair(word, score))
             }
-            return Ok(Vocab(tokenScorePairs = tokenScorePairs))
+            return Result.Ok(Vocab(tokenScorePairs = tokenScorePairs))
         }
     }
 }
 
-public fun <T : GgmlType> fromRawData(rawData: List<UByte>, sizeInBytes: Int, dims: List<Int>, device: Device, typeLayoutT: TypeLayout<T>): Result<QTensor> {
+public fun <VecDotType, T : GgmlType> fromRawData(rawData: List<UByte>, sizeInBytes: Int, dims: List<Int>, device: Device, typeLayoutT: TypeLayout<T>): Result<QTensor> {
     val rawDataPtr = rawData.asPtr()
     val nBlocks = sizeInBytes / sizeOf<T>(typeLayoutT = typeLayoutT)
     val data = fromRawParts(constPtrFromRustCast(rawDataPtr), nBlocks)
@@ -226,8 +226,8 @@ public fun <T : GgmlType> fromRawData(rawData: List<UByte>, sizeInBytes: Int, di
             is Device.Metal -> {
                 val (metal) = device
                 when (val tryResult = loadQuantized(metal, data)) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             }
             is Device.Cuda -> {
@@ -237,8 +237,8 @@ public fun <T : GgmlType> fromRawData(rawData: List<UByte>, sizeInBytes: Int, di
                         io.github.kotlinmania.candle.quantized.cuda
                             .loadQuantized(cuda, data)
                 ) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             }
         }
@@ -296,47 +296,47 @@ public fun qtensorFromGgml(ggmlDtype: GgmlDType, rawData: List<UByte>, dims: Lis
 public fun <R> readOneTensor(reader: R, magic: VersionedMagic, device: Device): Result<Pair<String, QTensor>> where R : Seek, R : Read {
     val nDims =
         when (val tryResult = reader.readU32<LittleEndian>()) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
     val nameLen =
         when (val tryResult = reader.readU32<LittleEndian>()) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
     val ggmlDtype =
         when (val tryResult = reader.readU32<LittleEndian>()) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
     val ggmlDtype1 =
         when (val tryResult = GgmlDType.fromU32(ggmlDtype)) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
     val dims = mutableListOf(0u, nDims.toInt())
     when (val tryResult = reader.readU32Into<LittleEndian>(dims)) {
-        is Result.Ok -> tryResult.value
-        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+        is Result.Ok<*> -> tryResult.value
+        is Result.Err<*> -> return Result.Err(tryResult.error)
     }
     // The dimensions are stored in reverse order, see for example:
     // https://github.com/ggerganov/llama.cpp/blob/b5ffb2849d23afe73647f68eec7b68187af09be6/convert.py#L969
     dims.reverse()
     val name = mutableListOf(0u.toUByte(), nameLen.toInt())
     when (val tryResult = reader.readExact(name)) {
-        is Result.Ok -> tryResult.value
-        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+        is Result.Ok<*> -> tryResult.value
+        is Result.Err<*> -> return Result.Err(tryResult.error)
     }
     val name1 = String.fromUtf8Lossy(name).intoOwned()
     if (magic.align32()) {
         val pos =
             when (val tryResult = reader.streamPosition()) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         when (val tryResult = reader.seek(SeekFrom.Current(((32 - pos % 32) % 32).toLong()))) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
     }
     val dims1 = ArrayDeque((ArrayDeque(dims)).map({ u -> u.toInt() })).collect<Vec>()
@@ -345,18 +345,18 @@ public fun <R> readOneTensor(reader: R, magic: VersionedMagic, device: Device): 
     // Note: Mmap version to avoid copying the data around?
     val rawData = mutableListOf(0u.toUByte(), sizeInBytes)
     when (val tryResult = reader.readExact(rawData)) {
-        is Result.Ok -> tryResult.value
-        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+        is Result.Ok<*> -> tryResult.value
+        is Result.Err<*> -> return Result.Err(tryResult.error)
     }
     return run {
         val matchVal = qtensorFromGgml(ggmlDtype1, rawData, dims1, device)
         when (matchVal) {
-            is Result.Ok -> {
+            is Result.Ok<*> -> {
                 val tensor = matchVal.value
-                Ok(Pair(name1, tensor))
+                Result.Ok(Pair(name1, tensor))
             }
-            is Result.Err -> {
-                val e = matchVal.value
+            is Result.Err<*> -> {
+                val e = matchVal.error
                 bail("Error creating tensor {name}: {e}")
             }
         }
@@ -367,7 +367,7 @@ public data class Content(
     public var magic: VersionedMagic = VersionedMagic.entries.first(),
     public var hparams: HParams = HParams(),
     public var vocab: Vocab = Vocab(),
-    public var tensors: Map<String, QTensor> = emptyMap(),
+    public var tensors: MutableMap<String, QTensor> = MutableMap<String, QTensor>(),
     public var device: Device = Device(),
 ) {
     public fun remove(name: String): Result<QTensor> =
@@ -375,7 +375,7 @@ public data class Content(
             null -> bail("cannot find tensor with name '{name}'")
             else -> {
                 val tensor = matchVal
-                Ok(tensor)
+                Result.Ok(tensor)
             }
         }
 
@@ -384,43 +384,43 @@ public data class Content(
             // https://github.com/ggerganov/llama.cpp/blob/468ea24fb4633a0d681f7ac84089566c1c6190cb/llama.cpp#L505
             val lastPosition =
                 when (val tryResult = reader.seek(SeekFrom.End(0))) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             when (val tryResult = reader.seek(SeekFrom.Start(0))) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
             val magic =
                 when (val tryResult = VersionedMagic.read(reader)) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             val hparams =
                 when (val tryResult = HParams.read(reader)) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             val vocab =
                 when (val tryResult = Vocab.read(reader, hparams.nVocab.toInt())) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
-            var tensors = HashMap.new()
+            var tensors = mutableMapOf()
             while (when (val tryResult = reader.streamPosition()) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 } != lastPosition
             ) {
                 val (name, tensor) =
                     when (val tryResult = readOneTensor(reader, magic, device)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
-                tensors.insert(name, tensor)
+                tensors.put(name, tensor)
             }
             val device1 = device.clone()
-            return Ok(Content(magic = magic, hparams = hparams, vocab = vocab, tensors = tensors, device = device1))
+            return Result.Ok(Content(magic = magic, hparams = hparams, vocab = vocab, tensors = tensors, device = device1))
         }
     }
 }

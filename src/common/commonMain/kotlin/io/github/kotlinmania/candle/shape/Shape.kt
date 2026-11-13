@@ -8,14 +8,12 @@ import io.github.kotlinmania.candle.error.Error
 import io.github.kotlinmania.candle.error.Result
 import io.github.kotlinmania.candle.error.bail
 import io.github.kotlinmania.candle.tensor.Tensor
-import io.github.kotlinmania.rustlang.core.result.fromResidual
 
 // The shape of a tensor is a tuple with the size of each of its dimensions.
 
-public class Shape(
+public data class Shape(
     public var value: List<Int> = emptyList(),
-) : From<IntArray>,
-    TryInto<Unit> {
+) {
     public var field0: List<Int>
         get() = value
         set(v) {
@@ -44,10 +42,10 @@ public class Shape(
     public fun <D : Dim> dim(dim: D): Result<Int> {
         val dim1 =
             when (val tryResult = dim.toIndex(this, "dim")) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
-        return Ok(this.dims()[dim1])
+        return Result.Ok(this.dims()[dim1])
     }
 
     /**
@@ -129,7 +127,7 @@ public class Shape(
         val rhsNdims = rhsDims.size
         val bcastNdims = Int.max(lhsNdims, rhsNdims)
         val bcastDims = mutableListOf(0, bcastNdims)
-        for ((idx, bcastValue) in ArrayDeque(bcastDims).enumerate()) {
+        for ((idx, bcastValue) in ArrayDeque(bcastDims).mapIndexed { index, item -> Pair(index, item) }) {
             val revIdx = bcastNdims - idx
             val lValue =
                 if (lhsNdims < revIdx) {
@@ -151,13 +149,13 @@ public class Shape(
                 } else if (rValue == 1) {
                     lValue
                 } else {
-                    when (val tryResult = Err(Error.ShapeMismatchBinaryOp(lhs = lhs.clone(), rhs = rhs.clone(), op = op).bt())) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    when (val tryResult = Result.Err(Error.ShapeMismatchBinaryOp(lhs = lhs.clone(), rhs = rhs.clone(), op = op).bt())) {
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                 }
         }
-        return Ok(Shape.from(bcastDims))
+        return Result.Ok(Shape.from(bcastDims))
     }
 
     internal fun broadcastShapeMatmul(rhs: Shape): Result<Pair<Shape, Shape>> {
@@ -176,13 +174,13 @@ public class Shape(
         val rhsB = Shape.from(((rhsDims).slice(0 until rhsDims.size - 2)))
         val bcast =
             when (val tryResult = lhsB.broadcastShapeBinaryOp(rhsB, "broadcast_matmul")) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val bcastDims = bcast.dims()
         val bcastLhs = listOf(bcastDims, listOf(m, lhsK)).concat()
         val bcastRhs = listOf(bcastDims, listOf(rhsK, n)).concat()
-        return Ok(Pair(Shape.from(bcastLhs), Shape.from(bcastRhs)))
+        return Result.Ok(Pair(Shape.from(bcastLhs), Shape.from(bcastRhs)))
     }
 
     public fun dims0(): Result<Unit> = dims0(this.value.asSlice())
@@ -249,24 +247,24 @@ public interface Dim {
 public fun Int.toIndex(shape: Shape, op: String): Result<Int> {
     val dim = this
     return if (dim >= shape.dims().size) {
-        when (val tryResult = Err(Error.DimOutOfRange(shape = shape.clone(), dim = dim, op = op).bt())) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+        when (val tryResult = Result.Err(Error.DimOutOfRange(shape = shape.clone(), dim = dim, op = op).bt())) {
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
     } else {
-        Ok(dim)
+        Result.Ok(dim)
     }
 }
 
 public fun Int.toIndexPlusOne(shape: Shape, op: String): Result<Int> {
     val dim = this
     return if (dim > shape.dims().size) {
-        when (val tryResult = Err(Error.DimOutOfRange(shape = shape.clone(), dim = dim, op = op).bt())) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+        when (val tryResult = Result.Err(Error.DimOutOfRange(shape = shape.clone(), dim = dim, op = op).bt())) {
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
     } else {
-        Ok(dim)
+        Result.Ok(dim)
     }
 }
 
@@ -295,26 +293,26 @@ public sealed class D : Dim {
     public override fun toIndex(shape: Shape, op: String): Result<Int> {
         val rank = shape.rank()
         return when {
-            this == D.Minus1 && rank >= 1 -> Ok(rank - 1)
-            this == D.Minus2 && rank >= 2 -> Ok(rank - 2)
+            this == D.Minus1 && rank >= 1 -> Result.Ok(rank - 1)
+            this == D.Minus2 && rank >= 2 -> Result.Ok(rank - 2)
             this is Minus && (this as Minus).value > 0 && rank >= (this as Minus).value -> {
                 val (u) = this as Minus
-                Ok(rank - u)
+                Result.Ok(rank - u)
             }
-            else -> Err(this.outOfRange(shape, op))
+            else -> Result.Err(this.outOfRange(shape, op))
         }
     }
 
     public override fun toIndexPlusOne(shape: Shape, op: String): Result<Int> {
         val rank = shape.rank()
         return when {
-            this == D.Minus1 -> Ok(rank)
-            this == D.Minus2 && rank >= 1 -> Ok(rank - 1)
+            this == D.Minus1 -> Result.Ok(rank)
+            this == D.Minus2 && rank >= 1 -> Result.Ok(rank - 1)
             this is Minus && (this as Minus).value > 0 && rank + 1 >= (this as Minus).value -> {
                 val (u) = this as Minus
-                Ok(rank + 1 - u)
+                Result.Ok(rank + 1 - u)
             }
-            else -> Err(this.outOfRange(shape, op))
+            else -> Result.Err(this.outOfRange(shape, op))
         }
     }
 }
@@ -325,125 +323,125 @@ public interface Dims {
     public fun toIndexes(shape: Shape, op: String): Result<List<Int>> {
         val dims =
             when (val tryResult = this.toIndexesInternal(shape, op)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
-        for ((i, dim) in dims.iter().enumerate()) {
+        for ((i, dim) in dims.iter().mapIndexed { index, item -> Pair(index, item) }) {
             if (((dims).slice(0 until i)).contains(dim)) {
-                when (val tryResult = Err(Error.DuplicateDimIndex(shape = shape.clone(), dims = dims.clone(), op = op).bt())) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                when (val tryResult = Result.Err(Error.DuplicateDimIndex(shape = shape.clone(), dims = dims.clone(), op = op).bt())) {
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             }
             if (dim >= shape.rank()) {
-                when (val tryResult = Err(Error.DimOutOfRange(shape = shape.clone(), dim = dim.toInt(), op = op).bt())) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                when (val tryResult = Result.Err(Error.DimOutOfRange(shape = shape.clone(), dim = dim.toInt(), op = op).bt())) {
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             }
         }
-        return Ok(dims)
+        return Result.Ok(dims)
     }
 }
 
-public fun List<Int>.toIndexesInternal(arg0: Shape, arg1: String): Result<List<ULong>> = Ok(this)
+public fun List<Int>.toIndexesInternal(arg0: Shape, arg1: String): Result<List<ULong>> = Result.Ok(this)
 
-public fun IntArray.toIndexesInternalFromIntArrayN(arg0: Shape, arg1: String, n: Int): Result<List<ULong>> = Ok(this.toVec())
+public fun IntArray.toIndexesInternalFromIntArrayn(arg0: Shape, arg1: String, n: Int): Result<List<ULong>> = Result.Ok(this.toVec())
 
-public fun Unit.toIndexesInternal(arg0: Shape, arg1: String): Result<List<ULong>> = Ok(mutableListOf())
+public fun Unit.toIndexesInternal(arg0: Shape, arg1: String): Result<List<ULong>> = Result.Ok(mutableListOf())
 
 public fun <D : Dim> D.toIndexesInternal(shape: Shape, op: String): Result<List<Int>> {
     val dim =
         when (val tryResult = this.toIndex(shape, op)) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
-    return Ok(mutableListOf(dim))
+    return Result.Ok(mutableListOf(dim))
 }
 
 public fun <D1 : Dim, D2 : Dim> Pair<D1, D2>.toIndexesInternal(shape: Shape, op: String): Result<List<Int>> {
     val d0 =
         when (val tryResult = this.value.toIndex(shape, op)) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
     val d1 =
         when (val tryResult = this.field1.toIndex(shape, op)) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
-    return Ok(mutableListOf(d0, d1))
+    return Result.Ok(mutableListOf(d0, d1))
 }
 
 public fun <D1 : Dim, D2 : Dim, D3 : Dim> Triple<D1, D2, D3>.toIndexesInternal(shape: Shape, op: String): Result<List<Int>> {
     val d0 =
         when (val tryResult = this.value.toIndex(shape, op)) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
     val d1 =
         when (val tryResult = this.field1.toIndex(shape, op)) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
     val d2 =
         when (val tryResult = this.field2.toIndex(shape, op)) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
-    return Ok(mutableListOf(d0, d1, d2))
+    return Result.Ok(mutableListOf(d0, d1, d2))
 }
 
 public fun dims0(dims: List<Int>): Result<Unit> =
     if (dims.size != 0) {
-        Err(Error.UnexpectedNumberOfDims(expected = 0, got = dims.size, shape = Shape.from(dims)).bt())
+        Result.Err(Error.UnexpectedNumberOfDims(expected = 0, got = dims.size, shape = Shape.from(dims)).bt())
     } else {
-        Ok({ Unit(dims) })
+        Result.Ok({ Unit(dims) })
     }
 
 public fun Tensor.dims0(): Result<Unit> = this.shape().dims0()
 
 public fun dims1(dims: List<Int>): Result<Int> =
     if (dims.size != 1) {
-        Err(Error.UnexpectedNumberOfDims(expected = 1, got = dims.size, shape = Shape.from(dims)).bt())
+        Result.Err(Error.UnexpectedNumberOfDims(expected = 1, got = dims.size, shape = Shape.from(dims)).bt())
     } else {
-        Ok({ d: List<Int> -> d[0](dims) })
+        Result.Ok({ d: List<Int> -> d[0](dims) })
     }
 
 public fun Tensor.dims1(): Result<Int> = this.shape().dims1()
 
 public fun dims2(dims: List<Int>): Result<Pair<Int, Int>> =
     if (dims.size != 2) {
-        Err(Error.UnexpectedNumberOfDims(expected = 2, got = dims.size, shape = Shape.from(dims)).bt())
+        Result.Err(Error.UnexpectedNumberOfDims(expected = 2, got = dims.size, shape = Shape.from(dims)).bt())
     } else {
-        Ok({ d: List<Int> -> Pair(d[0], d[1])(dims) })
+        Result.Ok({ d: List<Int> -> Pair(d[0], d[1])(dims) })
     }
 
 public fun Tensor.dims2(): Result<Pair<Int, Int>> = this.shape().dims2()
 
 public fun dims3(dims: List<Int>): Result<Triple<Int, Int, Int>> =
     if (dims.size != 3) {
-        Err(Error.UnexpectedNumberOfDims(expected = 3, got = dims.size, shape = Shape.from(dims)).bt())
+        Result.Err(Error.UnexpectedNumberOfDims(expected = 3, got = dims.size, shape = Shape.from(dims)).bt())
     } else {
-        Ok({ d: List<Int> -> Triple(d[0], d[1], d[2])(dims) })
+        Result.Ok({ d: List<Int> -> Triple(d[0], d[1], d[2])(dims) })
     }
 
 public fun Tensor.dims3(): Result<Triple<Int, Int, Int>> = this.shape().dims3()
 
 public fun dims4(dims: List<Int>): Result<List<Any?>> =
     if (dims.size != 4) {
-        Err(Error.UnexpectedNumberOfDims(expected = 4, got = dims.size, shape = Shape.from(dims)).bt())
+        Result.Err(Error.UnexpectedNumberOfDims(expected = 4, got = dims.size, shape = Shape.from(dims)).bt())
     } else {
-        Ok({ d: List<Int> -> listOf(d[0], d[1], d[2], d[3])(dims) })
+        Result.Ok({ d: List<Int> -> listOf(d[0], d[1], d[2], d[3])(dims) })
     }
 
 public fun Tensor.dims4(): Result<List<Any?>> = this.shape().dims4()
 
 public fun dims5(dims: List<Int>): Result<List<Any?>> =
     if (dims.size != 5) {
-        Err(Error.UnexpectedNumberOfDims(expected = 5, got = dims.size, shape = Shape.from(dims)).bt())
+        Result.Err(Error.UnexpectedNumberOfDims(expected = 5, got = dims.size, shape = Shape.from(dims)).bt())
     } else {
-        Ok({ d: List<Int> -> listOf(d[0], d[1], d[2], d[3], d[4])(dims) })
+        Result.Ok({ d: List<Int> -> listOf(d[0], d[1], d[2], d[3], d[4])(dims) })
     }
 
 public fun Tensor.dims5(): Result<List<Any?>> = this.shape().dims5()
@@ -455,12 +453,12 @@ public interface ShapeWithOneHole {
 public fun S.intoShape(elCount: Int): Result<Shape> {
     val shape = this.into()
     if (shape.elemCount() != elCount) {
-        return Err(Error.ShapeMismatch(bufferSize = elCount, shape = shape).bt())
+        return Result.Err(Error.ShapeMismatch(bufferSize = elCount, shape = shape).bt())
     }
-    return Ok(shape)
+    return Result.Ok(shape)
 }
 
-public fun Unit.intoShape(elCount: ULong): Result<Shape> = Ok(elCount.into())
+public fun Unit.intoShape(elCount: ULong): Result<Shape> = Result.Ok(elCount.into())
 
 public fun holeSize(elCount: Int, prodD: Int, s: Any): Result<Int> {
     if (prodD == 0) {
@@ -469,16 +467,16 @@ public fun holeSize(elCount: Int, prodD: Int, s: Any): Result<Int> {
     if (!elCount.isMultipleOf(prodD)) {
         bail("cannot reshape tensor with {el_count} elements to {s:?}")
     }
-    return Ok(elCount / prodD)
+    return Result.Ok(elCount / prodD)
 }
 
 public fun Pair<Unit, Int>.intoShape(elCount: Int): Result<Shape> {
     val (_, d1) = this
-    return Ok(
+    return Result.Ok(
         Pair(
             when (val tryResult = holeSize(elCount, d1, this)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             },
             d1,
         ).into(),
@@ -487,11 +485,11 @@ public fun Pair<Unit, Int>.intoShape(elCount: Int): Result<Shape> {
 
 public fun Triple<Unit, Int, Int>.intoShape(elCount: Int): Result<Shape> {
     val (_, d1, d2) = this
-    return Ok(
+    return Result.Ok(
         Triple(
             when (val tryResult = holeSize(elCount, d1 * d2, this)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             },
             d1,
             d2,
@@ -503,8 +501,8 @@ public fun List<Any?>.intoShape(elCount: Int): Result<Shape> {
     val (_, d1, d2, d3) = this
     val d =
         when (val tryResult = holeSize(elCount, d1 * d2 * d3, this)) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
-    return Ok(listOf(d, d1, d2, d3).into())
+    return Result.Ok(listOf(d, d1, d2, d3).into())
 }

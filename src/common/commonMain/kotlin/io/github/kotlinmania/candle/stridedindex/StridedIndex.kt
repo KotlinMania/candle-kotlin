@@ -3,8 +3,6 @@ package io.github.kotlinmania.candle.stridedindex
 
 import io.github.kotlinmania.candle.layout.Layout
 
-public typealias Item = Int
-
 /**
  * An iterator over offset position for items of an N-dimensional arrays stored in a
  * flat buffer using some potential strides.

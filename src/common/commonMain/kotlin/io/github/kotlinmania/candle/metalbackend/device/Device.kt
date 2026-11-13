@@ -19,13 +19,6 @@ import io.github.kotlinmania.objc2metal.MTLCaptureDestination
 import io.github.kotlinmania.objc2metal.MTLCaptureManager
 import io.github.kotlinmania.rustlang.core.mem.PrimitiveLayouts
 import io.github.kotlinmania.rustlang.core.mem.TypeLayout
-import io.github.kotlinmania.rustlang.core.result.fromResidual
-import io.github.kotlinmania.rustlang.std.path.Path
-import io.github.kotlinmania.rustlang.std.sync.Mutex
-import io.github.kotlinmania.rustlang.std.sync.RwLock
-import io.github.kotlinmania.rustlang.std.sync.atomic
-
-public typealias Target = Device
 
 /**
  * Unique identifier for metal devices.
@@ -121,8 +114,8 @@ public data class MetalDevice(
     public fun dropUnusedBuffers(): Result<Unit> {
         val buffers =
             when (val tryResult = this.buffers.write().mapErr(MetalError::from)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         for (subbuffers in buffers.valuesMut()) {
             subbuffers.retain({ s ->
@@ -136,8 +129,8 @@ public data class MetalDevice(
         }
         val privateBuffers =
             when (val tryResult = this.privateBuffers.write().mapErr(MetalError::from)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         for (subbuffers1 in privateBuffers.valuesMut()) {
             subbuffers1.retain({ s ->
@@ -149,37 +142,37 @@ public data class MetalDevice(
                 }
             })
         }
-        return Ok(Unit)
+        return Result.Ok(Unit)
     }
 
     public fun commandEncoder(): Result<CommandsGuard> {
         val commandEncoder =
             when (val tryResult = this.commands.commandEncoder().mapErr(MetalError::from)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
-        return Ok(commandEncoder)
+        return Result.Ok(commandEncoder)
     }
 
     public fun blitCommandEncoder(): Result<BlitCommandsGuard> {
         val commandEncoder =
             when (val tryResult = this.commands.blitCommandEncoder().mapErr(MetalError::from)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
-        return Ok(commandEncoder)
+        return Result.Ok(commandEncoder)
     }
 
     public fun waitUntilCompleted(): Result<Unit> {
         when (val tryResult = this.commands.waitUntilCompleted().mapErr(MetalError::from)) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
         when (val tryResult = this.dropUnusedBuffers()) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
-        return Ok(Unit)
+        return Result.Ok(Unit)
     }
 
     /**
@@ -187,14 +180,14 @@ public data class MetalDevice(
      */
     public fun flushAndWaitCurrent(): Result<Unit> {
         when (val tryResult = this.commands.flushAndWaitCurrent().mapErr(MetalError::from)) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
         when (val tryResult = this.dropUnusedBuffers()) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
-        return Ok(Unit)
+        return Result.Ok(Unit)
     }
 
     /**
@@ -232,27 +225,27 @@ public data class MetalDevice(
         val size = elementCount * dtype.sizeInBytes()
         val buffers =
             when (val tryResult = this.privateBuffers.write().mapErr(MetalError::from)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         when (val matchVal = findAvailableBuffer(size, buffers)) {
             null -> {}
             else -> {
                 val b = matchVal
-                return Ok(b.clone())
+                return Result.Ok(b.clone())
             }
         }
         val size1 = bufSize(size)
         val subbuffers = buffers.entry(size1).orInsert(mutableListOf())
         val newBuffer =
             when (val tryResult = this.device.newBuffer(size1, PRIVATE_RESOURCE_OPTIONS).mapErr(MetalError::from)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val newBuffer1 = newBuffer
         this.residencySet.insert(newBuffer1)
         subbuffers.push(newBuffer1.clone())
-        return Ok(newBuffer1)
+        return Result.Ok(newBuffer1)
     }
 
     /**
@@ -264,12 +257,12 @@ public data class MetalDevice(
         val size = elementCount * dtype.sizeInBytes()
         val buffer =
             when (val tryResult = this.device.newBuffer(size, PRIVATE_RESOURCE_OPTIONS).mapErr(MetalError::from)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val buffer1 = buffer
         this.residencySet.insert(buffer1)
-        return Ok(buffer1)
+        return Result.Ok(buffer1)
     }
 
     /**
@@ -282,31 +275,31 @@ public data class MetalDevice(
         val size = sizeOfVal(data)
         val newBuffer =
             when (val tryResult = this.device.newBufferWithData(data.asPtr().cast(), size, RESOURCE_OPTIONS).mapErr(MetalError::from)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val buffers =
             when (val tryResult = this.buffers.write().mapErr(MetalError::from)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val subbuffers = buffers.entry(size).orInsert(mutableListOf())
         val newBuffer1 = newBuffer
         this.residencySet.insert(newBuffer1)
         subbuffers.push(newBuffer1.clone())
-        return Ok(newBuffer1)
+        return Result.Ok(newBuffer1)
     }
 
     public fun allocateZeros(sizeInBytes: Int): Result<Buffer> {
         val buffer =
             when (val tryResult = this.allocateBuffer(sizeInBytes)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val blit =
             when (val tryResult = this.blitCommandEncoder()) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         blit.setLabel("zeros")
         blit.fillBuffer(buffer, Pair(0, buffer.length()), 0)
@@ -326,7 +319,7 @@ public data class MetalDevice(
         // .mapErr(Error.wrap)?;
         // }
         //
-        return Ok(buffer)
+        return Result.Ok(buffer)
     }
 
     /**
@@ -335,56 +328,56 @@ public data class MetalDevice(
     public fun allocateBuffer(size: Int): Result<Buffer> {
         val buffers =
             when (val tryResult = this.buffers.write().mapErr(MetalError::from)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         when (val matchVal = findAvailableBuffer(size, buffers)) {
             null -> {}
             else -> {
                 val b = matchVal
                 // Cloning also ensures we increment the strong count
-                return Ok(b.clone())
+                return Result.Ok(b.clone())
             }
         }
         val size1 = bufSize(size)
         val subbuffers = buffers.entry(size1).orInsert(mutableListOf())
         val newBuffer =
             when (val tryResult = this.device.newBuffer(size1, RESOURCE_OPTIONS).mapErr(MetalError::from)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val newBuffer1 = newBuffer
         this.residencySet.insert(newBuffer1)
         subbuffers.push(newBuffer1.clone())
-        return Ok(newBuffer1)
+        return Result.Ok(newBuffer1)
     }
 
     /**
      * Create a metal GPU capture trace on [path].
      */
-    public fun <P : AsRef<Path>> capture(path: P): Result<Unit> {
+    public fun capture(path: Path): Result<Unit> {
         val capture = MTLCaptureManager.sharedCaptureManager()
         val descriptor = MTLCaptureDescriptor.new()
         descriptor.setDestination(MTLCaptureDestination.GPUTraceDocument)
         descriptor.setCaptureDevice(this.device().asRef())
         // The [setOutputUrl] call requires an absolute path so we convert it if needed.
-        if (path.asRef().isAbsolute()) {
+        if (path.isAbsolute()) {
             val url = Nsurl.fromFilePath(path)
             descriptor.setOutputURL(url.asDeref())
         } else {
             val path1 =
                 when (val tryResult = currentDir()) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }.join(path)
             val url1 = Nsurl.fromFilePath(path1)
             descriptor.setOutputURL(url1.asDeref())
         }
         when (val tryResult = capture.startCaptureWithDescriptorError(descriptor).mapErr({ e -> MetalError.from(e.toString()) })) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
-        return Ok(Unit)
+        return Result.Ok(Unit)
     }
 }
 
@@ -398,12 +391,7 @@ public val PRIVATE_RESOURCE_OPTIONS1: MTLResourceOptions = MTLResourceOptions(MT
 
 public fun bufSize(size: Int): Int = size.nextPowerOfTwo()
 
-/**
- * Applies the [BufferBuilder] label, clearing any stale label on a reused pooled buffer.
- */
-public fun bufferLabel(buffer: Buffer, label: String?) {
-    buffer.setLabel((label ?: "unlabeled"))
-}
+public fun bufferLabel(buffer: Buffer, label: String?) {}
 
 public typealias DataUpload = (MetalDevice) -> Result<Buffer>
 
@@ -489,34 +477,34 @@ public data class ReadyBufferBuilder(
                     val elemCount = matchVal.elemCount
                     val dtype = matchVal.dtype
                     when (val tryResult = this.device.newBuffer(elemCount, dtype, "")) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                 }
                 is BufferInit.Size -> {
                     val (size) = matchVal
                     when (val tryResult = this.device.allocateBuffer(size)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                 }
                 is BufferInit.Zeros -> {
                     val (size1) = matchVal
                     when (val tryResult = this.device.allocateZeros(size1)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                 }
                 is BufferInit.Data -> {
                     val (upload) = matchVal
                     when (val tryResult = upload(this.device)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                 }
             }
         bufferLabel(buffer, this.label)
-        return Ok(buffer)
+        return Result.Ok(buffer)
     }
 }
 
@@ -533,5 +521,5 @@ public fun findAvailableBuffer(size: Int, buffers: BufferMap): Buffer? {
             }
         }
     }
-    return bestBuffer.cloned()
+    return bestBuffer
 }

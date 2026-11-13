@@ -13,8 +13,6 @@ import io.github.kotlinmania.candle.layout.Layout
 import io.github.kotlinmania.numtraits.Num
 import io.github.kotlinmania.rustlang.core.mem.ObjectSlotLayout
 import io.github.kotlinmania.rustlang.core.mem.mutPtrFromRustCast
-import io.github.kotlinmania.rustlang.core.result.fromResidual
-import io.github.kotlinmania.rustlang.std.borrow.Cow
 
 internal class Conv2D(
     internal var value: ParamsConv2D = ParamsConv2D(),
@@ -74,10 +72,10 @@ public fun <T> conv2d1x1(p: ParamsConv2D, inp: List<T>, inpL: Layout, k: List<T>
     val (outH, outW) = Pair(p.outH(), p.outW())
     val spatialSize = outH * outW
     val dst = mutableListOf(T.zero(), p.bSize * p.cOut * spatialSize)
-    val kReshaped1: Cow<List<T>> =
+    val kReshaped1: List<T> =
         if (kS0 == p.cIn && kS1 == 1) {
             // Already contiguous, use slice directly
-            Cow.Borrowed(((k1).slice(0 until p.cOut * p.cIn)))
+            ((k1).slice(0 until p.cOut * p.cIn))
         } else {
             // Reshape kernel to [cOut, cIn]
             val kReshaped = ArrayList<T>(p.cOut * p.cIn)
@@ -87,7 +85,7 @@ public fun <T> conv2d1x1(p: ParamsConv2D, inp: List<T>, inpL: Layout, k: List<T>
                     kReshaped.add(k1[kIdx])
                 })
             })
-            Cow.Owned(kReshaped)
+            kReshaped
         }
     val kLayout = Layout.contiguous(Pair(p.cOut, p.cIn))
     // Process each batch
@@ -110,25 +108,25 @@ public fun <T> conv2d1x1(p: ParamsConv2D, inp: List<T>, inpL: Layout, k: List<T>
                     val matmul = MatMul(listOf(1, p.cOut, spatialSize, p.cIn))
                     val result =
                         when (val tryResult = matmul.f(kReshaped1, kLayout, inpReshaped, inpLayout)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return@closure Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return@closure Result.Err(tryResult.error)
                         }
                     // Copy result to output
                     val outOffset = bIdx * p.cOut * spatialSize
-                    for ((i, r) in result.iter().enumerate()) {
+                    for ((i, r) in result.iter().mapIndexed { index, item -> Pair(index, item) }) {
                         run {
                             val ptr = mutPtrFromRustCast(dst.asPtr().add(outOffset + i))
                             (ObjectSlotLayout<T>()).writeNative((ptr).rawAddress, r)
                         }
                     }
-                    Ok(Unit)
+                    Result.Ok(Unit)
                 },
             )
     ) {
-        is Result.Ok -> tryResult.value
-        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+        is Result.Ok<*> -> tryResult.value
+        is Result.Err<*> -> return Result.Err(tryResult.error)
     }
-    return Ok(dst)
+    return Result.Ok(dst)
 }
 
 /**
@@ -145,14 +143,14 @@ public fun <T> conv2dTiled(p: ParamsConv2D, inp: List<T>, inpL: Layout, k: List<
     val inp1 = ((inp).slice(inpL.startOffset() until inp.size))
     val (inpS0, inpS1, inpS2, inpS3) =
         when (val tryResult = dims4(inpL.stride())) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
     val k1 = ((k).slice(kL.startOffset() until k.size))
     val (kS0, kS1, kS2, kS3) =
         when (val tryResult = dims4(kL.stride())) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
     val (outH, outW) = Pair(p.outH(), p.outW())
     // Output shape: [bSize, cOut, outH, outW].
@@ -211,7 +209,7 @@ public fun <T> conv2dTiled(p: ParamsConv2D, inp: List<T>, inpL: Layout, k: List<
                         // Build im2col tile: [kSize, tileSize]
                         // This represents the input patches needed for this tile of outputs
                         var colTile = mutableListOf(T.zero(), kSize * tileSize)
-                        for ((tileIdx1, outY, outX) in outCoords.iter().enumerate()) {
+                        for ((tileIdx1, outY, outX) in outCoords.iter().mapIndexed { index, item -> Pair(index, item) }) {
                             // Extract the im2col patch for this output position
                             for (cIn in 0 until p.cIn) {
                                 var patchOffset = cIn
@@ -246,11 +244,11 @@ public fun <T> conv2dTiled(p: ParamsConv2D, inp: List<T>, inpL: Layout, k: List<
                         // Perform matmul
                         val result =
                             when (val tryResult = matmul.f(kFlat, kLayout, colTile, colLayout)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return@closure1 Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return@closure1 Result.Err(tryResult.error)
                             }
                         // Copy results to output: result is [cOut, tileSize]
-                        for ((tileIdx2, outY1, outX1) in outCoords.iter().enumerate()) {
+                        for ((tileIdx2, outY1, outX1) in outCoords.iter().mapIndexed { index, item -> Pair(index, item) }) {
                             val dstBase = outBatchOffset + outY1 * outW + outX1
                             for (cOutIdx in 0 until p.cOut) {
                                 val dstIdx1 = dstBase + cOutIdx * (outH * outW)
@@ -264,15 +262,15 @@ public fun <T> conv2dTiled(p: ParamsConv2D, inp: List<T>, inpL: Layout, k: List<
                                 }
                             }
                         }
-                        Ok(Unit)
+                        Result.Ok(Unit)
                     },
                 )
             })
     ) {
-        is Result.Ok -> tryResult.value
-        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+        is Result.Ok<*> -> tryResult.value
+        is Result.Err<*> -> return Result.Err(tryResult.error)
     }
-    return Ok(dst)
+    return Result.Ok(dst)
 }
 
 /**
@@ -282,14 +280,14 @@ public fun <T> conv2dDirect(p: ParamsConv2D, inp: List<T>, inpL: Layout, k: List
     val inp1 = ((inp).slice(inpL.startOffset() until inp.size))
     val (inpS0, inpS1, inpS2, inpS3) =
         when (val tryResult = dims4(inpL.stride())) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
     val k1 = ((k).slice(kL.startOffset() until k.size))
     val (kS0, kS1, kS2, kS3) =
         when (val tryResult = dims4(kL.stride())) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
     val (outH, outW) = Pair(p.outH(), p.outW())
     // Output shape: [bSize, cOut, outH, outW].
@@ -324,7 +322,7 @@ public fun <T> conv2dDirect(p: ParamsConv2D, inp: List<T>, inpL: Layout, k: List
                     })
                     .collect()
             })
-            .collect()
+            .toMutableList()
     for (bIdx1 in 0 until p.bSize) {
         for (offsetH in 0 until p.kH) {
             for (offsetW in 0 until p.kW) {
@@ -369,7 +367,7 @@ public fun <T> conv2dDirect(p: ParamsConv2D, inp: List<T>, inpL: Layout, k: List
             }
         }
     }
-    return Ok(dst)
+    return Result.Ok(dst)
 }
 
 public fun <T : WithDType> allocUninitVec(size: Int): List<T> {
@@ -387,8 +385,8 @@ public fun <T> conv2dIm2colGemm(p: ParamsConv2D, inp: List<T>, inpL: Layout, ker
     val op = Im2Col(hK = p.kH, wK = p.kW, padding = p.padding, stride = p.stride, dilation = p.dilation)
     val col =
         when (val tryResult = op.f(inp, inpL)) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
     val b = p.bSize
     val n = p.cOut
@@ -402,16 +400,16 @@ public fun <T> conv2dIm2colGemm(p: ParamsConv2D, inp: List<T>, inpL: Layout, ker
                 when (
                     val tryResult =
                         when (val tryResult = Layout.contiguousWithOffset(Triple(1, n, k), kernelL.startOffset()).transpose(1, 2)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }.broadcastAs(Triple(b, k, n))
                 ) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             when (val tryResult = MatMul(listOf(b, m, n, k)).f(col, colL, kernel, kernelL1)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         } else {
             // copy_strided_src_ materializes the kernel into kernelC starting at index 0, so the
@@ -422,30 +420,30 @@ public fun <T> conv2dIm2colGemm(p: ParamsConv2D, inp: List<T>, inpL: Layout, ker
                 when (
                     val tryResult =
                         when (val tryResult = Layout.contiguousWithOffset(Triple(1, n, k), 0).transpose(1, 2)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }.broadcastAs(Triple(b, k, n))
                 ) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             when (val tryResult = MatMul(listOf(b, m, n, k)).f(col, colL, kernelC, kernelL2)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         }
     val resL =
         when (
             val tryResult =
                 when (val tryResult = Layout.contiguous(listOf(b, hOut, wOut, p.cOut)).transpose(1, 2)) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }.transpose(1, 3)
         ) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
     val resT = allocUninitVec(resL.shape().elemCount())
     copyStridedSrc(res, resT, 0, resL)
-    return Ok(resT)
+    return Result.Ok(resT)
 }

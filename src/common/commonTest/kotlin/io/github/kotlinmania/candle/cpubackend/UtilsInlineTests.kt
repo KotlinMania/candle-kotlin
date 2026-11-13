@@ -3,8 +3,6 @@ package io.github.kotlinmania.candle.cpubackend.utils
 
 import io.github.kotlinmania.candle.layout.Layout
 import io.github.kotlinmania.candle.shape.Shape
-import io.github.kotlinmania.rustlang.std.sync.atomic.AtomicUsize
-import io.github.kotlinmania.rustlang.std.sync.atomic.Ordering
 
 @kotlin.test.Test
 public fun binaryMapVecParChunksNonContiguousBroadcasts() {

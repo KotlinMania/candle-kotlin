@@ -9,9 +9,10 @@ import io.github.kotlinmania.candle.layout.Layout
 import io.github.kotlinmania.candle.nditer.NdIter
 import io.github.kotlinmania.candle.stridedindex.StridedBlocks
 import io.github.kotlinmania.candle.utils.barrierPool
+import io.github.kotlinmania.rustlang.core.F16
+import io.github.kotlinmania.rustlang.core.mem.MaybeUninit
 import io.github.kotlinmania.rustlang.core.mem.ObjectSlotLayout
 import io.github.kotlinmania.rustlang.core.ptr.MutPtr
-import io.github.kotlinmania.rustlang.core.result.fromResidual
 
 public typealias C = CpuStorage
 
@@ -22,119 +23,119 @@ public interface Map1 {
         return when (vs) {
             is C.U8 -> {
                 val (vs1) = vs
-                Ok(
+                Result.Ok(
                     C.u8(
                         when (val tryResult = this.f(vs1, layout)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         },
                     ),
                 )
             }
             is C.U32 -> {
                 val (vs2) = vs
-                Ok(
+                Result.Ok(
                     C.u32(
                         when (val tryResult = this.f(vs2, layout)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         },
                     ),
                 )
             }
             is C.I16 -> {
                 val (vs3) = vs
-                Ok(
+                Result.Ok(
                     C.i16(
                         when (val tryResult = this.f(vs3, layout)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         },
                     ),
                 )
             }
             is C.I32 -> {
                 val (vs4) = vs
-                Ok(
+                Result.Ok(
                     C.i32(
                         when (val tryResult = this.f(vs4, layout)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         },
                     ),
                 )
             }
             is C.I64 -> {
                 val (vs5) = vs
-                Ok(
+                Result.Ok(
                     C.i64(
                         when (val tryResult = this.f(vs5, layout)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         },
                     ),
                 )
             }
             is C.Bf16 -> {
                 val (vs6) = vs
-                Ok(
+                Result.Ok(
                     C.bf16(
                         when (val tryResult = this.f(vs6, layout)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         },
                     ),
                 )
             }
             is C.F16 -> {
                 val (vs7) = vs
-                Ok(
+                Result.Ok(
                     C.f16(
                         when (val tryResult = this.f(vs7, layout)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         },
                     ),
                 )
             }
             is C.F32 -> {
                 val (vs8) = vs
-                Ok(
+                Result.Ok(
                     C.f32(
                         when (val tryResult = this.f(vs8, layout)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         },
                     ),
                 )
             }
             is C.F64 -> {
                 val (vs9) = vs
-                Ok(
+                Result.Ok(
                     C.f64(
                         when (val tryResult = this.f(vs9, layout)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         },
                     ),
                 )
             }
             is C.F8e4m3 -> {
                 val (vs10) = vs
-                Ok(
+                Result.Ok(
                     C.f8e4m3(
                         when (val tryResult = this.f(vs10, layout)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         },
                     ),
                 )
             }
             // Dummy types don't support Map1 operations
-            is C.F6e2m3 -> Err(Error.UnsupportedDTypeForOp(vs.dtype(), "map1").bt())
-            is C.F6e3m2 -> Err(Error.UnsupportedDTypeForOp(vs.dtype(), "map1").bt())
-            is C.F4 -> Err(Error.UnsupportedDTypeForOp(vs.dtype(), "map1").bt())
-            is C.F8e8m0 -> Err(Error.UnsupportedDTypeForOp(vs.dtype(), "map1").bt())
+            is C.F6e2m3 -> Result.Err(Error.UnsupportedDTypeForOp(vs.dtype(), "map1").bt())
+            is C.F6e3m2 -> Result.Err(Error.UnsupportedDTypeForOp(vs.dtype(), "map1").bt())
+            is C.F4 -> Result.Err(Error.UnsupportedDTypeForOp(vs.dtype(), "map1").bt())
+            is C.F8e8m0 -> Result.Err(Error.UnsupportedDTypeForOp(vs.dtype(), "map1").bt())
         }
     }
 }
@@ -146,99 +147,99 @@ public interface Map1Any {
         return when (vs) {
             is C.U8 -> {
                 val (vs1) = vs
-                Ok(
+                Result.Ok(
                     when (val tryResult = this.f(vs1, layout, C.U8)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     },
                 )
             }
             is C.U32 -> {
                 val (vs2) = vs
-                Ok(
+                Result.Ok(
                     when (val tryResult = this.f(vs2, layout, C.U32)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     },
                 )
             }
             is C.I16 -> {
                 val (vs3) = vs
-                Ok(
+                Result.Ok(
                     when (val tryResult = this.f(vs3, layout, C.I16)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     },
                 )
             }
             is C.I32 -> {
                 val (vs4) = vs
-                Ok(
+                Result.Ok(
                     when (val tryResult = this.f(vs4, layout, C.I32)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     },
                 )
             }
             is C.I64 -> {
                 val (vs5) = vs
-                Ok(
+                Result.Ok(
                     when (val tryResult = this.f(vs5, layout, C.I64)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     },
                 )
             }
             is C.Bf16 -> {
                 val (vs6) = vs
-                Ok(
+                Result.Ok(
                     when (val tryResult = this.f(vs6, layout, C.BF16)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     },
                 )
             }
             is C.F16 -> {
                 val (vs7) = vs
-                Ok(
+                Result.Ok(
                     when (val tryResult = this.f(vs7, layout, C.F16)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     },
                 )
             }
             is C.F32 -> {
                 val (vs8) = vs
-                Ok(
+                Result.Ok(
                     when (val tryResult = this.f(vs8, layout, C.F32)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     },
                 )
             }
             is C.F64 -> {
                 val (vs9) = vs
-                Ok(
+                Result.Ok(
                     when (val tryResult = this.f(vs9, layout, C.F64)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     },
                 )
             }
             is C.F8e4m3 -> {
                 val (vs10) = vs
-                Ok(
+                Result.Ok(
                     when (val tryResult = this.f(vs10, layout, C.F8E4M3)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     },
                 )
             }
             // Dummy types don't support Map1Any operations
-            is C.F6e2m3 -> Err(Error.UnsupportedDTypeForOp(vs.dtype(), "map1any").bt())
-            is C.F6e3m2 -> Err(Error.UnsupportedDTypeForOp(vs.dtype(), "map1any").bt())
-            is C.F4 -> Err(Error.UnsupportedDTypeForOp(vs.dtype(), "map1any").bt())
-            is C.F8e8m0 -> Err(Error.UnsupportedDTypeForOp(vs.dtype(), "map1any").bt())
+            is C.F6e2m3 -> Result.Err(Error.UnsupportedDTypeForOp(vs.dtype(), "map1any").bt())
+            is C.F6e3m2 -> Result.Err(Error.UnsupportedDTypeForOp(vs.dtype(), "map1any").bt())
+            is C.F4 -> Result.Err(Error.UnsupportedDTypeForOp(vs.dtype(), "map1any").bt())
+            is C.F8e8m0 -> Result.Err(Error.UnsupportedDTypeForOp(vs.dtype(), "map1any").bt())
         }
     }
 }
@@ -255,11 +256,11 @@ public interface Map2 {
                 matchVal.first is C.U8 && matchVal.second is C.U8 -> {
                     val (v11) = matchVal.first as C.U8
                     val (v21) = matchVal.second as C.U8
-                    Ok(
+                    Result.Ok(
                         C.u8(
                             when (val tryResult = this.f(v11, l1, v21, l2)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             },
                         ),
                     )
@@ -267,11 +268,11 @@ public interface Map2 {
                 matchVal.first is C.U32 && matchVal.second is C.U32 -> {
                     val (v12) = matchVal.first as C.U32
                     val (v22) = matchVal.second as C.U32
-                    Ok(
+                    Result.Ok(
                         C.u32(
                             when (val tryResult = this.f(v12, l1, v22, l2)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             },
                         ),
                     )
@@ -279,11 +280,11 @@ public interface Map2 {
                 matchVal.first is C.I16 && matchVal.second is C.I16 -> {
                     val (v13) = matchVal.first as C.I16
                     val (v23) = matchVal.second as C.I16
-                    Ok(
+                    Result.Ok(
                         C.i16(
                             when (val tryResult = this.f(v13, l1, v23, l2)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             },
                         ),
                     )
@@ -291,11 +292,11 @@ public interface Map2 {
                 matchVal.first is C.I32 && matchVal.second is C.I32 -> {
                     val (v14) = matchVal.first as C.I32
                     val (v24) = matchVal.second as C.I32
-                    Ok(
+                    Result.Ok(
                         C.i32(
                             when (val tryResult = this.f(v14, l1, v24, l2)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             },
                         ),
                     )
@@ -303,11 +304,11 @@ public interface Map2 {
                 matchVal.first is C.I64 && matchVal.second is C.I64 -> {
                     val (v15) = matchVal.first as C.I64
                     val (v25) = matchVal.second as C.I64
-                    Ok(
+                    Result.Ok(
                         C.i64(
                             when (val tryResult = this.f(v15, l1, v25, l2)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             },
                         ),
                     )
@@ -315,11 +316,11 @@ public interface Map2 {
                 matchVal.first is C.Bf16 && matchVal.second is C.Bf16 -> {
                     val (v16) = matchVal.first as C.Bf16
                     val (v26) = matchVal.second as C.Bf16
-                    Ok(
+                    Result.Ok(
                         C.bf16(
                             when (val tryResult = this.f(v16, l1, v26, l2)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             },
                         ),
                     )
@@ -327,11 +328,11 @@ public interface Map2 {
                 matchVal.first is C.F16 && matchVal.second is C.F16 -> {
                     val (v17) = matchVal.first as C.F16
                     val (v27) = matchVal.second as C.F16
-                    Ok(
+                    Result.Ok(
                         C.f16(
                             when (val tryResult = this.f(v17, l1, v27, l2)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             },
                         ),
                     )
@@ -339,11 +340,11 @@ public interface Map2 {
                 matchVal.first is C.F32 && matchVal.second is C.F32 -> {
                     val (v18) = matchVal.first as C.F32
                     val (v28) = matchVal.second as C.F32
-                    Ok(
+                    Result.Ok(
                         C.f32(
                             when (val tryResult = this.f(v18, l1, v28, l2)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             },
                         ),
                     )
@@ -351,11 +352,11 @@ public interface Map2 {
                 matchVal.first is C.F64 && matchVal.second is C.F64 -> {
                     val (v19) = matchVal.first as C.F64
                     val (v29) = matchVal.second as C.F64
-                    Ok(
+                    Result.Ok(
                         C.f64(
                             when (val tryResult = this.f(v19, l1, v29, l2)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             },
                         ),
                     )
@@ -363,16 +364,16 @@ public interface Map2 {
                 matchVal.first is C.F8e4m3 && matchVal.second is C.F8e4m3 -> {
                     val (v110) = matchVal.first as C.F8e4m3
                     val (v210) = matchVal.second as C.F8e4m3
-                    Ok(
+                    Result.Ok(
                         C.f8e4m3(
                             when (val tryResult = this.f(v110, l1, v210, l2)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             },
                         ),
                     )
                 }
-                else -> Err(Error.DTypeMismatchBinaryOp(lhs = v1.dtype(), rhs = v2.dtype(), op = Map2.OP).bt())
+                else -> Result.Err(Error.DTypeMismatchBinaryOp(lhs = v1.dtype(), rhs = v2.dtype(), op = Map2.OP).bt())
             }
         }
     }
@@ -381,7 +382,7 @@ public interface Map2 {
 public interface Map2InPlace {
     public val OP: String
 
-    public fun <T : WithDType> f(v1: List<T>, l1: Layout, v2: List<T>, l2: Layout): Result<Unit>
+    public fun <T : WithDType> f(v1: MutableList<T>, l1: Layout, v2: List<T>, l2: Layout): Result<Unit>
 
     public fun map(v1: C, l1: Layout, v2: C, l2: Layout): Result<Unit> {
         run {
@@ -391,93 +392,93 @@ public interface Map2InPlace {
                     val (v11) = matchVal.first as C.U8
                     val (v21) = matchVal.second as C.U8
                     when (val tryResult = this.f(v11, l1, v21, l2)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                 }
                 matchVal.first is C.U32 && matchVal.second is C.U32 -> {
                     val (v12) = matchVal.first as C.U32
                     val (v22) = matchVal.second as C.U32
                     when (val tryResult = this.f(v12, l1, v22, l2)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                 }
                 matchVal.first is C.I16 && matchVal.second is C.I16 -> {
                     val (v13) = matchVal.first as C.I16
                     val (v23) = matchVal.second as C.I16
                     when (val tryResult = this.f(v13, l1, v23, l2)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                 }
                 matchVal.first is C.I32 && matchVal.second is C.I32 -> {
                     val (v14) = matchVal.first as C.I32
                     val (v24) = matchVal.second as C.I32
                     when (val tryResult = this.f(v14, l1, v24, l2)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                 }
                 matchVal.first is C.I64 && matchVal.second is C.I64 -> {
                     val (v15) = matchVal.first as C.I64
                     val (v25) = matchVal.second as C.I64
                     when (val tryResult = this.f(v15, l1, v25, l2)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                 }
                 matchVal.first is C.Bf16 && matchVal.second is C.Bf16 -> {
                     val (v16) = matchVal.first as C.Bf16
                     val (v26) = matchVal.second as C.Bf16
                     when (val tryResult = this.f(v16, l1, v26, l2)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                 }
                 matchVal.first is C.F16 && matchVal.second is C.F16 -> {
                     val (v17) = matchVal.first as C.F16
                     val (v27) = matchVal.second as C.F16
                     when (val tryResult = this.f(v17, l1, v27, l2)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                 }
                 matchVal.first is C.F32 && matchVal.second is C.F32 -> {
                     val (v18) = matchVal.first as C.F32
                     val (v28) = matchVal.second as C.F32
                     when (val tryResult = this.f(v18, l1, v28, l2)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                 }
                 matchVal.first is C.F64 && matchVal.second is C.F64 -> {
                     val (v19) = matchVal.first as C.F64
                     val (v29) = matchVal.second as C.F64
                     when (val tryResult = this.f(v19, l1, v29, l2)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                 }
                 matchVal.first is C.F8e4m3 && matchVal.second is C.F8e4m3 -> {
                     val (v110) = matchVal.first as C.F8e4m3
                     val (v210) = matchVal.second as C.F8e4m3
                     when (val tryResult = this.f(v110, l1, v210, l2)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                 }
                 else -> {
                     val v111 = matchVal.first
                     val v211 = matchVal.second
-                    when (val tryResult = Err(Error.DTypeMismatchBinaryOp(lhs = v111.dtype(), rhs = v211.dtype(), op = Map2InPlace.OP).bt())) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    when (val tryResult = Result.Err(Error.DTypeMismatchBinaryOp(lhs = v111.dtype(), rhs = v211.dtype(), op = Map2InPlace.OP).bt())) {
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                 }
             }
         }
-        return Ok(Unit)
+        return Result.Ok(Unit)
     }
 }
 
@@ -493,11 +494,11 @@ public interface Map2U8 {
                 matchVal.first is C.U8 && matchVal.second is C.U8 -> {
                     val (v11) = matchVal.first as C.U8
                     val (v21) = matchVal.second as C.U8
-                    Ok(
+                    Result.Ok(
                         C.u8(
                             when (val tryResult = this.f(v11, l1, v21, l2)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             },
                         ),
                     )
@@ -505,11 +506,11 @@ public interface Map2U8 {
                 matchVal.first is C.U32 && matchVal.second is C.U32 -> {
                     val (v12) = matchVal.first as C.U32
                     val (v22) = matchVal.second as C.U32
-                    Ok(
+                    Result.Ok(
                         C.u8(
                             when (val tryResult = this.f(v12, l1, v22, l2)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             },
                         ),
                     )
@@ -517,11 +518,11 @@ public interface Map2U8 {
                 matchVal.first is C.I16 && matchVal.second is C.I16 -> {
                     val (v13) = matchVal.first as C.I16
                     val (v23) = matchVal.second as C.I16
-                    Ok(
+                    Result.Ok(
                         C.u8(
                             when (val tryResult = this.f(v13, l1, v23, l2)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             },
                         ),
                     )
@@ -529,11 +530,11 @@ public interface Map2U8 {
                 matchVal.first is C.I32 && matchVal.second is C.I32 -> {
                     val (v14) = matchVal.first as C.I32
                     val (v24) = matchVal.second as C.I32
-                    Ok(
+                    Result.Ok(
                         C.u8(
                             when (val tryResult = this.f(v14, l1, v24, l2)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             },
                         ),
                     )
@@ -541,11 +542,11 @@ public interface Map2U8 {
                 matchVal.first is C.I64 && matchVal.second is C.I64 -> {
                     val (v15) = matchVal.first as C.I64
                     val (v25) = matchVal.second as C.I64
-                    Ok(
+                    Result.Ok(
                         C.u8(
                             when (val tryResult = this.f(v15, l1, v25, l2)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             },
                         ),
                     )
@@ -553,11 +554,11 @@ public interface Map2U8 {
                 matchVal.first is C.Bf16 && matchVal.second is C.Bf16 -> {
                     val (v16) = matchVal.first as C.Bf16
                     val (v26) = matchVal.second as C.Bf16
-                    Ok(
+                    Result.Ok(
                         C.u8(
                             when (val tryResult = this.f(v16, l1, v26, l2)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             },
                         ),
                     )
@@ -565,11 +566,11 @@ public interface Map2U8 {
                 matchVal.first is C.F16 && matchVal.second is C.F16 -> {
                     val (v17) = matchVal.first as C.F16
                     val (v27) = matchVal.second as C.F16
-                    Ok(
+                    Result.Ok(
                         C.u8(
                             when (val tryResult = this.f(v17, l1, v27, l2)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             },
                         ),
                     )
@@ -577,11 +578,11 @@ public interface Map2U8 {
                 matchVal.first is C.F32 && matchVal.second is C.F32 -> {
                     val (v18) = matchVal.first as C.F32
                     val (v28) = matchVal.second as C.F32
-                    Ok(
+                    Result.Ok(
                         C.u8(
                             when (val tryResult = this.f(v18, l1, v28, l2)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             },
                         ),
                     )
@@ -589,11 +590,11 @@ public interface Map2U8 {
                 matchVal.first is C.F64 && matchVal.second is C.F64 -> {
                     val (v19) = matchVal.first as C.F64
                     val (v29) = matchVal.second as C.F64
-                    Ok(
+                    Result.Ok(
                         C.u8(
                             when (val tryResult = this.f(v19, l1, v29, l2)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             },
                         ),
                     )
@@ -601,16 +602,16 @@ public interface Map2U8 {
                 matchVal.first is C.F8e4m3 && matchVal.second is C.F8e4m3 -> {
                     val (v110) = matchVal.first as C.F8e4m3
                     val (v210) = matchVal.second as C.F8e4m3
-                    Ok(
+                    Result.Ok(
                         C.u8(
                             when (val tryResult = this.f(v110, l1, v210, l2)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             },
                         ),
                     )
                 }
-                else -> Err(Error.DTypeMismatchBinaryOp(lhs = v1.dtype(), rhs = v2.dtype(), op = Map2U8.OP).bt())
+                else -> Result.Err(Error.DTypeMismatchBinaryOp(lhs = v1.dtype(), rhs = v2.dtype(), op = Map2U8.OP).bt())
             }
         }
     }
@@ -631,13 +632,13 @@ public fun <T, U> binaryMap(lhsL: Layout, rhsL: Layout, lhs: List<T>, rhs: List<
 }
 
 // Similar to binaryMap but with vectorized variants.
-public fun <T> binaryMapVec(lhsL: Layout, rhsL: Layout, lhs: List<T>, rhs: List<T>, f: (T, T) -> T, fVec: (List<T>, List<T>, List<T>) -> Unit, fScalarVec: (T, List<T>, List<T>) -> Unit): List<T> {
+public fun <T> binaryMapVec(lhsL: Layout, rhsL: Layout, lhs: List<T>, rhs: List<T>, f: (T, T) -> T, fVec: (List<T>, List<T>, MutableList<T>) -> Unit, fScalarVec: (T, List<T>, MutableList<T>) -> Unit): List<T> {
     val elCount = lhsL.shape().elemCount()
     val ys: List<T> = ArrayList(elCount)
     val ysToSet =
         run {
             val s = ys.spareCapacityMut()
-            transmute<List<T?>, List<T>>(s)
+            transmute<MutableList<MaybeUninit<T>>, MutableList<T>>(s)
         }
     val ndIter = NdIter.new(listOf(lhsL, rhsL))
     val innerSize = ndIter.innerSize
@@ -677,7 +678,7 @@ public fun <T, U> unaryMap(vs: List<T>, layout: Layout, f: (T) -> U): List<U> =
         is StridedBlocks.SingleBlock -> {
             val startOffset = matchVal.startOffset
             val len = matchVal.len
-            ((vs).slice(startOffset until startOffset + len)).map({ v -> f(v) }).collect()
+            ((vs).slice(startOffset until startOffset + len)).map({ v -> f(v) }).toMutableList()
         }
         is StridedBlocks.UniformBlocks -> {
             val startOffset1 = matchVal.startOffset
@@ -723,14 +724,14 @@ public fun <T, U> unaryMap(vs: List<T>, layout: Layout, f: (T) -> U): List<U> =
         }
     }
 
-public fun <T, U> unaryMapVec(vs: List<T>, layout: Layout, f: (T) -> U, fVec: (List<T>, List<U>) -> Unit): List<U> =
+public fun <T, U> unaryMapVec(vs: List<T>, layout: Layout, f: (T) -> U, fVec: (List<T>, MutableList<U>) -> Unit): List<U> =
     when (val matchVal = layout.stridedBlocks()) {
         is StridedBlocks.SingleBlock -> {
             val startOffset = matchVal.startOffset
             val len = matchVal.len
             var ys: List<U> = ArrayList(len)
             val ysToSet = ys.spareCapacityMut()
-            val ysToSet1 = transmute<List<U?>, List<U>>(ysToSet)
+            val ysToSet1 = transmute<MutableList<MaybeUninit<U>>, MutableList<U>>(ysToSet)
             fVec(((vs).slice(startOffset until startOffset + len)), ysToSet1)
             // SAFETY: values are all set by fVec.
             ys.setLen(len)
@@ -752,7 +753,7 @@ public fun <T, U> unaryMapVec(vs: List<T>, layout: Layout, f: (T) -> U, fVec: (L
             } else {
                 val ys1: List<U> = ArrayList(elCount)
                 val ysToSet2 = ys1.spareCapacityMut()
-                val ysToSet3 = transmute<List<U?>, List<U>>(ysToSet2)
+                val ysToSet3 = transmute<MutableList<MaybeUninit<U>>, MutableList<U>>(ysToSet2)
                 var dstIndex = 0
                 for (i1 in 0 until count) {
                     val srcStart = startOffset1 + i1 * srcStride
@@ -779,7 +780,7 @@ public fun <T, U> unaryMapVec(vs: List<T>, layout: Layout, f: (T) -> U, fVec: (L
             } else {
                 val ys2: List<U> = ArrayList(elCount1)
                 val ysToSet4 = ys2.spareCapacityMut()
-                val ysToSet5 = transmute<List<U?>, List<U>>(ysToSet4)
+                val ysToSet5 = transmute<MutableList<MaybeUninit<U>>, MutableList<U>>(ysToSet4)
                 var dstIndex1 = 0
                 for (srcIndex in blockStartIndex) {
                     val vs1 = ((vs).slice(srcIndex until srcIndex + blockLen1))
@@ -800,7 +801,7 @@ public val PAR_ELEMWISE_MIN: Int = 64 * 1024
 // Per-unit span: big enough to amortize dispatch, small enough to balance.
 public val PAR_ELEMWISE_CHUNK: Int = 16 * 1024
 
-public fun <T, U> unaryMapVecPar(vs: List<T>, layout: Layout, f: (T) -> U, fVec: (List<T>, List<U>) -> Unit): List<U> {
+public fun <T, U> unaryMapVecPar(vs: List<T>, layout: Layout, f: (T) -> U, fVec: (List<T>, MutableList<U>) -> Unit): List<U> {
     when (val matchVal = layout.stridedBlocks()) {
         is StridedBlocks.SingleBlock -> {
             val startOffset = matchVal.startOffset
@@ -829,7 +830,7 @@ public fun <T, U> unaryMapVecPar(vs: List<T>, layout: Layout, f: (T) -> U, fVec:
     return unaryMapVec(vs, layout, f, fVec)
 }
 
-public fun <T> binaryMapVecPar(lhsL: Layout, rhsL: Layout, lhs: List<T>, rhs: List<T>, f: (T, T) -> T, fVec: (List<T>, List<T>, List<T>) -> Unit, fScalarVec: (T, List<T>, List<T>) -> Unit): List<T> {
+public fun <T> binaryMapVecPar(lhsL: Layout, rhsL: Layout, lhs: List<T>, rhs: List<T>, f: (T, T) -> T, fVec: (List<T>, List<T>, MutableList<T>) -> Unit, fScalarVec: (T, List<T>, MutableList<T>) -> Unit): List<T> {
     val elCount = lhsL.shape().elemCount()
     if (elCount < PAR_ELEMWISE_MIN) {
         return binaryMapVec(lhsL, rhsL, lhs, rhs, f, fVec, fScalarVec)
@@ -863,7 +864,7 @@ public fun <T> binaryMapVecPar(lhsL: Layout, rhsL: Layout, lhs: List<T>, rhs: Li
                             fScalarVec(rhs[rhsOffset], ((lhs).slice(lhsOffset until lhsOffset + len)), dst)
                         }
                         else -> {
-                            for ((i, dst1) in dst.iterMut().enumerate()) {
+                            for ((i, dst1) in dst.iterMut().mapIndexed { index, item -> Pair(index, item) }) {
                                 dst1 = f(lhs[lhsOffset + i * lhsStride], rhs[rhsOffset + i * rhsStride])
                             }
                         }
@@ -872,7 +873,7 @@ public fun <T> binaryMapVecPar(lhsL: Layout, rhsL: Layout, lhs: List<T>, rhs: Li
                 dstOffset += len
                 innerOffset = 0
                 if (dstOffset < hi) {
-                    offsets = ndIter1.next().expect("logical output range must stay within NdIter blocks")
+                    offsets = (ndIter1.next() ?: error("logical output range must stay within NdIter blocks"))
                 }
             }
         }

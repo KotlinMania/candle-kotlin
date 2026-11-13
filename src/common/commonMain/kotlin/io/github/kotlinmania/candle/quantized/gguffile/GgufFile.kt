@@ -9,7 +9,6 @@ import io.github.kotlinmania.candle.quantized.GgmlDType
 import io.github.kotlinmania.candle.quantized.QTensor
 import io.github.kotlinmania.candle.quantized.ggmlfile.qtensorFromGgml
 import io.github.kotlinmania.candle.shape.Shape
-import io.github.kotlinmania.rustlang.core.result.fromResidual
 
 // Support for the [GGUF file format](https://github.com/philpax/ggml/blob/gguf-spec/docs/gguf.md).
 //
@@ -34,37 +33,38 @@ public val GGUF_MAX_VALUE_DEPTH: Int = 64
 public fun <R : Seek> remainingBytes(reader: R, fileSize: ULong): Result<ULong> {
     val cur =
         when (val tryResult = reader.streamPosition()) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
-    return Ok(fileSize.saturatingSub(cur))
+    return Result.Ok(fileSize.saturatingSub(cur))
 }
 
 public fun <R : Read> readLength(reader: R, magic: VersionedMagic): Result<ULong> {
     return when (magic) {
         VersionedMagic.GgufV1 ->
-            Ok(
+            Result.Ok(
                 (
                     when (val tryResult = reader.readU32<LittleEndian>()) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                 ).toULong(),
             )
         VersionedMagic.GgufV2, VersionedMagic.GgufV3 ->
-            Ok(
+            Result.Ok(
                 when (val tryResult = reader.readU64<LittleEndian>()) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 },
             )
     }
 }
 
-public sealed class Magic : TryFrom<UInt> {
-    public data object Gguf : Magic()
-
-    public fun rustEquals(other: Magic): Boolean = this == other
+public enum class Magic(
+    public val value: UInt,
+) {
+    Gguf(0u),
+    ;
 
     public companion object {
         public fun tryFrom(value: UInt): Result<Magic> {
@@ -73,7 +73,7 @@ public sealed class Magic : TryFrom<UInt> {
                     0x46554747, 0x47475546 -> Magic.Gguf
                     else -> bail("unknown magic 0x{value:08x}")
                 }
-            return Ok(magic)
+            return Result.Ok(magic)
         }
     }
 }
@@ -96,18 +96,18 @@ public enum class VersionedMagic(
         public fun <R : Read> read(reader: R): Result<VersionedMagic> {
             val magic =
                 when (val tryResult = reader.readU32<LittleEndian>()) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             val magic1 =
                 when (val tryResult = Magic.tryFrom(magic)) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             val version =
                 when (val tryResult = reader.readU32<LittleEndian>()) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             val versionedMagic =
                 run {
@@ -119,7 +119,7 @@ public enum class VersionedMagic(
                         else -> bail("gguf: unsupported magic/version {magic:?}/{version}")
                     }
                 }
-            return Ok(versionedMagic)
+            return Result.Ok(versionedMagic)
         }
     }
 }
@@ -139,8 +139,8 @@ public data class TensorInfo(
         val tensorStart = tensorDataOffset.saturatingAdd(this.offset)
         val fileSize =
             when (val tryResult = reader.seek(SeekFrom.End(0))) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val remaining = fileSize.saturatingSub(tensorStart)
         if (sizeInBytes.toULong() > remaining) {
@@ -148,12 +148,12 @@ public data class TensorInfo(
         }
         val rawData = mutableListOf(0u.toUByte(), sizeInBytes)
         when (val tryResult = reader.seek(SeekFrom.Start(tensorStart))) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
         when (val tryResult = reader.readExact(rawData)) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
         return qtensorFromGgml(this.ggmlDtype, rawData, this.shape.dims().toVec(), device)
     }
@@ -161,8 +161,8 @@ public data class TensorInfo(
 
 public data class Content(
     public var magic: VersionedMagic = VersionedMagic.entries.first(),
-    public var metadata: Map<String, Value> = emptyMap(),
-    public var tensorInfos: Map<String, TensorInfo> = emptyMap(),
+    public var metadata: MutableMap<String, Value> = MutableMap<String, Value>(),
+    public var tensorInfos: MutableMap<String, TensorInfo> = MutableMap<String, TensorInfo>(),
     public var tensorDataOffset: ULong = 0uL,
 ) {
     public fun <R> tensor(reader: R, name: String, device: Device): Result<QTensor> where R : Seek, R : Read {
@@ -183,32 +183,32 @@ public data class Content(
             // seek to the end and back on every length-prefixed read.
             val start =
                 when (val tryResult = reader.streamPosition()) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             val fileSize =
                 when (val tryResult = reader.seek(SeekFrom.End(0))) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             when (val tryResult = reader.seek(SeekFrom.Start(start))) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
             val magic =
                 when (val tryResult = VersionedMagic.read(reader)) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             val tensorCount =
                 when (val tryResult = readLength(reader, magic)) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             val metadataKvCount =
                 when (val tryResult = readLength(reader, magic)) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             if (tensorCount > GGUF_MAX_ARRAY_ELEMENTS) {
                 bail("gguf: tensor_count {tensor_count} exceeds max {GGUF_MAX_ARRAY_ELEMENTS}")
@@ -226,47 +226,47 @@ public data class Content(
             val needed = metadataKvCount.saturatingMul(minPerKv).saturatingAdd(tensorCount.saturatingMul(minPerTensor))
             val remaining =
                 when (val tryResult = remainingBytes(reader, fileSize)) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             if (needed > remaining) {
                 bail("gguf: header declares {tensor_count} tensors and {metadata_kv_count} metadata entries, needs at least {needed} bytes, only {remaining} remaining")
             }
-            var metadata = HashMap.new()
+            var metadata = mutableMapOf()
             for (idx in 0 until metadataKvCount) {
                 val key =
                     when (val tryResult = readString(reader, magic, fileSize)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                 val valueType =
                     when (val tryResult = reader.readU32<LittleEndian>()) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                 val valueType1 =
                     when (val tryResult = ValueType.fromU32(valueType)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                 val value =
                     when (val tryResult = Value.read(reader, valueType1, magic, 0, fileSize)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
-                metadata.insert(key, value)
+                metadata.put(key, value)
             }
-            var tensorInfos = HashMap.new()
+            var tensorInfos = mutableMapOf()
             for (idx1 in 0 until tensorCount) {
                 val tensorName =
                     when (val tryResult = readString(reader, magic, fileSize)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                 val nDimensions =
                     when (val tryResult = reader.readU32<LittleEndian>()) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                 if (nDimensions > GGUF_MAX_TENSOR_DIMS) {
                     bail("gguf: tensor '{tensor_name}' has {n_dimensions} dimensions, max is {GGUF_MAX_TENSOR_DIMS}")
@@ -276,42 +276,42 @@ public data class Content(
                         VersionedMagic.GgufV1 -> {
                             val dimensions = mutableListOf(0, nDimensions.toInt())
                             when (val tryResult = reader.readU32Into<LittleEndian>(dimensions)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
-                            ArrayDeque((ArrayDeque(dimensions)).map({ c -> c.toInt() })).collect()
+                            ArrayDeque((ArrayDeque(dimensions)).map({ c -> c.toInt() })).toMutableList()
                         }
                         VersionedMagic.GgufV2, VersionedMagic.GgufV3 -> {
                             val dimensions1 = mutableListOf(0, nDimensions.toInt())
                             when (val tryResult = reader.readU64Into<LittleEndian>(dimensions1)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
-                            ArrayDeque((ArrayDeque(dimensions1)).map({ c -> c.toInt() })).collect()
+                            ArrayDeque((ArrayDeque(dimensions1)).map({ c -> c.toInt() })).toMutableList()
                         }
                     }
                 dimensions2.reverse()
                 val ggmlDtype =
                     when (val tryResult = reader.readU32<LittleEndian>()) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                 val ggmlDtype1 =
                     when (val tryResult = GgmlDType.fromU32(ggmlDtype)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                 val offset =
                     when (val tryResult = reader.readU64<LittleEndian>()) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
-                tensorInfos.insert(tensorName, TensorInfo(shape = Shape.from(dimensions2), offset = offset, ggmlDtype = ggmlDtype1))
+                tensorInfos.put(tensorName, TensorInfo(shape = Shape.from(dimensions2), offset = offset, ggmlDtype = ggmlDtype1))
             }
             val position =
                 when (val tryResult = reader.streamPosition()) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             val alignment =
                 run {
@@ -345,7 +345,7 @@ public data class Content(
                     }
                 }
             val tensorDataOffset = position.divCeil(alignment) * alignment
-            return Ok(Content(magic = magic, metadata = metadata, tensorInfos = tensorInfos, tensorDataOffset = tensorDataOffset))
+            return Result.Ok(Content(magic = magic, metadata = metadata, tensorInfos = tensorInfos, tensorDataOffset = tensorDataOffset))
         }
     }
 }
@@ -353,24 +353,24 @@ public data class Content(
 public fun <R> readString(reader: R, magic: VersionedMagic, fileSize: ULong): Result<String> where R : Read, R : Seek {
     val len =
         when (val tryResult = readLength(reader, magic)) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
     if (len > GGUF_MAX_STRING_LENGTH) {
         bail("gguf: string length {len} exceeds max {GGUF_MAX_STRING_LENGTH}")
     }
     val remaining =
         when (val tryResult = remainingBytes(reader, fileSize)) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
     if (len > remaining) {
         bail("gguf: string length {len} exceeds remaining file bytes {remaining}")
     }
     val v = mutableListOf(0u.toUByte(), len.toInt())
     when (val tryResult = reader.readExact(v)) {
-        is Result.Ok -> tryResult.value
-        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+        is Result.Ok<*> -> tryResult.value
+        is Result.Err<*> -> return Result.Err(tryResult.error)
     }
     // GGUF strings are supposed to be non-null terminated but in practice this happens.
     while (true) {
@@ -379,7 +379,7 @@ public fun <R> readString(reader: R, magic: VersionedMagic, fileSize: ULong): Re
         v.removeLastOrNull()
     }
     // GGUF strings are utf8 encoded but there are cases that don't seem to be valid.
-    return Ok(String.fromUtf8Lossy(v).intoOwned())
+    return Result.Ok(String.fromUtf8Lossy(v).intoOwned())
 }
 
 public enum class ValueType(
@@ -481,7 +481,7 @@ public enum class ValueType(
                         bail("unrecognized value-type {v:#08x}")
                     }
                 }
-            return Ok(v2)
+            return Result.Ok(v2)
         }
     }
 }
@@ -548,7 +548,7 @@ public sealed class Value {
         when (this) {
             is U8 -> {
                 val (v) = this
-                Ok(v)
+                Result.Ok(v)
             }
             else -> {
                 val v1 = this
@@ -560,7 +560,7 @@ public sealed class Value {
         when (this) {
             is I8 -> {
                 val (v) = this
-                Ok(v)
+                Result.Ok(v)
             }
             else -> {
                 val v1 = this
@@ -572,7 +572,7 @@ public sealed class Value {
         when (this) {
             is U16 -> {
                 val (v) = this
-                Ok(v)
+                Result.Ok(v)
             }
             else -> {
                 val v1 = this
@@ -584,7 +584,7 @@ public sealed class Value {
         when (this) {
             is I16 -> {
                 val (v) = this
-                Ok(v)
+                Result.Ok(v)
             }
             else -> {
                 val v1 = this
@@ -596,7 +596,7 @@ public sealed class Value {
         when (this) {
             is U32 -> {
                 val (v) = this
-                Ok(v)
+                Result.Ok(v)
             }
             else -> {
                 val v1 = this
@@ -608,7 +608,7 @@ public sealed class Value {
         when (this) {
             is I32 -> {
                 val (v) = this
-                Ok(v)
+                Result.Ok(v)
             }
             else -> {
                 val v1 = this
@@ -623,24 +623,24 @@ public sealed class Value {
         when (this) {
             is U64 -> {
                 val (v) = this
-                Ok(v)
+                Result.Ok(v)
             }
             // Autoupcast cases here
             is U8 -> {
                 val (v1) = this
-                Ok(v1.toULong())
+                Result.Ok(v1.toULong())
             }
             is U16 -> {
                 val (v2) = this
-                Ok(v2.toULong())
+                Result.Ok(v2.toULong())
             }
             is U32 -> {
                 val (v3) = this
-                Ok(v3.toULong())
+                Result.Ok(v3.toULong())
             }
             is Bool -> {
                 val (v4) = this
-                Ok(v4.toULong())
+                Result.Ok(v4.toULong())
             }
             else -> {
                 val v5 = this
@@ -652,7 +652,7 @@ public sealed class Value {
         when (this) {
             is I64 -> {
                 val (v) = this
-                Ok(v)
+                Result.Ok(v)
             }
             else -> {
                 val v1 = this
@@ -664,7 +664,7 @@ public sealed class Value {
         when (this) {
             is F32 -> {
                 val (v) = this
-                Ok(v)
+                Result.Ok(v)
             }
             else -> {
                 val v1 = this
@@ -676,7 +676,7 @@ public sealed class Value {
         when (this) {
             is F64 -> {
                 val (v) = this
-                Ok(v)
+                Result.Ok(v)
             }
             else -> {
                 val v1 = this
@@ -688,7 +688,7 @@ public sealed class Value {
         when (this) {
             is Bool -> {
                 val (v) = this
-                Ok(v)
+                Result.Ok(v)
             }
             else -> {
                 val v1 = this
@@ -700,7 +700,7 @@ public sealed class Value {
         when (this) {
             is Array -> {
                 val (v) = this
-                Ok(v)
+                Result.Ok(v)
             }
             else -> {
                 val v1 = this
@@ -712,7 +712,7 @@ public sealed class Value {
         when (this) {
             is String -> {
                 val (v) = this
-                Ok(v)
+                Result.Ok(v)
             }
             else -> {
                 val v1 = this
@@ -725,85 +725,85 @@ public sealed class Value {
             is U8 -> {
                 val (v) = this
                 when (val tryResult = w.writeU8(v)) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             }
             is I8 -> {
                 val (v1) = this
                 when (val tryResult = w.writeI8(v1)) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             }
             is U16 -> {
                 val (v2) = this
                 when (val tryResult = w.writeU16<LittleEndian>(v2)) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             }
             is I16 -> {
                 val (v3) = this
                 when (val tryResult = w.writeI16<LittleEndian>(v3)) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             }
             is U32 -> {
                 val (v4) = this
                 when (val tryResult = w.writeU32<LittleEndian>(v4)) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             }
             is I32 -> {
                 val (v5) = this
                 when (val tryResult = w.writeI32<LittleEndian>(v5)) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             }
             is U64 -> {
                 val (v6) = this
                 when (val tryResult = w.writeU64<LittleEndian>(v6)) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             }
             is I64 -> {
                 val (v7) = this
                 when (val tryResult = w.writeI64<LittleEndian>(v7)) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             }
             is F32 -> {
                 val (v8) = this
                 when (val tryResult = w.writeF32<LittleEndian>(v8)) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             }
             is F64 -> {
                 val (v9) = this
                 when (val tryResult = w.writeF64<LittleEndian>(v9)) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             }
             is Bool -> {
                 val (v10) = this
                 when (val tryResult = w.writeU8(UByte.from(v10))) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             }
             is String -> {
                 val (v11) = this
-                when (val tryResult = writeString(w, v11.asStr())) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                when (val tryResult = writeString(w, v11)) {
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             }
             is Array -> {
@@ -820,27 +820,27 @@ public sealed class Value {
                             bail("multiple value-types in the same array {value_type:?}")
                         }
                         when (val tryResult = valueType.intoIter().next().context("empty value_type")) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     }
                 when (val tryResult = w.writeU32<LittleEndian>(valueType1.toU32())) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
                 when (val tryResult = w.writeU64<LittleEndian>(v12.size.toULong())) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
                 for (elem in v12.iter()) {
                     when (val tryResult = elem.write(w)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                 }
             }
         }
-        return Ok(Unit)
+        return Result.Ok(Unit)
     }
 
     public companion object {
@@ -853,79 +853,79 @@ public sealed class Value {
                     ValueType.u8 ->
                         Value.u8(
                             when (val tryResult = reader.readU8()) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             },
                         )
                     ValueType.i8 ->
                         Value.i8(
                             when (val tryResult = reader.readI8()) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             },
                         )
                     ValueType.u16 ->
                         Value.u16(
                             when (val tryResult = reader.readU16<LittleEndian>()) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             },
                         )
                     ValueType.i16 ->
                         Value.i16(
                             when (val tryResult = reader.readI16<LittleEndian>()) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             },
                         )
                     ValueType.u32 ->
                         Value.u32(
                             when (val tryResult = reader.readU32<LittleEndian>()) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             },
                         )
                     ValueType.i32 ->
                         Value.i32(
                             when (val tryResult = reader.readI32<LittleEndian>()) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             },
                         )
                     ValueType.u64 ->
                         Value.u64(
                             when (val tryResult = reader.readU64<LittleEndian>()) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             },
                         )
                     ValueType.i64 ->
                         Value.i64(
                             when (val tryResult = reader.readI64<LittleEndian>()) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             },
                         )
                     ValueType.f32 ->
                         Value.f32(
                             when (val tryResult = reader.readF32<LittleEndian>()) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             },
                         )
                     ValueType.f64 ->
                         Value.f64(
                             when (val tryResult = reader.readF64<LittleEndian>()) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             },
                         )
                     ValueType.Bool ->
                         when (
                             val matchVal =
                                 when (val tryResult = reader.readU8()) {
-                                    is Result.Ok -> tryResult.value
-                                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                    is Result.Ok<*> -> tryResult.value
+                                    is Result.Err<*> -> return Result.Err(tryResult.error)
                                 }
                         ) {
                             0 -> Value.Bool(false)
@@ -938,25 +938,25 @@ public sealed class Value {
                     ValueType.String ->
                         Value.String(
                             when (val tryResult = readString(reader, magic, fileSize)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             },
                         )
                     ValueType.Array -> {
                         val valueType1 =
                             when (val tryResult = reader.readU32<LittleEndian>()) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         val valueType2 =
                             when (val tryResult = ValueType.fromU32(valueType1)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         val len =
                             when (val tryResult = readLength(reader, magic)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         if (len > GGUF_MAX_ARRAY_ELEMENTS) {
                             bail("gguf: array length {len} exceeds max {GGUF_MAX_ARRAY_ELEMENTS}")
@@ -964,8 +964,8 @@ public sealed class Value {
                         val needed = len.saturatingMul(valueType2.minDiskSize(magic))
                         val remaining =
                             when (val tryResult = remainingBytes(reader, fileSize)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         if (needed > remaining) {
                             bail("gguf: array of {len} elements needs at least {needed} bytes, only {remaining} remaining")
@@ -974,15 +974,15 @@ public sealed class Value {
                         for (unused in 0 until len) {
                             vs.add(
                                 when (val tryResult = Value.read(reader, valueType2, magic, depth + 1, fileSize)) {
-                                    is Result.Ok -> tryResult.value
-                                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                    is Result.Ok<*> -> tryResult.value
+                                    is Result.Err<*> -> return Result.Err(tryResult.error)
                                 },
                             )
                         }
                         Value.Array(vs)
                     }
                 }
-            return Ok(v)
+            return Result.Ok(v)
         }
     }
 }
@@ -990,73 +990,73 @@ public sealed class Value {
 public fun <W : Write> writeString(w: W, str: String): Result<Unit> {
     val bytes = str.encodeToByteArray().asUByteArray()
     when (val tryResult = w.writeU64<LittleEndian>(bytes.size.toULong())) {
-        is Result.Ok -> tryResult.value
-        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+        is Result.Ok<*> -> tryResult.value
+        is Result.Err<*> -> return Result.Err(tryResult.error)
     }
     when (val tryResult = w.writeAll(bytes)) {
-        is Result.Ok -> tryResult.value
-        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+        is Result.Ok<*> -> tryResult.value
+        is Result.Err<*> -> return Result.Err(tryResult.error)
     }
-    return Ok(Unit)
+    return Result.Ok(Unit)
 }
 
 public fun <W> write(w: W, metadata: List<Pair<String, Value>>, tensors: List<Pair<String, QTensor>>): Result<Unit> where W : Seek, W : Write {
     when (val tryResult = w.writeU32<LittleEndian>(0x46554747)) {
-        is Result.Ok -> tryResult.value
-        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+        is Result.Ok<*> -> tryResult.value
+        is Result.Err<*> -> return Result.Err(tryResult.error)
     }
     when (val tryResult = w.writeU32<LittleEndian>(2)) {
-        is Result.Ok -> tryResult.value
-        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+        is Result.Ok<*> -> tryResult.value
+        is Result.Err<*> -> return Result.Err(tryResult.error)
     }
     // version 2.
     when (val tryResult = w.writeU64<LittleEndian>(tensors.size.toULong())) {
-        is Result.Ok -> tryResult.value
-        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+        is Result.Ok<*> -> tryResult.value
+        is Result.Err<*> -> return Result.Err(tryResult.error)
     }
     when (val tryResult = w.writeU64<LittleEndian>(metadata.size.toULong())) {
-        is Result.Ok -> tryResult.value
-        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+        is Result.Ok<*> -> tryResult.value
+        is Result.Err<*> -> return Result.Err(tryResult.error)
     }
     for ((name, value) in metadata.iter()) {
         when (val tryResult = writeString(w, name)) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
         when (val tryResult = w.writeU32<LittleEndian>(value.valueType().toU32())) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
         when (val tryResult = value.write(w)) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
     }
     var offset = 0
     val offsets = ArrayList(tensors.size)
     for ((name1, tensor) in tensors.iter()) {
         when (val tryResult = writeString(w, name1)) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
         val dims = tensor.shape().dims()
         when (val tryResult = w.writeU32<LittleEndian>(dims.len().toUInt())) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
         for (dim in dims.iter().rev()) {
             when (val tryResult = w.writeU64<LittleEndian>(dim.toULong())) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         }
         when (val tryResult = w.writeU32<LittleEndian>(tensor.dtype().toU32())) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
         when (val tryResult = w.writeU64<LittleEndian>(offset.toULong())) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
         offsets.add(offset)
         val sizeInBytes = tensor.storageSizeInBytes()
@@ -1066,28 +1066,28 @@ public fun <W> write(w: W, metadata: List<Pair<String, Value>>, tensors: List<Pa
     val pos =
         (
             when (val tryResult = w.streamPosition()) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         ).toInt()
     val padding1 = 31 - (31 + pos) % 32
     when (val tryResult = w.writeAll(mutableListOf(0u.toUByte(), padding1))) {
-        is Result.Ok -> tryResult.value
-        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+        is Result.Ok<*> -> tryResult.value
+        is Result.Err<*> -> return Result.Err(tryResult.error)
     }
     val tensorStartPos =
         (
             when (val tryResult = w.streamPosition()) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         ).toInt()
-    for ((offset1, name, tensor1) in (ArrayDeque(offsets).zip(tensors))) {
+    for ((offset1, name, tensor1) in (offsets.zip(tensors))) {
         val pos1 =
             (
                 when (val tryResult = w.streamPosition()) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             ).toInt()
         if (tensorStartPos + offset1 != pos1) {
@@ -1095,19 +1095,19 @@ public fun <W> write(w: W, metadata: List<Pair<String, Value>>, tensors: List<Pa
         }
         val data =
             when (val tryResult = tensor1.data()) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val sizeInBytes1 = data.len()
         when (val tryResult = w.writeAll(data)) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
         val padding2 = 31 - (31 + sizeInBytes1) % 32
         when (val tryResult = w.writeAll(mutableListOf(0u.toUByte(), padding2))) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
     }
-    return Ok(Unit)
+    return Result.Ok(Unit)
 }

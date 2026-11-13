@@ -17,7 +17,7 @@ public fun splits(pre: String, input: String): List<String> {
         .getSplits(OffsetReferential.Original, OffsetType.Byte)
         .intoIter()
         .map({ (s, _, _) -> s.toString() })
-        .collect()
+        .toMutableList()
 }
 
 // Sample made to test negative lookahead like (`\s+(?!\S)`).

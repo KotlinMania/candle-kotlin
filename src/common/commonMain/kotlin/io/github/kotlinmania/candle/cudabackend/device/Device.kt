@@ -1,8 +1,6 @@
 // port-lint: source cuda_backend/device.rs
 package io.github.kotlinmania.candle.cudabackend.device
 
-import io.github.kotlinmania.candle.RustAny
-import io.github.kotlinmania.candle.RustTypeId
 import io.github.kotlinmania.candle.backend.BackendDevice
 import io.github.kotlinmania.candle.cpubackend.CpuStorage
 import io.github.kotlinmania.candle.cpubackend.CpuStorageRef
@@ -22,14 +20,10 @@ import io.github.kotlinmania.cudarc.driver.CudaFunction
 import io.github.kotlinmania.float8.F8e4m3
 import io.github.kotlinmania.half.Bf16
 import io.github.kotlinmania.half.F16
+import io.github.kotlinmania.rustlang.core.RustAny
+import io.github.kotlinmania.rustlang.core.RustTypeId
 import io.github.kotlinmania.rustlang.core.mem.PrimitiveLayouts
 import io.github.kotlinmania.rustlang.core.mem.TypeLayout
-import io.github.kotlinmania.rustlang.core.result.fromResidual
-import io.github.kotlinmania.rustlang.std.sync.Mutex
-import io.github.kotlinmania.rustlang.std.sync.RwLock
-import io.github.kotlinmania.rustlang.std.sync.atomic
-
-public typealias Target = CudaFunction
 
 public typealias Storage = CudaStorage
 
@@ -67,7 +61,7 @@ public data class DeviceId(
 }
 
 public data class CudaRng(
-    public var value: cudarc.CudaRng = cudarc.CudaRng(),
+    public var value: cudarc.CudaRng,
 ) {
     public var field0: cudarc.CudaRng
         get() = value
@@ -80,7 +74,7 @@ public val CUDA_GRAPH_HTOD_CACHE_MAX_BYTES: Int = 4096
 
 public typealias CudaGraphHtodCacheKey = Triple<DeviceId, RustTypeId, List<UByte>>
 
-public typealias CudaGraphHtodCache = Map<CudaGraphHtodCacheKey, RustAny>
+public typealias CudaGraphHtodCache = MutableMap<CudaGraphHtodCacheKey, RustAny>
 
 public class CudaGraphHtodCacheGuard {
     public fun drop() {
@@ -111,16 +105,16 @@ public class CudaDevice internal constructor(
     public var id: DeviceId,
     public var context: cudarc.CudaContext,
     modulesCtorArg: RwLock<ModuleStore>,
-    customModulesCtorArg: RwLock<Map<String, cudarc.CudaModule>>,
+    customModulesCtorArg: RwLock<MutableMap<String, cudarc.CudaModule>>,
     public var stream: cudarc.CudaStream,
     internal var blas: cudarc.CudaBlas,
     curandCtorArg: Mutex<CudaRng>,
     seedValueCtorArg: RwLock<ULong>,
-) : BackendDevice {
+) : BackendDevice<CudaStorage> {
     public var modules: RwLock<ModuleStore> = modulesCtorArg
         internal set
 
-    public var customModules: RwLock<Map<String, cudarc.CudaModule>> = customModulesCtorArg
+    public var customModules: RwLock<MutableMap<String, cudarc.CudaModule>> = customModulesCtorArg
         internal set
 
     public var curand: Mutex<CudaRng> = curandCtorArg
@@ -133,7 +127,7 @@ public class CudaDevice internal constructor(
         id = DeviceId(),
         context = cudarc.CudaContext(),
         modulesCtorArg = RwLock<ModuleStore>(),
-        customModulesCtorArg = RwLock<Map<String, cudarc.CudaModule>>(),
+        customModulesCtorArg = RwLock<MutableMap<String, cudarc.CudaModule>>(),
         stream = cudarc.CudaStream(),
         blas = cudarc.CudaBlas(),
         curandCtorArg = Mutex<CudaRng>(),
@@ -162,8 +156,8 @@ public class CudaDevice internal constructor(
 
     public fun <T : cudarc.DeviceRepr, Src : cudarc.DevicePtr<T>> cloneDtoh(src: Src): Result<List<T>> {
         when (val tryResult = this.checkCaptureCopy("clone_dtoh")) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
         return this.stream.cloneDtoh(src).w()
     }
@@ -172,8 +166,8 @@ public class CudaDevice internal constructor(
 
     public fun <T : cudarc.DeviceRepr, Src : cudarc.DevicePtr<T>, Dst : cudarc.HostSlice<T>> memcpyDtoh(src: Src, dst: Dst): Result<Unit> {
         when (val tryResult = this.checkCaptureCopy("memcpy_dtoh")) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
         return this.stream.memcpyDtoh(src, dst).w()
     }
@@ -192,7 +186,7 @@ public class CudaDevice internal constructor(
                 bail("{op} during CUDA graph capture: host/device copies are not permitted while capturing (use param cache for kernel parameters)")
             }
         }
-        return Ok(Unit)
+        return Result.Ok(Unit)
     }
 
     public fun <T : cudarc.DeviceRepr, Src : cudarc.HostSlice<T>, Dst : cudarc.DevicePtrMut<T>> memcpyHtodCaptureCached(src: Src, dst: Dst): Result<Unit> {
@@ -200,8 +194,8 @@ public class CudaDevice internal constructor(
         when (
             val matchVal =
                 when (val tryResult = this.cachedHtodSlice(src)) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
         ) {
             null -> {}
@@ -217,14 +211,14 @@ public class CudaDevice internal constructor(
         when (
             val matchVal =
                 when (val tryResult = this.cachedHtodSlice(src)) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
         ) {
             null -> {}
             else -> {
                 val cached = matchVal
-                return Ok(cached)
+                return Result.Ok(cached)
             }
         }
         return this.stream.cloneHtod(src).w()
@@ -237,7 +231,7 @@ public class CudaDevice internal constructor(
             if (this.cudaGraphCaptureActive()) {
                 bail("CUDA graph capture cannot upload uncached host data")
             }
-            return Ok(null)
+            return Result.Ok(null)
         }
         val bytes = fromRawParts(srcSlice.asPtr().cast(), byteLen).toVec()
         val key = Triple(this.id, RustTypeId.of<T>(), bytes)
@@ -252,7 +246,7 @@ public class CudaDevice internal constructor(
             null -> {}
             else -> {
                 val cached = matchVal
-                return Ok(cached)
+                return Result.Ok(cached)
             }
         }
         if (this.cudaGraphCaptureActive()) {
@@ -260,21 +254,21 @@ public class CudaDevice internal constructor(
         }
         val cached1 =
             when (val tryResult = this.stream.cloneHtod(src).w()) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         CUDA_GRAPH_HTOD_CACHE.with({ cache ->
             cache.borrowMut().insert(key, cached1.clone())
         })
-        return Ok(cached1)
+        return Result.Ok(cached1)
     }
 
     public fun cudaGraphCaptureActive(): Boolean =
         run {
             val matchVal = this.stream.captureStatus()
             when {
-                matchVal is Ok && (matchVal as Ok).value != cudarc.CUstreamCaptureStatus.CU_STREAM_CAPTURE_STATUS_NONE -> {
-                    val (status) = matchVal
+                matchVal is Result.Ok<*> && (matchVal as Result.Ok<*>).value != cudarc.CUstreamCaptureStatus.CU_STREAM_CAPTURE_STATUS_NONE -> {
+                    val status = (matchVal as Result.Ok<*>).value
                     true
                 }
                 else -> false
@@ -309,26 +303,26 @@ public class CudaDevice internal constructor(
                 val mdl = matchVal
                 val func =
                     when (val tryResult = mdl.loadFunction(fnName).w()) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
-                return Ok(CudaFunc(func = func, stream = this.stream.clone()))
+                return Result.Ok(CudaFunc(func = func, stream = this.stream.clone()))
             }
         }
         drop(ms)
         val ms1 = this.customModules.write().unwrap()
         val cudaModule =
             when (val tryResult = this.context.loadModule(ptx.into()).w()) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         ms1.insert(moduleName.toString(), cudaModule.clone())
         val func1 =
             when (val tryResult = cudaModule.loadFunction(fnName).w()) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
-        return Ok(CudaFunc(func = func1, stream = this.stream.clone()))
+        return Result.Ok(CudaFunc(func = func1, stream = this.stream.clone()))
     }
 
     public fun getOrLoadFunc(fnName: String, mdl: kernels.Module): Result<CudaFunc> {
@@ -339,26 +333,26 @@ public class CudaDevice internal constructor(
                 val mdl1 = matchVal
                 val func =
                     when (val tryResult = mdl1.loadFunction(fnName).w()) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
-                return Ok(CudaFunc(func = func, stream = this.stream.clone()))
+                return Result.Ok(CudaFunc(func = func, stream = this.stream.clone()))
             }
         }
         drop(ms)
         val ms1 = this.modules.write().unwrap()
         val cudaModule =
             when (val tryResult = this.context.loadModule(mdl.ptx().into()).w()) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         ms1.mdls[mdl.index()] = cudaModule.clone()
         val func1 =
             when (val tryResult = cudaModule.loadFunction(fnName).w()) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
-        return Ok(CudaFunc(func = func1, stream = this.stream.clone()))
+        return Result.Ok(CudaFunc(func = func1, stream = this.stream.clone()))
     }
 
     public fun cublasHandle(): cudarc.CudaBlas = this.blas.clone()
@@ -369,14 +363,14 @@ public class CudaDevice internal constructor(
         val curand = this.curand.lock().unwrap()
         curand.first =
             when (val tryResult = cudarc.CudaRng.new(seed, this.stream.clone()).w()) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         this.seedValue.write().unwrap() = seed
-        return Ok(Unit)
+        return Result.Ok(Unit)
     }
 
-    public fun getCurrentSeed(): Result<ULong> = Ok(this.seedValue.read().unwrap())
+    public fun getCurrentSeed(): Result<ULong> = Result.Ok(this.seedValue.read().unwrap())
 
     public fun location(): DeviceLocation = DeviceLocation.Cuda(gpuId = this.context.ordinal())
 
@@ -389,88 +383,88 @@ public class CudaDevice internal constructor(
                 DType.u8 -> {
                     val data =
                         when (val tryResult = this.allocZeros<UByte>(elemCount)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     CudaStorageSlice.u8(data)
                 }
                 DType.u32 -> {
                     val data1 =
                         when (val tryResult = this.allocZeros<UInt>(elemCount)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     CudaStorageSlice.u32(data1)
                 }
                 DType.i16 -> {
                     val data2 =
                         when (val tryResult = this.allocZeros<Short>(elemCount)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     CudaStorageSlice.i16(data2)
                 }
                 DType.i32 -> {
                     val data3 =
                         when (val tryResult = this.allocZeros<Int>(elemCount)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     CudaStorageSlice.i32(data3)
                 }
                 DType.i64 -> {
                     val data4 =
                         when (val tryResult = this.allocZeros<Long>(elemCount)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     CudaStorageSlice.i64(data4)
                 }
                 DType.bf16 -> {
                     val data5 =
                         when (val tryResult = this.allocZeros<Bf16>(elemCount)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     CudaStorageSlice.bf16(data5)
                 }
                 DType.f16 -> {
                     val data6 =
                         when (val tryResult = this.allocZeros<F16>(elemCount)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     CudaStorageSlice.f16(data6)
                 }
                 DType.f32 -> {
                     val data7 =
                         when (val tryResult = this.allocZeros<Float>(elemCount)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     CudaStorageSlice.f32(data7)
                 }
                 DType.f64 -> {
                     val data8 =
                         when (val tryResult = this.allocZeros<Double>(elemCount)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     CudaStorageSlice.f64(data8)
                 }
                 DType.f8e4m3 -> {
                     val data9 =
                         when (val tryResult = this.allocZeros<F8e4m3>(elemCount)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     CudaStorageSlice.f8e4m3(data9)
                 }
                 DType.f6e2m3, DType.f6e3m2, DType.f4, DType.f8e8m0 -> {
-                    return Err(CudaError.InternalError("Dummy types not supported in CUDA backend").into())
+                    return Result.Err(CudaError.InternalError("Dummy types not supported in CUDA backend").into())
                 }
             }
-        return Ok(CudaStorage(slice = slice, device = this.clone()))
+        return Result.Ok(CudaStorage(slice = slice, device = this.clone()))
     }
 
     public fun randUniform(shape: Shape, dtype: DType, lo: Double, up: Double): Result<CudaStorage> {
@@ -481,38 +475,38 @@ public class CudaDevice internal constructor(
                 // Note: Add support for F16 and BF16 though this is likely to require some upstream
                 // cudarc changes.
                 DType.u8, DType.u32, DType.i16, DType.i32, DType.i64, DType.f16, DType.bf16 ->
-                    when (val tryResult = Err(CudaError.UnsupportedDtype(dtype = dtype, op = "rand_uniform")).w()) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    when (val tryResult = Result.Err(CudaError.UnsupportedDtype(dtype = dtype, op = "rand_uniform")).w()) {
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                 DType.f32 -> {
                     val data =
                         when (val tryResult = this.alloc<Float>(elemCount)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     when (val tryResult = curand.first.fillWithUniform(data).w()) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                     CudaStorageSlice.f32(data)
                 }
                 DType.f64 -> {
                     val data1 =
                         when (val tryResult = this.alloc<Double>(elemCount)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     when (val tryResult = curand.first.fillWithUniform(data1).w()) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                     CudaStorageSlice.f64(data1)
                 }
                 DType.f8e4m3, DType.f6e2m3, DType.f6e3m2, DType.f4, DType.f8e8m0 -> {
-                    when (val tryResult = Err(CudaError.UnsupportedDtype(dtype = dtype, op = "rand_uniform")).w()) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    when (val tryResult = Result.Err(CudaError.UnsupportedDtype(dtype = dtype, op = "rand_uniform")).w()) {
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                 }
             }
@@ -522,11 +516,11 @@ public class CudaDevice internal constructor(
             } else {
                 val layout = Layout.contiguous(shape)
                 when (val tryResult = Affine(up - lo, lo).map(slice, this, layout)) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             }
-        return Ok(CudaStorage(slice = slice1, device = this.clone()))
+        return Result.Ok(CudaStorage(slice = slice1, device = this.clone()))
     }
 
     public fun randNormal(shape: Shape, dtype: DType, mean: Double, std: Double): Result<CudaStorage> {
@@ -545,42 +539,42 @@ public class CudaDevice internal constructor(
         val slice =
             when (dtype) {
                 DType.u8, DType.u32, DType.i16, DType.i32, DType.i64, DType.f16, DType.bf16 ->
-                    when (val tryResult = Err(CudaError.UnsupportedDtype(dtype = dtype, op = "rand_normal")).w()) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    when (val tryResult = Result.Err(CudaError.UnsupportedDtype(dtype = dtype, op = "rand_normal")).w()) {
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                 DType.f32 -> {
                     val data =
                         when (val tryResult = this.alloc<Float>(elemCountRound)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     when (val tryResult = curand.first.fillWithNormal(data, mean.toFloat(), std.toFloat()).w()) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                     CudaStorageSlice.f32(data)
                 }
                 DType.f64 -> {
                     val data1 =
                         when (val tryResult = this.alloc<Double>(elemCountRound)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     when (val tryResult = curand.first.fillWithNormal(data1, mean, std).w()) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                     CudaStorageSlice.f64(data1)
                 }
                 DType.f8e4m3, DType.f6e2m3, DType.f6e3m2, DType.f4, DType.f8e8m0 -> {
-                    when (val tryResult = Err(CudaError.UnsupportedDtype(dtype = dtype, op = "rand_normal")).w()) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    when (val tryResult = Result.Err(CudaError.UnsupportedDtype(dtype = dtype, op = "rand_normal")).w()) {
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                 }
             }
-        return Ok(CudaStorage(slice = slice, device = this.clone()))
+        return Result.Ok(CudaStorage(slice = slice, device = this.clone()))
     }
 
     public fun allocUninit(shape: Shape, dtype: DType): Result<CudaStorage> {
@@ -590,88 +584,88 @@ public class CudaDevice internal constructor(
                 DType.u8 -> {
                     val data =
                         when (val tryResult = this.alloc<UByte>(elemCount)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     CudaStorageSlice.u8(data)
                 }
                 DType.u32 -> {
                     val data1 =
                         when (val tryResult = this.alloc<UInt>(elemCount)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     CudaStorageSlice.u32(data1)
                 }
                 DType.i16 -> {
                     val data2 =
                         when (val tryResult = this.alloc<Short>(elemCount)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     CudaStorageSlice.i16(data2)
                 }
                 DType.i32 -> {
                     val data3 =
                         when (val tryResult = this.alloc<Int>(elemCount)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     CudaStorageSlice.i32(data3)
                 }
                 DType.i64 -> {
                     val data4 =
                         when (val tryResult = this.alloc<Long>(elemCount)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     CudaStorageSlice.i64(data4)
                 }
                 DType.bf16 -> {
                     val data5 =
                         when (val tryResult = this.alloc<Bf16>(elemCount)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     CudaStorageSlice.bf16(data5)
                 }
                 DType.f16 -> {
                     val data6 =
                         when (val tryResult = this.alloc<F16>(elemCount)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     CudaStorageSlice.f16(data6)
                 }
                 DType.f32 -> {
                     val data7 =
                         when (val tryResult = this.alloc<Float>(elemCount)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     CudaStorageSlice.f32(data7)
                 }
                 DType.f64 -> {
                     val data8 =
                         when (val tryResult = this.alloc<Double>(elemCount)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     CudaStorageSlice.f64(data8)
                 }
                 DType.f8e4m3 -> {
                     val data9 =
                         when (val tryResult = this.alloc<F8e4m3>(elemCount)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     CudaStorageSlice.f8e4m3(data9)
                 }
                 DType.f6e2m3, DType.f6e3m2, DType.f4, DType.f8e8m0 -> {
-                    return Err(CudaError.InternalError("Dummy types not supported in CUDA backend").into())
+                    return Result.Err(CudaError.InternalError("Dummy types not supported in CUDA backend").into())
                 }
             }
-        return Ok(CudaStorage(slice = slice, device = this.clone()))
+        return Result.Ok(CudaStorage(slice = slice, device = this.clone()))
     }
 
     public fun <T : WithDType> storageFromSlice(s: List<T>, cpuStorageRefTFn: (Any?) -> Any?): Result<CudaStorage> {
@@ -681,8 +675,8 @@ public class CudaDevice internal constructor(
                     val (storage) = matchVal
                     val data =
                         when (val tryResult = this.cloneHtod(storage)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     CudaStorageSlice.u8(data)
                 }
@@ -690,8 +684,8 @@ public class CudaDevice internal constructor(
                     val (storage1) = matchVal
                     val data1 =
                         when (val tryResult = this.cloneHtod(storage1)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     CudaStorageSlice.u32(data1)
                 }
@@ -699,8 +693,8 @@ public class CudaDevice internal constructor(
                     val (storage2) = matchVal
                     val data2 =
                         when (val tryResult = this.cloneHtod(storage2)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     CudaStorageSlice.i16(data2)
                 }
@@ -708,8 +702,8 @@ public class CudaDevice internal constructor(
                     val (storage3) = matchVal
                     val data3 =
                         when (val tryResult = this.cloneHtod(storage3)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     CudaStorageSlice.i32(data3)
                 }
@@ -717,8 +711,8 @@ public class CudaDevice internal constructor(
                     val (storage4) = matchVal
                     val data4 =
                         when (val tryResult = this.cloneHtod(storage4)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     CudaStorageSlice.i64(data4)
                 }
@@ -726,8 +720,8 @@ public class CudaDevice internal constructor(
                     val (storage5) = matchVal
                     val data5 =
                         when (val tryResult = this.cloneHtod(storage5)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     CudaStorageSlice.bf16(data5)
                 }
@@ -735,8 +729,8 @@ public class CudaDevice internal constructor(
                     val (storage6) = matchVal
                     val data6 =
                         when (val tryResult = this.cloneHtod(storage6)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     CudaStorageSlice.f16(data6)
                 }
@@ -744,8 +738,8 @@ public class CudaDevice internal constructor(
                     val (storage7) = matchVal
                     val data7 =
                         when (val tryResult = this.cloneHtod(storage7)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     CudaStorageSlice.f32(data7)
                 }
@@ -753,8 +747,8 @@ public class CudaDevice internal constructor(
                     val (storage8) = matchVal
                     val data8 =
                         when (val tryResult = this.cloneHtod(storage8)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     CudaStorageSlice.f64(data8)
                 }
@@ -762,25 +756,25 @@ public class CudaDevice internal constructor(
                     val (storage9) = matchVal
                     val data9 =
                         when (val tryResult = this.cloneHtod(storage9)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     CudaStorageSlice.f8e4m3(data9)
                 }
                 is CpuStorageRef.F4 -> {
-                    return Err(CudaError.UnsupportedDtype(dtype = T.DTYPE, op = "storage_from_slice").into())
+                    return Result.Err(CudaError.UnsupportedDtype(dtype = T.DTYPE, op = "storage_from_slice").into())
                 }
                 is CpuStorageRef.F6e2m3 -> {
-                    return Err(CudaError.UnsupportedDtype(dtype = T.DTYPE, op = "storage_from_slice").into())
+                    return Result.Err(CudaError.UnsupportedDtype(dtype = T.DTYPE, op = "storage_from_slice").into())
                 }
                 is CpuStorageRef.F6e3m2 -> {
-                    return Err(CudaError.UnsupportedDtype(dtype = T.DTYPE, op = "storage_from_slice").into())
+                    return Result.Err(CudaError.UnsupportedDtype(dtype = T.DTYPE, op = "storage_from_slice").into())
                 }
                 is CpuStorageRef.F8e8m0 -> {
-                    return Err(CudaError.UnsupportedDtype(dtype = T.DTYPE, op = "storage_from_slice").into())
+                    return Result.Err(CudaError.UnsupportedDtype(dtype = T.DTYPE, op = "storage_from_slice").into())
                 }
             }
-        return Ok(CudaStorage(slice = slice, device = this.clone()))
+        return Result.Ok(CudaStorage(slice = slice, device = this.clone()))
     }
 
     public fun storageFromCpuStorage(storage: CpuStorage): Result<CudaStorage> {
@@ -790,8 +784,8 @@ public class CudaDevice internal constructor(
                     val (storage1) = storage
                     val data =
                         when (val tryResult = this.cloneHtod(storage1)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     CudaStorageSlice.u8(data)
                 }
@@ -799,8 +793,8 @@ public class CudaDevice internal constructor(
                     val (storage2) = storage
                     val data1 =
                         when (val tryResult = this.cloneHtod(storage2)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     CudaStorageSlice.u32(data1)
                 }
@@ -808,8 +802,8 @@ public class CudaDevice internal constructor(
                     val (storage3) = storage
                     val data2 =
                         when (val tryResult = this.cloneHtod(storage3)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     CudaStorageSlice.i16(data2)
                 }
@@ -817,8 +811,8 @@ public class CudaDevice internal constructor(
                     val (storage4) = storage
                     val data3 =
                         when (val tryResult = this.cloneHtod(storage4)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     CudaStorageSlice.i32(data3)
                 }
@@ -826,8 +820,8 @@ public class CudaDevice internal constructor(
                     val (storage5) = storage
                     val data4 =
                         when (val tryResult = this.cloneHtod(storage5)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     CudaStorageSlice.i64(data4)
                 }
@@ -835,8 +829,8 @@ public class CudaDevice internal constructor(
                     val (storage6) = storage
                     val data5 =
                         when (val tryResult = this.cloneHtod(storage6)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     CudaStorageSlice.bf16(data5)
                 }
@@ -844,8 +838,8 @@ public class CudaDevice internal constructor(
                     val (storage7) = storage
                     val data6 =
                         when (val tryResult = this.cloneHtod(storage7)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     CudaStorageSlice.f16(data6)
                 }
@@ -853,8 +847,8 @@ public class CudaDevice internal constructor(
                     val (storage8) = storage
                     val data7 =
                         when (val tryResult = this.cloneHtod(storage8)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     CudaStorageSlice.f32(data7)
                 }
@@ -862,8 +856,8 @@ public class CudaDevice internal constructor(
                     val (storage9) = storage
                     val data8 =
                         when (val tryResult = this.cloneHtod(storage9)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     CudaStorageSlice.f64(data8)
                 }
@@ -871,25 +865,25 @@ public class CudaDevice internal constructor(
                     val (storage10) = storage
                     val data9 =
                         when (val tryResult = this.cloneHtod(storage10)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     CudaStorageSlice.f8e4m3(data9)
                 }
                 is CpuStorage.F4 -> {
-                    return Err(CudaError.UnsupportedDtype(dtype = storage.dtype(), op = "storage_from_cpu_storage").into())
+                    return Result.Err(CudaError.UnsupportedDtype(dtype = storage.dtype(), op = "storage_from_cpu_storage").into())
                 }
                 is CpuStorage.F6e2m3 -> {
-                    return Err(CudaError.UnsupportedDtype(dtype = storage.dtype(), op = "storage_from_cpu_storage").into())
+                    return Result.Err(CudaError.UnsupportedDtype(dtype = storage.dtype(), op = "storage_from_cpu_storage").into())
                 }
                 is CpuStorage.F6e3m2 -> {
-                    return Err(CudaError.UnsupportedDtype(dtype = storage.dtype(), op = "storage_from_cpu_storage").into())
+                    return Result.Err(CudaError.UnsupportedDtype(dtype = storage.dtype(), op = "storage_from_cpu_storage").into())
                 }
                 is CpuStorage.F8e8m0 -> {
-                    return Err(CudaError.UnsupportedDtype(dtype = storage.dtype(), op = "storage_from_cpu_storage").into())
+                    return Result.Err(CudaError.UnsupportedDtype(dtype = storage.dtype(), op = "storage_from_cpu_storage").into())
                 }
             }
-        return Ok(CudaStorage(slice = slice, device = this.clone()))
+        return Result.Ok(CudaStorage(slice = slice, device = this.clone()))
     }
 
     public fun storageFromCpuStorageOwned(storage: CpuStorage): Result<CudaStorage> {
@@ -899,8 +893,8 @@ public class CudaDevice internal constructor(
                     val (storage1) = storage
                     val data =
                         when (val tryResult = this.cloneHtod(storage1)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     CudaStorageSlice.u8(data)
                 }
@@ -908,8 +902,8 @@ public class CudaDevice internal constructor(
                     val (storage2) = storage
                     val data1 =
                         when (val tryResult = this.cloneHtod(storage2)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     CudaStorageSlice.u32(data1)
                 }
@@ -917,8 +911,8 @@ public class CudaDevice internal constructor(
                     val (storage3) = storage
                     val data2 =
                         when (val tryResult = this.cloneHtod(storage3)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     CudaStorageSlice.i16(data2)
                 }
@@ -926,8 +920,8 @@ public class CudaDevice internal constructor(
                     val (storage4) = storage
                     val data3 =
                         when (val tryResult = this.cloneHtod(storage4)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     CudaStorageSlice.i32(data3)
                 }
@@ -935,8 +929,8 @@ public class CudaDevice internal constructor(
                     val (storage5) = storage
                     val data4 =
                         when (val tryResult = this.cloneHtod(storage5)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     CudaStorageSlice.i64(data4)
                 }
@@ -944,8 +938,8 @@ public class CudaDevice internal constructor(
                     val (storage6) = storage
                     val data5 =
                         when (val tryResult = this.cloneHtod(storage6)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     CudaStorageSlice.bf16(data5)
                 }
@@ -953,8 +947,8 @@ public class CudaDevice internal constructor(
                     val (storage7) = storage
                     val data6 =
                         when (val tryResult = this.cloneHtod(storage7)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     CudaStorageSlice.f16(data6)
                 }
@@ -962,8 +956,8 @@ public class CudaDevice internal constructor(
                     val (storage8) = storage
                     val data7 =
                         when (val tryResult = this.cloneHtod(storage8)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     CudaStorageSlice.f32(data7)
                 }
@@ -971,8 +965,8 @@ public class CudaDevice internal constructor(
                     val (storage9) = storage
                     val data8 =
                         when (val tryResult = this.cloneHtod(storage9)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     CudaStorageSlice.f64(data8)
                 }
@@ -980,33 +974,33 @@ public class CudaDevice internal constructor(
                     val (storage10) = storage
                     val data9 =
                         when (val tryResult = this.cloneHtod(storage10)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     CudaStorageSlice.f8e4m3(data9)
                 }
                 is CpuStorage.F4 -> {
-                    return Err(CudaError.UnsupportedDtype(dtype = storage.dtype(), op = "storage_from_cpu_storage_owned").into())
+                    return Result.Err(CudaError.UnsupportedDtype(dtype = storage.dtype(), op = "storage_from_cpu_storage_owned").into())
                 }
                 is CpuStorage.F6e2m3 -> {
-                    return Err(CudaError.UnsupportedDtype(dtype = storage.dtype(), op = "storage_from_cpu_storage_owned").into())
+                    return Result.Err(CudaError.UnsupportedDtype(dtype = storage.dtype(), op = "storage_from_cpu_storage_owned").into())
                 }
                 is CpuStorage.F6e3m2 -> {
-                    return Err(CudaError.UnsupportedDtype(dtype = storage.dtype(), op = "storage_from_cpu_storage_owned").into())
+                    return Result.Err(CudaError.UnsupportedDtype(dtype = storage.dtype(), op = "storage_from_cpu_storage_owned").into())
                 }
                 is CpuStorage.F8e8m0 -> {
-                    return Err(CudaError.UnsupportedDtype(dtype = storage.dtype(), op = "storage_from_cpu_storage_owned").into())
+                    return Result.Err(CudaError.UnsupportedDtype(dtype = storage.dtype(), op = "storage_from_cpu_storage_owned").into())
                 }
             }
-        return Ok(CudaStorage(slice = slice, device = this.clone()))
+        return Result.Ok(CudaStorage(slice = slice, device = this.clone()))
     }
 
     public fun synchronize(): Result<Unit> {
         when (val tryResult = this.stream.synchronize().mapErr(Error::wrap)) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
-        return Ok(Unit)
+        return Result.Ok(Unit)
     }
 
     public companion object {
@@ -1014,7 +1008,7 @@ public class CudaDevice internal constructor(
             id: DeviceId = DeviceId(),
             context: cudarc.CudaContext = cudarc.CudaContext(),
             modules: RwLock<ModuleStore> = RwLock<ModuleStore>(),
-            customModules: RwLock<Map<String, cudarc.CudaModule>> = RwLock<Map<String, cudarc.CudaModule>>(),
+            customModules: RwLock<MutableMap<String, cudarc.CudaModule>> = RwLock<MutableMap<String, cudarc.CudaModule>>(),
             stream: cudarc.CudaStream = cudarc.CudaStream(),
             blas: cudarc.CudaBlas = cudarc.CudaBlas(),
             curand: Mutex<CudaRng> = Mutex<CudaRng>(),
@@ -1034,13 +1028,13 @@ public class CudaDevice internal constructor(
         public fun newWithStream(ordinal: Int): Result<CudaDevice> {
             val context =
                 when (val tryResult = cudarc.CudaContext.new(ordinal).w()) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             val stream =
                 when (val tryResult = context.newStream().w()) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             return CudaDevice.fromContextAndStream(context, stream)
         }
@@ -1048,23 +1042,23 @@ public class CudaDevice internal constructor(
         public fun fromContextAndStream(context: cudarc.CudaContext, stream: cudarc.CudaStream): Result<CudaDevice> {
             val blas =
                 when (val tryResult = cudarc.CudaBlas.new(stream.clone()).w()) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             val curand =
                 when (val tryResult = cudarc.CudaRng.new(299792458, stream.clone()).w()) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             val moduleStore = ModuleStore(mdls = List(kernels.ALL_IDS.len()) { null })
-            return Ok(CudaDevice(id = DeviceId.new(), context = context, stream = stream, blas = blas, curand = Mutex.new(CudaRng(curand)), modules = RwLock.new(moduleStore), customModules = RwLock.new(HashMap.new()), seedValue = RwLock.new(299792458)))
+            return Result.Ok(CudaDevice(id = DeviceId.new(), context = context, stream = stream, blas = blas, curand = Mutex.new(CudaRng(curand)), modules = RwLock.new(moduleStore), customModules = RwLock.new(mutableMapOf()), seedValue = RwLock.new(299792458)))
         }
 
         public fun new(ordinal: Int): Result<CudaDevice> {
             val context =
                 when (val tryResult = cudarc.CudaContext.new(ordinal).w()) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             val stream = context.perThreadStream()
             return CudaDevice.fromContextAndStream(context, stream)

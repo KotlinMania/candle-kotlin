@@ -15,33 +15,33 @@ public data class QCudaStorage(
     public var dtype: GgmlDType = GgmlDType.entries.first(),
     public var device: CudaDevice = CudaDevice(),
 ) {
-    public fun dequantize(elemCount: ULong): Result<CudaStorage> = Err(Error.NotCompiledWithCudaSupport)
+    public fun dequantize(elemCount: ULong): Result<CudaStorage> = Result.Err(Error.NotCompiledWithCudaSupport)
 
-    public fun dequantizeF16(elemCount: ULong): Result<CudaStorage> = Err(Error.NotCompiledWithCudaSupport)
+    public fun dequantizeF16(elemCount: ULong): Result<CudaStorage> = Result.Err(Error.NotCompiledWithCudaSupport)
 
-    public fun quantize(src: CudaStorage): Result<Unit> = Err(Error.NotCompiledWithCudaSupport)
+    public fun quantize(src: CudaStorage): Result<Unit> = Result.Err(Error.NotCompiledWithCudaSupport)
 
-    public fun quantizeImatrix(src: CudaStorage, imatrixWeights: List<Float>, nPerRow: ULong): Result<Unit> = Err(Error.NotCompiledWithCudaSupport)
+    public fun quantizeImatrix(src: CudaStorage, imatrixWeights: List<Float>, nPerRow: ULong): Result<Unit> = Result.Err(Error.NotCompiledWithCudaSupport)
 
-    public fun quantizeImatrixOnto(src: CpuStorage, imatrixWeights: List<Float>, nPerRow: ULong): Result<Unit> = Err(Error.NotCompiledWithCudaSupport)
+    public fun quantizeImatrixOnto(src: CpuStorage, imatrixWeights: List<Float>, nPerRow: ULong): Result<Unit> = Result.Err(Error.NotCompiledWithCudaSupport)
 
-    public fun quantizeOnto(src: CpuStorage): Result<Unit> = Err(Error.NotCompiledWithCudaSupport)
+    public fun quantizeOnto(src: CpuStorage): Result<Unit> = Result.Err(Error.NotCompiledWithCudaSupport)
 
-    public fun devicePtr(): Result<ConstPtr> = Err(Error.NotCompiledWithCudaSupport)
+    public fun devicePtr(): Result<ConstPtr> = Result.Err(Error.NotCompiledWithCudaSupport)
 
     public fun storageSizeInBytes(): Int = 0
 
-    public fun embedding(rows: ULong, hidden: ULong, ids: CudaStorage, idsL: Layout): Result<CudaStorage> = Err(Error.NotCompiledWithCudaSupport)
+    public fun embedding(rows: ULong, hidden: ULong, ids: CudaStorage, idsL: Layout): Result<CudaStorage> = Result.Err(Error.NotCompiledWithCudaSupport)
 
-    public fun fwd(selfShape: Shape, storage: CudaStorage, layout: Layout): Result<Pair<CudaStorage, Shape>> = Err(Error.NotCompiledWithCudaSupport)
+    public fun fwd(selfShape: Shape, storage: CudaStorage, layout: Layout): Result<Pair<CudaStorage, Shape>> = Result.Err(Error.NotCompiledWithCudaSupport)
 
-    public fun data(): Result<List<UByte>> = Err(Error.NotCompiledWithCudaSupport)
+    public fun data(): Result<List<UByte>> = Result.Err(Error.NotCompiledWithCudaSupport)
 
-    public fun indexedMoeForward(arg0: Shape, arg1: CudaStorage, arg2: Layout, arg3: CudaStorage, arg4: Layout): Result<Pair<CudaStorage, Shape>> = Err(Error.NotCompiledWithCudaSupport)
+    public fun indexedMoeForward(arg0: Shape, arg1: CudaStorage, arg2: Layout, arg3: CudaStorage, arg4: Layout): Result<Pair<CudaStorage, Shape>> = Result.Err(Error.NotCompiledWithCudaSupport)
 
     public companion object {
-        public fun zeros(arg0: CudaDevice, arg1: ULong, arg2: GgmlDType): Result<QCudaStorage> = Err(Error.NotCompiledWithCudaSupport)
+        public fun zeros(arg0: CudaDevice, arg1: ULong, arg2: GgmlDType): Result<QCudaStorage> = Result.Err(Error.NotCompiledWithCudaSupport)
     }
 }
 
-public fun <T : GgmlType> loadQuantized(device: CudaDevice, data: List<T>): Result<QStorage> = Err(Error.NotCompiledWithCudaSupport)
+public fun <VecDotType, T : GgmlType> loadQuantized(device: CudaDevice, data: List<T>): Result<QStorage> = Result.Err(Error.NotCompiledWithCudaSupport)

@@ -3,7 +3,6 @@ package io.github.kotlinmania.candle.cpu.features
 
 import io.github.kotlinmania.rustlang.core.mem.PrimitiveLayouts
 import io.github.kotlinmania.rustlang.core.mem.TypeLayout
-import io.github.kotlinmania.rustlang.std.sync.OnceLock
 
 internal data class CpuFeatures(
     internal var avx: Boolean = false,

@@ -27,17 +27,18 @@ import io.github.kotlinmania.cudarc.driver.ValidAsZeroBits
 import io.github.kotlinmania.float8.F8e4m3
 import io.github.kotlinmania.half.Bf16
 import io.github.kotlinmania.half.F16
+import io.github.kotlinmania.kernels.BINARY
+import io.github.kotlinmania.kernels.UNARY
 import io.github.kotlinmania.rustlang.core.mem.AddressableLocal
 import io.github.kotlinmania.rustlang.core.mem.ObjectSlotLayout
 import io.github.kotlinmania.rustlang.core.mem.PrimitiveLayouts
 import io.github.kotlinmania.rustlang.core.mem.constPtrFromRustCast
 import io.github.kotlinmania.rustlang.core.mem.mutPtrFromRustCast
 import io.github.kotlinmania.rustlang.core.ptr.ConstPtr
-import io.github.kotlinmania.rustlang.core.result.fromResidual
 import io.github.kotlinmania.candle.cudabackend.device.builderArg as barg
 
 public fun <T : WithDType> kernelName(root: String): String {
-    val dtype = T.DTYPE.asStr()
+    val dtype = T.DTYPE
     return "${root}_$dtype"
 }
 
@@ -81,9 +82,9 @@ public fun <T> gemmConfig(alpha: T, beta: T, tupleArg2: List<Any?>, lhsL: Layout
         } else if ((rhsM1 == k || n == 1) && (rhsM2 == 1 || k == 1)) {
             Pair(k.toInt(), cublasoperationt.CUBLAS_OP_T)
         } else {
-            when (val tryResult = Err(CudaError.MatMulNonContiguous(lhsStride = lhsL.clone(), rhsStride = rhsL.clone(), mnk = Triple(m, n, k)))) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            when (val tryResult = Result.Err(CudaError.MatMulNonContiguous(lhsStride = lhsL.clone(), rhsStride = rhsL.clone(), mnk = Triple(m, n, k)))) {
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         }
     // The b tensor has dims batching, m, k (lhs)
@@ -95,9 +96,9 @@ public fun <T> gemmConfig(alpha: T, beta: T, tupleArg2: List<Any?>, lhsL: Layout
         } else if ((lhsM1 == m || k == 1) && (lhsM2 == 1 || m == 1)) {
             Pair(m.toInt(), cublasoperationt.CUBLAS_OP_T)
         } else {
-            when (val tryResult = Err(CudaError.MatMulNonContiguous(lhsStride = lhsL.clone(), rhsStride = rhsL.clone(), mnk = Triple(m, n, k)))) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            when (val tryResult = Result.Err(CudaError.MatMulNonContiguous(lhsStride = lhsL.clone(), rhsStride = rhsL.clone(), mnk = Triple(m, n, k)))) {
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         }
     // The setup below was copied from:
@@ -126,9 +127,9 @@ public fun <T> gemmConfig(alpha: T, beta: T, tupleArg2: List<Any?>, lhsL: Layout
                 }
                 matchVal.isEmpty() -> m * k
                 else ->
-                    when (val tryResult = Err(CudaError.MatMulNonContiguous(lhsStride = lhsL.clone(), rhsStride = rhsL.clone(), mnk = Triple(m, n, k)))) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    when (val tryResult = Result.Err(CudaError.MatMulNonContiguous(lhsStride = lhsL.clone(), rhsStride = rhsL.clone(), mnk = Triple(m, n, k)))) {
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
             }
         }
@@ -155,13 +156,13 @@ public fun <T> gemmConfig(alpha: T, beta: T, tupleArg2: List<Any?>, lhsL: Layout
                 }
                 matchVal1.isEmpty() -> n * k
                 else ->
-                    when (val tryResult = Err(CudaError.MatMulNonContiguous(lhsStride = lhsL.clone(), rhsStride = rhsL.clone(), mnk = Triple(m, n, k)))) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    when (val tryResult = Result.Err(CudaError.MatMulNonContiguous(lhsStride = lhsL.clone(), rhsStride = rhsL.clone(), mnk = Triple(m, n, k)))) {
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
             }
         }
-    return Ok(StridedBatchedConfig(batchSize = b.toInt(), gemm = gemm, strideA = strideA.toLong(), strideB = strideB.toLong(), strideC = (m * n).toLong()))
+    return Result.Ok(StridedBatchedConfig(batchSize = b.toInt(), gemm = gemm, strideA = strideA.toLong(), strideB = strideB.toLong(), strideC = (m * n).toLong()))
 }
 
 /**
@@ -316,20 +317,20 @@ public fun <U : UnaryOpT, T> U.f(src: CudaSlice<T>, dev: CudaDevice, layout: Lay
     val cfg = LaunchConfig.forNumElems(elCount.toUInt())
     val ds =
         when (val tryResult = SlicePtrOrNull.paramsFromLayout(dev, layout)) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
     val src1 = src.slice(layout.startOffset() until Int.MAX_VALUE)
     val func =
         when (val tryResult = dev.getOrLoadFunc(kernelName<T>(U.KERNEL), UNARY)) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
     // SAFETY: Set later by running the kernel.
     val out =
         when (val tryResult = dev.alloc<T>(elCount)) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
     val builder = func.builder()
     barg(builder, elCount)
@@ -339,10 +340,10 @@ public fun <U : UnaryOpT, T> U.f(src: CudaSlice<T>, dev: CudaDevice, layout: Lay
     builder.arg(out)
     // SAFETY: ffi.
     when (val tryResult = builder.launch(cfg).w()) {
-        is Result.Ok -> tryResult.value
-        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+        is Result.Ok<*> -> tryResult.value
+        is Result.Err<*> -> return Result.Err(tryResult.error)
     }
-    return Ok(out)
+    return Result.Ok(out)
 }
 
 public fun <U : BinaryOpT, T> U.f(lhs: CudaSlice<T>, lhsL: Layout, rhs: CudaSlice<T>, rhsL: Layout, dev: CudaDevice): Result<CudaSlice<T>> where T : DeviceRepr, T : WithDType, T : ValidAsZeroBits {
@@ -355,22 +356,22 @@ public fun <U : BinaryOpT, T> U.f(lhs: CudaSlice<T>, lhsL: Layout, rhs: CudaSlic
             SlicePtrOrNull.Null
         } else {
             when (val tryResult = SlicePtrOrNull.paramsFromVec(dev, listOf(dims, lhsL.stride(), rhsL.stride()).concat())) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         }
     val lhs1 = lhs.slice(lhsL.startOffset() until Int.MAX_VALUE)
     val rhs1 = rhs.slice(rhsL.startOffset() until Int.MAX_VALUE)
     val func =
         when (val tryResult = dev.getOrLoadFunc(kernelName<T>(U.KERNEL), BINARY)) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
     // SAFETY: Set later by running the kernel.
     val out =
         when (val tryResult = dev.alloc<T>(elemCount)) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
     val builder = func.builder()
     barg(builder, elemCount)
@@ -381,148 +382,238 @@ public fun <U : BinaryOpT, T> U.f(lhs: CudaSlice<T>, lhsL: Layout, rhs: CudaSlic
     builder.arg(out)
     // SAFETY: ffi
     when (val tryResult = builder.launch(cfg).w()) {
-        is Result.Ok -> tryResult.value
-        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+        is Result.Ok<*> -> tryResult.value
+        is Result.Err<*> -> return Result.Err(tryResult.error)
     }
-    return Ok(out)
+    return Result.Ok(out)
 }
 
-public fun cudaDTypeUByte(s: CudaStorage): Result<CudaSlice<UByte>> =
+public fun cudaDTypeAsCudaSliceUByte(s: CudaStorage): Result<CudaSlice<UByte>> =
     when (val matchVal = s.slice) {
         is CudaStorageSlice.U8 -> {
             val (data) = matchVal
-            Ok(data)
+            Result.Ok(data)
         }
-        else -> Err(Error.UnexpectedDType(expected = DType.U8, got = s.dtype(), msg = "unexpected dtype").bt())
+        else -> Result.Err(Error.UnexpectedDType(expected = DType.U8, got = s.dtype(), msg = "unexpected dtype").bt())
     }
 
-public fun cudaDTypeUByte(slice: CudaSlice<UByte>, device: CudaDevice): CudaStorage {
+public fun cudaDTypeAsCudaSliceMutUByte(s: CudaStorage): Result<CudaSlice<UByte>> =
+    when (val matchVal = s.slice) {
+        is CudaStorageSlice.U8 -> {
+            val (data) = matchVal
+            Result.Ok(data)
+        }
+        else -> Result.Err(Error.UnexpectedDType(expected = DType.U8, got = s.dtype(), msg = "unexpected dtype").bt())
+    }
+
+public fun cudaDTypeWrapCudaSliceUByte(slice: CudaSlice<UByte>, device: CudaDevice): CudaStorage {
     val slice1 = CudaStorageSlice.u8(slice)
     return CudaStorage(slice = slice1, device = device)
 }
 
-public fun cudaDTypeUInt(s: CudaStorage): Result<CudaSlice<UInt>> =
+public fun cudaDTypeAsCudaSliceUInt(s: CudaStorage): Result<CudaSlice<UInt>> =
     when (val matchVal = s.slice) {
         is CudaStorageSlice.U32 -> {
             val (data) = matchVal
-            Ok(data)
+            Result.Ok(data)
         }
-        else -> Err(Error.UnexpectedDType(expected = DType.U32, got = s.dtype(), msg = "unexpected dtype").bt())
+        else -> Result.Err(Error.UnexpectedDType(expected = DType.U32, got = s.dtype(), msg = "unexpected dtype").bt())
     }
 
-public fun cudaDTypeUInt(slice: CudaSlice<UInt>, device: CudaDevice): CudaStorage {
+public fun cudaDTypeAsCudaSliceMutUInt(s: CudaStorage): Result<CudaSlice<UInt>> =
+    when (val matchVal = s.slice) {
+        is CudaStorageSlice.U32 -> {
+            val (data) = matchVal
+            Result.Ok(data)
+        }
+        else -> Result.Err(Error.UnexpectedDType(expected = DType.U32, got = s.dtype(), msg = "unexpected dtype").bt())
+    }
+
+public fun cudaDTypeWrapCudaSliceUInt(slice: CudaSlice<UInt>, device: CudaDevice): CudaStorage {
     val slice1 = CudaStorageSlice.u32(slice)
     return CudaStorage(slice = slice1, device = device)
 }
 
-public fun cudaDTypeShort(s: CudaStorage): Result<CudaSlice<Short>> =
+public fun cudaDTypeAsCudaSliceShort(s: CudaStorage): Result<CudaSlice<Short>> =
     when (val matchVal = s.slice) {
         is CudaStorageSlice.I16 -> {
             val (data) = matchVal
-            Ok(data)
+            Result.Ok(data)
         }
-        else -> Err(Error.UnexpectedDType(expected = DType.I16, got = s.dtype(), msg = "unexpected dtype").bt())
+        else -> Result.Err(Error.UnexpectedDType(expected = DType.I16, got = s.dtype(), msg = "unexpected dtype").bt())
     }
 
-public fun cudaDTypeShort(slice: CudaSlice<Short>, device: CudaDevice): CudaStorage {
+public fun cudaDTypeAsCudaSliceMutShort(s: CudaStorage): Result<CudaSlice<Short>> =
+    when (val matchVal = s.slice) {
+        is CudaStorageSlice.I16 -> {
+            val (data) = matchVal
+            Result.Ok(data)
+        }
+        else -> Result.Err(Error.UnexpectedDType(expected = DType.I16, got = s.dtype(), msg = "unexpected dtype").bt())
+    }
+
+public fun cudaDTypeWrapCudaSliceShort(slice: CudaSlice<Short>, device: CudaDevice): CudaStorage {
     val slice1 = CudaStorageSlice.i16(slice)
     return CudaStorage(slice = slice1, device = device)
 }
 
-public fun cudaDTypeInt(s: CudaStorage): Result<CudaSlice<Int>> =
+public fun cudaDTypeAsCudaSliceInt(s: CudaStorage): Result<CudaSlice<Int>> =
     when (val matchVal = s.slice) {
         is CudaStorageSlice.I32 -> {
             val (data) = matchVal
-            Ok(data)
+            Result.Ok(data)
         }
-        else -> Err(Error.UnexpectedDType(expected = DType.I32, got = s.dtype(), msg = "unexpected dtype").bt())
+        else -> Result.Err(Error.UnexpectedDType(expected = DType.I32, got = s.dtype(), msg = "unexpected dtype").bt())
     }
 
-public fun cudaDTypeInt(slice: CudaSlice<Int>, device: CudaDevice): CudaStorage {
+public fun cudaDTypeAsCudaSliceMutInt(s: CudaStorage): Result<CudaSlice<Int>> =
+    when (val matchVal = s.slice) {
+        is CudaStorageSlice.I32 -> {
+            val (data) = matchVal
+            Result.Ok(data)
+        }
+        else -> Result.Err(Error.UnexpectedDType(expected = DType.I32, got = s.dtype(), msg = "unexpected dtype").bt())
+    }
+
+public fun cudaDTypeWrapCudaSliceInt(slice: CudaSlice<Int>, device: CudaDevice): CudaStorage {
     val slice1 = CudaStorageSlice.i32(slice)
     return CudaStorage(slice = slice1, device = device)
 }
 
-public fun cudaDTypeLong(s: CudaStorage): Result<CudaSlice<Long>> =
+public fun cudaDTypeAsCudaSliceLong(s: CudaStorage): Result<CudaSlice<Long>> =
     when (val matchVal = s.slice) {
         is CudaStorageSlice.I64 -> {
             val (data) = matchVal
-            Ok(data)
+            Result.Ok(data)
         }
-        else -> Err(Error.UnexpectedDType(expected = DType.I64, got = s.dtype(), msg = "unexpected dtype").bt())
+        else -> Result.Err(Error.UnexpectedDType(expected = DType.I64, got = s.dtype(), msg = "unexpected dtype").bt())
     }
 
-public fun cudaDTypeLong(slice: CudaSlice<Long>, device: CudaDevice): CudaStorage {
+public fun cudaDTypeAsCudaSliceMutLong(s: CudaStorage): Result<CudaSlice<Long>> =
+    when (val matchVal = s.slice) {
+        is CudaStorageSlice.I64 -> {
+            val (data) = matchVal
+            Result.Ok(data)
+        }
+        else -> Result.Err(Error.UnexpectedDType(expected = DType.I64, got = s.dtype(), msg = "unexpected dtype").bt())
+    }
+
+public fun cudaDTypeWrapCudaSliceLong(slice: CudaSlice<Long>, device: CudaDevice): CudaStorage {
     val slice1 = CudaStorageSlice.i64(slice)
     return CudaStorage(slice = slice1, device = device)
 }
 
-public fun cudaDTypeF16(s: CudaStorage): Result<CudaSlice<F16>> =
+public fun cudaDTypeAsCudaSliceF16(s: CudaStorage): Result<CudaSlice<F16>> =
     when (val matchVal = s.slice) {
         is CudaStorageSlice.F16 -> {
             val (data) = matchVal
-            Ok(data)
+            Result.Ok(data)
         }
-        else -> Err(Error.UnexpectedDType(expected = DType.F16, got = s.dtype(), msg = "unexpected dtype").bt())
+        else -> Result.Err(Error.UnexpectedDType(expected = DType.F16, got = s.dtype(), msg = "unexpected dtype").bt())
     }
 
-public fun cudaDTypeF16(slice: CudaSlice<F16>, device: CudaDevice): CudaStorage {
+public fun cudaDTypeAsCudaSliceMutF16(s: CudaStorage): Result<CudaSlice<F16>> =
+    when (val matchVal = s.slice) {
+        is CudaStorageSlice.F16 -> {
+            val (data) = matchVal
+            Result.Ok(data)
+        }
+        else -> Result.Err(Error.UnexpectedDType(expected = DType.F16, got = s.dtype(), msg = "unexpected dtype").bt())
+    }
+
+public fun cudaDTypeWrapCudaSliceF16(slice: CudaSlice<F16>, device: CudaDevice): CudaStorage {
     val slice1 = CudaStorageSlice.f16(slice)
     return CudaStorage(slice = slice1, device = device)
 }
 
-public fun cudaDTypeBf16(s: CudaStorage): Result<CudaSlice<Bf16>> =
+public fun cudaDTypeAsCudaSliceBf16(s: CudaStorage): Result<CudaSlice<Bf16>> =
     when (val matchVal = s.slice) {
         is CudaStorageSlice.Bf16 -> {
             val (data) = matchVal
-            Ok(data)
+            Result.Ok(data)
         }
-        else -> Err(Error.UnexpectedDType(expected = DType.BF16, got = s.dtype(), msg = "unexpected dtype").bt())
+        else -> Result.Err(Error.UnexpectedDType(expected = DType.BF16, got = s.dtype(), msg = "unexpected dtype").bt())
     }
 
-public fun cudaDTypeBf16(slice: CudaSlice<Bf16>, device: CudaDevice): CudaStorage {
+public fun cudaDTypeAsCudaSliceMutBf16(s: CudaStorage): Result<CudaSlice<Bf16>> =
+    when (val matchVal = s.slice) {
+        is CudaStorageSlice.Bf16 -> {
+            val (data) = matchVal
+            Result.Ok(data)
+        }
+        else -> Result.Err(Error.UnexpectedDType(expected = DType.BF16, got = s.dtype(), msg = "unexpected dtype").bt())
+    }
+
+public fun cudaDTypeWrapCudaSliceBf16(slice: CudaSlice<Bf16>, device: CudaDevice): CudaStorage {
     val slice1 = CudaStorageSlice.bf16(slice)
     return CudaStorage(slice = slice1, device = device)
 }
 
-public fun cudaDTypeFloat(s: CudaStorage): Result<CudaSlice<Float>> =
+public fun cudaDTypeAsCudaSliceFloat(s: CudaStorage): Result<CudaSlice<Float>> =
     when (val matchVal = s.slice) {
         is CudaStorageSlice.F32 -> {
             val (data) = matchVal
-            Ok(data)
+            Result.Ok(data)
         }
-        else -> Err(Error.UnexpectedDType(expected = DType.F32, got = s.dtype(), msg = "unexpected dtype").bt())
+        else -> Result.Err(Error.UnexpectedDType(expected = DType.F32, got = s.dtype(), msg = "unexpected dtype").bt())
     }
 
-public fun cudaDTypeFloat(slice: CudaSlice<Float>, device: CudaDevice): CudaStorage {
+public fun cudaDTypeAsCudaSliceMutFloat(s: CudaStorage): Result<CudaSlice<Float>> =
+    when (val matchVal = s.slice) {
+        is CudaStorageSlice.F32 -> {
+            val (data) = matchVal
+            Result.Ok(data)
+        }
+        else -> Result.Err(Error.UnexpectedDType(expected = DType.F32, got = s.dtype(), msg = "unexpected dtype").bt())
+    }
+
+public fun cudaDTypeWrapCudaSliceFloat(slice: CudaSlice<Float>, device: CudaDevice): CudaStorage {
     val slice1 = CudaStorageSlice.f32(slice)
     return CudaStorage(slice = slice1, device = device)
 }
 
-public fun cudaDTypeDouble(s: CudaStorage): Result<CudaSlice<Double>> =
+public fun cudaDTypeAsCudaSliceDouble(s: CudaStorage): Result<CudaSlice<Double>> =
     when (val matchVal = s.slice) {
         is CudaStorageSlice.F64 -> {
             val (data) = matchVal
-            Ok(data)
+            Result.Ok(data)
         }
-        else -> Err(Error.UnexpectedDType(expected = DType.F64, got = s.dtype(), msg = "unexpected dtype").bt())
+        else -> Result.Err(Error.UnexpectedDType(expected = DType.F64, got = s.dtype(), msg = "unexpected dtype").bt())
     }
 
-public fun cudaDTypeDouble(slice: CudaSlice<Double>, device: CudaDevice): CudaStorage {
+public fun cudaDTypeAsCudaSliceMutDouble(s: CudaStorage): Result<CudaSlice<Double>> =
+    when (val matchVal = s.slice) {
+        is CudaStorageSlice.F64 -> {
+            val (data) = matchVal
+            Result.Ok(data)
+        }
+        else -> Result.Err(Error.UnexpectedDType(expected = DType.F64, got = s.dtype(), msg = "unexpected dtype").bt())
+    }
+
+public fun cudaDTypeWrapCudaSliceDouble(slice: CudaSlice<Double>, device: CudaDevice): CudaStorage {
     val slice1 = CudaStorageSlice.f64(slice)
     return CudaStorage(slice = slice1, device = device)
 }
 
-public fun cudaDTypeF8e4m3(s: CudaStorage): Result<CudaSlice<F8e4m3>> =
+public fun cudaDTypeAsCudaSliceF8e4m3(s: CudaStorage): Result<CudaSlice<F8e4m3>> =
     when (val matchVal = s.slice) {
         is CudaStorageSlice.F8e4m3 -> {
             val (data) = matchVal
-            Ok(data)
+            Result.Ok(data)
         }
-        else -> Err(Error.UnexpectedDType(expected = DType.F8E4M3, got = s.dtype(), msg = "unexpected dtype").bt())
+        else -> Result.Err(Error.UnexpectedDType(expected = DType.F8E4M3, got = s.dtype(), msg = "unexpected dtype").bt())
     }
 
-public fun cudaDTypeF8e4m3(slice: CudaSlice<F8e4m3>, device: CudaDevice): CudaStorage {
+public fun cudaDTypeAsCudaSliceMutF8e4m3(s: CudaStorage): Result<CudaSlice<F8e4m3>> =
+    when (val matchVal = s.slice) {
+        is CudaStorageSlice.F8e4m3 -> {
+            val (data) = matchVal
+            Result.Ok(data)
+        }
+        else -> Result.Err(Error.UnexpectedDType(expected = DType.F8E4M3, got = s.dtype(), msg = "unexpected dtype").bt())
+    }
+
+public fun cudaDTypeWrapCudaSliceF8e4m3(slice: CudaSlice<F8e4m3>, device: CudaDevice): CudaStorage {
     val slice1 = CudaStorageSlice.f8e4m3(slice)
     return CudaStorage(slice = slice1, device = device)
 }

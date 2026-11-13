@@ -10,7 +10,6 @@ import io.github.kotlinmania.candle.stridedindex.StridedBlocks
 import io.github.kotlinmania.candle.stridedindex.StridedIndex
 import io.github.kotlinmania.rustlang.core.mem.PrimitiveLayouts
 import io.github.kotlinmania.rustlang.core.mem.TypeLayout
-import io.github.kotlinmania.rustlang.core.result.fromResidual
 
 // Tensor Layouts including contiguous or sparse strides
 
@@ -28,10 +27,10 @@ public data class Layout(
     public fun <D : Dim> dim(dim: D): Result<Int> {
         val dim1 =
             when (val tryResult = dim.toIndex(this.shape, "dim")) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
-        return Ok(this.dims()[dim1])
+        return Result.Ok(this.dims()[dim1])
     }
 
     /**
@@ -83,7 +82,7 @@ public data class Layout(
      */
     public fun range(): LayoutRange? {
         // Filter out dims <= 1 as their strides are irrelevant.
-        val axes: List<Pair<Int, Int>> = (this.dims().zip(this.stride())).filter({ (d, _) -> d > 1 }).map({ (d, s) -> Pair(d, s) }).collect()
+        val axes: List<Pair<Int, Int>> = (this.dims().zip(this.stride())).filter({ (d, _) -> d > 1 }).map({ (d, s) -> Pair(d, s) }).toMutableList()
         axes.sortUnstableByKey({ (_, s) -> s })
         var span = 0
         var injective = true
@@ -181,35 +180,35 @@ public data class Layout(
     public fun narrow(dim: Int, start: Int, len: Int): Result<Layout> {
         val dims = this.shape().dims()
         if (dim >= dims.len()) {
-            when (val tryResult = Err(Error.DimOutOfRange(shape = this.shape().clone(), dim = dim, op = "narrow").bt())) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            when (val tryResult = Result.Err(Error.DimOutOfRange(shape = this.shape().clone(), dim = dim, op = "narrow").bt())) {
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         }
         if (start + len > dims[dim]) {
-            when (val tryResult = Err(Error.NarrowInvalidArgs(shape = this.shape.clone(), dim = dim, start = start, len = len, msg = "start + len > dim_len").bt())) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            when (val tryResult = Result.Err(Error.NarrowInvalidArgs(shape = this.shape.clone(), dim = dim, start = start, len = len, msg = "start + len > dim_len").bt())) {
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         }
         val dims1 = dims.toVec()
         dims1[dim] = len
-        return Ok(Layout(shape = Shape.from(dims1), stride = this.stride.toMutableList(), startOffset = this.startOffset + this.stride[dim] * start))
+        return Result.Ok(Layout(shape = Shape.from(dims1), stride = this.stride.toMutableList(), startOffset = this.startOffset + this.stride[dim] * start))
     }
 
     public fun transpose(dim1: Int, dim2: Int): Result<Layout> {
         val rank = this.shape.rank()
         if (rank <= dim1 || rank <= dim2) {
-            when (val tryResult = Err(Error.UnexpectedNumberOfDims(expected = Int.max(dim1, dim2), got = rank, shape = this.shape().clone()).bt())) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            when (val tryResult = Result.Err(Error.UnexpectedNumberOfDims(expected = Int.max(dim1, dim2), got = rank, shape = this.shape().clone()).bt())) {
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         }
         var stride = this.stride().toVec()
         val dims = this.shape().dims().toVec()
         dims.swap(dim1, dim2)
         stride.swap(dim1, dim2)
-        return Ok(Layout(shape = Shape.from(dims), stride = stride, startOffset = this.startOffset))
+        return Result.Ok(Layout(shape = Shape.from(dims), stride = stride, startOffset = this.startOffset))
     }
 
     public fun permute(idxs: List<Int>): Result<Layout> {
@@ -221,17 +220,17 @@ public data class Layout(
         val dims = this.shape().dims()
         val permStride = stride.toVec()
         val permDims = dims.toVec()
-        for ((i, idx) in idxs.enumerate()) {
+        for ((i, idx) in idxs.mapIndexed { index, item -> Pair(index, item) }) {
             permStride[i] = stride[idx]
             permDims[i] = dims[idx]
         }
-        return Ok(Layout(shape = Shape.from(permDims), stride = permStride, startOffset = this.startOffset))
+        return Result.Ok(Layout(shape = Shape.from(permDims), stride = permStride, startOffset = this.startOffset))
     }
 
     public fun broadcastAs(shape: Shape): Result<Layout> {
         val shape1 = shape
         if (shape1.rank() < this.shape().rank()) {
-            return Err(Error.BroadcastIncompatibleShapes(srcShape = this.shape().clone(), dstShape = shape1).bt())
+            return Result.Err(Error.BroadcastIncompatibleShapes(srcShape = this.shape().clone(), dstShape = shape1).bt())
         }
         val addedDims = shape1.rank() - this.shape().rank()
         var stride = mutableListOf(0, addedDims)
@@ -240,13 +239,13 @@ public data class Layout(
                 if (dstDim == srcDim) {
                     srcStride
                 } else if (srcDim != 1) {
-                    return Err(Error.BroadcastIncompatibleShapes(srcShape = this.shape().clone(), dstShape = shape1).bt())
+                    return Result.Err(Error.BroadcastIncompatibleShapes(srcShape = this.shape().clone(), dstShape = shape1).bt())
                 } else {
                     0
                 }
             stride.add(s)
         }
-        return Ok(Layout(shape = shape1, stride = stride, startOffset = this.startOffset))
+        return Result.Ok(Layout(shape = shape1, stride = stride, startOffset = this.startOffset))
     }
 
     internal fun stridedIndex(): StridedIndex = StridedIndex.fromLayout(this)

@@ -28,9 +28,10 @@ import io.github.kotlinmania.candle.shape.Shape
 import io.github.kotlinmania.candle.tensor.Tensor
 import io.github.kotlinmania.candlemetalkernels.callArgSort
 import io.github.kotlinmania.rayon.prelude.*
+import io.github.kotlinmania.rustlang.core.F16
 import io.github.kotlinmania.rustlang.core.mem.PrimitiveLayouts
 import io.github.kotlinmania.rustlang.core.mem.TypeLayout
-import io.github.kotlinmania.rustlang.core.result.fromResidual
+import io.github.kotlinmania.rustlang.core.result.unwrapOr
 import io.github.kotlinmania.candle.cudabackend.CudaStorageSlice as S
 
 public class ArgSort(
@@ -56,20 +57,20 @@ public class ArgSort(
             }
         if (this.asc) {
             (sortIndexes.parChunksExactMut(this.lastDim).zip(vs1.parChunksExact(this.lastDim))).forEach({ (indexes, vs2) ->
-                indexes.iterMut().enumerate().forEach({ (i, v1) -> v1 = i.toUInt() })
+                indexes.iterMut().mapIndexed { index, item -> Pair(index, item) }.forEach({ (i, v1) -> v1 = i.toUInt() })
                 indexes.sortBy({ i, j ->
-                    vs2[i.toInt()].partialCmp(vs2[j.toInt()]).unwrapOr(Ordering.Greater)
+                    vs2[i.toInt()].partialCmp(vs2[j.toInt()]).unwrapOr(cmp.Ordering.Greater)
                 })
             })
         } else {
             (sortIndexes.parChunksExactMut(this.lastDim).zip(vs.parChunksExact(this.lastDim))).forEach({ (indexes, vs2) ->
-                indexes.iterMut().enumerate().forEach({ (i, v1) -> v1 = i.toUInt() })
+                indexes.iterMut().mapIndexed { index, item -> Pair(index, item) }.forEach({ (i, v1) -> v1 = i.toUInt() })
                 indexes.sortBy({ j, i ->
-                    vs2[i.toInt()].partialCmp(vs2[j.toInt()]).unwrapOr(Ordering.Greater)
+                    vs2[i.toInt()].partialCmp(vs2[j.toInt()]).unwrapOr(cmp.Ordering.Greater)
                 })
             })
         }
-        return Ok(sortIndexes)
+        return Result.Ok(sortIndexes)
     }
 
     public fun name(): String = "argsort"
@@ -80,100 +81,100 @@ public class ArgSort(
                 is CpuStorage.U8 -> {
                     val (vs) = storage
                     when (val tryResult = this.asort(vs, layout)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                 }
                 is CpuStorage.U32 -> {
                     val (vs1) = storage
                     when (val tryResult = this.asort(vs1, layout)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                 }
                 is CpuStorage.I16 -> {
                     val (vs2) = storage
                     when (val tryResult = this.asort(vs2, layout)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                 }
                 is CpuStorage.I32 -> {
                     val (vs3) = storage
                     when (val tryResult = this.asort(vs3, layout)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                 }
                 is CpuStorage.I64 -> {
                     val (vs4) = storage
                     when (val tryResult = this.asort(vs4, layout)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                 }
                 is CpuStorage.Bf16 -> {
                     val (vs5) = storage
                     when (val tryResult = this.asort(vs5, layout)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                 }
                 is CpuStorage.F16 -> {
                     val (vs6) = storage
                     when (val tryResult = this.asort(vs6, layout)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                 }
                 is CpuStorage.F32 -> {
                     val (vs7) = storage
                     when (val tryResult = this.asort(vs7, layout)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                 }
                 is CpuStorage.F64 -> {
                     val (vs8) = storage
                     when (val tryResult = this.asort(vs8, layout)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                 }
                 is CpuStorage.F8e4m3 -> {
                     val (vs9) = storage
                     when (val tryResult = this.asort(vs9, layout)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                 }
                 // Dummy types don't support sorting
                 is F6e2m3 -> {
-                    return Err(Error.UnsupportedDTypeForOp(F6e2m3, "argsort").bt())
+                    return Result.Err(Error.UnsupportedDTypeForOp(F6e2m3, "argsort").bt())
                 }
                 is F6e3m2 -> {
-                    return Err(Error.UnsupportedDTypeForOp(F6e3m2, "argsort").bt())
+                    return Result.Err(Error.UnsupportedDTypeForOp(F6e3m2, "argsort").bt())
                 }
                 is F4 -> {
-                    return Err(Error.UnsupportedDTypeForOp(F4, "argsort").bt())
+                    return Result.Err(Error.UnsupportedDTypeForOp(F4, "argsort").bt())
                 }
                 is F8e8m0 -> {
-                    return Err(Error.UnsupportedDTypeForOp(F8e8m0, "argsort").bt())
+                    return Result.Err(Error.UnsupportedDTypeForOp(F8e8m0, "argsort").bt())
                 }
             }
         val sortIndexes1 = CpuStorage.U32(sortIndexes)
-        return Ok(Pair(sortIndexes1, layout.shape().into()))
+        return Result.Ok(Pair(sortIndexes1, layout.shape().into()))
     }
 
     public fun cudaFwd(storage: CudaStorage, layout: Layout): Result<Pair<CudaStorage, Shape>> {
         val dev = storage.device()
         val slice =
             when (val tryResult = this.map(storage.slice, dev, layout)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val dst = CudaStorage(slice = slice, device = dev.clone())
-        return Ok(Pair(dst, layout.shape().clone()))
+        return Result.Ok(Pair(dst, layout.shape().clone()))
     }
 
     public fun metalFwd(storage: MetalStorage, layout: Layout): Result<Pair<MetalStorage, Shape>> {
@@ -191,7 +192,7 @@ public class ArgSort(
                     DType.i64 -> "asort_asc_i64"
                     DType.f8e4m3 -> bail("Metal device does not yet support F8E4M3.")
                     DType.f6e2m3, DType.f6e3m2, DType.f4, DType.f8e8m0 -> {
-                        return Err(Error.UnsupportedDTypeForOp(storage.dtype(), "argsort").bt())
+                        return Result.Err(Error.UnsupportedDTypeForOp(storage.dtype(), "argsort").bt())
                     }
                 }
             } else {
@@ -207,7 +208,7 @@ public class ArgSort(
                     DType.i64 -> "asort_desc_i64"
                     DType.f8e4m3 -> bail("Metal device does not yet support F8E4M3.")
                     DType.f6e2m3, DType.f6e3m2, DType.f4, DType.f8e8m0 -> {
-                        return Err(Error.UnsupportedDTypeForOp(storage.dtype(), "argsort").bt())
+                        return Result.Err(Error.UnsupportedDTypeForOp(storage.dtype(), "argsort").bt())
                     }
                 }
             }
@@ -215,8 +216,8 @@ public class ArgSort(
         val kernels = device.kernels()
         val commandEncoder =
             when (val tryResult = device.commandEncoder()) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val el = layout.shape().elemCount()
         val ncols = this.lastDim
@@ -231,19 +232,19 @@ public class ArgSort(
                         .withLabel("asort")
                         .build()
             ) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         var ncolsPad = 1
         while (ncolsPad < ncols) {
             ncolsPad *= 2
         }
         when (val tryResult = callArgSort(device.metalDevice(), commandEncoder, kernels, name, nrows, ncols, ncolsPad, src, dst).mapErr(Error::wrap)) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
         val dst1 = MetalStorage.new(dst, device.clone(), el, DType.U32)
-        return Ok(Pair(dst1, layout.shape().clone()))
+        return Result.Ok(Pair(dst1, layout.shape().clone()))
     }
 
     public companion object {
@@ -277,19 +278,19 @@ public fun <T> ArgSort.f(src: CudaSlice<T>, dev: CudaDevice, layout: Layout, wra
     val elemCount = layout.shape().elemCount()
     val dst =
         when (val tryResult = dev.alloc<UInt>(elemCount)) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
     val func =
         if (this.asc) {
             when (val tryResult = dev.getOrLoadFunc(kernelName<T>("asort_asc"), kernels.SORT)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         } else {
             when (val tryResult = dev.getOrLoadFunc(kernelName<T>("asort_desc"), kernels.SORT)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         }
     val ncols = this.lastDim
@@ -308,10 +309,10 @@ public fun <T> ArgSort.f(src: CudaSlice<T>, dev: CudaDevice, layout: Layout, wra
         .arg(ncols1)
         .arg(ncolsPad1)
     when (val tryResult = builder.launch(cfg).w()) {
-        is Result.Ok -> tryResult.value
-        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+        is Result.Ok<*> -> tryResult.value
+        is Result.Err<*> -> return Result.Err(tryResult.error)
     }
-    return Ok(S.u32(dst))
+    return Result.Ok(S.u32(dst))
 }
 
 public fun nextPowerOf2(x: Int): Int {
@@ -331,7 +332,7 @@ public fun nextPowerOf2(x: Int): Int {
  */
 public fun Tensor.argSortLastDim(asc: Boolean): Result<Tensor> {
     if (!this.isContiguous()) {
-        return Err(Error.RequiresContiguous(op = "arg_sort_last_dim"))
+        return Result.Err(Error.RequiresContiguous(op = "arg_sort_last_dim"))
     }
     val lastDim1 =
         when (val matchVal = this.dims().last()) {
@@ -355,17 +356,17 @@ public fun Tensor.argSortLastDim(asc: Boolean): Result<Tensor> {
  */
 public fun Tensor.sortLastDim(asc: Boolean): Result<Pair<Tensor, Tensor>> {
     if (!this.isContiguous()) {
-        return Err(Error.RequiresContiguous(op = "sort_last_dim"))
+        return Result.Err(Error.RequiresContiguous(op = "sort_last_dim"))
     }
     val asort =
         when (val tryResult = this.argSortLastDim(asc)) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
     val sorted =
         when (val tryResult = this.gather(asort, D.Minus1)) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
-    return Ok(Pair(sorted, asort))
+    return Result.Ok(Pair(sorted, asort))
 }

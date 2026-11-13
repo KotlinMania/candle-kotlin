@@ -129,9 +129,9 @@ public class F6e2m3 :
             error(("F6E2M3").toString() + " is a dummy type and does not support storage")
         }
 
-        public fun cpuStorageData(s: CpuStorage): Result<List<F6e2m3>> = Err(Error.UnsupportedDTypeForOp(DType.F6E2M3, "cpu_storage_data").bt())
+        public fun cpuStorageData(s: CpuStorage): Result<List<F6e2m3>> = Result.Err(Error.UnsupportedDTypeForOp(DType.F6E2M3, "cpu_storage_data").bt())
 
-        public fun cpuStorageAsSlice(s: CpuStorage): Result<List<F6e2m3>> = Err(Error.UnsupportedDTypeForOp(DType.F6E2M3, "cpu_storage_as_slice").bt())
+        public fun cpuStorageAsSlice(s: CpuStorage): Result<List<F6e2m3>> = Result.Err(Error.UnsupportedDTypeForOp(DType.F6E2M3, "cpu_storage_as_slice").bt())
 
         public fun zero(): F6e2m3 {
             error(("F6E2M3").toString() + " is a dummy type and does not support operations")
@@ -256,9 +256,9 @@ public class F6e3m2 :
             error(("F6E3M2").toString() + " is a dummy type and does not support storage")
         }
 
-        public fun cpuStorageData(s: CpuStorage): Result<List<F6e3m2>> = Err(Error.UnsupportedDTypeForOp(DType.F6E3M2, "cpu_storage_data").bt())
+        public fun cpuStorageData(s: CpuStorage): Result<List<F6e3m2>> = Result.Err(Error.UnsupportedDTypeForOp(DType.F6E3M2, "cpu_storage_data").bt())
 
-        public fun cpuStorageAsSlice(s: CpuStorage): Result<List<F6e3m2>> = Err(Error.UnsupportedDTypeForOp(DType.F6E3M2, "cpu_storage_as_slice").bt())
+        public fun cpuStorageAsSlice(s: CpuStorage): Result<List<F6e3m2>> = Result.Err(Error.UnsupportedDTypeForOp(DType.F6E3M2, "cpu_storage_as_slice").bt())
 
         public fun zero(): F6e3m2 {
             error(("F6E3M2").toString() + " is a dummy type and does not support operations")
@@ -383,9 +383,9 @@ public class F4 :
             error(("F4").toString() + " is a dummy type and does not support storage")
         }
 
-        public fun cpuStorageData(s: CpuStorage): Result<List<F4>> = Err(Error.UnsupportedDTypeForOp(DType.F4, "cpu_storage_data").bt())
+        public fun cpuStorageData(s: CpuStorage): Result<List<F4>> = Result.Err(Error.UnsupportedDTypeForOp(DType.F4, "cpu_storage_data").bt())
 
-        public fun cpuStorageAsSlice(s: CpuStorage): Result<List<F4>> = Err(Error.UnsupportedDTypeForOp(DType.F4, "cpu_storage_as_slice").bt())
+        public fun cpuStorageAsSlice(s: CpuStorage): Result<List<F4>> = Result.Err(Error.UnsupportedDTypeForOp(DType.F4, "cpu_storage_as_slice").bt())
 
         public fun zero(): F4 {
             error(("F4").toString() + " is a dummy type and does not support operations")
@@ -510,9 +510,9 @@ public class F8e8m0 :
             error(("F8E8M0").toString() + " is a dummy type and does not support storage")
         }
 
-        public fun cpuStorageData(s: CpuStorage): Result<List<F8e8m0>> = Err(Error.UnsupportedDTypeForOp(DType.F8E8M0, "cpu_storage_data").bt())
+        public fun cpuStorageData(s: CpuStorage): Result<List<F8e8m0>> = Result.Err(Error.UnsupportedDTypeForOp(DType.F8E8M0, "cpu_storage_data").bt())
 
-        public fun cpuStorageAsSlice(s: CpuStorage): Result<List<F8e8m0>> = Err(Error.UnsupportedDTypeForOp(DType.F8E8M0, "cpu_storage_as_slice").bt())
+        public fun cpuStorageAsSlice(s: CpuStorage): Result<List<F8e8m0>> = Result.Err(Error.UnsupportedDTypeForOp(DType.F8E8M0, "cpu_storage_as_slice").bt())
 
         public fun zero(): F8e8m0 {
             error(("F8E8M0").toString() + " is a dummy type and does not support operations")

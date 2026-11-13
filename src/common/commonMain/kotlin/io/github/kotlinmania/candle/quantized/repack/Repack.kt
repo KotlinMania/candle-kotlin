@@ -39,6 +39,7 @@ import io.github.kotlinmania.candle.quantized.repackx86.quantizeLhs
 import io.github.kotlinmania.candle.quantized.repackx86.select
 import io.github.kotlinmania.candle.utils.barrierPool
 import io.github.kotlinmania.half.F16
+import io.github.kotlinmania.rustlang.core.cell.RefCell
 import io.github.kotlinmania.rustlang.core.mem.ObjectSlotLayout
 import io.github.kotlinmania.rustlang.core.mem.PrimitiveLayouts
 import io.github.kotlinmania.rustlang.core.mem.TypeLayout
@@ -46,8 +47,6 @@ import io.github.kotlinmania.rustlang.core.mem.constPtrFromRustCast
 import io.github.kotlinmania.rustlang.core.mem.mutPtrFromRustCast
 import io.github.kotlinmania.rustlang.core.ptr.ConstPtr
 import io.github.kotlinmania.rustlang.core.ptr.MutPtr
-import io.github.kotlinmania.rustlang.core.result.fromResidual
-import io.github.kotlinmania.rustlang.std.sync.OnceLock
 
 public enum class PackedKind(
     public val value: UInt,
@@ -97,7 +96,7 @@ public enum class PackedKind(
 
     // matmul against one expert's row block inside stacked packed storage; subslices
     // per arm so nothing is copied
-    public fun matmulExpertRange(mkn: Triple<Int, Int, Int>, lhs: List<Float>, packed: PackedStorage, expert: Int, dst: List<Float>): Result<Unit> {
+    public fun matmulExpertRange(mkn: Triple<Int, Int, Int>, lhs: List<Float>, packed: PackedStorage, expert: Int, dst: MutableList<Float>): Result<Unit> {
         val (m, k, nOut) = mkn
         val features = get()
         return run {
@@ -149,7 +148,7 @@ public enum class PackedKind(
         }
     }
 
-    public fun matmul(mkn: Triple<Int, Int, Int>, lhs: List<Float>, packed: PackedStorage, dst: List<Float>): Result<Unit> {
+    public fun matmul(mkn: Triple<Int, Int, Int>, lhs: List<Float>, packed: PackedStorage, dst: MutableList<Float>): Result<Unit> {
         val features = get()
         return run {
             val matchVal = Pair(this, packed)
@@ -441,7 +440,7 @@ internal data class BlockQ8Kx4(
     }
 }
 
-internal fun tryMatmulF32(storage: QuantizedType, packed: PackedCache, mkn: Triple<Int, Int, Int>, lhs: List<Float>, dst: List<Float>): Result<Boolean> {
+internal fun tryMatmulF32(storage: QuantizedType, packed: PackedCache, mkn: Triple<Int, Int, Int>, lhs: List<Float>, dst: MutableList<Float>): Result<Boolean> {
     run {
         val (m, k, n) = mkn
         val dtype = storage.dtype()
@@ -451,54 +450,54 @@ internal fun tryMatmulF32(storage: QuantizedType, packed: PackedCache, mkn: Trip
                 val kind = matchVal
                 val packed1 = packed.getOrInit(kind, { kind.pack(storage, n) })
                 when (val tryResult = kind.matmul(mkn, lhs, packed1, dst)) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
-                return Ok(true)
+                return Result.Ok(true)
             }
         }
         // tiled kernels need m % 4 == 0: run the aligned rows tiled and the tail rows as
         // gemvs on the same packing instead of dropping the whole matmul to the unpacked path
-        val kind1 = PackedKind.select(dtype, Triple(1, k, n)) ?: return Ok(false)
+        val kind1 = PackedKind.select(dtype, Triple(1, k, n)) ?: return Result.Ok(false)
         val mTiled = m and 3.inv()
         if (mTiled > 0 && PackedKind.select(dtype, Triple(mTiled, k, n)) != kind1) {
-            return Ok(false)
+            return Result.Ok(false)
         }
         val packed2 = packed.getOrInit(kind1, { kind1.pack(storage, n) })
         val (lhsTiled, lhsTail) = lhs.splitAt(mTiled * k)
         val (dstTiled, dstTail) = dst.splitAtMut(mTiled * n)
         if (mTiled > 0) {
             when (val tryResult = kind1.matmul(Triple(mTiled, k, n), lhsTiled, packed2, dstTiled)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         }
         for ((lhsRow, dstRow) in (lhsTail.chunksExact(k).zip(dstTail.chunksExactMut(n)))) {
             when (val tryResult = kind1.matmul(Triple(1, k, n), lhsRow, packed2, dstRow)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         }
-        Ok(true)
+        Result.Ok(true)
     }
     run {
         val (m1, k1, n1) = mkn
         if (!select(storage.dtype(), m1, n1, k1)) {
-            return Ok(false)
+            return Result.Ok(false)
         }
         val dtype1 = storage.dtype()
         val lhsQ = quantizeLhs(lhs, m1, k1)
         if (m1 >= 32 && dtype1 == GgmlDType.Q4K && amxAvailable()) {
             val tiles = packed.x86Amx.getOrInit({ packQ4kAmx(storage, n1, k1) })
             matmulAmxQ4k(tiles, lhsQ, m1, k1, n1, dst)
-            return Ok(true)
+            return Result.Ok(true)
         }
         val tiles1 = packed.x86.getOrInit({ pack(dtype1, storage, n1, k1) })
         matmulTiles(tiles1, lhsQ, m1, k1, n1, dst)
-        Ok(true)
+        Result.Ok(true)
     }
     return run {
-        Ok(false)
+        Result.Ok(false)
     }
 }
 
@@ -511,8 +510,8 @@ public fun packToQ4kx8(blocks: List<BlockQ4K>, n: Int): List<BlockQ4Kx8> {
     for (g in 0 until nGroups) {
         for (b in 0 until kBlocks) {
             val src: List<BlockQ4K> = fromFn({ i -> blocks[(g * 8 + i) * kBlocks + b] })
-            val p = BlockQ4Kx8(d = List(8) { ZERO }, dmin = List(8) { ZERO }, scales = UByteArray(96) { 0u.toUByte() }, qs = UByteArray(1024) { 0u.toUByte() })
-            for ((i, s) in src.enumerate()) {
+            val p = BlockQ4Kx8(d = List(8) { F16.ZERO }, dmin = List(8) { F16.ZERO }, scales = UByteArray(96) { 0u.toUByte() }, qs = UByteArray(1024) { 0u.toUByte() })
+            for ((i, s) in src.mapIndexed { index, item -> Pair(index, item) }) {
                 p.d[i] = s.d
                 p.dmin[i] = s.dmin
             }
@@ -540,8 +539,8 @@ public fun packToQ5kx8(blocks: List<BlockQ5K>, n: Int, blockLen: Int): List<Bloc
     for (g in 0 until nGroups) {
         for (b in 0 until kBlocks) {
             val src: List<BlockQ5K> = fromFn({ i -> blocks[(g * 8 + i) * kBlocks + b] })
-            val p = BlockQ5Kx8(d = List(8) { ZERO }, dmin = List(8) { ZERO }, scales = UByteArray(96) { 0u.toUByte() }, qh = UByteArray(QK_K) { 0u.toUByte() }, qs = UByteArray(QK_K / 2 * 8) { 0u.toUByte() })
-            for ((i, s) in src.enumerate()) {
+            val p = BlockQ5Kx8(d = List(8) { F16.ZERO }, dmin = List(8) { F16.ZERO }, scales = UByteArray(96) { 0u.toUByte() }, qh = UByteArray(QK_K) { 0u.toUByte() }, qs = UByteArray(QK_K / 2 * 8) { 0u.toUByte() })
+            for ((i, s) in src.mapIndexed { index, item -> Pair(index, item) }) {
                 p.d[i] = s.d
                 p.dmin[i] = s.dmin
             }
@@ -575,8 +574,8 @@ public fun packToQ6kx8(blocks: List<BlockQ6K>, n: Int, blockLen: Int): List<Bloc
     for (g in 0 until nGroups) {
         for (b in 0 until kBlocks) {
             val src: List<BlockQ6K> = fromFn({ i -> blocks[(g * 8 + i) * kBlocks + b] })
-            val p = BlockQ6Kx8(d = List(8) { ZERO }, scales = ByteArray(QK_K / 16 * 8) { 0.toByte() }, ql = UByteArray(QK_K / 2 * 8) { 0u.toUByte() }, qh = UByteArray(QK_K / 4 * 8) { 0u.toUByte() })
-            for ((i, s) in src.enumerate()) {
+            val p = BlockQ6Kx8(d = List(8) { F16.ZERO }, scales = ByteArray(QK_K / 16 * 8) { 0.toByte() }, ql = UByteArray(QK_K / 2 * 8) { 0u.toUByte() }, qh = UByteArray(QK_K / 4 * 8) { 0u.toUByte() })
+            for ((i, s) in src.mapIndexed { index, item -> Pair(index, item) }) {
                 p.d[i] = s.d
             }
             for (i1 in 0 until (QK_K / 2 * 8) / blockLen) {
@@ -591,7 +590,7 @@ public fun packToQ6kx8(blocks: List<BlockQ6K>, n: Int, blockLen: Int): List<Bloc
                 val dstOffset1 = i2 * blockLen
                 ((p.qh).slice(dstOffset1 until dstOffset1 + blockLen)).copyFromSlice(((src[srcId1].qh).slice(srcOffset1 until srcOffset1 + blockLen)))
             }
-            for ((col, s1) in src.enumerate()) {
+            for ((col, s1) in src.mapIndexed { index, item -> Pair(index, item) }) {
                 for (j in 0 until QK_K / 16) {
                     p.scales[j * 8 + col] = s1.scales[j]
                 }
@@ -657,14 +656,14 @@ public fun packToQ40x4(blocks: List<BlockQ40>, n: Int, blockLen: Int): List<Bloc
     for (g in 0 until nGroups) {
         for (b in 0 until kBlocks) {
             val src: List<BlockQ40> = fromFn({ i -> blocks[(g * 4 + i) * kBlocks + b] })
-            val p = BlockQ40x4(d = List(4) { ZERO }, qs = ByteArray(QK4_0 * 2) { 0.toByte() })
-            for ((i, s) in src.enumerate()) {
+            val p = BlockQ40x4(d = List(4) { F16.ZERO }, qs = ByteArray(QK4_0 * 2) { 0.toByte() })
+            for ((i, s) in src.mapIndexed { index, item -> Pair(index, item) }) {
                 p.d[i] = s.d
             }
             for (i1 in 0 until (QK4_0 / 2) / blockLen) {
                 val offset = i1 * blockLen
                 val dstOffset = i1 * blockLen * 4
-                for ((j, s1) in src.enumerate()) {
+                for ((j, s1) in src.mapIndexed { index, item -> Pair(index, item) }) {
                     val dstOffset1 = dstOffset + j * blockLen
                     for (k in 0 until blockLen) {
                         p.qs[dstOffset1 + k] = (s1.qs[offset + k] xor 0x88).toByte()
@@ -687,14 +686,14 @@ public fun packToQ80x4(blocks: List<BlockQ80>, n: Int, blockLen: Int): List<Bloc
     for (g in 0 until nGroups) {
         for (b in 0 until kBlocks) {
             val src: List<BlockQ80> = fromFn({ i -> blocks[(g * 4 + i) * kBlocks + b] })
-            val p = BlockQ80x4(d = List(4) { ZERO }, qs = ByteArray(QK8_0 * 4) { 0.toByte() })
-            for ((i, s) in src.enumerate()) {
+            val p = BlockQ80x4(d = List(4) { F16.ZERO }, qs = ByteArray(QK8_0 * 4) { 0.toByte() })
+            for ((i, s) in src.mapIndexed { index, item -> Pair(index, item) }) {
                 p.d[i] = s.d
             }
             for (i1 in 0 until QK8_0 / blockLen) {
                 val offset = i1 * blockLen
                 val dstOffset = i1 * blockLen * 4
-                for ((j, s1) in src.enumerate()) {
+                for ((j, s1) in src.mapIndexed { index, item -> Pair(index, item) }) {
                     val dstOffset1 = dstOffset + j * blockLen
                     ((p.qs).slice(dstOffset1 until dstOffset1 + blockLen)).copyFromSlice(((s1.qs).slice(offset until offset + blockLen)))
                 }
@@ -705,7 +704,7 @@ public fun packToQ80x4(blocks: List<BlockQ80>, n: Int, blockLen: Int): List<Bloc
     return packed
 }
 
-public fun gemvFusedQ4k(kind: PackedKind, k: Int, lhs: List<Float>, parts: List<Pair<QuantizedType, PackedCache>>, dsts: List<List<Float>>) {
+public fun gemvFusedQ4k(kind: PackedKind, k: Int, lhs: List<Float>, parts: List<Pair<QuantizedType, PackedCache>>, dsts: MutableList<List<Float>>) {
     val kInBlocks = k / QK_K
     threadLocal(FUSED_LHS_SCRATCH, std, cell, RefCell, Vec, std, cell, RefCell, new, Vec, new)
     FUSED_LHS_SCRATCH.with(
@@ -716,11 +715,11 @@ public fun gemvFusedQ4k(kind: PackedKind, k: Int, lhs: List<Float>, parts: List<
             if (scratch.len() < requiredLen) {
                 scratch.resize(requiredLen, 0)
             }
-            val lhsB: List<BlockQ8K> = fromRawPartsMut(mutPtrFromRustCast(scratch.asMutPtr()), kInBlocks)
+            val lhsB: MutableList<BlockQ8K> = fromRawPartsMut(mutPtrFromRustCast(scratch.asMutPtr()), kInBlocks)
             BlockQ8K.fromFloat(lhs, lhsB)
             var metas: List<List<Any?>> = ArrayList(parts.size)
             var total = 0
-            for ((i, storage, cache) in parts.enumerate()) {
+            for ((i, storage, cache) in parts.mapIndexed { index, item -> Pair(index, item) }) {
                 val n = dsts[i].size
                 val ps = cache.getOrInit(kind, { kind.pack(storage, n) })
                 val v = ps ?: return@closure
@@ -746,7 +745,7 @@ public fun gemvFusedQ4k(kind: PackedKind, k: Int, lhs: List<Float>, parts: List<
     )
 }
 
-public fun gemvFusedQ6k(kind: PackedKind, k: Int, lhs: List<Float>, parts: List<Pair<QuantizedType, PackedCache>>, dsts: List<List<Float>>) {
+public fun gemvFusedQ6k(kind: PackedKind, k: Int, lhs: List<Float>, parts: List<Pair<QuantizedType, PackedCache>>, dsts: MutableList<List<Float>>) {
     val kInBlocks = k / QK_K
     threadLocal(FUSED_LHS_SCRATCH, std, cell, RefCell, Vec, std, cell, RefCell, new, Vec, new)
     FUSED_LHS_SCRATCH.with(
@@ -757,11 +756,11 @@ public fun gemvFusedQ6k(kind: PackedKind, k: Int, lhs: List<Float>, parts: List<
             if (scratch.len() < requiredLen) {
                 scratch.resize(requiredLen, 0)
             }
-            val lhsB: List<BlockQ8K> = fromRawPartsMut(mutPtrFromRustCast(scratch.asMutPtr()), kInBlocks)
+            val lhsB: MutableList<BlockQ8K> = fromRawPartsMut(mutPtrFromRustCast(scratch.asMutPtr()), kInBlocks)
             BlockQ8K.fromFloat(lhs, lhsB)
             var metas: List<List<Any?>> = ArrayList(parts.size)
             var total = 0
-            for ((i, storage, cache) in parts.enumerate()) {
+            for ((i, storage, cache) in parts.mapIndexed { index, item -> Pair(index, item) }) {
                 val n = dsts[i].size
                 val ps = cache.getOrInit(kind, { kind.pack(storage, n) })
                 val v = ps ?: return@closure1
@@ -787,7 +786,7 @@ public fun gemvFusedQ6k(kind: PackedKind, k: Int, lhs: List<Float>, parts: List<
     )
 }
 
-public fun gemvFusedQ80(kind: PackedKind, k: Int, lhs: List<Float>, parts: List<Pair<QuantizedType, PackedCache>>, dsts: List<List<Float>>) {
+public fun gemvFusedQ80(kind: PackedKind, k: Int, lhs: List<Float>, parts: List<Pair<QuantizedType, PackedCache>>, dsts: MutableList<List<Float>>) {
     val kInBlocks = k / QK8_0
     threadLocal(FUSED_LHS_SCRATCH, std, cell, RefCell, Vec, std, cell, RefCell, new, Vec, new)
     FUSED_LHS_SCRATCH.with(
@@ -798,11 +797,11 @@ public fun gemvFusedQ80(kind: PackedKind, k: Int, lhs: List<Float>, parts: List<
             if (scratch.len() < requiredLen) {
                 scratch.resize(requiredLen, 0)
             }
-            val lhsB: List<BlockQ80> = fromRawPartsMut(mutPtrFromRustCast(scratch.asMutPtr()), kInBlocks)
+            val lhsB: MutableList<BlockQ80> = fromRawPartsMut(mutPtrFromRustCast(scratch.asMutPtr()), kInBlocks)
             BlockQ80.fromFloat(lhs, lhsB)
             var metas: List<List<Any?>> = ArrayList(parts.size)
             var total = 0
-            for ((i, storage, cache) in parts.enumerate()) {
+            for ((i, storage, cache) in parts.mapIndexed { index, item -> Pair(index, item) }) {
                 val n = dsts[i].size
                 val ps = cache.getOrInit(kind, { kind.pack(storage, n) })
                 val v = ps ?: return@closure2
@@ -828,44 +827,44 @@ public fun gemvFusedQ80(kind: PackedKind, k: Int, lhs: List<Float>, parts: List<
     )
 }
 
-internal fun tryGemvFused(k: Int, lhs: List<Float>, parts: List<Pair<QuantizedType, PackedCache>>, dsts: List<List<Float>>): Result<Boolean> {
+internal fun tryGemvFused(k: Int, lhs: List<Float>, parts: List<Pair<QuantizedType, PackedCache>>, dsts: MutableList<List<Float>>): Result<Boolean> {
     return run {
         if (parts.isEmpty() || parts.size != dsts.size) {
-            return Ok(false)
+            return Result.Ok(false)
         }
         val features = get()
         if (!features.dotprod) {
-            return Ok(false)
+            return Result.Ok(false)
         }
         val dtype = parts[0].first.dtype()
         if (parts.any({ (s, _) -> s.dtype() != dtype })) {
-            return Ok(false)
+            return Result.Ok(false)
         }
-        val kind = PackedKind.select(dtype, Triple(1, k, dsts[0].size)) ?: return Ok(false)
-        for (d in dsts.iter()) {
+        val kind = PackedKind.select(dtype, Triple(1, k, dsts[0].size)) ?: return Result.Ok(false)
+        for (d in ArrayDeque(dsts)) {
             if (PackedKind.select(dtype, Triple(1, k, d.len())) != kind) {
-                return Ok(false)
+                return Result.Ok(false)
             }
         }
         when {
             kind == PackedKind.Q4Kx8 && k.isMultipleOf(QK_K) -> {
                 gemvFusedQ4k(kind, k, lhs, parts, dsts)
-                Ok(true)
+                Result.Ok(true)
             }
             kind == PackedKind.Q6Kx8 && k.isMultipleOf(QK_K) -> {
                 gemvFusedQ6k(kind, k, lhs, parts, dsts)
-                Ok(true)
+                Result.Ok(true)
             }
             kind == PackedKind.Q80x4 && k.isMultipleOf(QK8_0) -> {
                 gemvFusedQ80(kind, k, lhs, parts, dsts)
-                Ok(true)
+                Result.Ok(true)
             }
-            else -> Ok(false)
+            else -> Result.Ok(false)
         }
     }
 }
 
-public fun indexedGemvQ4k(kind: PackedKind, storage: QuantizedType, cache: PackedCache, nExperts: Int, nOut: Int, k: Int, lhs: List<Float>, nRows: Int, ids: List<UInt>, topk: Int, dst: List<Float>) {
+public fun indexedGemvQ4k(kind: PackedKind, storage: QuantizedType, cache: PackedCache, nExperts: Int, nOut: Int, k: Int, lhs: List<Float>, nRows: Int, ids: List<UInt>, topk: Int, dst: MutableList<Float>) {
     val kInBlocks = k / QK_K
     val totalRows = nExperts * nOut
     val ps = cache.getOrInit(kind, { kind.pack(storage, totalRows) })
@@ -914,7 +913,7 @@ public fun indexedGemvQ4k(kind: PackedKind, storage: QuantizedType, cache: Packe
     })
 }
 
-public fun indexedGemvQ6k(kind: PackedKind, storage: QuantizedType, cache: PackedCache, nExperts: Int, nOut: Int, k: Int, lhs: List<Float>, nRows: Int, ids: List<UInt>, topk: Int, dst: List<Float>) {
+public fun indexedGemvQ6k(kind: PackedKind, storage: QuantizedType, cache: PackedCache, nExperts: Int, nOut: Int, k: Int, lhs: List<Float>, nRows: Int, ids: List<UInt>, topk: Int, dst: MutableList<Float>) {
     val kInBlocks = k / QK_K
     val totalRows = nExperts * nOut
     val ps = cache.getOrInit(kind, { kind.pack(storage, totalRows) })
@@ -963,7 +962,7 @@ public fun indexedGemvQ6k(kind: PackedKind, storage: QuantizedType, cache: Packe
     })
 }
 
-public fun indexedGemvQ80(kind: PackedKind, storage: QuantizedType, cache: PackedCache, nExperts: Int, nOut: Int, k: Int, lhs: List<Float>, nRows: Int, ids: List<UInt>, topk: Int, dst: List<Float>) {
+public fun indexedGemvQ80(kind: PackedKind, storage: QuantizedType, cache: PackedCache, nExperts: Int, nOut: Int, k: Int, lhs: List<Float>, nRows: Int, ids: List<UInt>, topk: Int, dst: MutableList<Float>) {
     val kInBlocks = k / QK8_0
     val totalRows = nExperts * nOut
     val ps = cache.getOrInit(kind, { kind.pack(storage, totalRows) })
@@ -1014,13 +1013,13 @@ public fun indexedGemvQ80(kind: PackedKind, storage: QuantizedType, cache: Packe
 
 public val INDEXED_BUCKET_MIN_PAIRS: Int = 32
 
-internal fun tryIndexedGemv(storage: QuantizedType, cache: PackedCache, nExperts: Int, nOut: Int, k: Int, lhs: List<Float>, nRows: Int, ids: List<UInt>, topk: Int, dst: List<Float>): Result<Boolean> {
+internal fun tryIndexedGemv(storage: QuantizedType, cache: PackedCache, nExperts: Int, nOut: Int, k: Int, lhs: List<Float>, nRows: Int, ids: List<UInt>, topk: Int, dst: MutableList<Float>): Result<Boolean> {
     return run {
         val features = get()
         if (!features.dotprod) {
-            return Ok(false)
+            return Result.Ok(false)
         }
-        val kind = PackedKind.select(storage.dtype(), Triple(1, k, nExperts * nOut)) ?: return Ok(false)
+        val kind = PackedKind.select(storage.dtype(), Triple(1, k, nExperts * nOut)) ?: return Result.Ok(false)
         // prefill: bucket pairs by expert and run one tiled matmul per expert instead
         // of a gemv per (token, expert) pair
         if (ids.size >= INDEXED_BUCKET_MIN_PAIRS &&
@@ -1032,12 +1031,12 @@ internal fun tryIndexedGemv(storage: QuantizedType, cache: PackedCache, nExperts
             val ps = cache.getOrInit(kind, { kind.pack(storage, nExperts * nOut) })
             val nPairs = ids.size
             val buckets: List<List<Int>> = mutableListOf(mutableListOf(), nExperts)
-            for ((pair, e) in ids.enumerate()) {
+            for ((pair, e) in ids.mapIndexed { index, item -> Pair(index, item) }) {
                 buckets[e.toInt()].push(pair)
             }
             val gathered: List<Float> = mutableListOf()
             val scratch: List<Float> = mutableListOf()
-            for ((e1, bucket) in buckets.enumerate()) {
+            for ((e1, bucket) in buckets.mapIndexed { index, item -> Pair(index, item) }) {
                 if (bucket.isEmpty()) {
                     continue
                 }
@@ -1045,7 +1044,7 @@ internal fun tryIndexedGemv(storage: QuantizedType, cache: PackedCache, nExperts
                 val cntPad = cnt.nextMultipleOf(4)
                 gathered.clear()
                 gathered.resize(cntPad * k, 0.0)
-                for ((i, pair1) in bucket.iter().enumerate()) {
+                for ((i, pair1) in bucket.iter().mapIndexed { index, item -> Pair(index, item) }) {
                     val row =
                         if (nRows == nPairs) {
                             pair1
@@ -1057,29 +1056,29 @@ internal fun tryIndexedGemv(storage: QuantizedType, cache: PackedCache, nExperts
                 scratch.clear()
                 scratch.resize(cntPad * nOut, 0.0)
                 when (val tryResult = kind.matmulExpertRange(Triple(cntPad, k, nOut), gathered, ps, e1, scratch)) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
-                for ((i1, pair2) in bucket.iter().enumerate()) {
+                for ((i1, pair2) in bucket.iter().mapIndexed { index, item -> Pair(index, item) }) {
                     ((dst).slice(pair2 * nOut until (pair2 + 1) * nOut)).copyFromSlice(((scratch).slice(i1 * nOut until (i1 + 1) * nOut)))
                 }
             }
-            return Ok(true)
+            return Result.Ok(true)
         }
         when {
             kind == PackedKind.Q4Kx8 && k.isMultipleOf(QK_K) && nOut.isMultipleOf(8) -> {
                 indexedGemvQ4k(kind, storage, cache, nExperts, nOut, k, lhs, nRows, ids, topk, dst)
-                Ok(true)
+                Result.Ok(true)
             }
             kind == PackedKind.Q6Kx8 && k.isMultipleOf(QK_K) && nOut.isMultipleOf(8) -> {
                 indexedGemvQ6k(kind, storage, cache, nExperts, nOut, k, lhs, nRows, ids, topk, dst)
-                Ok(true)
+                Result.Ok(true)
             }
             kind == PackedKind.Q80x4 && k.isMultipleOf(QK8_0) && nOut.isMultipleOf(4) -> {
                 indexedGemvQ80(kind, storage, cache, nExperts, nOut, k, lhs, nRows, ids, topk, dst)
-                Ok(true)
+                Result.Ok(true)
             }
-            else -> Ok(false)
+            else -> Result.Ok(false)
         }
     }
 }

@@ -1,9 +1,6 @@
 // port-lint: source dtype.rs
 package io.github.kotlinmania.candle.dtype
 
-import io.github.kotlinmania.candle.BF16
-import io.github.kotlinmania.candle.F64
-import io.github.kotlinmania.candle.F8E4M3
 import io.github.kotlinmania.candle.cpu.kernels.VecOps
 import io.github.kotlinmania.candle.cpubackend.CpuStorage
 import io.github.kotlinmania.candle.cpubackend.CpuStorageRef
@@ -17,8 +14,6 @@ import io.github.kotlinmania.numtraits.Bounded
 import io.github.kotlinmania.numtraits.NumAssign
 
 // Types for elements that can be stored and manipulated using tensors.
-
-public typealias Err = DTypeParseError
 
 /**
  * The different types of elements allowed in tensors.
@@ -136,28 +131,28 @@ public sealed class DType : FromStr {
     public companion object {
         public fun fromStr(s: String): Result<DType, DTypeParseError> =
             when (s) {
-                "u8" -> Ok(DType.U8)
-                "u32" -> Ok(DType.U32)
-                "i16" -> Ok(DType.I16)
-                "i32" -> Ok(DType.I32)
-                "i64" -> Ok(DType.I64)
-                "bf16" -> Ok(DType.BF16)
-                "f16" -> Ok(DType.F16)
-                "f32" -> Ok(DType.F32)
-                "f64" -> Ok(DType.F64)
-                "f8e4m3" -> Ok(DType.F8E4M3)
-                "f6e2m3" -> Ok(DType.F6E2M3)
-                "f6e3m2" -> Ok(DType.F6E3M2)
-                "f4" -> Ok(DType.F4)
-                "f8e8m0" -> Ok(DType.F8E8M0)
-                else -> Err(DTypeParseError(s.toString()))
+                "u8" -> Result.Ok(DType.U8)
+                "u32" -> Result.Ok(DType.U32)
+                "i16" -> Result.Ok(DType.I16)
+                "i32" -> Result.Ok(DType.I32)
+                "i64" -> Result.Ok(DType.I64)
+                "bf16" -> Result.Ok(DType.BF16)
+                "f16" -> Result.Ok(DType.F16)
+                "f32" -> Result.Ok(DType.F32)
+                "f64" -> Result.Ok(DType.F64)
+                "f8e4m3" -> Result.Ok(DType.F8E4M3)
+                "f6e2m3" -> Result.Ok(DType.F6E2M3)
+                "f6e3m2" -> Result.Ok(DType.F6E3M2)
+                "f4" -> Result.Ok(DType.F4)
+                "f8e8m0" -> Result.Ok(DType.F8E8M0)
+                else -> Result.Err(DTypeParseError(s.toString()))
             }
     }
 }
 
-public class DTypeParseError(
+public data class DTypeParseError(
     public var value: String = "",
-) : Error {
+) {
     public var field0: String
         get() = value
         set(v) {
@@ -185,7 +180,7 @@ public interface WithDType<T> :
 
     public fun toCpuStorageOwned(data: List<T>): CpuStorage
 
-    public fun toCpuStorage(data: List<T>): CpuStorage = data.toVec().toCpuStorageOwned()
+    public fun toCpuStorage(data: List<T>): CpuStorage = T.toCpuStorageOwned(data.toVec())
 
     public fun cpuStorageAsSlice(s: CpuStorage): Result<List<T>>
 
@@ -194,78 +189,122 @@ public interface WithDType<T> :
 
 public val DTYPE: DType = DType.F16
 
-public fun withDTypeF16(v: Double): F16 = fromF64(v)
+public fun withDTypeFromF64F16(v: Double): F16 = F16.fromF64(v)
 
-public fun F16.toF64(): Double = toF64(this)
+public fun F16.toF64(): Double = F16.toF64(this)
 
-public fun F16.toScalar(): Scalar = F16(this)
+public fun F16.toScalar(): Scalar = Scalar.F16(this)
 
-public fun withDTypeF16(data: List<F16>): CpuStorageRef = CpuStorageRef.f16(data)
+public fun withDTypeCpuStorageRefF16(data: List<F16>): CpuStorageRef = CpuStorageRef.f16(data)
 
-public fun withDTypeF16(s: CpuStorage): Result<List<F16>> =
+public fun withDTypeToCpuStorageOwnedF16(data: List<F16>): CpuStorage = CpuStorage.f16(data)
+
+public fun withDTypeCpuStorageDataF16(s: CpuStorage): Result<List<F16>> =
     when (s) {
         is CpuStorage.F16 -> {
             val (data) = s
-            Ok(data)
+            Result.Ok(data)
         }
-        else -> Err(Error.UnexpectedDType(expected = DType.F16, got = s.dtype(), msg = "unexpected dtype").bt())
+        else -> Result.Err(Error.UnexpectedDType(expected = DType.F16, got = s.dtype(), msg = "unexpected dtype").bt())
+    }
+
+public fun withDTypeCpuStorageAsSliceF16(s: CpuStorage): Result<List<F16>> =
+    when (s) {
+        is CpuStorage.F16 -> {
+            val (data) = s
+            Result.Ok(data)
+        }
+        else -> Result.Err(Error.UnexpectedDType(expected = DType.F16, got = s.dtype(), msg = "unexpected dtype").bt())
     }
 
 public val DTYPE1: DType = DType.BF16
 
-public fun withDTypeBf16(v: Double): Bf16 = fromF64(v)
+public fun withDTypeFromF64Bf16(v: Double): Bf16 = Bf16.fromF64(v)
 
-public fun Bf16.toF64(): Double = toF64(this)
+public fun Bf16.toF64(): Double = Bf16.toF64(this)
 
-public fun Bf16.toScalar(): Scalar = BF16(this)
+public fun Bf16.toScalar(): Scalar = Scalar.BF16(this)
 
-public fun withDTypeBf16(data: List<Bf16>): CpuStorageRef = CpuStorageRef.bf16(data)
+public fun withDTypeCpuStorageRefBf16(data: List<Bf16>): CpuStorageRef = CpuStorageRef.bf16(data)
 
-public fun withDTypeBf16(s: CpuStorage): Result<List<Bf16>> =
+public fun withDTypeToCpuStorageOwnedBf16(data: List<Bf16>): CpuStorage = CpuStorage.bf16(data)
+
+public fun withDTypeCpuStorageDataBf16(s: CpuStorage): Result<List<Bf16>> =
     when (s) {
         is CpuStorage.Bf16 -> {
             val (data) = s
-            Ok(data)
+            Result.Ok(data)
         }
-        else -> Err(Error.UnexpectedDType(expected = DType.BF16, got = s.dtype(), msg = "unexpected dtype").bt())
+        else -> Result.Err(Error.UnexpectedDType(expected = DType.BF16, got = s.dtype(), msg = "unexpected dtype").bt())
+    }
+
+public fun withDTypeCpuStorageAsSliceBf16(s: CpuStorage): Result<List<Bf16>> =
+    when (s) {
+        is CpuStorage.Bf16 -> {
+            val (data) = s
+            Result.Ok(data)
+        }
+        else -> Result.Err(Error.UnexpectedDType(expected = DType.BF16, got = s.dtype(), msg = "unexpected dtype").bt())
     }
 
 public val DTYPE2: DType = DType.F64
 
-public fun withDTypeDouble(v: Double): Double = { v1: Double -> v1(v1) }
+public fun withDTypeFromF64Double(v: Double): Double = { v1: Double -> v1(v1) }
 
 public fun Double.toF64(): Double = { v: Double -> v(this) }
 
-public fun Double.toScalar(): Scalar = F64(this)
+public fun Double.toScalar(): Scalar = Scalar.F64(this)
 
-public fun withDTypeDouble(data: List<Double>): CpuStorageRef = CpuStorageRef.f64(data)
+public fun withDTypeCpuStorageRefDouble(data: List<Double>): CpuStorageRef = CpuStorageRef.f64(data)
 
-public fun withDTypeDouble(s: CpuStorage): Result<List<Double>> =
+public fun withDTypeToCpuStorageOwnedDouble(data: List<Double>): CpuStorage = CpuStorage.f64(data)
+
+public fun withDTypeCpuStorageDataDouble(s: CpuStorage): Result<List<Double>> =
     when (s) {
         is CpuStorage.F64 -> {
             val (data) = s
-            Ok(data)
+            Result.Ok(data)
         }
-        else -> Err(Error.UnexpectedDType(expected = DType.F64, got = s.dtype(), msg = "unexpected dtype").bt())
+        else -> Result.Err(Error.UnexpectedDType(expected = DType.F64, got = s.dtype(), msg = "unexpected dtype").bt())
+    }
+
+public fun withDTypeCpuStorageAsSliceDouble(s: CpuStorage): Result<List<Double>> =
+    when (s) {
+        is CpuStorage.F64 -> {
+            val (data) = s
+            Result.Ok(data)
+        }
+        else -> Result.Err(Error.UnexpectedDType(expected = DType.F64, got = s.dtype(), msg = "unexpected dtype").bt())
     }
 
 public val DTYPE3: DType = DType.F8E4M3
 
-public fun withDTypeF8e4m3(v: Double): F8e4m3 = fromF64(v)
+public fun withDTypeFromF64F8e4m3(v: Double): F8e4m3 = F8e4m3.fromF64(v)
 
 public fun F8e4m3.toF64(): Double = { v: F8e4m3 -> v.toF64()(this) }
 
-public fun F8e4m3.toScalar(): Scalar = F8E4M3(this)
+public fun F8e4m3.toScalar(): Scalar = Scalar.F8E4M3(this)
 
-public fun withDTypeF8e4m3(data: List<F8e4m3>): CpuStorageRef = CpuStorageRef.f8e4m3(data)
+public fun withDTypeCpuStorageRefF8e4m3(data: List<F8e4m3>): CpuStorageRef = CpuStorageRef.f8e4m3(data)
 
-public fun withDTypeF8e4m3(s: CpuStorage): Result<List<F8e4m3>> =
+public fun withDTypeToCpuStorageOwnedF8e4m3(data: List<F8e4m3>): CpuStorage = CpuStorage.f8e4m3(data)
+
+public fun withDTypeCpuStorageDataF8e4m3(s: CpuStorage): Result<List<F8e4m3>> =
     when (s) {
         is CpuStorage.F8e4m3 -> {
             val (data) = s
-            Ok(data)
+            Result.Ok(data)
         }
-        else -> Err(Error.UnexpectedDType(expected = DType.F8E4M3, got = s.dtype(), msg = "unexpected dtype").bt())
+        else -> Result.Err(Error.UnexpectedDType(expected = DType.F8E4M3, got = s.dtype(), msg = "unexpected dtype").bt())
+    }
+
+public fun withDTypeCpuStorageAsSliceF8e4m3(s: CpuStorage): Result<List<F8e4m3>> =
+    when (s) {
+        is CpuStorage.F8e4m3 -> {
+            val (data) = s
+            Result.Ok(data)
+        }
+        else -> Result.Err(Error.UnexpectedDType(expected = DType.F8E4M3, got = s.dtype(), msg = "unexpected dtype").bt())
     }
 
 public interface IntDType :

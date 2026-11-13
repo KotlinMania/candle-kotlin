@@ -1,8 +1,5 @@
 package io.github.kotlinmania.candle.cudabackend
 
-import io.github.kotlinmania.rustlang.std.sync.Mutex
-import io.github.kotlinmania.rustlang.std.sync.OnceLock
-
 public var CUDA_PARAM_CACHE: OnceLock<Mutex<ParamCache>> = OnceLock.new()
 
 // Default for the reduced precision setting is false, similar to pytorch.

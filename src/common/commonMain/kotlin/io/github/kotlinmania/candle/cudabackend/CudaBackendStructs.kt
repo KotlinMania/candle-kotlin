@@ -1,5 +1,7 @@
 package io.github.kotlinmania.candle.cudabackend
 
+import io.github.kotlinmania.bf16.ONE
+import io.github.kotlinmania.bf16.ZERO
 import io.github.kotlinmania.candle.backend.BackendStorage
 import io.github.kotlinmania.candle.conv.ParamsConv1D
 import io.github.kotlinmania.candle.conv.ParamsConv2D
@@ -7,7 +9,6 @@ import io.github.kotlinmania.candle.conv.ParamsConvTranspose1D
 import io.github.kotlinmania.candle.conv.ParamsConvTranspose2D
 import io.github.kotlinmania.candle.cpubackend.CpuStorage
 import io.github.kotlinmania.candle.cpubackend.USE_COL2IM_CONV1D_TR
-import io.github.kotlinmania.candle.cpubackend.USE_IM2COL_CONV1D
 import io.github.kotlinmania.candle.cudabackend.cudnn.launchConv1d
 import io.github.kotlinmania.candle.cudabackend.cudnn.launchConv2d
 import io.github.kotlinmania.candle.cudabackend.device.CudaDevice
@@ -34,12 +35,20 @@ import io.github.kotlinmania.cudarc.driver.CudaSlice
 import io.github.kotlinmania.cudarc.driver.DeviceRepr
 import io.github.kotlinmania.cudarc.driver.LaunchConfig
 import io.github.kotlinmania.cudarc.driver.ValidAsZeroBits
+import io.github.kotlinmania.cudarc.driver.sys.CUstreamCaptureStatus
 import io.github.kotlinmania.float8.F8e4m3
 import io.github.kotlinmania.half.Bf16
 import io.github.kotlinmania.half.F16
+import io.github.kotlinmania.kernels.BINARY
+import io.github.kotlinmania.kernels.CAST
+import io.github.kotlinmania.kernels.CONV
+import io.github.kotlinmania.kernels.FILL
+import io.github.kotlinmania.kernels.INDEXING
+import io.github.kotlinmania.kernels.REDUCE
+import io.github.kotlinmania.kernels.TERNARY
+import io.github.kotlinmania.kernels.UNARY
 import io.github.kotlinmania.rustlang.core.mem.PrimitiveLayouts
 import io.github.kotlinmania.rustlang.core.mem.TypeLayout
-import io.github.kotlinmania.rustlang.core.result.fromResidual
 import io.github.kotlinmania.candle.cudabackend.device.builderArg as barg
 
 public typealias Device = CudaDevice
@@ -71,20 +80,20 @@ public class Affine(
         val cfg = LaunchConfig.forNumElems(el.toUInt())
         val ds =
             when (val tryResult = SlicePtrOrNull.paramsFromLayout(dev, layout)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val src1 = src.slice(layout.startOffset() until Int.MAX_VALUE)
         val func =
-            when (val tryResult = dev.getOrLoadFunc(kernelName<T>("affine"), AFFINE)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            when (val tryResult = dev.getOrLoadFunc(kernelName<T>("affine"), io.github.kotlinmania.kernels.Affine)) {
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         // SAFETY: Set later by running the kernel.
         val out =
             when (val tryResult = dev.alloc<T>(el)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val builder = func.builder()
         barg(builder, el)
@@ -92,14 +101,14 @@ public class Affine(
         ds.builderArg(builder)
         builder.arg(src1)
         builder.arg(out)
-        barg(builder, this.value.fromF64())
-        barg(builder, this.field1.fromF64())
+        barg(builder, T.fromF64(this.field0))
+        barg(builder, T.fromF64(this.field1))
         // SAFETY: ffi.
         when (val tryResult = builder.launch(cfg).w()) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
-        return Ok(out)
+        return Result.Ok(out)
     }
 
     public companion object {
@@ -136,34 +145,34 @@ public class Elu(
         val cfg = LaunchConfig.forNumElems(el.toUInt())
         val ds =
             when (val tryResult = SlicePtrOrNull.paramsFromLayout(dev, layout)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val src1 = src.slice(layout.startOffset() until Int.MAX_VALUE)
         val func =
             when (val tryResult = dev.getOrLoadFunc(kernelName<T>("uelu"), UNARY)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         // SAFETY: Set later by running the kernel.
         val out =
             when (val tryResult = dev.alloc<T>(el)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val builder = func.builder()
         barg(builder, el)
         barg(builder, dims.len())
         ds.builderArg(builder)
-        barg(builder, this.value.fromF64())
+        barg(builder, T.fromF64(this.value))
         builder.arg(src1)
         builder.arg(out)
         // SAFETY: ffi.
         when (val tryResult = builder.launch(cfg).w()) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
-        return Ok(out)
+        return Result.Ok(out)
     }
 
     public companion object {
@@ -198,20 +207,20 @@ public class Im2Col1D(
         val cfg = LaunchConfig.forNumElems(threads.toUInt())
         val ds =
             when (val tryResult = SlicePtrOrNull.paramsFromVec(dev, listOf(dims, layout.stride()).concat())) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val src1 = src.slice(layout.startOffset() until Int.MAX_VALUE)
         val func =
             when (val tryResult = dev.getOrLoadFunc(kernelName<T>("im2col1d"), CONV)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         // SAFETY: Set later by running the kernel.
         val dst =
             when (val tryResult = dev.alloc<T>(threads * this.lK)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val builder = func.builder()
         barg(builder, threads)
@@ -225,10 +234,10 @@ public class Im2Col1D(
         builder.arg(dst)
         // SAFETY: ffi.
         when (val tryResult = builder.launch(cfg).w()) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
-        return Ok(dst)
+        return Result.Ok(dst)
     }
 
     public companion object {
@@ -274,20 +283,20 @@ public class Im2Col(
         val cfg = LaunchConfig.forNumElems(dstEl.toUInt())
         val ds =
             when (val tryResult = SlicePtrOrNull.paramsFromVec(dev, listOf(dims, layout.stride()).concat())) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val src1 = src.slice(layout.startOffset() until Int.MAX_VALUE)
         val func =
             when (val tryResult = dev.getOrLoadFunc(kernelName<T>("im2col"), CONV)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         // SAFETY: Set later by running the kernel.
         val dst =
             when (val tryResult = dev.alloc<T>(dstEl)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val builder = func.builder()
         barg(builder, dstEl)
@@ -303,10 +312,10 @@ public class Im2Col(
         builder.arg(dst)
         // SAFETY: ffi.
         when (val tryResult = builder.launch(cfg).w()) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
-        return Ok(dst)
+        return Result.Ok(dst)
     }
 
     public companion object {
@@ -349,34 +358,34 @@ public class Powf(
         val cfg = LaunchConfig.forNumElems(el.toUInt())
         val ds =
             when (val tryResult = SlicePtrOrNull.paramsFromLayout(dev, layout)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val src1 = src.slice(layout.startOffset() until Int.MAX_VALUE)
         val func =
             when (val tryResult = dev.getOrLoadFunc(kernelName<T>("upowf"), UNARY)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         // SAFETY: Set later by running the kernel.
         val out =
             when (val tryResult = dev.alloc<T>(el)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val builder = func.builder()
         barg(builder, el)
         barg(builder, dims.len())
         ds.builderArg(builder)
-        barg(builder, this.value.fromF64())
+        barg(builder, T.fromF64(this.value))
         builder.arg(src1)
         builder.arg(out)
         // SAFETY: ffi.
         when (val tryResult = builder.launch(cfg).w()) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
-        return Ok(out)
+        return Result.Ok(out)
     }
 
     public companion object {
@@ -407,22 +416,22 @@ public class FastReduce(
         val dims = mutableListOf()
         val stride = mutableListOf()
         var dstEl: Int = 1
-        for ((dimIdx, d) in srcDims.iter().enumerate()) {
-            if (!this.value.contains(dimIdx)) {
+        for ((dimIdx, d) in srcDims.iter().mapIndexed { index, item -> Pair(index, item) }) {
+            if (!this.field0.contains(dimIdx)) {
                 dstEl *= d
                 dims.add(d)
                 stride.add(srcStride[dimIdx])
             }
         }
-        for (dimIdx1 in this.value) {
+        for (dimIdx1 in this.field0) {
             dims.add(srcDims[dimIdx1])
             stride.add(srcStride[dimIdx1])
         }
         val elToSumPerBlock = srcEl / dstEl
         val ds =
             when (val tryResult = SlicePtrOrNull.paramsFromVec(dev, listOf(dims.asSlice(), stride.asSlice()).concat())) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val src1 = src.slice(layout.startOffset() until Int.MAX_VALUE)
         val (name, checkEmpty, returnIndex) =
@@ -446,15 +455,15 @@ public class FastReduce(
                 Pair(LaunchConfig(gridDim = Triple(dstEl.toUInt(), 1, 1), blockDim = Triple(blockDim.toUInt(), 1, 1), sharedMemBytes = 0), name)
             }
         if (checkEmpty && layout.shape().elemCount() == 0) {
-            when (val tryResult = Err(Error.EmptyTensor(op = "reduce").bt())) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            when (val tryResult = Result.Err(Error.EmptyTensor(op = "reduce").bt())) {
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         }
         val func =
             when (val tryResult = dev.getOrLoadFunc(kernelName<T>(kernelNameStr), REDUCE)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val kernelNumel =
             if (useSmallReduce) {
@@ -466,8 +475,8 @@ public class FastReduce(
             // SAFETY: filled in by the follow up kernel.
             val out =
                 when (val tryResult = dev.alloc<UInt>(dstEl)) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             val builder = func.builder()
             barg(builder, kernelNumel)
@@ -478,16 +487,16 @@ public class FastReduce(
             builder.arg(out)
             // SAFETY: ffi.
             when (val tryResult = builder.launch(cfg).w()) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
-            Ok(S.u32(out))
+            Result.Ok(S.u32(out))
         } else {
             // SAFETY: filled in by the follow up kernel.
             val out1 =
                 when (val tryResult = dev.alloc<T>(dstEl)) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             val builder1 = func.builder()
             barg(builder1, kernelNumel)
@@ -498,10 +507,10 @@ public class FastReduce(
             builder1.arg(out1)
             // SAFETY: ffi.
             when (val tryResult = builder1.launch(cfg).w()) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
-            Ok(wrap(out1))
+            Result.Ok(wrap(out1))
         }
     }
 }
@@ -514,7 +523,7 @@ public class IndexSelect(
     public fun <T> f(src: CudaSlice<T>, dev: CudaDevice, srcL: Layout): Result<CudaSlice<T>> where T : DeviceRepr, T : WithDType, T : ValidAsZeroBits {
         val idsL = this.field1
         val (name, ids, guard) =
-            when (val matchVal = this.value.slice) {
+            when (val matchVal = this.field0.slice) {
                 is CudaStorageSlice.U32 -> {
                     val (slice) = matchVal
                     Pair("is_u32", slicePtr(slice, idsL.startOffset()))
@@ -528,24 +537,24 @@ public class IndexSelect(
                     Pair("is_i64", slicePtr(slice2, idsL.startOffset()))
                 }
                 else ->
-                    when (val tryResult = Err(CudaError.UnexpectedDType(msg = "index_select ids should be u8, u32, or i64", expected = DType.U32, got = this.value.dtype())).w()) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    when (val tryResult = Result.Err(CudaError.UnexpectedDType(msg = "index_select ids should be u8, u32, or i64", expected = DType.U32, got = this.field0.dtype())).w()) {
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
             }
         val idsShape = idsL.shape()
         val idsDims = idsShape.dims()
         val ds =
             when (val tryResult = SlicePtrOrNull.paramsFromVec(dev, listOf(idsDims, idsL.stride()).concat())) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val src1 =
             when (val matchVal1 = srcL.contiguousOffsets()) {
                 null ->
-                    when (val tryResult = Err(Error.RequiresContiguous(op = "index-select").bt())) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    when (val tryResult = Result.Err(Error.RequiresContiguous(op = "index-select").bt())) {
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                 else -> {
                     val o1 = matchVal1.first
@@ -561,14 +570,14 @@ public class IndexSelect(
         val cfg = LaunchConfig.forNumElems(dstEl.toUInt())
         val func =
             when (val tryResult = dev.getOrLoadFunc(kernelName<T>(name), INDEXING)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         // SAFETY: Set later by running the kernel.
         val out =
             when (val tryResult = dev.alloc<T>(dstEl)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val builder = func.builder()
         barg(builder, dstEl)
@@ -583,10 +592,10 @@ public class IndexSelect(
         barg(builder, rightSize)
         // SAFETY: ffi.
         when (val tryResult = builder.launch(cfg).w()) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
-        return Ok(out)
+        return Result.Ok(out)
     }
 }
 
@@ -596,15 +605,15 @@ public class Gather(
     public var field2: Int = 0,
 ) : Map1 {
     public fun <T> f(src: CudaSlice<T>, dev: CudaDevice, srcL: Layout): Result<CudaSlice<T>> where T : DeviceRepr, T : WithDType, T : ValidAsZeroBits {
-        val ids = this.value
+        val ids = this.field0
         val idsL = this.field1
         val dim = this.field2
         val (idsO1, _) =
             when (val matchVal = idsL.contiguousOffsets()) {
                 null ->
-                    when (val tryResult = Err(Error.RequiresContiguous(op = "gather").bt())) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    when (val tryResult = Result.Err(Error.RequiresContiguous(op = "gather").bt())) {
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                 else -> {
                     val o12 = matchVal
@@ -626,9 +635,9 @@ public class Gather(
                     Pair("gather_i64", slicePtr(slice2, idsO1))
                 }
                 else ->
-                    when (val tryResult = Err(CudaError.UnexpectedDType(msg = "gather ids should be u8/u32/i64", expected = DType.U32, got = ids.dtype()))) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    when (val tryResult = Result.Err(CudaError.UnexpectedDType(msg = "gather ids should be u8/u32/i64", expected = DType.U32, got = ids.dtype()))) {
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
             }
         val el = idsL.shape().elemCount()
@@ -636,9 +645,9 @@ public class Gather(
         val src1 =
             when (val matchVal2 = srcL.contiguousOffsets()) {
                 null ->
-                    when (val tryResult = Err(Error.RequiresContiguous(op = "gather").bt())) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    when (val tryResult = Result.Err(Error.RequiresContiguous(op = "gather").bt())) {
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                 else -> {
                     val o1 = matchVal2.first
@@ -652,14 +661,14 @@ public class Gather(
         val idsDimSz = idsL.dims()[dim]
         val func =
             when (val tryResult = dev.getOrLoadFunc(kernelName<T>(name), INDEXING)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         // SAFETY: Set later by running the kernel.
         val out =
             when (val tryResult = dev.alloc<T>(el)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val builder = func.builder()
         barg(builder, el)
@@ -672,10 +681,10 @@ public class Gather(
         barg(builder, rightSz)
         // SAFETY: ffi.
         when (val tryResult = builder.launch(cfg).w()) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
-        return Ok(out)
+        return Result.Ok(out)
     }
 }
 
@@ -685,15 +694,15 @@ public class IndexAdd(
     public var field2: Int = 0,
 ) : Map2InPlace {
     public fun <T> f(dst: CudaSlice<T>, dstL: Layout, src: CudaSlice<T>, srcL: Layout, dev: CudaDevice): Result<Unit> where T : DeviceRepr, T : WithDType, T : ValidAsZeroBits {
-        val ids = this.value
+        val ids = this.field0
         val idsL = this.field1
         val dim = this.field2
         val (idsO1, _) =
             when (val matchVal = idsL.contiguousOffsets()) {
                 null ->
-                    when (val tryResult = Err(Error.RequiresContiguous(op = "index-add").bt())) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    when (val tryResult = Result.Err(Error.RequiresContiguous(op = "index-add").bt())) {
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                 else -> {
                     val o12 = matchVal
@@ -715,17 +724,17 @@ public class IndexAdd(
                     Pair("ia_u8", slicePtr(slice2, idsO1))
                 }
                 else ->
-                    when (val tryResult = Err(CudaError.UnexpectedDType(msg = "index-add ids should be u8/u32/i64", expected = DType.U32, got = ids.dtype()))) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    when (val tryResult = Result.Err(CudaError.UnexpectedDType(msg = "index-add ids should be u8/u32/i64", expected = DType.U32, got = ids.dtype()))) {
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
             }
         val dst1 =
             when (val matchVal2 = dstL.contiguousOffsets()) {
                 null ->
-                    when (val tryResult = Err(Error.RequiresContiguous(op = "index-add").bt())) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    when (val tryResult = Result.Err(Error.RequiresContiguous(op = "index-add").bt())) {
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                 else -> {
                     val o1 = matchVal2.first
@@ -736,9 +745,9 @@ public class IndexAdd(
         val src1 =
             when (val matchVal3 = srcL.contiguousOffsets()) {
                 null ->
-                    when (val tryResult = Err(Error.RequiresContiguous(op = "index-add").bt())) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    when (val tryResult = Result.Err(Error.RequiresContiguous(op = "index-add").bt())) {
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                 else -> {
                     val o11 = matchVal3.first
@@ -754,8 +763,8 @@ public class IndexAdd(
         val cfg = LaunchConfig.forNumElems((leftSz * rightSz).toUInt())
         val func =
             when (val tryResult = dev.getOrLoadFunc(kernelName<T>(name), INDEXING)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val builder = func.builder()
         barg(builder, ids1)
@@ -765,10 +774,10 @@ public class IndexAdd(
         barg(builder, leftSz, srcDimSz, dstDimSz, rightSz)
         // SAFETY: ffi.
         when (val tryResult = builder.launch(cfg).w()) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
-        return Ok(Unit)
+        return Result.Ok(Unit)
     }
 }
 
@@ -778,15 +787,15 @@ public class Scatter(
     public var field2: Int = 0,
 ) : Map2InPlace {
     public fun <T> f(dst: CudaSlice<T>, dstL: Layout, src: CudaSlice<T>, srcL: Layout, dev: CudaDevice): Result<Unit> where T : DeviceRepr, T : WithDType, T : ValidAsZeroBits {
-        val ids = this.value
+        val ids = this.field0
         val idsL = this.field1
         val dim = this.field2
         val (idsO1, _) =
             when (val matchVal = idsL.contiguousOffsets()) {
                 null ->
-                    when (val tryResult = Err(Error.RequiresContiguous(op = "scatter").bt())) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    when (val tryResult = Result.Err(Error.RequiresContiguous(op = "scatter").bt())) {
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                 else -> {
                     val o12 = matchVal
@@ -808,17 +817,17 @@ public class Scatter(
                     Pair("s_u8", slicePtr(slice2, idsO1))
                 }
                 else ->
-                    when (val tryResult = Err(CudaError.UnexpectedDType(msg = "scatter ids should be u8/u32/i64", expected = DType.U32, got = ids.dtype()))) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    when (val tryResult = Result.Err(CudaError.UnexpectedDType(msg = "scatter ids should be u8/u32/i64", expected = DType.U32, got = ids.dtype()))) {
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
             }
         val dst1 =
             when (val matchVal2 = dstL.contiguousOffsets()) {
                 null ->
-                    when (val tryResult = Err(Error.RequiresContiguous(op = "scatter").bt())) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    when (val tryResult = Result.Err(Error.RequiresContiguous(op = "scatter").bt())) {
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                 else -> {
                     val o1 = matchVal2.first
@@ -829,9 +838,9 @@ public class Scatter(
         val src1 =
             when (val matchVal3 = srcL.contiguousOffsets()) {
                 null ->
-                    when (val tryResult = Err(Error.RequiresContiguous(op = "scatter").bt())) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    when (val tryResult = Result.Err(Error.RequiresContiguous(op = "scatter").bt())) {
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                 else -> {
                     val o11 = matchVal3.first
@@ -846,8 +855,8 @@ public class Scatter(
         val cfg = LaunchConfig.forNumElems((leftSz * rightSz).toUInt())
         val func =
             when (val tryResult = dev.getOrLoadFunc(kernelName<T>(name), INDEXING)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val builder = func.builder()
         barg(builder, ids1)
@@ -856,10 +865,10 @@ public class Scatter(
         barg(builder, leftSz, srcDimSz, dstDimSz, rightSz)
         // SAFETY: ffi.
         when (val tryResult = builder.launch(cfg).w()) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
-        return Ok(Unit)
+        return Result.Ok(Unit)
     }
 }
 
@@ -869,15 +878,15 @@ public class ScatterAdd(
     public var field2: Int = 0,
 ) : Map2InPlace {
     public fun <T> f(dst: CudaSlice<T>, dstL: Layout, src: CudaSlice<T>, srcL: Layout, dev: CudaDevice): Result<Unit> where T : DeviceRepr, T : WithDType, T : ValidAsZeroBits {
-        val ids = this.value
+        val ids = this.field0
         val idsL = this.field1
         val dim = this.field2
         val (idsO1, _) =
             when (val matchVal = idsL.contiguousOffsets()) {
                 null ->
-                    when (val tryResult = Err(Error.RequiresContiguous(op = "scatter-add").bt())) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    when (val tryResult = Result.Err(Error.RequiresContiguous(op = "scatter-add").bt())) {
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                 else -> {
                     val o12 = matchVal
@@ -899,17 +908,17 @@ public class ScatterAdd(
                     Pair("sa_u8", slicePtr(slice2, idsO1))
                 }
                 else ->
-                    when (val tryResult = Err(CudaError.UnexpectedDType(msg = "scatter-add ids should be u8/u32/i64", expected = DType.U32, got = ids.dtype()))) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    when (val tryResult = Result.Err(CudaError.UnexpectedDType(msg = "scatter-add ids should be u8/u32/i64", expected = DType.U32, got = ids.dtype()))) {
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
             }
         val dst1 =
             when (val matchVal2 = dstL.contiguousOffsets()) {
                 null ->
-                    when (val tryResult = Err(Error.RequiresContiguous(op = "scatter-add").bt())) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    when (val tryResult = Result.Err(Error.RequiresContiguous(op = "scatter-add").bt())) {
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                 else -> {
                     val o1 = matchVal2.first
@@ -920,9 +929,9 @@ public class ScatterAdd(
         val src1 =
             when (val matchVal3 = srcL.contiguousOffsets()) {
                 null ->
-                    when (val tryResult = Err(Error.RequiresContiguous(op = "scatter-add").bt())) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    when (val tryResult = Result.Err(Error.RequiresContiguous(op = "scatter-add").bt())) {
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                 else -> {
                     val o11 = matchVal3.first
@@ -937,8 +946,8 @@ public class ScatterAdd(
         val cfg = LaunchConfig.forNumElems((leftSz * rightSz).toUInt())
         val func =
             when (val tryResult = dev.getOrLoadFunc(kernelName<T>(name), INDEXING)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val builder = func.builder()
         barg(builder, ids1)
@@ -947,10 +956,10 @@ public class ScatterAdd(
         barg(builder, leftSz, srcDimSz, dstDimSz, rightSz)
         // SAFETY: ffi.
         when (val tryResult = builder.launch(cfg).w()) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
-        return Ok(Unit)
+        return Result.Ok(Unit)
     }
 }
 
@@ -977,14 +986,14 @@ public class Conv1D(
         val cfg = LaunchConfig.forNumElems(dstEl.toUInt())
         val func =
             when (val tryResult = dev.getOrLoadFunc(kernelName<T>("conv1d"), CONV)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         // SAFETY: Set later by running the kernel.
         val out =
             when (val tryResult = dev.alloc<T>(dstEl)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val ds =
             if (dims.len() == 3) {
@@ -996,8 +1005,8 @@ public class Conv1D(
             }
         val ds1 =
             when (val tryResult = SlicePtrOrNull.paramsFromVec(dev, ds)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val builder = func.builder()
         barg(builder, el, lOut, p.stride, p.padding, p.dilation)
@@ -1007,10 +1016,10 @@ public class Conv1D(
         builder.arg(out)
         // SAFETY: ffi.
         when (val tryResult = builder.launch(cfg).w()) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
-        return Ok(out)
+        return Result.Ok(out)
     }
 }
 
@@ -1037,14 +1046,14 @@ public class Conv2D(
         // SAFETY: Set later by running the kernel.
         val out =
             when (val tryResult = dev.alloc<T>(dstEl)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val cfg = LaunchConfig.forNumElems(dstEl.toUInt())
         val func =
             when (val tryResult = dev.getOrLoadFunc(kernelName<T>("conv2d"), CONV)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val ds =
             if (dims.len() == 4) {
@@ -1054,8 +1063,8 @@ public class Conv2D(
             }
         val ds1 =
             when (val tryResult = SlicePtrOrNull.paramsFromVec(dev, ds)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val builder = func.builder()
         barg(builder, el, outW, outH, p.stride, p.padding, p.dilation)
@@ -1065,10 +1074,10 @@ public class Conv2D(
         builder.arg(out)
         // SAFETY: ffi.
         when (val tryResult = builder.launch(cfg).w()) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
-        return Ok(out)
+        return Result.Ok(out)
     }
 }
 
@@ -1078,32 +1087,32 @@ public class Col2Im1D(
     public fun <T> f(col: CudaSlice<T>, dev: CudaDevice, l: Layout): Result<CudaSlice<T>> where T : DeviceRepr, T : WithDType, T : ValidAsZeroBits {
         val (bSize, lIn, cOut, kSize) =
             when (val tryResult = l.shape().dims4()) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val stride = this.stride
         val lOut = (lIn - 1) * stride + kSize
         val dstEl = bSize * cOut * lOut
         val im =
             when (val tryResult = dev.alloc<T>(dstEl)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val cfg = LaunchConfig.forNumElems(dstEl.toUInt())
         val func =
             when (val tryResult = dev.getOrLoadFunc(kernelName<T>("col2im1d"), CONV)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val builder = func.builder()
         barg(builder, dstEl, lOut, lIn, cOut, kSize, stride)
         builder.arg(col)
         builder.arg(im)
         when (val tryResult = builder.launch(cfg).w()) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
-        return Ok(im)
+        return Result.Ok(im)
     }
 
     public companion object {
@@ -1145,14 +1154,14 @@ public class ConvTranspose1D(
         // SAFETY: Set later by running the kernel.
         val out =
             when (val tryResult = dev.alloc<T>(dstEl)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val cfg = LaunchConfig.forNumElems(dstEl.toUInt())
         val func =
             when (val tryResult = dev.getOrLoadFunc(kernelName<T>("conv_transpose1d"), CONV)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val ds =
             if (dims.len() == 3) {
@@ -1162,8 +1171,8 @@ public class ConvTranspose1D(
             }
         val ds1 =
             when (val tryResult = SlicePtrOrNull.paramsFromVec(dev, ds)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val builder = func.builder()
         barg(builder, el)
@@ -1178,10 +1187,10 @@ public class ConvTranspose1D(
         builder.arg(out)
         // SAFETY: ffi.
         when (val tryResult = builder.launch(cfg).w()) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
-        return Ok(out)
+        return Result.Ok(out)
     }
 }
 
@@ -1208,14 +1217,14 @@ public class ConvTranspose2D(
         // SAFETY: Set later by running the kernel.
         val out =
             when (val tryResult = dev.alloc<T>(dstEl)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val cfg = LaunchConfig.forNumElems(dstEl.toUInt())
         val func =
             when (val tryResult = dev.getOrLoadFunc(kernelName<T>("conv_transpose2d"), CONV)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val ds =
             if (dims.len() == 4) {
@@ -1225,8 +1234,8 @@ public class ConvTranspose2D(
             }
         val ds1 =
             when (val tryResult = SlicePtrOrNull.paramsFromVec(dev, ds)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val builder = func.builder()
         barg(builder, el)
@@ -1242,10 +1251,10 @@ public class ConvTranspose2D(
         builder.arg(out)
         // SAFETY: ffi.
         when (val tryResult = builder.launch(cfg).w()) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
-        return Ok(out)
+        return Result.Ok(out)
     }
 }
 
@@ -1279,19 +1288,19 @@ public class Pool2D(
             }
         val func =
             when (val tryResult = dev.getOrLoadFunc(kernelName<T>(kname), CONV)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         // SAFETY: Set later by running the kernel.
         val out =
             when (val tryResult = dev.alloc<T>(dstEl)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val ds1 =
             when (val tryResult = SlicePtrOrNull.paramsFromVec(dev, ds)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val builder = func.builder()
         barg(builder, el)
@@ -1304,10 +1313,10 @@ public class Pool2D(
         builder.arg(out)
         // SAFETY: ffi.
         when (val tryResult = builder.launch(cfg).w()) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
-        return Ok(out)
+        return Result.Ok(out)
     }
 }
 
@@ -1326,24 +1335,24 @@ public class UpsampleNearest2D(
             } else {
                 bail("unexpected input shape for upsample {dims:?}")
             }
-        val (outW, outH) = Pair(this.value, this.field1)
+        val (outW, outH) = Pair(this.field0, this.field1)
         val dstEl = outW * outH * dims[0] * dims[1]
         val cfg = LaunchConfig.forNumElems(dstEl.toUInt())
         val func =
             when (val tryResult = dev.getOrLoadFunc(kernelName<T>("upsample_nearest2d"), CONV)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         // SAFETY: Set later by running the kernel.
         val out =
             when (val tryResult = dev.alloc<T>(dstEl)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val ds1 =
             when (val tryResult = SlicePtrOrNull.paramsFromVec(dev, ds)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val scaleW = dims[2].toDouble() / outW.toDouble()
         val scaleH = dims[3].toDouble() / outH.toDouble()
@@ -1357,10 +1366,10 @@ public class UpsampleNearest2D(
         builder.arg(out)
         // SAFETY: ffi.
         when (val tryResult = builder.launch(cfg).w()) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
-        return Ok(out)
+        return Result.Ok(out)
     }
 
     public companion object {
@@ -1403,19 +1412,19 @@ public class UpsampleBilinear2D(
         val cfg = LaunchConfig.forNumElems(dstEl.toUInt())
         val func =
             when (val tryResult = dev.getOrLoadFunc(kernelName<T>("upsample_bilinear2d"), CONV)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         // SAFETY: Set later by running the kernel.
         val out =
             when (val tryResult = dev.alloc<T>(dstEl)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val ds1 =
             when (val tryResult = SlicePtrOrNull.paramsFromVec(dev, ds)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val builder = func.builder()
         barg(builder, outW)
@@ -1430,10 +1439,10 @@ public class UpsampleBilinear2D(
         builder.arg(out)
         // SAFETY: ffi.
         when (val tryResult = builder.launch(cfg).w()) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
-        return Ok(out)
+        return Result.Ok(out)
     }
 }
 
@@ -1444,7 +1453,7 @@ public class WhereCond(
     public fun <T> f(t: CudaSlice<T>, layoutT: Layout, f: CudaSlice<T>, layoutF: Layout, dev: CudaDevice): Result<CudaSlice<T>> where T : DeviceRepr, T : WithDType, T : ValidAsZeroBits {
         val idsL = this.field1
         val (ids, guard, name) =
-            when (val matchVal = this.value.slice) {
+            when (val matchVal = this.field0.slice) {
                 is CudaStorageSlice.U8 -> {
                     val (slice) = matchVal
                     val ptr = slicePtr(slice, idsL.startOffset())
@@ -1461,9 +1470,9 @@ public class WhereCond(
                     Pair(ptr2, "where_i64")
                 }
                 else ->
-                    when (val tryResult = Err(CudaError.UnexpectedDType(msg = "where conditions should be u8/u32/i64", expected = DType.U32, got = this.value.dtype())).w()) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    when (val tryResult = Result.Err(CudaError.UnexpectedDType(msg = "where conditions should be u8/u32/i64", expected = DType.U32, got = this.field0.dtype())).w()) {
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
             }
         val shape = idsL.shape()
@@ -1472,21 +1481,21 @@ public class WhereCond(
         val cfg = LaunchConfig.forNumElems(el.toUInt())
         val ds =
             when (val tryResult = SlicePtrOrNull.paramsFromVec(dev, listOf(dims, idsL.stride(), layoutT.stride(), layoutF.stride()).concat())) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val t1 = t.slice(layoutT.startOffset() until Int.MAX_VALUE)
         val f1 = f.slice(layoutF.startOffset() until Int.MAX_VALUE)
         val func =
             when (val tryResult = dev.getOrLoadFunc(kernelName<T>(name), TERNARY)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         // SAFETY: Set later by running the kernel.
         val out =
             when (val tryResult = dev.alloc<T>(el)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val builder = func.builder()
         barg(builder, el)
@@ -1498,10 +1507,10 @@ public class WhereCond(
         builder.arg(out)
         // SAFETY: ffi
         when (val tryResult = builder.launch(cfg).w()) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
-        return Ok(out)
+        return Result.Ok(out)
     }
 }
 
@@ -1524,8 +1533,8 @@ public class Cmp(
                 SlicePtrOrNull.Null
             } else {
                 when (val tryResult = SlicePtrOrNull.paramsFromVec(dev, listOf(dims, lhsL.stride(), rhsL.stride()).concat())) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             }
         val lhs1 = lhs.slice(lhsL.startOffset() until Int.MAX_VALUE)
@@ -1541,14 +1550,14 @@ public class Cmp(
             }
         val func =
             when (val tryResult = dev.getOrLoadFunc(kernelName<T>(name), BINARY)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         // SAFETY: Set later by running the kernel.
         val out =
             when (val tryResult = dev.alloc<UByte>(elemCount)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val builder = func.builder()
         barg(builder, elemCount)
@@ -1559,17 +1568,17 @@ public class Cmp(
         builder.arg(out)
         // SAFETY: ffi
         when (val tryResult = builder.launch(cfg).w()) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
-        return Ok(S.u8(out))
+        return Result.Ok(S.u8(out))
     }
 }
 
 public class CudaStorage(
     public var slice: CudaStorageSlice = CudaStorageSlice(),
     public var device: CudaDevice = CudaDevice(),
-) : BackendStorage {
+) : BackendStorage<CudaDevice> {
     public fun <T : CudaDType> asCudaSlice(asCudaSliceTFn: (Any?) -> Any?): Result<CudaSlice<T>> = asCudaSliceTFn(this)
 
     public fun <T : CudaDType> asCudaSliceMut(asCudaSliceMutTFn: (Any?) -> Any?): Result<CudaSlice<T>> = asCudaSliceMutTFn(this)
@@ -1581,197 +1590,197 @@ public class CudaStorage(
                 DType.u8 -> {
                     val cudaSlice =
                         when (val tryResult = this.asCudaSlice<UByte>()) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     val result =
                         when (val tryResult = dstStream.cloneDtod(cudaSlice).w()) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     CudaStorageSlice.u8(result)
                 }
                 DType.u32 -> {
                     val cudaSlice1 =
                         when (val tryResult = this.asCudaSlice<UInt>()) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     val result1 =
                         when (val tryResult = dstStream.cloneDtod(cudaSlice1).w()) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     CudaStorageSlice.u32(result1)
                 }
                 DType.i16 -> {
                     val cudaSlice2 =
                         when (val tryResult = this.asCudaSlice<Short>()) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     val result2 =
                         when (val tryResult = dstStream.cloneDtod(cudaSlice2).w()) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     CudaStorageSlice.i16(result2)
                 }
                 DType.i32 -> {
                     val cudaSlice3 =
                         when (val tryResult = this.asCudaSlice<Int>()) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     val result3 =
                         when (val tryResult = dstStream.cloneDtod(cudaSlice3).w()) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     CudaStorageSlice.i32(result3)
                 }
                 DType.i64 -> {
                     val cudaSlice4 =
                         when (val tryResult = this.asCudaSlice<Long>()) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     val result4 =
                         when (val tryResult = dstStream.cloneDtod(cudaSlice4).w()) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     CudaStorageSlice.i64(result4)
                 }
                 DType.bf16 -> {
                     val cudaSlice5 =
                         when (val tryResult = this.asCudaSlice<Bf16>()) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     val result5 =
                         when (val tryResult = dstStream.cloneDtod(cudaSlice5).w()) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     CudaStorageSlice.bf16(result5)
                 }
                 DType.f16 -> {
                     val cudaSlice6 =
                         when (val tryResult = this.asCudaSlice<F16>()) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     val result6 =
                         when (val tryResult = dstStream.cloneDtod(cudaSlice6).w()) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     CudaStorageSlice.f16(result6)
                 }
                 DType.f32 -> {
                     val cudaSlice7 =
                         when (val tryResult = this.asCudaSlice<Float>()) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     val result7 =
                         when (val tryResult = dstStream.cloneDtod(cudaSlice7).w()) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     CudaStorageSlice.f32(result7)
                 }
                 DType.f64 -> {
                     val cudaSlice8 =
                         when (val tryResult = this.asCudaSlice<Double>()) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     val result8 =
                         when (val tryResult = dstStream.cloneDtod(cudaSlice8).w()) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     CudaStorageSlice.f64(result8)
                 }
                 DType.f8e4m3 -> {
                     val cudaSlice9 =
                         when (val tryResult = this.asCudaSlice<F8e4m3>()) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     val result9 =
                         when (val tryResult = dstStream.cloneDtod(cudaSlice9).w()) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     CudaStorageSlice.f8e4m3(result9)
                 }
                 DType.f6e2m3 -> {
                     val cudaSlice10 =
                         when (val tryResult = this.asCudaSlice<UByte>()) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     val result10 =
                         when (val tryResult = dstStream.cloneDtod(cudaSlice10).w()) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     CudaStorageSlice.f6e2m3(result10)
                 }
                 DType.f6e3m2 -> {
                     val cudaSlice11 =
                         when (val tryResult = this.asCudaSlice<UByte>()) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     val result11 =
                         when (val tryResult = dstStream.cloneDtod(cudaSlice11).w()) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     CudaStorageSlice.f6e3m2(result11)
                 }
                 DType.f4 -> {
                     val cudaSlice12 =
                         when (val tryResult = this.asCudaSlice<UByte>()) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     val result12 =
                         when (val tryResult = dstStream.cloneDtod(cudaSlice12).w()) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     CudaStorageSlice.f4(result12)
                 }
                 DType.f8e8m0 -> {
                     val cudaSlice13 =
                         when (val tryResult = this.asCudaSlice<UByte>()) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     val result13 =
                         when (val tryResult = dstStream.cloneDtod(cudaSlice13).w()) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     CudaStorageSlice.f8e8m0(result13)
                 }
             }
-        return Ok(CudaStorage(slice = storageSlice, device = dst.clone()))
+        return Result.Ok(CudaStorage(slice = storageSlice, device = dst.clone()))
     }
 
     public fun tryClone(layout: Layout): Result<CudaStorage> {
         val slice =
             when (val tryResult = Clone().map(this.slice, this.device(), layout)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val device = this.device.clone()
-        return Ok(CudaStorage(slice = slice, device = device))
+        return Result.Ok(CudaStorage(slice = slice, device = device))
     }
 
     public fun dtype(): DType =
@@ -1802,8 +1811,8 @@ public class CudaStorage(
         val cfg = LaunchConfig.forNumElems(elCount.toUInt())
         val ds =
             when (val tryResult = SlicePtrOrNull.paramsFromLayout(dev, layout)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val srcO = layout.startOffset()
         val (src, guardSrc, kernelName) =
@@ -1849,22 +1858,22 @@ public class CudaStorage(
                     Pair(slicePtr(s10, srcO), "const_set_f8_e4m3")
                 }
                 is S.F4 -> {
-                    return Err(CudaError.UnsupportedDtype(dtype = this.dtype(), op = "const_set").into())
+                    return Result.Err(CudaError.UnsupportedDtype(dtype = this.dtype(), op = "const_set").into())
                 }
                 is S.F6e2m3 -> {
-                    return Err(CudaError.UnsupportedDtype(dtype = this.dtype(), op = "const_set").into())
+                    return Result.Err(CudaError.UnsupportedDtype(dtype = this.dtype(), op = "const_set").into())
                 }
                 is S.F6e3m2 -> {
-                    return Err(CudaError.UnsupportedDtype(dtype = this.dtype(), op = "const_set").into())
+                    return Result.Err(CudaError.UnsupportedDtype(dtype = this.dtype(), op = "const_set").into())
                 }
                 is S.F8e8m0 -> {
-                    return Err(CudaError.UnsupportedDtype(dtype = this.dtype(), op = "const_set").into())
+                    return Result.Err(CudaError.UnsupportedDtype(dtype = this.dtype(), op = "const_set").into())
                 }
             }
         val func =
             when (val tryResult = dev.getOrLoadFunc(kernelName, FILL)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val builder = func.builder()
         barg(builder, elCount)
@@ -1874,10 +1883,10 @@ public class CudaStorage(
         barg(builder, src)
         // SAFETY: ffi.
         when (val tryResult = builder.launch(cfg).w()) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
-        return Ok(Unit)
+        return Result.Ok(Unit)
     }
 
     public fun toDtype(layout: Layout, dtype: DType): Result<CudaStorage> {
@@ -1888,8 +1897,8 @@ public class CudaStorage(
         val dev = this.device()
         val ds =
             when (val tryResult = SlicePtrOrNull.paramsFromLayout(dev, layout)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val startO = layout.startOffset()
         // This returns an i64 rather than a &i64, this is useful to get around some temporary
@@ -1938,32 +1947,32 @@ public class CudaStorage(
                     slicePtr(inp9, startO)
                 }
                 is CudaStorageSlice.F4 -> {
-                    return Err(CudaError.UnsupportedDtype(dtype = this.dtype(), op = "to_dtype").into())
+                    return Result.Err(CudaError.UnsupportedDtype(dtype = this.dtype(), op = "to_dtype").into())
                 }
                 is CudaStorageSlice.F6e2m3 -> {
-                    return Err(CudaError.UnsupportedDtype(dtype = this.dtype(), op = "to_dtype").into())
+                    return Result.Err(CudaError.UnsupportedDtype(dtype = this.dtype(), op = "to_dtype").into())
                 }
                 is CudaStorageSlice.F6e3m2 -> {
-                    return Err(CudaError.UnsupportedDtype(dtype = this.dtype(), op = "to_dtype").into())
+                    return Result.Err(CudaError.UnsupportedDtype(dtype = this.dtype(), op = "to_dtype").into())
                 }
                 is CudaStorageSlice.F8e8m0 -> {
-                    return Err(CudaError.UnsupportedDtype(dtype = this.dtype(), op = "to_dtype").into())
+                    return Result.Err(CudaError.UnsupportedDtype(dtype = this.dtype(), op = "to_dtype").into())
                 }
             }
         val inp11 = inp10
         val kernelName = "cast_${this.dtype().asStr()}_${dtype.asStr()}"
         val func =
             when (val tryResult = dev.getOrLoadFunc(kernelName, CAST)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val slice =
             when (dtype) {
                 DType.u8 -> {
                     val out =
                         when (val tryResult = dev.alloc<UByte>(el)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     val builder = func.builder()
                     barg(builder, el)
@@ -1972,16 +1981,16 @@ public class CudaStorage(
                     barg(builder, inp11)
                     builder.arg(out)
                     when (val tryResult = builder.launch(cfg).w()) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                     CudaStorageSlice.u8(out)
                 }
                 DType.u32 -> {
                     val out1 =
                         when (val tryResult = dev.alloc<UInt>(el)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     val builder1 = func.builder()
                     barg(builder1, el)
@@ -1990,16 +1999,16 @@ public class CudaStorage(
                     barg(builder1, inp11)
                     builder1.arg(out1)
                     when (val tryResult = builder1.launch(cfg).w()) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                     CudaStorageSlice.u32(out1)
                 }
                 DType.i64 -> {
                     val out2 =
                         when (val tryResult = dev.alloc<Long>(el)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     val builder2 = func.builder()
                     barg(builder2, el)
@@ -2008,16 +2017,16 @@ public class CudaStorage(
                     barg(builder2, inp11)
                     builder2.arg(out2)
                     when (val tryResult = builder2.launch(cfg).w()) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                     CudaStorageSlice.i64(out2)
                 }
                 DType.bf16 -> {
                     val out3 =
                         when (val tryResult = dev.alloc<Bf16>(el)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     val builder3 = func.builder()
                     barg(builder3, el)
@@ -2026,16 +2035,16 @@ public class CudaStorage(
                     barg(builder3, inp11)
                     builder3.arg(out3)
                     when (val tryResult = builder3.launch(cfg).w()) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                     CudaStorageSlice.bf16(out3)
                 }
                 DType.f16 -> {
                     val out4 =
                         when (val tryResult = dev.alloc<F16>(el)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     val builder4 = func.builder()
                     barg(builder4, el)
@@ -2044,16 +2053,16 @@ public class CudaStorage(
                     barg(builder4, inp11)
                     builder4.arg(out4)
                     when (val tryResult = builder4.launch(cfg).w()) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                     CudaStorageSlice.f16(out4)
                 }
                 DType.f32 -> {
                     val out5 =
                         when (val tryResult = dev.alloc<Float>(el)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     val builder5 = func.builder()
                     barg(builder5, el)
@@ -2062,16 +2071,16 @@ public class CudaStorage(
                     barg(builder5, inp11)
                     builder5.arg(out5)
                     when (val tryResult = builder5.launch(cfg).w()) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                     CudaStorageSlice.f32(out5)
                 }
                 DType.f64 -> {
                     val out6 =
                         when (val tryResult = dev.alloc<Double>(el)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     val builder6 = func.builder()
                     barg(builder6, el)
@@ -2080,16 +2089,16 @@ public class CudaStorage(
                     barg(builder6, inp11)
                     builder6.arg(out6)
                     when (val tryResult = builder6.launch(cfg).w()) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                     CudaStorageSlice.f64(out6)
                 }
                 DType.f8e4m3 -> {
                     val out7 =
                         when (val tryResult = dev.alloc<F8e4m3>(el)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     val builder7 = func.builder()
                     barg(builder7, el)
@@ -2098,94 +2107,94 @@ public class CudaStorage(
                     barg(builder7, inp11)
                     builder7.arg(out7)
                     when (val tryResult = builder7.launch(cfg).w()) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                     CudaStorageSlice.f8e4m3(out7)
                 }
                 DType.i16, DType.i32 -> {
-                    return Err(CudaError.InternalError("i16,i32 dtypes are not supported").into())
+                    return Result.Err(CudaError.InternalError("i16,i32 dtypes are not supported").into())
                 }
                 DType.f6e2m3, DType.f6e3m2, DType.f4, DType.f8e8m0 -> {
-                    return Err(CudaError.InternalError("Dummy types not supported in CUDA backend").into())
+                    return Result.Err(CudaError.InternalError("Dummy types not supported in CUDA backend").into())
                 }
             }
-        return Ok(CudaStorage(slice = slice, device = dev.clone()))
+        return Result.Ok(CudaStorage(slice = slice, device = dev.clone()))
     }
 
     public fun affine(layout: Layout, mul: Double, add: Double): Result<CudaStorage> {
         val device = this.device().clone()
         val slice =
             when (val tryResult = Affine(mul, add).map(this.slice, device, layout)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
-        return Ok(CudaStorage(slice = slice, device = device))
+        return Result.Ok(CudaStorage(slice = slice, device = device))
     }
 
     public fun powf(layout: Layout, e: Double): Result<CudaStorage> {
         val device = this.device().clone()
         val slice =
             when (val tryResult = Powf(e).map(this.slice, device, layout)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
-        return Ok(CudaStorage(slice = slice, device = device))
+        return Result.Ok(CudaStorage(slice = slice, device = device))
     }
 
     public fun elu(layout: Layout, alpha: Double): Result<CudaStorage> {
         val device = this.device().clone()
         val slice =
             when (val tryResult = Elu(alpha).map(this.slice, device, layout)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
-        return Ok(CudaStorage(slice = slice, device = device))
+        return Result.Ok(CudaStorage(slice = slice, device = device))
     }
 
     public fun reduceOp(op: ReduceOp, layout: Layout, sumDims: List<Int>): Result<CudaStorage> {
         val device = this.device().clone()
         val slice =
             when (val tryResult = FastReduce(sumDims, op).map(this.slice, device, layout)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
-        return Ok(CudaStorage(slice = slice, device = device))
+        return Result.Ok(CudaStorage(slice = slice, device = device))
     }
 
     public fun cmp(op: CmpOp, rhs: CudaStorage, lhsL: Layout, rhsL: Layout): Result<CudaStorage> {
         val device = this.device().clone()
         val slice =
             when (val tryResult = Cmp(op).map(this.slice, lhsL, rhs.slice, rhsL, device)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
-        return Ok(CudaStorage(slice = slice, device = device))
+        return Result.Ok(CudaStorage(slice = slice, device = device))
     }
 
     public fun <U : UnaryOpT> unaryImpl(layout: Layout): Result<CudaStorage> {
         val device = this.device().clone()
         val slice =
             when (val tryResult = U.V.map(this.slice, device, layout)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
-        return Ok(CudaStorage(slice = slice, device = device))
+        return Result.Ok(CudaStorage(slice = slice, device = device))
     }
 
     public fun <B : BinaryOpT> binaryImpl(rhs: CudaStorage, lhsL: Layout, rhsL: Layout): Result<CudaStorage> {
         val device = this.device().clone()
         val slice =
             when (val tryResult = B.V.map(this.slice, lhsL, rhs.slice, rhsL, device)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
-        return Ok(CudaStorage(slice = slice, device = device))
+        return Result.Ok(CudaStorage(slice = slice, device = device))
     }
 
     public fun toCpuStorage(): Result<CpuStorage> {
         if (cudaGraphHtodCacheEnabled()) {
-            val isCapturing = (this.device.cudaStream().captureStatus()).rustEquals(Ok(CUstreamCaptureStatus.CU_STREAM_CAPTURE_STATUS_ACTIVE))
+            val isCapturing = (this.device.cudaStream().captureStatus()).rustEquals(Result.Ok(CUstreamCaptureStatus.CU_STREAM_CAPTURE_STATUS_ACTIVE))
             if (isCapturing) {
                 bail("to_cpu_storage during CUDA graph capture: host/device copies are not permitted while capturing")
             }
@@ -2195,96 +2204,96 @@ public class CudaStorage(
                 val (slice) = matchVal
                 val cpuStorage =
                     when (val tryResult = slice.stream().cloneDtoh(slice).w()) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
-                Ok(CpuStorage.u8(cpuStorage))
+                Result.Ok(CpuStorage.u8(cpuStorage))
             }
             is CudaStorageSlice.U32 -> {
                 val (slice1) = matchVal
                 val cpuStorage1 =
                     when (val tryResult = slice1.stream().cloneDtoh(slice1).w()) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
-                Ok(CpuStorage.u32(cpuStorage1))
+                Result.Ok(CpuStorage.u32(cpuStorage1))
             }
             is CudaStorageSlice.I16 -> {
                 val (slice2) = matchVal
                 val cpuStorage2 =
                     when (val tryResult = slice2.stream().cloneDtoh(slice2).w()) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
-                Ok(CpuStorage.i16(cpuStorage2))
+                Result.Ok(CpuStorage.i16(cpuStorage2))
             }
             is CudaStorageSlice.I32 -> {
                 val (slice3) = matchVal
                 val cpuStorage3 =
                     when (val tryResult = slice3.stream().cloneDtoh(slice3).w()) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
-                Ok(CpuStorage.i32(cpuStorage3))
+                Result.Ok(CpuStorage.i32(cpuStorage3))
             }
             is CudaStorageSlice.I64 -> {
                 val (slice4) = matchVal
                 val cpuStorage4 =
                     when (val tryResult = slice4.stream().cloneDtoh(slice4).w()) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
-                Ok(CpuStorage.i64(cpuStorage4))
+                Result.Ok(CpuStorage.i64(cpuStorage4))
             }
             is CudaStorageSlice.Bf16 -> {
                 val (slice5) = matchVal
                 val cpuStorage5 =
                     when (val tryResult = slice5.stream().cloneDtoh(slice5).w()) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
-                Ok(CpuStorage.bf16(cpuStorage5))
+                Result.Ok(CpuStorage.bf16(cpuStorage5))
             }
             is CudaStorageSlice.F16 -> {
                 val (slice6) = matchVal
                 val cpuStorage6 =
                     when (val tryResult = slice6.stream().cloneDtoh(slice6).w()) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
-                Ok(CpuStorage.f16(cpuStorage6))
+                Result.Ok(CpuStorage.f16(cpuStorage6))
             }
             is CudaStorageSlice.F32 -> {
                 val (slice7) = matchVal
                 val cpuStorage7 =
                     when (val tryResult = slice7.stream().cloneDtoh(slice7).w()) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
-                Ok(CpuStorage.f32(cpuStorage7))
+                Result.Ok(CpuStorage.f32(cpuStorage7))
             }
             is CudaStorageSlice.F64 -> {
                 val (slice8) = matchVal
                 val cpuStorage8 =
                     when (val tryResult = slice8.stream().cloneDtoh(slice8).w()) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
-                Ok(CpuStorage.f64(cpuStorage8))
+                Result.Ok(CpuStorage.f64(cpuStorage8))
             }
             is CudaStorageSlice.F8e4m3 -> {
                 val (slice9) = matchVal
                 val cpuStorage9 =
                     when (val tryResult = slice9.stream().cloneDtoh(slice9).w()) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
-                Ok(CpuStorage.f8e4m3(cpuStorage9))
+                Result.Ok(CpuStorage.f8e4m3(cpuStorage9))
             }
-            is CudaStorageSlice.F4 -> Err(CudaError.UnsupportedDtype(dtype = this.dtype(), op = "to_cpu_storage").into())
-            is CudaStorageSlice.F6e2m3 -> Err(CudaError.UnsupportedDtype(dtype = this.dtype(), op = "to_cpu_storage").into())
-            is CudaStorageSlice.F6e3m2 -> Err(CudaError.UnsupportedDtype(dtype = this.dtype(), op = "to_cpu_storage").into())
-            is CudaStorageSlice.F8e8m0 -> Err(CudaError.UnsupportedDtype(dtype = this.dtype(), op = "to_cpu_storage").into())
+            is CudaStorageSlice.F4 -> Result.Err(CudaError.UnsupportedDtype(dtype = this.dtype(), op = "to_cpu_storage").into())
+            is CudaStorageSlice.F6e2m3 -> Result.Err(CudaError.UnsupportedDtype(dtype = this.dtype(), op = "to_cpu_storage").into())
+            is CudaStorageSlice.F6e3m2 -> Result.Err(CudaError.UnsupportedDtype(dtype = this.dtype(), op = "to_cpu_storage").into())
+            is CudaStorageSlice.F8e8m0 -> Result.Err(CudaError.UnsupportedDtype(dtype = this.dtype(), op = "to_cpu_storage").into())
         }
     }
 
@@ -2292,93 +2301,21 @@ public class CudaStorage(
         val device = this.device().clone()
         val slice =
             when (val tryResult = WhereCond(this, layout).map(t.slice, tL, f.slice, fL, device)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
-        return Ok(CudaStorage(slice = slice, device = device))
+        return Result.Ok(CudaStorage(slice = slice, device = device))
     }
 
-    public fun conv1d(l: Layout, kernel: CudaStorage, kernelL: Layout, params: ParamsConv1D): Result<CudaStorage> {
-        val USE_IM2COL_CONV1D: Boolean = true
-        val device = this.device().clone()
-        if (USE_IM2COL_CONV1D.inv()) {
-            val slice =
-                when (val tryResult = Conv1D(params).map(this.slice, l, kernel.slice, kernelL, device)) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
-                }
-            return Ok(CudaStorage(slice = slice, device = device))
-        }
-        val col =
-            when (val tryResult = Im2Col1D(lK = params.kSize, stride = params.stride, dilation = params.dilation, padding = params.padding).map(this.slice, device, l)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
-            }
-        val col1 = CudaStorage(slice = col, device = device)
-        val lOut = params.lOut()
-        val b = params.bSize
-        val n = params.cOut
-        val k = params.kSize * params.cIn
-        val m = lOut
-        val colL = Layout.contiguous(Pair(b * m, k))
-        val res =
-            if (kernelL.isContiguous()) {
-                val kernelL1 =
-                    when (val tryResult = Layout.contiguousWithOffset(Pair(n, k), kernelL.startOffset()).transpose(0, 1)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
-                    }
-                when (val tryResult = col1.matmul(kernel, listOf(1, b * m, n, k), colL, kernelL1)) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
-                }
-            } else {
-                // Make the kernel contiguous if not already the case.
-                val kernelC =
-                    when (val tryResult = this.device().allocUninit(kernelL.shape(), kernel.dtype())) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
-                    }
-                when (val tryResult = kernel.copyStridedSrc(kernelC, 0, kernelL)) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
-                }
-                val kernelL2 =
-                    when (val tryResult = Layout.contiguousWithOffset(Pair(n, k), kernelL.startOffset()).transpose(0, 1)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
-                    }
-                when (val tryResult = col1.matmul(kernel, listOf(1, b * m, n, k), colL, kernelL2)) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
-                }
-            }
-        val resL =
-            when (val tryResult = Layout.contiguous(Triple(b, lOut, n)).transpose(1, 2)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
-            }
-        val resT =
-            when (val tryResult = this.device().allocUninit(resL.shape(), res.dtype())) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
-            }
-        when (val tryResult = res.copyStridedSrc(resT, 0, resL)) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
-        }
-        return Ok(resT)
-    }
-
-    public fun conv1dBackendStorage(inpL: Layout, kernel: CudaStorage, kernelL: Layout, params: ParamsConv1D): Result<CudaStorage> {
+    public fun conv1d(inpL: Layout, kernel: CudaStorage, kernelL: Layout, params: ParamsConv1D): Result<CudaStorage> {
         val device = this.device().clone()
         if (!kernelL.isContiguous()) {
             val slice =
                 when (val tryResult = Conv1D(params).map(this.slice, inpL, kernel.slice, kernelL, device)) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
-            return Ok(CudaStorage(slice = slice, device = device))
+            return Result.Ok(CudaStorage(slice = slice, device = device))
         }
         val lOut = params.lOut()
         val dstEl = params.cOut * lOut * params.bSize
@@ -2393,12 +2330,12 @@ public class CudaStorage(
                         val k1 = k.slice(kernelL.startOffset() until Int.MAX_VALUE)
                         var out =
                             when (val tryResult = device.alloc<UByte>(dstEl)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         when (val tryResult = launchConv1d<UByte, UByte>(inp1, inpL, k1, out, params, device).mapErr(Error::wrap)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                         S.u8(out)
                     }
@@ -2409,15 +2346,15 @@ public class CudaStorage(
                         val k3 = k2.slice(kernelL.startOffset() until Int.MAX_VALUE)
                         var out1 =
                             when (val tryResult = device.alloc<Bf16>(dstEl)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         // Only PSEUDO_BFLOAT16_CONFIG is supported in cudnn, there is no "true bfloat16"
                         // version.
                         // https://docs.nvidia.com/deeplearning/cudnn/latest/api/cudnn-cnn-library.html#id88
                         when (val tryResult = launchConv1d<Bf16, Float>(inp3, inpL, k3, out1, params, device).mapErr(Error::wrap)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                         S.bf16(out1)
                     }
@@ -2428,12 +2365,12 @@ public class CudaStorage(
                         val k5 = k4.slice(kernelL.startOffset() until Int.MAX_VALUE)
                         var out2 =
                             when (val tryResult = device.alloc<F16>(dstEl)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         when (val tryResult = launchConv1d<F16, F16>(inp5, inpL, k5, out2, params, device).mapErr(Error::wrap)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                         S.f16(out2)
                     }
@@ -2444,12 +2381,12 @@ public class CudaStorage(
                         val k7 = k6.slice(kernelL.startOffset() until Int.MAX_VALUE)
                         var out3 =
                             when (val tryResult = device.alloc<Float>(dstEl)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         when (val tryResult = launchConv1d<Float, Float>(inp7, inpL, k7, out3, params, device).mapErr(Error::wrap)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                         S.f32(out3)
                     }
@@ -2460,49 +2397,49 @@ public class CudaStorage(
                         val k9 = k8.slice(kernelL.startOffset() until Int.MAX_VALUE)
                         var out4 =
                             when (val tryResult = device.alloc<Double>(dstEl)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         when (val tryResult = launchConv1d<Double, Double>(inp9, inpL, k9, out4, params, device).mapErr(Error::wrap)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                         S.f64(out4)
                     }
                     matchVal.first is S.U32 && matchVal.second is S.U32 ->
-                        when (val tryResult = Err(CudaError.InternalError("conv1d does not support u32"))) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        when (val tryResult = Result.Err(CudaError.InternalError("conv1d does not support u32"))) {
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     matchVal.first is S.I16 && matchVal.second is S.I16 ->
-                        when (val tryResult = Err(CudaError.InternalError("conv1d does not support i16"))) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        when (val tryResult = Result.Err(CudaError.InternalError("conv1d does not support i16"))) {
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     matchVal.first is S.I32 && matchVal.second is S.I32 ->
-                        when (val tryResult = Err(CudaError.InternalError("conv1d does not support i32"))) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        when (val tryResult = Result.Err(CudaError.InternalError("conv1d does not support i32"))) {
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     matchVal.first is S.I64 && matchVal.second is S.I64 ->
-                        when (val tryResult = Err(CudaError.InternalError("conv1d does not support i64"))) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        when (val tryResult = Result.Err(CudaError.InternalError("conv1d does not support i64"))) {
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     matchVal.first is S.F8e4m3 && matchVal.second is S.F8e4m3 -> {
-                        when (val tryResult = Err(CudaError.InternalError("conv1d does not support f8e4m3"))) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        when (val tryResult = Result.Err(CudaError.InternalError("conv1d does not support f8e4m3"))) {
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     }
                     else ->
-                        when (val tryResult = Err(CudaError.InternalError("dtype mismatch in conv1d"))) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        when (val tryResult = Result.Err(CudaError.InternalError("dtype mismatch in conv1d"))) {
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                 }
             }
-        return Ok(CudaStorage(slice = slice1, device = device))
+        return Result.Ok(CudaStorage(slice = slice1, device = device))
     }
 
     public fun convTranspose1d(l: Layout, kernel: CudaStorage, kernelL: Layout, params: ParamsConvTranspose1D): Result<CudaStorage> {
@@ -2513,13 +2450,13 @@ public class CudaStorage(
             if (USE_COL2IM_CONV1D_TR && canUseCol2im) {
                 val (bSize, cIn, lIn) =
                     when (val tryResult = l.shape().dims3()) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                 val (cIn2, cOut, kSize) =
                     when (val tryResult = kernelL.shape().dims3()) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                 if (!kernelL.isContiguous()) {
                     bail("convtr1d: the second argument (kernel) has to be contiguous {kernel_l:?}")
@@ -2537,120 +2474,39 @@ public class CudaStorage(
                                     kernel,
                                     listOf(bSize, lIn, cOut * kSize, cIn),
                                     when (val tryResult = l.transpose(1, 2)) {
-                                        is Result.Ok -> tryResult.value
-                                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                        is Result.Ok<*> -> tryResult.value
+                                        is Result.Err<*> -> return Result.Err(tryResult.error)
                                     },
                                     kernelLMm,
                                 )
                         ) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     }
                 val colL = Layout.contiguous(listOf(bSize, lIn, cOut, kSize))
                 when (val tryResult = Col2Im1D(stride = params.stride).map(col.slice, device, colL)) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             } else {
                 when (val tryResult = ConvTranspose1D(params).map(this.slice, l, kernel.slice, kernelL, device)) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             }
-        return Ok(CudaStorage(slice = slice, device = device))
+        return Result.Ok(CudaStorage(slice = slice, device = device))
     }
 
-    public fun conv2d(l: Layout, kernel: CudaStorage, kernelL: Layout, params: ParamsConv2D): Result<CudaStorage> {
-        val USE_IM2COL_CONV2D: Boolean = true
-        val device = this.device().clone()
-        if (USE_IM2COL_CONV2D.inv()) {
-            val slice =
-                when (val tryResult = Conv2D(params).map(this.slice, l, kernel.slice, kernelL, device)) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
-                }
-            return Ok(CudaStorage(slice = slice, device = device))
-        }
-        val col =
-            when (val tryResult = Im2Col(hK = params.kH, wK = params.kW, stride = params.stride, dilation = params.dilation, padding = params.padding).map(this.slice, device, l)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
-            }
-        val col1 = CudaStorage(slice = col, device = device)
-        val hOut = params.outH()
-        val wOut = params.outW()
-        val b = params.bSize
-        val n = params.cOut
-        val k = params.kH * params.kW * params.cIn
-        val m = hOut * wOut
-        val colL = Layout.contiguous(Pair(b * m, k))
-        val res =
-            if (kernelL.isContiguous()) {
-                val kernelL1 =
-                    when (val tryResult = Layout.contiguousWithOffset(Pair(n, k), kernelL.startOffset()).transpose(0, 1)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
-                    }
-                when (val tryResult = col1.matmul(kernel, listOf(1, b * m, n, k), colL, kernelL1)) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
-                }
-            } else {
-                // Make the kernel contiguous if not already the case. copyStridedSrc writes the
-                // materialized kernel starting at offset 0, so the matmul layout must use offset 0,
-                // not the original (strided) kernel's start offset.
-                val kernelC =
-                    when (val tryResult = this.device().allocUninit(kernelL.shape(), kernel.dtype())) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
-                    }
-                when (val tryResult = kernel.copyStridedSrc(kernelC, 0, kernelL)) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
-                }
-                val kernelL2 =
-                    when (val tryResult = Layout.contiguousWithOffset(Pair(n, k), 0).transpose(0, 1)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
-                    }
-                when (val tryResult = col1.matmul(kernelC, listOf(1, b * m, n, k), colL, kernelL2)) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
-                }
-            }
-        val resL =
-            when (
-                val tryResult =
-                    when (val tryResult = Layout.contiguous(listOf(b, hOut, wOut, n)).transpose(1, 2)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
-                    }.transpose(1, 3)
-            ) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
-            }
-        val resT =
-            when (val tryResult = this.device().allocUninit(resL.shape(), res.dtype())) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
-            }
-        when (val tryResult = res.copyStridedSrc(resT, 0, resL)) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
-        }
-        return Ok(resT)
-    }
-
-    public fun conv2dBackendStorage(inpL: Layout, kernel: CudaStorage, kernelL: Layout, params: ParamsConv2D): Result<CudaStorage> {
+    public fun conv2d(inpL: Layout, kernel: CudaStorage, kernelL: Layout, params: ParamsConv2D): Result<CudaStorage> {
         val device = this.device().clone()
         if (!kernelL.isContiguous()) {
             val slice =
                 when (val tryResult = Conv2D(params).map(this.slice, inpL, kernel.slice, kernelL, device)) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
-            return Ok(CudaStorage(slice = slice, device = device))
+            return Result.Ok(CudaStorage(slice = slice, device = device))
         }
         val (outW, outH) = Pair(params.outW(), params.outH())
         val dstEl = params.cOut * outW * outH * params.bSize
@@ -2665,12 +2521,12 @@ public class CudaStorage(
                         val k1 = k.slice(kernelL.startOffset() until Int.MAX_VALUE)
                         var out =
                             when (val tryResult = device.alloc<UByte>(dstEl)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         when (val tryResult = launchConv2d<UByte, UByte>(inp1, inpL, k1, out, params, device).mapErr(Error::wrap)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                         S.u8(out)
                     }
@@ -2681,15 +2537,15 @@ public class CudaStorage(
                         val k3 = k2.slice(kernelL.startOffset() until Int.MAX_VALUE)
                         var out1 =
                             when (val tryResult = device.alloc<Bf16>(dstEl)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         // Only PSEUDO_BFLOAT16_CONFIG is supported in cudnn, there is no "true bfloat16"
                         // version.
                         // https://docs.nvidia.com/deeplearning/cudnn/latest/api/cudnn-cnn-library.html#id88
                         when (val tryResult = launchConv2d<Bf16, Float>(inp3, inpL, k3, out1, params, device).mapErr(Error::wrap)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                         S.bf16(out1)
                     }
@@ -2700,12 +2556,12 @@ public class CudaStorage(
                         val k5 = k4.slice(kernelL.startOffset() until Int.MAX_VALUE)
                         var out2 =
                             when (val tryResult = device.alloc<F16>(dstEl)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         when (val tryResult = launchConv2d<F16, F16>(inp5, inpL, k5, out2, params, device).mapErr(Error::wrap)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                         S.f16(out2)
                     }
@@ -2716,12 +2572,12 @@ public class CudaStorage(
                         val k7 = k6.slice(kernelL.startOffset() until Int.MAX_VALUE)
                         var out3 =
                             when (val tryResult = device.alloc<Float>(dstEl)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         when (val tryResult = launchConv2d<Float, Float>(inp7, inpL, k7, out3, params, device).mapErr(Error::wrap)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                         S.f32(out3)
                     }
@@ -2732,79 +2588,79 @@ public class CudaStorage(
                         val k9 = k8.slice(kernelL.startOffset() until Int.MAX_VALUE)
                         var out4 =
                             when (val tryResult = device.alloc<Double>(dstEl)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         when (val tryResult = launchConv2d<Double, Double>(inp9, inpL, k9, out4, params, device).mapErr(Error::wrap)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                         S.f64(out4)
                     }
                     matchVal.first is S.U32 && matchVal.second is S.U32 ->
-                        when (val tryResult = Err(CudaError.InternalError("conv2d does not support u32"))) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        when (val tryResult = Result.Err(CudaError.InternalError("conv2d does not support u32"))) {
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     matchVal.first is S.I16 && matchVal.second is S.I16 ->
-                        when (val tryResult = Err(CudaError.InternalError("conv2d does not support i16"))) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        when (val tryResult = Result.Err(CudaError.InternalError("conv2d does not support i16"))) {
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     matchVal.first is S.I32 && matchVal.second is S.I32 ->
-                        when (val tryResult = Err(CudaError.InternalError("conv2d does not support i32"))) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        when (val tryResult = Result.Err(CudaError.InternalError("conv2d does not support i32"))) {
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     matchVal.first is S.I64 && matchVal.second is S.I64 ->
-                        when (val tryResult = Err(CudaError.InternalError("conv2d does not support i64"))) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        when (val tryResult = Result.Err(CudaError.InternalError("conv2d does not support i64"))) {
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     matchVal.first is S.F8e4m3 && matchVal.second is S.F8e4m3 -> {
-                        when (val tryResult = Err(CudaError.InternalError("conv2d does not support f8e4m3"))) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        when (val tryResult = Result.Err(CudaError.InternalError("conv2d does not support f8e4m3"))) {
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     }
                     else ->
-                        when (val tryResult = Err(CudaError.InternalError("dtype mismatch in conv2d"))) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        when (val tryResult = Result.Err(CudaError.InternalError("dtype mismatch in conv2d"))) {
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                 }
             }
-        return Ok(CudaStorage(slice = slice1, device = device))
+        return Result.Ok(CudaStorage(slice = slice1, device = device))
     }
 
     public fun convTranspose2d(l: Layout, kernel: CudaStorage, kernelL: Layout, params: ParamsConvTranspose2D): Result<CudaStorage> {
         val device = this.device().clone()
         val slice =
             when (val tryResult = ConvTranspose2D(params).map(this.slice, l, kernel.slice, kernelL, device)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
-        return Ok(CudaStorage(slice = slice, device = device))
+        return Result.Ok(CudaStorage(slice = slice, device = device))
     }
 
     public fun avgPool2d(l: Layout, k: Pair<Int, Int>, stride: Pair<Int, Int>): Result<CudaStorage> {
         val device = this.device().clone()
         val slice =
             when (val tryResult = Pool2D(wK = k.first, hK = k.second, wStride = stride.first, hStride = stride.second, op = PoolOp.Avg).map(this.slice, device, l)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
-        return Ok(CudaStorage(slice = slice, device = device))
+        return Result.Ok(CudaStorage(slice = slice, device = device))
     }
 
     public fun maxPool2d(l: Layout, k: Pair<Int, Int>, stride: Pair<Int, Int>): Result<CudaStorage> {
         val device = this.device().clone()
         val slice =
             when (val tryResult = Pool2D(wK = k.first, hK = k.second, wStride = stride.first, hStride = stride.second, op = PoolOp.Max).map(this.slice, device, l)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
-        return Ok(CudaStorage(slice = slice, device = device))
+        return Result.Ok(CudaStorage(slice = slice, device = device))
     }
 
     public fun upsampleNearest1d(arg0: Layout, outSz: Int): Result<CudaStorage> = bail("upsample-nearest1d is not supported on cuda")
@@ -2813,40 +2669,40 @@ public class CudaStorage(
         val device = this.device().clone()
         val slice =
             when (val tryResult = UpsampleNearest2D(outW, outH).map(this.slice, device, l)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
-        return Ok(CudaStorage(slice = slice, device = device))
+        return Result.Ok(CudaStorage(slice = slice, device = device))
     }
 
     public fun upsampleBilinear2d(l: Layout, outH: Int, outW: Int, alignCorners: Boolean, scaleH: Double?, scaleW: Double?): Result<CudaStorage> {
         val device = this.device().clone()
         val slice =
             when (val tryResult = UpsampleBilinear2D(outW = outW, outH = outH, alignCorners = alignCorners, scaleHFactor = scaleH, scaleWFactor = scaleW).map(this.slice, device, l)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
-        return Ok(CudaStorage(slice = slice, device = device))
+        return Result.Ok(CudaStorage(slice = slice, device = device))
     }
 
     public fun indexSelect(ids: CudaStorage, l: Layout, idsL: Layout, dim: Int): Result<CudaStorage> {
         val device = this.device().clone()
         val slice =
             when (val tryResult = IndexSelect(ids, idsL, dim).map(this.slice, device, l)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
-        return Ok(CudaStorage(slice = slice, device = device))
+        return Result.Ok(CudaStorage(slice = slice, device = device))
     }
 
     public fun gather(l: Layout, ids: CudaStorage, idsL: Layout, dim: Int): Result<CudaStorage> {
         val device = this.device().clone()
         val slice =
             when (val tryResult = Gather(ids, idsL, dim).map(this.slice, device, l)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
-        return Ok(CudaStorage(slice = slice, device = device))
+        return Result.Ok(CudaStorage(slice = slice, device = device))
     }
 
     public fun scatterSet(l: Layout, ids: CudaStorage, idsL: Layout, src: CudaStorage, srcL: Layout, dim: Int): Result<Unit> {
@@ -2863,18 +2719,18 @@ public class CudaStorage(
         val device = this.device().clone()
         val acc =
             when (val tryResult = device.allocUninit(l.shape(), this.dtype())) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         when (val tryResult = this.copyStridedSrc(acc, 0, l)) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
         when (val tryResult = IndexAdd(ids, idsL, dim).map(acc.slice, l, src.slice, srcL, device)) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
-        return Ok(acc)
+        return Result.Ok(acc)
     }
 
     public fun matmul(rhs: CudaStorage, tupleArg1: List<Any?>, lhsL: Layout, rhsL: Layout): Result<CudaStorage> {
@@ -2891,17 +2747,17 @@ public class CudaStorage(
                         val rhs2 = rhs1.slice(rhsL.startOffset() until Int.MAX_VALUE)
                         val cfg =
                             when (val tryResult = gemmConfig(ONE, ZERO, listOf(b, m, n, k), lhsL, rhsL)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         var out =
                             when (val tryResult = dev.alloc<Bf16>(elemCount)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         when (val tryResult = gemmStridedBatchedBf16(this.device.blas, cfg, rhs2, lhs1, out).w()) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                         CudaStorageSlice.bf16(out)
                     }
@@ -2911,18 +2767,18 @@ public class CudaStorage(
                         val lhs3 = lhs2.slice(lhsL.startOffset() until Int.MAX_VALUE)
                         val rhs4 = rhs3.slice(rhsL.startOffset() until Int.MAX_VALUE)
                         val cfg1 =
-                            when (val tryResult = gemmConfig(ONE, ZERO, listOf(b, m, n, k), lhsL, rhsL)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            when (val tryResult = gemmConfig(io.github.kotlinmania.f16.ONE, io.github.kotlinmania.f16.ZERO, listOf(b, m, n, k), lhsL, rhsL)) {
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         var out1 =
                             when (val tryResult = dev.alloc<F16>(elemCount)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         when (val tryResult = gemmStridedBatchedF16(this.device.blas, cfg1, rhs4, lhs3, out1).w()) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                         CudaStorageSlice.f16(out1)
                     }
@@ -2933,17 +2789,17 @@ public class CudaStorage(
                         val rhs6 = rhs5.slice(rhsL.startOffset() until Int.MAX_VALUE)
                         val cfg2 =
                             when (val tryResult = gemmConfig(1.0, 0.0, listOf(b, m, n, k), lhsL, rhsL)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         var out2 =
                             when (val tryResult = dev.alloc<Float>(elemCount)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         when (val tryResult = gemmStridedBatchedF32(this.device.blas, cfg2, rhs6, lhs5, out2).w()) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                         CudaStorageSlice.f32(out2)
                     }
@@ -2954,13 +2810,13 @@ public class CudaStorage(
                         val rhs8 = rhs7.slice(rhsL.startOffset() until Int.MAX_VALUE)
                         val cfg3 =
                             when (val tryResult = gemmConfig(1.0, 0.0, listOf(b, m, n, k), lhsL, rhsL)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         var out3 =
                             when (val tryResult = dev.alloc<Double>(elemCount)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         when (
                             val tryResult =
@@ -2968,20 +2824,20 @@ public class CudaStorage(
                                     .gemmStridedBatched(cfg3, rhs8, lhs7, out3)
                                     .w()
                         ) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                         CudaStorageSlice.f64(out3)
                     }
                     else ->
-                        when (val tryResult = Err(CudaError.InternalError("dtype mismatch in matmul op"))) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        when (val tryResult = Result.Err(CudaError.InternalError("dtype mismatch in matmul op"))) {
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                 }
             }
         val device = dev.clone()
-        return Ok(CudaStorage(slice = slice, device = device))
+        return Result.Ok(CudaStorage(slice = slice, device = device))
     }
 
     public fun copy2d(dst: CudaStorage, d1: Int, d2: Int, srcS: Int, dstS: Int, srcO: Int, dstO: Int): Result<Unit> {
@@ -2991,7 +2847,7 @@ public class CudaStorage(
         // Nothing to copy so we exit early to avoid launching a kernel and some potential invalid
         // argument with a null pointer.
         if (d11 == 0u || d21 == 0u) {
-            return Ok(Unit)
+            return Result.Ok(Unit)
         }
         val dstS1 = dstS.toUInt()
         val srcS1 = srcS.toUInt()
@@ -3055,16 +2911,16 @@ public class CudaStorage(
                         Triple(slicePtr(s10, srcO), slicePtr(d10, dstO), "copy2d_u8")
                     }
                     else ->
-                        when (val tryResult = Err(CudaError.InternalError("dtype mismatch in copy2d"))) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        when (val tryResult = Result.Err(CudaError.InternalError("dtype mismatch in copy2d"))) {
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                 }
             }
         val func =
             when (val tryResult = dev.getOrLoadFunc(kname, FILL)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val cfg = LaunchConfig.forNumElems(d11 * d21)
         val builder = func.builder()
@@ -3076,10 +2932,10 @@ public class CudaStorage(
         builder.arg(dstS1)
         // SAFETY: ffi.
         when (val tryResult = builder.launch(cfg).w()) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
-        return Ok(Unit)
+        return Result.Ok(Unit)
     }
 
     public fun copyStridedSrc(dst: CudaStorage, dstOffset: Int, srcL: Layout): Result<Unit> {
@@ -3087,14 +2943,14 @@ public class CudaStorage(
         val dims = srcShape.dims()
         val elCount = srcShape.elemCount()
         if (elCount == 0) {
-            return Ok(Unit)
+            return Result.Ok(Unit)
         }
         val cfg = LaunchConfig.forNumElems(elCount.toUInt())
         val dev = this.device
         val ds =
             when (val tryResult = SlicePtrOrNull.paramsFromLayout(dev, srcL)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         run {
             val matchVal = Pair(this.slice, dst.slice)
@@ -3105,14 +2961,14 @@ public class CudaStorage(
                     var (src1, dst2) = sliceSrcAndDst(src, srcL, dst1, dstOffset)
                     if (srcL.isContiguous()) {
                         when (val tryResult = dev.memcpyDtod(src1, dst2)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     } else {
                         val func =
                             when (val tryResult = dev.getOrLoadFunc("ucopy_bf16", UNARY)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         val builder = func.builder()
                         barg(builder, elCount)
@@ -3122,8 +2978,8 @@ public class CudaStorage(
                         builder.arg(dst2)
                         // SAFETY: ffi.
                         when (val tryResult = builder.launch(cfg).w()) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     }
                 }
@@ -3133,14 +2989,14 @@ public class CudaStorage(
                     var (src3, dst4) = sliceSrcAndDst(src2, srcL, dst3, dstOffset)
                     if (srcL.isContiguous()) {
                         when (val tryResult = dev.memcpyDtod(src3, dst4)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     } else {
                         val func1 =
                             when (val tryResult = dev.getOrLoadFunc("ucopy_f16", UNARY)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         val builder1 = func1.builder()
                         barg(builder1, elCount)
@@ -3150,8 +3006,8 @@ public class CudaStorage(
                         builder1.arg(dst4)
                         // SAFETY: ffi.
                         when (val tryResult = builder1.launch(cfg).w()) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     }
                 }
@@ -3161,14 +3017,14 @@ public class CudaStorage(
                     var (src5, dst6) = sliceSrcAndDst(src4, srcL, dst5, dstOffset)
                     if (srcL.isContiguous()) {
                         when (val tryResult = dev.memcpyDtod(src5, dst6)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     } else {
                         val func2 =
                             when (val tryResult = dev.getOrLoadFunc("ucopy_f32", UNARY)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         val builder2 = func2.builder()
                         barg(builder2, elCount)
@@ -3178,8 +3034,8 @@ public class CudaStorage(
                         builder2.arg(dst6)
                         // SAFETY: ffi.
                         when (val tryResult = builder2.launch(cfg).w()) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     }
                 }
@@ -3189,14 +3045,14 @@ public class CudaStorage(
                     var (src7, dst8) = sliceSrcAndDst(src6, srcL, dst7, dstOffset)
                     if (srcL.isContiguous()) {
                         when (val tryResult = dev.memcpyDtod(src7, dst8)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     } else {
                         val func3 =
                             when (val tryResult = dev.getOrLoadFunc("ucopy_u8", UNARY)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         val builder3 = func3.builder()
                         barg(builder3, elCount)
@@ -3206,8 +3062,8 @@ public class CudaStorage(
                         builder3.arg(dst8)
                         // SAFETY: ffi.
                         when (val tryResult = builder3.launch(cfg).w()) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     }
                 }
@@ -3217,14 +3073,14 @@ public class CudaStorage(
                     var (src9, dst10) = sliceSrcAndDst(src8, srcL, dst9, dstOffset)
                     if (srcL.isContiguous()) {
                         when (val tryResult = dev.memcpyDtod(src9, dst10)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     } else {
                         val func4 =
                             when (val tryResult = dev.getOrLoadFunc("ucopy_u32", UNARY)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         val builder4 = func4.builder()
                         barg(builder4, elCount)
@@ -3234,8 +3090,8 @@ public class CudaStorage(
                         builder4.arg(dst10)
                         // SAFETY: ffi.
                         when (val tryResult = builder4.launch(cfg).w()) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     }
                 }
@@ -3245,14 +3101,14 @@ public class CudaStorage(
                     var (src11, dst12) = sliceSrcAndDst(src10, srcL, dst11, dstOffset)
                     if (srcL.isContiguous()) {
                         when (val tryResult = dev.memcpyDtod(src11, dst12)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     } else {
                         val func5 =
                             when (val tryResult = dev.getOrLoadFunc("ucopy_i16", UNARY)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         val builder5 = func5.builder()
                         barg(builder5, elCount)
@@ -3262,8 +3118,8 @@ public class CudaStorage(
                         builder5.arg(dst12)
                         // SAFETY: ffi.
                         when (val tryResult = builder5.launch(cfg).w()) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     }
                 }
@@ -3273,14 +3129,14 @@ public class CudaStorage(
                     var (src13, dst14) = sliceSrcAndDst(src12, srcL, dst13, dstOffset)
                     if (srcL.isContiguous()) {
                         when (val tryResult = dev.memcpyDtod(src13, dst14)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     } else {
                         val func6 =
                             when (val tryResult = dev.getOrLoadFunc("ucopy_i32", UNARY)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         val builder6 = func6.builder()
                         barg(builder6, elCount)
@@ -3290,8 +3146,8 @@ public class CudaStorage(
                         builder6.arg(dst14)
                         // SAFETY: ffi.
                         when (val tryResult = builder6.launch(cfg).w()) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     }
                 }
@@ -3301,14 +3157,14 @@ public class CudaStorage(
                     var (src15, dst16) = sliceSrcAndDst(src14, srcL, dst15, dstOffset)
                     if (srcL.isContiguous()) {
                         when (val tryResult = dev.memcpyDtod(src15, dst16)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     } else {
                         val func7 =
                             when (val tryResult = dev.getOrLoadFunc("ucopy_i64", UNARY)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         val builder7 = func7.builder()
                         barg(builder7, elCount)
@@ -3318,8 +3174,8 @@ public class CudaStorage(
                         builder7.arg(dst16)
                         // SAFETY: ffi.
                         when (val tryResult = builder7.launch(cfg).w()) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     }
                 }
@@ -3329,14 +3185,14 @@ public class CudaStorage(
                     var (src17, dst18) = sliceSrcAndDst(src16, srcL, dst17, dstOffset)
                     if (srcL.isContiguous()) {
                         when (val tryResult = dev.memcpyDtod(src17, dst18)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     } else {
                         val func8 =
                             when (val tryResult = dev.getOrLoadFunc("ucopy_f64", UNARY)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         val builder8 = func8.builder()
                         barg(builder8, elCount)
@@ -3346,8 +3202,8 @@ public class CudaStorage(
                         builder8.arg(dst18)
                         // SAFETY: ffi.
                         when (val tryResult = builder8.launch(cfg).w()) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     }
                 }
@@ -3357,14 +3213,14 @@ public class CudaStorage(
                     var (src19, dst20) = sliceSrcAndDst(src18, srcL, dst19, dstOffset)
                     if (srcL.isContiguous()) {
                         when (val tryResult = dev.memcpyDtod(src19, dst20)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     } else {
                         val func9 =
                             when (val tryResult = dev.getOrLoadFunc("ucopy_f8e4m3", UNARY)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }
                         val builder9 = func9.builder()
                         barg(builder9, elCount)
@@ -3374,19 +3230,19 @@ public class CudaStorage(
                         builder9.arg(dst20)
                         // SAFETY: ffi.
                         when (val tryResult = builder9.launch(cfg).w()) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     }
                 }
                 else ->
-                    when (val tryResult = Err(CudaError.InternalError("dtype mismatch in copy_strided op"))) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    when (val tryResult = Result.Err(CudaError.InternalError("dtype mismatch in copy_strided op"))) {
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
             }
         }
-        return Ok(Unit)
+        return Result.Ok(Unit)
     }
 
     public companion object {

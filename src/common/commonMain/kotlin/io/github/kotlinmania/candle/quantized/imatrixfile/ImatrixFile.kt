@@ -5,43 +5,39 @@ import io.github.kotlinmania.byteorder.LittleEndian
 import io.github.kotlinmania.candle.error.Error
 import io.github.kotlinmania.candle.error.Result
 import io.github.kotlinmania.candle.error.bail
-import io.github.kotlinmania.rustlang.core.result.fromResidual
-import io.github.kotlinmania.rustlang.std.fs.File
-import io.github.kotlinmania.rustlang.std.io.Cursor
-import io.github.kotlinmania.rustlang.std.path.Path
 
-public fun <P : AsRef<Path>> loadImatrix(fname: P): Result<Map<String, List<Float>>> {
-    val allData = HashMap.new()
+public fun loadImatrix(fname: Path): Result<MutableMap<String, List<Float>>> {
+    val allData = mutableMapOf()
     var file =
         when (
             val tryResult =
                 File.open(fname).mapErr({ e ->
-                    Error.msg("Failed to open ${fname.asRef().display()}: $e")
+                    Error.msg("Failed to open ${fname.display()}: $e")
                 })
         ) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
     val buffer = mutableListOf()
     when (
         val tryResult =
             file.readToEnd(buffer).mapErr({ e ->
-                Error.msg("Failed to read file ${fname.asRef().display()}: $e")
+                Error.msg("Failed to read file ${fname.display()}: $e")
             })
     ) {
-        is Result.Ok -> tryResult.value
-        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+        is Result.Ok<*> -> tryResult.value
+        is Result.Err<*> -> return Result.Err(tryResult.error)
     }
     val cursor = Cursor.new(buffer)
     val nEntries =
         (
             when (val tryResult = cursor.readI32<LittleEndian>().mapErr({ e -> Error.msg("Failed to read number of entries: $e") })) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         ).toInt()
     if (nEntries < 1) {
-        bail("No data in file {}", fname.asRef().display())
+        bail("No data in file {}", fname.display())
     }
     for (i in 0 until nEntries) {
         // Read length of the name
@@ -53,8 +49,8 @@ public fun <P : AsRef<Path>> loadImatrix(fname: P): Result<Map<String, List<Floa
                             Error.msg("Failed to read name length for entry ${i + 1}: $e")
                         })
                 ) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             ).toInt()
         // Read the name
@@ -65,8 +61,8 @@ public fun <P : AsRef<Path>> loadImatrix(fname: P): Result<Map<String, List<Floa
                     Error.msg("Failed to read name for entry ${i + 1}: $e")
                 })
         ) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
         val name =
             when (
@@ -75,8 +71,8 @@ public fun <P : AsRef<Path>> loadImatrix(fname: P): Result<Map<String, List<Floa
                         Error.msg("Invalid UTF-8 name for entry ${i + 1}: $e")
                     })
             ) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         // Read ncall and nval
         val ncall =
@@ -87,8 +83,8 @@ public fun <P : AsRef<Path>> loadImatrix(fname: P): Result<Map<String, List<Floa
                             Error.msg("Failed to read ncall for entry ${i + 1}: $e")
                         })
                 ) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             ).toInt()
         val nval =
@@ -99,8 +95,8 @@ public fun <P : AsRef<Path>> loadImatrix(fname: P): Result<Map<String, List<Floa
                             Error.msg("Failed to read nval for entry ${i + 1}: $e")
                         })
                 ) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             ).toInt()
         if (nval < 1) {
@@ -115,7 +111,7 @@ public fun <P : AsRef<Path>> loadImatrix(fname: P): Result<Map<String, List<Floa
                 data.add(v / ncall.toFloat())
             }
         }
-        allData.insert(name, data)
+        allData.put(name, data)
     }
-    return Ok(allData)
+    return Result.Ok(allData)
 }

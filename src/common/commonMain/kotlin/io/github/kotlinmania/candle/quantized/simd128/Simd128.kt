@@ -184,7 +184,7 @@ internal fun vecDotQ4kQ8k(n: Int, xs: List<BlockQ4K>, ys: List<BlockQ8K>): Float
                 sumi = i32x4Add(sumi, i32x4Mul(bsums, mins1))
             }
             var aux32 = i32x4Splat(0)
-            for ((scaleI, scale) in scales.enumerate()) {
+            for ((scaleI, scale) in scales.mapIndexed { index, item -> Pair(index, item) }) {
                 val scale1 = i32x4Splat(scale.toInt())
                 for (j2 in 0 until 4) {
                     val i = 32 * scaleI + 8 * j2
@@ -248,7 +248,7 @@ internal fun vecDotQ6kQ8k(n: Int, xs: List<BlockQ6K>, ys: List<BlockQ8K>): Float
                     v128Store(mutPtrFromRustCast(aux81.add(l + 96)), i8x16NarrowI16x8(a8Low3, a8High3))
                 }
             }
-            for ((j1, scale) in x.scales.iter().enumerate()) {
+            for ((j1, scale) in x.scales.iter().mapIndexed { index, item -> Pair(index, item) }) {
                 val scale1 = f32x4Splat(scale.toFloat())
                 for (offset in listOf(0, 8)) {
                     val aux16 = i16x8Mul(i16x8LoadExtendI8x8(q8.asPtr().add(16 * j1 + offset)), i16x8LoadExtendI8x8(ConstPtr((localStorageL274C4.elementConstPtr(0)).rawAddress + ((16 * j1 + offset).toLong() * (PrimitiveLayouts.I8).strideBytes))))

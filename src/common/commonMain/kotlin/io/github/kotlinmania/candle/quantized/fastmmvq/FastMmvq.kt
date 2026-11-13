@@ -19,9 +19,6 @@ import io.github.kotlinmania.rustlang.core.mem.constPtrFromRustCast
 import io.github.kotlinmania.rustlang.core.mem.mutPtrFromRustCast
 import io.github.kotlinmania.rustlang.core.ptr.ConstPtr
 import io.github.kotlinmania.rustlang.core.ptr.MutPtr
-import io.github.kotlinmania.rustlang.core.result.fromResidual
-import io.github.kotlinmania.rustlang.std.sync.Mutex
-import io.github.kotlinmania.rustlang.std.sync.OnceLock
 
 // CUDA fast path for GGUF matmul with BF16/F32 activations.
 
@@ -94,7 +91,7 @@ public class WorkspaceSlot internal constructor(
     }
 }
 
-public var WORKSPACE: OnceLock<Mutex<Map<DeviceId, WorkspaceSlot>>> = OnceLock.new()
+public var WORKSPACE: OnceLock<Mutex<MutableMap<DeviceId, WorkspaceSlot>>> = OnceLock.new()
 
 /**
  * Returns a device pointer to the scratch workspace, growing it if needed.
@@ -102,8 +99,8 @@ public var WORKSPACE: OnceLock<Mutex<Map<DeviceId, WorkspaceSlot>>> = OnceLock.n
  * this pointer have been launched (all launches are on the device's
  * default stream, so they are serialised).
  */
-public fun workspaceEnsure(dev: CudaDevice, bytes: Int): Result<Pair<ULong, MutexGuard<Map<DeviceId, WorkspaceSlot>>>> {
-    val map = WORKSPACE.getOrInit({ Mutex.new(HashMap.new()) })
+public fun workspaceEnsure(dev: CudaDevice, bytes: Int): Result<Pair<ULong, MutexGuard<MutableMap<DeviceId, WorkspaceSlot>>>> {
+    val map = WORKSPACE.getOrInit({ Mutex.new(mutableMapOf()) })
     val deviceKey = dev.id()
     val guard = map.lock().unwrap()
     val slot1 =
@@ -114,8 +111,8 @@ public fun workspaceEnsure(dev: CudaDevice, bytes: Int): Result<Pair<ULong, Mute
                 if (slot.cap < bytes) {
                     slot.slice =
                         when (val tryResult = dev.alloc<UByte>(bytes)) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     slot.cap = bytes
                 }
@@ -125,14 +122,14 @@ public fun workspaceEnsure(dev: CudaDevice, bytes: Int): Result<Pair<ULong, Mute
                 val (entry1) = matchVal
                 val slice =
                     when (val tryResult = dev.alloc<UByte>(bytes)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                 entry1.insert(WorkspaceSlot(slice = slice, cap = bytes))
             }
         }
     val ptr = slot1.slice.devicePtr(slot1.slice.stream()).first
-    return Ok(Pair(ptr, guard))
+    return Result.Ok(Pair(ptr, guard))
 }
 
 // ---------------------------------------------------------------------------
@@ -216,7 +213,7 @@ public fun tryFwd(qstorage: QCudaStorage, selfShape: Shape, rhs: CudaStorage, rh
     // Gate checks.
     val wDtype = qstorage.dtype()
     if (!supports(wDtype)) {
-        return Ok(null)
+        return Result.Ok(null)
     }
     val inputDtype = rhs.dtype()
     if (!when (inputDtype) {
@@ -224,12 +221,12 @@ public fun tryFwd(qstorage: QCudaStorage, selfShape: Shape, rhs: CudaStorage, rh
             else -> false
         }
     ) {
-        return Ok(null)
+        return Result.Ok(null)
     }
     val (nrows, ncols) =
         when (val tryResult = selfShape.dims2()) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
     val (bSize, k2) =
         run {
@@ -247,20 +244,20 @@ public fun tryFwd(qstorage: QCudaStorage, selfShape: Shape, rhs: CudaStorage, rh
                     Pair(b1, k1)
                 }
                 else -> {
-                    return Ok(null)
+                    return Result.Ok(null)
                 }
             }
         }
     if (ncols != k2) {
-        return Ok(null)
+        return Result.Ok(null)
     }
     if (bSize == 0 || bSize > MMVQ_MAX_BATCH) {
-        return Ok(null)
+        return Result.Ok(null)
     }
     val (o1, o2) =
         when (val matchVal1 = rhsL.contiguousOffsets()) {
             null -> {
-                return Ok(null)
+                return Result.Ok(null)
             }
             else -> {
                 val offsets = matchVal1
@@ -275,8 +272,8 @@ public fun tryFwd(qstorage: QCudaStorage, selfShape: Shape, rhs: CudaStorage, rh
     val scratchBytes = bSize * dstRowBytes
     val (scratchPtr, workspaceGuard) =
         when (val tryResult = workspaceEnsure(dev, scratchBytes)) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
     val scratchPtr1 = mutPtrFromRustCast(scratchPtr)
     val strideColY = (kPadded / Q8_1_BLOCK_SIZE)
@@ -284,8 +281,8 @@ public fun tryFwd(qstorage: QCudaStorage, selfShape: Shape, rhs: CudaStorage, rh
     val weightPtr =
         constPtrFromRustCast(
             when (val tryResult = qstorage.devicePtr()) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             },
         )
     val outShape = rhsL.shape().dims().toVec()
@@ -296,14 +293,14 @@ public fun tryFwd(qstorage: QCudaStorage, selfShape: Shape, rhs: CudaStorage, rh
         DType.bf16 -> {
             val rhsSlice =
                 when (val tryResult = rhs.asCudaSlice<Bf16>()) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             val rhsSlice1 = rhsSlice.slice(o1 until o2)
             val out =
                 when (val tryResult = dev.alloc<Bf16>(nrows * bSize)) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             val rhsPtr = constPtrFromRustCast(rhsSlice1.devicePtr(stream).first)
             val outPtr = mutPtrFromRustCast(out.devicePtr(stream).first)
@@ -313,19 +310,19 @@ public fun tryFwd(qstorage: QCudaStorage, selfShape: Shape, rhs: CudaStorage, rh
                 launcher(weightPtr, ConstPtr(scratchPtr1.rawAddress, scratchPtr1.rawMeta), outPtr, k2.toInt(), nrows.toInt(), strideColY, strideColDst, bSize.toInt(), streamPtr)
             }
             val outStorage = CudaStorage.wrapCudaSlice(out, dev.clone())
-            Ok(Pair(outStorage, outShape.into()))
+            Result.Ok(Pair(outStorage, outShape.into()))
         }
         DType.f16 -> {
             val rhsSlice2 =
                 when (val tryResult = rhs.asCudaSlice<F16>()) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             val rhsSlice3 = rhsSlice2.slice(o1 until o2)
             val out1 =
                 when (val tryResult = dev.alloc<F16>(nrows * bSize)) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             val rhsPtr1 = constPtrFromRustCast(rhsSlice3.devicePtr(stream).first)
             val outPtr1 = mutPtrFromRustCast(out1.devicePtr(stream).first)
@@ -335,19 +332,19 @@ public fun tryFwd(qstorage: QCudaStorage, selfShape: Shape, rhs: CudaStorage, rh
                 launcher1(weightPtr, ConstPtr(scratchPtr1.rawAddress, scratchPtr1.rawMeta), outPtr1, k2.toInt(), nrows.toInt(), strideColY, strideColDst, bSize.toInt(), streamPtr)
             }
             val outStorage1 = CudaStorage.wrapCudaSlice(out1, dev.clone())
-            Ok(Pair(outStorage1, outShape.into()))
+            Result.Ok(Pair(outStorage1, outShape.into()))
         }
         DType.f32 -> {
             val rhsSlice4 =
                 when (val tryResult = rhs.asCudaSlice<Float>()) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             val rhsSlice5 = rhsSlice4.slice(o1 until o2)
             val out2 =
                 when (val tryResult = dev.alloc<Float>(nrows * bSize)) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             val rhsPtr2 = constPtrFromRustCast(rhsSlice5.devicePtr(stream).first)
             val outPtr2 = mutPtrFromRustCast(out2.devicePtr(stream).first)
@@ -357,8 +354,8 @@ public fun tryFwd(qstorage: QCudaStorage, selfShape: Shape, rhs: CudaStorage, rh
                 launcher2(weightPtr, ConstPtr(scratchPtr1.rawAddress, scratchPtr1.rawMeta), outPtr2, k2.toInt(), nrows.toInt(), strideColY, strideColDst, bSize.toInt(), streamPtr)
             }
             val outStorage2 = CudaStorage.wrapCudaSlice(out2, dev.clone())
-            Ok(Pair(outStorage2, outShape.into()))
+            Result.Ok(Pair(outStorage2, outShape.into()))
         }
-        else -> Ok(null)
+        else -> Result.Ok(null)
     }
 }

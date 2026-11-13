@@ -5,8 +5,6 @@ import io.github.kotlinmania.candle.layout.Layout
 import io.github.kotlinmania.rustlang.core.mem.PrimitiveLayouts
 import io.github.kotlinmania.rustlang.core.mem.TypeLayout
 
-public typealias Item = IntArray
-
 /**
  * Maximum tensor rank supported by [NdIter].
  */
@@ -212,20 +210,20 @@ public class NdIter(
             }
             val rank = dims.len()
             val outDims = List(MAX_DIMS) { 0 }
-            val outStrides = List((N).toInt()) { List(MAX_DIMS) { 0 } }
+            val outStrides = List(n) { List(MAX_DIMS) { 0 } }
             var outLen: Any?
             if (rank == 0) {
                 outDims[0] = 1
                 outLen = 1
             } else {
                 outDims[0] = dims[0]
-                for (n in 0 until N) {
+                for (n in 0 until n) {
                     outStrides[n][0] = layouts[n].stride()[0]
                 }
                 outLen = 1
                 for ((i, d) in dims
                     .iter()
-                    .enumerate()
+                    .mapIndexed { index, item -> Pair(index, item) }
                     .take(rank)
                     .skip(1)) {
                     val top = outLen - 1
@@ -236,19 +234,19 @@ public class NdIter(
                         } else if (d == 1) {
                             Pair(true, false)
                         } else {
-                            val canMerge = (0 until N).all({ n1 -> outStrides[n1][top] == layouts[n1].stride()[i] * d })
+                            val canMerge = (0 until n).all({ n1 -> outStrides[n1][top] == layouts[n1].stride()[i] * d })
                             Pair(canMerge, true)
                         }
                     if (canMerge1) {
                         outDims[top] = lastD * d
                         if (useInner) {
-                            for (n1 in 0 until N) {
+                            for (n1 in 0 until n) {
                                 outStrides[n1][top] = layouts[n1].stride()[i]
                             }
                         }
                     } else {
                         outDims[outLen] = d
-                        for (n2 in 0 until N) {
+                        for (n2 in 0 until n) {
                             outStrides[n2][outLen] = layouts[n2].stride()[i]
                         }
                         outLen += 1
@@ -258,8 +256,8 @@ public class NdIter(
             // Update inner strides
             val innerIdx = outLen - 1
             val innerSize = outDims[innerIdx]
-            var innerStrides = List((N).toInt()) { 0 }
-            for (n3 in 0 until N) {
+            var innerStrides = List(n) { 0 }
+            for (n3 in 0 until n) {
                 innerStrides[n3] = outStrides[n3][innerIdx]
             }
             // Update outer dims
@@ -267,13 +265,13 @@ public class NdIter(
             var outerDims = List(MAX_DIMS) { 0 }
             ((outerDims).slice(0 until outerLen)).copyFromSlice(((outDims).slice(0 until outerLen)))
             // Update outer strides
-            var outerStrides = List((N).toInt()) { List(MAX_DIMS) { 0 } }
-            for (n4 in 0 until N) {
+            var outerStrides = List(n) { List(MAX_DIMS) { 0 } }
+            for (n4 in 0 until n) {
                 ((outerStrides[n4]).slice(0 until outerLen)).copyFromSlice(((outStrides[n4]).slice(0 until outerLen)))
             }
             // Update offsets
-            var offsets = List((N).toInt()) { 0 }
-            for (n5 in 0 until N) {
+            var offsets = List(n) { 0 }
+            for (n5 in 0 until n) {
                 offsets[n5] = layouts[n5].startOffset()
             }
             // Number of outer blocks (product of all dims except the innermost).

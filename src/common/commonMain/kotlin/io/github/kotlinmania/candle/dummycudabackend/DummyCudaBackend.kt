@@ -29,12 +29,12 @@ public typealias Device = CudaDevice
 
 public typealias Storage = CudaStorage
 
-public class CudaDevice : BackendDevice {
+public class CudaDevice : BackendDevice<CudaStorage> {
     public fun id(): DeviceId = DeviceId(0)
 
-    public fun setSeed(arg0: ULong): Result<Unit> = Err(Error.NotCompiledWithCudaSupport)
+    public fun setSeed(arg0: ULong): Result<Unit> = Result.Err(Error.NotCompiledWithCudaSupport)
 
-    public fun getCurrentSeed(): Result<ULong> = Err(Error.NotCompiledWithCudaSupport)
+    public fun getCurrentSeed(): Result<ULong> = Result.Err(Error.NotCompiledWithCudaSupport)
 
     public fun location(): DeviceLocation {
         error("cuda support has not been enabled, add `cuda` feature to enable.")
@@ -44,21 +44,21 @@ public class CudaDevice : BackendDevice {
         error("cuda support has not been enabled, add `cuda` feature to enable.")
     }
 
-    public fun zerosImpl(shape: Shape, dtype: DType): Result<CudaStorage> = Err(Error.NotCompiledWithCudaSupport)
+    public fun zerosImpl(shape: Shape, dtype: DType): Result<CudaStorage> = Result.Err(Error.NotCompiledWithCudaSupport)
 
-    public fun allocUninit(shape: Shape, dtype: DType): Result<CudaStorage> = Err(Error.NotCompiledWithCudaSupport)
+    public fun allocUninit(shape: Shape, dtype: DType): Result<CudaStorage> = Result.Err(Error.NotCompiledWithCudaSupport)
 
-    public fun <T : WithDType> storageFromSlice(arg0: List<T>): Result<CudaStorage> = Err(Error.NotCompiledWithCudaSupport)
+    public fun <T : WithDType> storageFromSlice(arg0: List<T>): Result<CudaStorage> = Result.Err(Error.NotCompiledWithCudaSupport)
 
-    public fun storageFromCpuStorage(arg0: CpuStorage): Result<CudaStorage> = Err(Error.NotCompiledWithCudaSupport)
+    public fun storageFromCpuStorage(arg0: CpuStorage): Result<CudaStorage> = Result.Err(Error.NotCompiledWithCudaSupport)
 
-    public fun storageFromCpuStorageOwned(arg0: CpuStorage): Result<CudaStorage> = Err(Error.NotCompiledWithCudaSupport)
+    public fun storageFromCpuStorageOwned(arg0: CpuStorage): Result<CudaStorage> = Result.Err(Error.NotCompiledWithCudaSupport)
 
-    public fun randUniform(arg0: Shape, arg1: DType, arg2: Double, arg3: Double): Result<CudaStorage> = Err(Error.NotCompiledWithCudaSupport)
+    public fun randUniform(arg0: Shape, arg1: DType, arg2: Double, arg3: Double): Result<CudaStorage> = Result.Err(Error.NotCompiledWithCudaSupport)
 
-    public fun randNormal(arg0: Shape, arg1: DType, arg2: Double, arg3: Double): Result<CudaStorage> = Err(Error.NotCompiledWithCudaSupport)
+    public fun randNormal(arg0: Shape, arg1: DType, arg2: Double, arg3: Double): Result<CudaStorage> = Result.Err(Error.NotCompiledWithCudaSupport)
 
-    public fun synchronize(): Result<Unit> = Ok(Unit)
+    public fun synchronize(): Result<Unit> = Result.Ok(Unit)
 
     public companion object {
         public fun typeLayout(): io.github.kotlinmania.rustlang.core.mem.TypeLayout<CudaDevice> =
@@ -71,16 +71,16 @@ public class CudaDevice : BackendDevice {
                 }
             }
 
-        public fun newWithStream(arg0: ULong): Result<CudaDevice> = Err(Error.NotCompiledWithCudaSupport)
+        public fun newWithStream(arg0: ULong): Result<CudaDevice> = Result.Err(Error.NotCompiledWithCudaSupport)
 
-        public fun new(arg0: ULong): Result<CudaDevice> = Err(Error.NotCompiledWithCudaSupport)
+        public fun new(arg0: ULong): Result<CudaDevice> = Result.Err(Error.NotCompiledWithCudaSupport)
     }
 }
 
-public class CudaStorage : BackendStorage {
-    public fun transferToDevice(dst: CudaDevice): Result<CudaStorage> = Err(Error.NotCompiledWithCudaSupport)
+public class CudaStorage : BackendStorage<CudaDevice> {
+    public fun transferToDevice(dst: CudaDevice): Result<CudaStorage> = Result.Err(Error.NotCompiledWithCudaSupport)
 
-    public fun tryClone(arg0: Layout): Result<CudaStorage> = Err(Error.NotCompiledWithCudaSupport)
+    public fun tryClone(arg0: Layout): Result<CudaStorage> = Result.Err(Error.NotCompiledWithCudaSupport)
 
     public fun dtype(): DType {
         error("cuda support has not been enabled, add `cuda` feature to enable.")
@@ -90,61 +90,61 @@ public class CudaStorage : BackendStorage {
         error("cuda support has not been enabled, add `cuda` feature to enable.")
     }
 
-    public fun constSet(arg0: Scalar, arg1: Layout): Result<Unit> = Err(Error.NotCompiledWithCudaSupport)
+    public fun constSet(arg0: Scalar, arg1: Layout): Result<Unit> = Result.Err(Error.NotCompiledWithCudaSupport)
 
-    public fun toCpuStorage(): Result<CpuStorage> = Err(Error.NotCompiledWithCudaSupport)
+    public fun toCpuStorage(): Result<CpuStorage> = Result.Err(Error.NotCompiledWithCudaSupport)
 
-    public fun affine(arg0: Layout, arg1: Double, arg2: Double): Result<CudaStorage> = Err(Error.NotCompiledWithCudaSupport)
+    public fun affine(arg0: Layout, arg1: Double, arg2: Double): Result<CudaStorage> = Result.Err(Error.NotCompiledWithCudaSupport)
 
-    public fun powf(arg0: Layout, arg1: Double): Result<CudaStorage> = Err(Error.NotCompiledWithCudaSupport)
+    public fun powf(arg0: Layout, arg1: Double): Result<CudaStorage> = Result.Err(Error.NotCompiledWithCudaSupport)
 
-    public fun elu(arg0: Layout, arg1: Double): Result<CudaStorage> = Err(Error.NotCompiledWithCudaSupport)
+    public fun elu(arg0: Layout, arg1: Double): Result<CudaStorage> = Result.Err(Error.NotCompiledWithCudaSupport)
 
-    public fun reduceOp(arg0: ReduceOp, arg1: Layout, arg2: List<ULong>): Result<CudaStorage> = Err(Error.NotCompiledWithCudaSupport)
+    public fun reduceOp(arg0: ReduceOp, arg1: Layout, arg2: List<ULong>): Result<CudaStorage> = Result.Err(Error.NotCompiledWithCudaSupport)
 
-    public fun cmp(arg0: CmpOp, arg1: CudaStorage, arg2: Layout, arg3: Layout): Result<CudaStorage> = Err(Error.NotCompiledWithCudaSupport)
+    public fun cmp(arg0: CmpOp, arg1: CudaStorage, arg2: Layout, arg3: Layout): Result<CudaStorage> = Result.Err(Error.NotCompiledWithCudaSupport)
 
-    public fun toDtype(arg0: Layout, arg1: DType): Result<CudaStorage> = Err(Error.NotCompiledWithCudaSupport)
+    public fun toDtype(arg0: Layout, arg1: DType): Result<CudaStorage> = Result.Err(Error.NotCompiledWithCudaSupport)
 
-    public fun <B : UnaryOpT> unaryImpl(arg0: Layout): Result<CudaStorage> = Err(Error.NotCompiledWithCudaSupport)
+    public fun <B : UnaryOpT> unaryImpl(arg0: Layout): Result<CudaStorage> = Result.Err(Error.NotCompiledWithCudaSupport)
 
-    public fun <B : BinaryOpT> binaryImpl(arg0: CudaStorage, arg1: Layout, arg2: Layout): Result<CudaStorage> = Err(Error.NotCompiledWithCudaSupport)
+    public fun <B : BinaryOpT> binaryImpl(arg0: CudaStorage, arg1: Layout, arg2: Layout): Result<CudaStorage> = Result.Err(Error.NotCompiledWithCudaSupport)
 
-    public fun whereCond(arg0: Layout, arg1: CudaStorage, arg2: Layout, arg3: CudaStorage, arg4: Layout): Result<CudaStorage> = Err(Error.NotCompiledWithCudaSupport)
+    public fun whereCond(arg0: Layout, arg1: CudaStorage, arg2: Layout, arg3: CudaStorage, arg4: Layout): Result<CudaStorage> = Result.Err(Error.NotCompiledWithCudaSupport)
 
-    public fun conv1d(arg0: Layout, arg1: CudaStorage, arg2: Layout, arg3: ParamsConv1D): Result<CudaStorage> = Err(Error.NotCompiledWithCudaSupport)
+    public fun conv1d(arg0: Layout, arg1: CudaStorage, arg2: Layout, arg3: ParamsConv1D): Result<CudaStorage> = Result.Err(Error.NotCompiledWithCudaSupport)
 
-    public fun convTranspose1d(arg0: Layout, arg1: CudaStorage, arg2: Layout, arg3: ParamsConvTranspose1D): Result<CudaStorage> = Err(Error.NotCompiledWithCudaSupport)
+    public fun convTranspose1d(arg0: Layout, arg1: CudaStorage, arg2: Layout, arg3: ParamsConvTranspose1D): Result<CudaStorage> = Result.Err(Error.NotCompiledWithCudaSupport)
 
-    public fun conv2d(arg0: Layout, arg1: CudaStorage, arg2: Layout, arg3: ParamsConv2D): Result<CudaStorage> = Err(Error.NotCompiledWithCudaSupport)
+    public fun conv2d(arg0: Layout, arg1: CudaStorage, arg2: Layout, arg3: ParamsConv2D): Result<CudaStorage> = Result.Err(Error.NotCompiledWithCudaSupport)
 
-    public fun convTranspose2d(l: Layout, kernel: CudaStorage, kernelL: Layout, params: ParamsConvTranspose2D): Result<CudaStorage> = Err(Error.NotCompiledWithCudaSupport)
+    public fun convTranspose2d(l: Layout, kernel: CudaStorage, kernelL: Layout, params: ParamsConvTranspose2D): Result<CudaStorage> = Result.Err(Error.NotCompiledWithCudaSupport)
 
-    public fun indexSelect(arg0: CudaStorage, arg1: Layout, arg2: Layout, arg3: ULong): Result<CudaStorage> = Err(Error.NotCompiledWithCudaSupport)
+    public fun indexSelect(arg0: CudaStorage, arg1: Layout, arg2: Layout, arg3: ULong): Result<CudaStorage> = Result.Err(Error.NotCompiledWithCudaSupport)
 
-    public fun gather(arg0: Layout, arg1: CudaStorage, arg2: Layout, arg3: ULong): Result<CudaStorage> = Err(Error.NotCompiledWithCudaSupport)
+    public fun gather(arg0: Layout, arg1: CudaStorage, arg2: Layout, arg3: ULong): Result<CudaStorage> = Result.Err(Error.NotCompiledWithCudaSupport)
 
-    public fun scatterSet(arg0: Layout, arg1: CudaStorage, arg2: Layout, arg3: CudaStorage, arg4: Layout, arg5: ULong): Result<Unit> = Err(Error.NotCompiledWithCudaSupport)
+    public fun scatterSet(arg0: Layout, arg1: CudaStorage, arg2: Layout, arg3: CudaStorage, arg4: Layout, arg5: ULong): Result<Unit> = Result.Err(Error.NotCompiledWithCudaSupport)
 
-    public fun scatterAddSet(arg0: Layout, arg1: CudaStorage, arg2: Layout, arg3: CudaStorage, arg4: Layout, arg5: ULong): Result<Unit> = Err(Error.NotCompiledWithCudaSupport)
+    public fun scatterAddSet(arg0: Layout, arg1: CudaStorage, arg2: Layout, arg3: CudaStorage, arg4: Layout, arg5: ULong): Result<Unit> = Result.Err(Error.NotCompiledWithCudaSupport)
 
-    public fun indexAdd(arg0: Layout, arg1: CudaStorage, arg2: Layout, arg3: CudaStorage, arg4: Layout, arg5: ULong): Result<CudaStorage> = Err(Error.NotCompiledWithCudaSupport)
+    public fun indexAdd(arg0: Layout, arg1: CudaStorage, arg2: Layout, arg3: CudaStorage, arg4: Layout, arg5: ULong): Result<CudaStorage> = Result.Err(Error.NotCompiledWithCudaSupport)
 
-    public fun matmul(arg0: CudaStorage, arg1: List<Any?>, arg2: Layout, arg3: Layout): Result<CudaStorage> = Err(Error.NotCompiledWithCudaSupport)
+    public fun matmul(arg0: CudaStorage, arg1: List<Any?>, arg2: Layout, arg3: Layout): Result<CudaStorage> = Result.Err(Error.NotCompiledWithCudaSupport)
 
-    public fun copyStridedSrc(arg0: CudaStorage, arg1: ULong, arg2: Layout): Result<Unit> = Err(Error.NotCompiledWithCudaSupport)
+    public fun copyStridedSrc(arg0: CudaStorage, arg1: ULong, arg2: Layout): Result<Unit> = Result.Err(Error.NotCompiledWithCudaSupport)
 
-    public fun copy2d(arg0: CudaStorage, arg1: ULong, arg2: ULong, arg3: ULong, arg4: ULong, arg5: ULong, arg6: ULong): Result<Unit> = Err(Error.NotCompiledWithCudaSupport)
+    public fun copy2d(arg0: CudaStorage, arg1: ULong, arg2: ULong, arg3: ULong, arg4: ULong, arg5: ULong, arg6: ULong): Result<Unit> = Result.Err(Error.NotCompiledWithCudaSupport)
 
-    public fun avgPool2d(arg0: Layout, arg1: Pair<ULong, ULong>, arg2: Pair<ULong, ULong>): Result<CudaStorage> = Err(Error.NotCompiledWithCudaSupport)
+    public fun avgPool2d(arg0: Layout, arg1: Pair<ULong, ULong>, arg2: Pair<ULong, ULong>): Result<CudaStorage> = Result.Err(Error.NotCompiledWithCudaSupport)
 
-    public fun maxPool2d(arg0: Layout, arg1: Pair<ULong, ULong>, arg2: Pair<ULong, ULong>): Result<CudaStorage> = Err(Error.NotCompiledWithCudaSupport)
+    public fun maxPool2d(arg0: Layout, arg1: Pair<ULong, ULong>, arg2: Pair<ULong, ULong>): Result<CudaStorage> = Result.Err(Error.NotCompiledWithCudaSupport)
 
-    public fun upsampleNearest1d(arg0: Layout, arg1: ULong): Result<CudaStorage> = Err(Error.NotCompiledWithCudaSupport)
+    public fun upsampleNearest1d(arg0: Layout, arg1: ULong): Result<CudaStorage> = Result.Err(Error.NotCompiledWithCudaSupport)
 
-    public fun upsampleNearest2d(arg0: Layout, arg1: ULong, arg2: ULong): Result<CudaStorage> = Err(Error.NotCompiledWithCudaSupport)
+    public fun upsampleNearest2d(arg0: Layout, arg1: ULong, arg2: ULong): Result<CudaStorage> = Result.Err(Error.NotCompiledWithCudaSupport)
 
-    public fun upsampleBilinear2d(arg0: Layout, arg1: ULong, arg2: ULong, arg3: Boolean, arg4: Double?, arg5: Double?): Result<CudaStorage> = Err(Error.NotCompiledWithCudaSupport)
+    public fun upsampleBilinear2d(arg0: Layout, arg1: ULong, arg2: ULong, arg3: Boolean, arg4: Double?, arg5: Double?): Result<CudaStorage> = Result.Err(Error.NotCompiledWithCudaSupport)
 
     public companion object {
         public fun typeLayout(): io.github.kotlinmania.rustlang.core.mem.TypeLayout<CudaStorage> =

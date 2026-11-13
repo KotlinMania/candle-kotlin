@@ -5,7 +5,6 @@ package io.github.kotlinmania.candle.quantized.neon
 
 import io.github.kotlinmania.byteorder.LittleEndian
 import io.github.kotlinmania.candle.cpu.features.get
-import io.github.kotlinmania.candle.error.Result
 import io.github.kotlinmania.candle.quantized.kquants.BlockQ2K
 import io.github.kotlinmania.candle.quantized.kquants.BlockQ3K
 import io.github.kotlinmania.candle.quantized.kquants.BlockQ40
@@ -25,7 +24,9 @@ import io.github.kotlinmania.candle.quantized.repack.BlockQ6Kx8
 import io.github.kotlinmania.candle.quantized.repack.BlockQ80x4
 import io.github.kotlinmania.candle.quantized.repack.BlockQ8Kx4
 import io.github.kotlinmania.candle.utils.barrierPool
+import io.github.kotlinmania.half.F16
 import io.github.kotlinmania.rustlang.core.arch.aarch64.*
+import io.github.kotlinmania.rustlang.core.cell.RefCell
 import io.github.kotlinmania.rustlang.core.mem.AddressableArrayLocal
 import io.github.kotlinmania.rustlang.core.mem.FixedArrayTypeLayout
 import io.github.kotlinmania.rustlang.core.mem.ObjectSlotLayout
@@ -34,6 +35,7 @@ import io.github.kotlinmania.rustlang.core.mem.constPtrFromRustCast
 import io.github.kotlinmania.rustlang.core.mem.mutPtrFromRustCast
 import io.github.kotlinmania.rustlang.core.ptr.ConstPtr
 import io.github.kotlinmania.rustlang.core.ptr.MutPtr
+import io.github.kotlinmania.rustlang.core.result.Result
 
 public fun vdotqS32(a: Int8x16T, b: Int8x16T): Int32x4T {
     val acc: Int32x4T = vdupqNS32(0)
@@ -135,7 +137,7 @@ internal fun vecDotQ80Q80(n: Int, xs: List<BlockQ80>, ys: List<BlockQ80>): Float
     }
 }
 
-internal fun quantizeQ80(xs: List<Float>, ys: List<BlockQ80>) {
+internal fun quantizeQ80(xs: List<Float>, ys: MutableList<BlockQ80>) {
     check(xs.size.isMultipleOf(QK8_0))
     check(ys.size == xs.size / QK8_0)
     val (xChunks, _) = xs.asChunks<Qk80>()
@@ -162,7 +164,7 @@ internal fun quantizeQ80(xs: List<Float>, ys: List<BlockQ80>) {
                 } else {
                     0.0
                 }
-            y.d = fromF32(d)
+            y.d = F16.fromF32(d)
             val id1 = vdupqNF32(id)
             val s01 = vcombineS16(vqmovnS32(vcvtaqS32F32(vmulqF32(v0, id1))), vqmovnS32(vcvtaqS32F32(vmulqF32(v1, id1))))
             val s23 = vcombineS16(vqmovnS32(vcvtaqS32F32(vmulqF32(v2, id1))), vqmovnS32(vcvtaqS32F32(vmulqF32(v3, id1))))
@@ -208,10 +210,10 @@ internal fun vecDot4Q80Q80(n: Int, xs0: List<BlockQ80>, xs1: List<BlockQ80>, xs2
     }
 }
 
-public fun quantizeQ80x4Interleaved(lhs: List<Float>, k: Int, row: Int, out: List<BlockQ80x4>, blockLen: Int) {
+public fun quantizeQ80x4Interleaved(lhs: List<Float>, k: Int, row: Int, out: MutableList<BlockQ80x4>, blockLen: Int) {
     val kInBlocks = k / QK8_0
     for (b in 0 until kInBlocks) {
-        val p = BlockQ80x4(d = List(4) { ZERO }, qs = ByteArray(QK8_0 * 4) { 0.toByte() })
+        val p = BlockQ80x4(d = List(4) { F16.ZERO }, qs = ByteArray(QK8_0 * 4) { 0.toByte() })
         val ids = List(4) { 0.0f }
         for (r in 0 until 4) {
             val xs = ((lhs).slice((row + r) * k + b * QK8_0 until (row + r) * k + (b + 1) * QK8_0))
@@ -226,12 +228,12 @@ public fun quantizeQ80x4Interleaved(lhs: List<Float>, k: Int, row: Int, out: Lis
                 } else {
                     0.0
                 }
-            p.d[r] = fromF32(d)
+            p.d[r] = F16.fromF32(d)
         }
         for (r1 in 0 until 4) {
             val xs1 = ((lhs).slice((row + r1) * k + b * QK8_0 until (row + r1) * k + (b + 1) * QK8_0))
-            for ((j, x1) in xs1.enumerate()) {
-                p.qs[(j / BLOCK_LEN) * BLOCK_LEN * 4 + r1 * BLOCK_LEN + j % BLOCK_LEN] = (x1 * ids[r1]).round().toByte()
+            for ((j, x1) in xs1.mapIndexed { index, item -> Pair(index, item) }) {
+                p.qs[(j / blockLen) * blockLen * 4 + r1 * blockLen + j % blockLen] = (x1 * ids[r1]).round().toByte()
             }
         }
         out[b] = p
@@ -323,7 +325,7 @@ public fun vecDot4Q40x4Q80(n: Int, xs: List<BlockQ40x4>, ys: List<BlockQ80>): Fl
         vecDot4Q40x4Q804x4(n, xs, ys)
     }
 
-public fun matmulQ40X4Gemv(tupleArg0: Triple<Int, Int, Int>, lhs: List<Float>, repacked: List<BlockQ40x4>, dst: List<Float>): Result<Unit> {
+public fun matmulQ40X4Gemv(tupleArg0: Triple<Int, Int, Int>, lhs: List<Float>, repacked: List<BlockQ40x4>, dst: MutableList<Float>): Result<Unit> {
     check(k.isMultipleOf(QK8_0))
     check(n.isMultipleOf(4))
     val kInBlocks = k / QK8_0
@@ -336,7 +338,7 @@ public fun matmulQ40X4Gemv(tupleArg0: Triple<Int, Int, Int>, lhs: List<Float>, r
         if (scratch.len() < requiredLen) {
             scratch.resize(requiredLen, 0)
         }
-        val lhsB: List<BlockQ80> = fromRawPartsMut(mutPtrFromRustCast(scratch.asMutPtr()), kInBlocks)
+        val lhsB: MutableList<BlockQ80> = fromRawPartsMut(mutPtrFromRustCast(scratch.asMutPtr()), kInBlocks)
         BlockQ80.fromFloat(lhs, lhsB)
         val pool = barrierPool()
         val lhsPtr = lhsB.asPtr().toInt()
@@ -356,7 +358,7 @@ public fun matmulQ40X4Gemv(tupleArg0: Triple<Int, Int, Int>, lhs: List<Float>, r
                 }
             }
         })
-        Ok(Unit)
+        Result.Ok(Unit)
     })
 }
 
@@ -404,7 +406,7 @@ public fun storeQ40x44x4(dst: MutPtr, n: Int, row: Int, col: Int, lhs: List<Bloc
     vst1qF32(MutPtr((dst).rawAddress + (((row + 3) * n + col).toLong() * (PrimitiveLayouts.F32).strideBytes)), sum3)
 }
 
-internal fun matmulQ40X4(tupleArg0: Triple<Int, Int, Int>, lhs: List<Float>, repacked: List<BlockQ40x4>, dst: List<Float>): Result<Unit> {
+internal fun matmulQ40X4(tupleArg0: Triple<Int, Int, Int>, lhs: List<Float>, repacked: List<BlockQ40x4>, dst: MutableList<Float>): Result<Unit> {
     check(k.isMultipleOf(QK8_0))
     check(n.isMultipleOf(4))
     if (m == 1) {
@@ -422,7 +424,7 @@ internal fun matmulQ40X4(tupleArg0: Triple<Int, Int, Int>, lhs: List<Float>, rep
         if (scratch.len() < requiredLen) {
             scratch.resize(requiredLen, 0)
         }
-        val lhsX4: List<BlockQ80x4> = fromRawPartsMut(mutPtrFromRustCast(scratch.asMutPtr()), rowGroups * kInBlocks)
+        val lhsX4: MutableList<BlockQ80x4> = fromRawPartsMut(mutPtrFromRustCast(scratch.asMutPtr()), rowGroups * kInBlocks)
         for (group in 0 until rowGroups) {
             quantizeQ80x4Interleaved(lhs, k, group * 4, ((lhsX4).slice(group * kInBlocks until (group + 1) * kInBlocks)), 4)
         }
@@ -445,7 +447,7 @@ internal fun matmulQ40X4(tupleArg0: Triple<Int, Int, Int>, lhs: List<Float>, rep
                 storeQ40x44x4(dstPtr1, n, row, col, lhsTile, rhsTile, kInBlocks)
             }
         })
-        Ok(Unit)
+        Result.Ok(Unit)
     })
 }
 
@@ -503,7 +505,7 @@ public fun storeQ40x44x4I8mm(dst: MutPtr, n: Int, row: Int, col: Int, lhs: List<
     vst1qF32(MutPtr((dst).rawAddress + (((row + 3) * n + col).toLong() * (PrimitiveLayouts.F32).strideBytes)), sum3)
 }
 
-internal fun matmulQ40X4I8mm(tupleArg0: Triple<Int, Int, Int>, lhs: List<Float>, repacked: List<BlockQ40x4>, dst: List<Float>): Result<Unit> {
+internal fun matmulQ40X4I8mm(tupleArg0: Triple<Int, Int, Int>, lhs: List<Float>, repacked: List<BlockQ40x4>, dst: MutableList<Float>): Result<Unit> {
     check(k.isMultipleOf(QK8_0))
     check(n.isMultipleOf(4))
     check(m.isMultipleOf(4))
@@ -518,7 +520,7 @@ internal fun matmulQ40X4I8mm(tupleArg0: Triple<Int, Int, Int>, lhs: List<Float>,
         if (scratch.len() < requiredLen) {
             scratch.resize(requiredLen, 0)
         }
-        val lhsX4: List<BlockQ80x4> = fromRawPartsMut(mutPtrFromRustCast(scratch.asMutPtr()), rowGroups * kInBlocks)
+        val lhsX4: MutableList<BlockQ80x4> = fromRawPartsMut(mutPtrFromRustCast(scratch.asMutPtr()), rowGroups * kInBlocks)
         for (group in 0 until rowGroups) {
             quantizeQ80x4Interleaved(lhs, k, group * 4, ((lhsX4).slice(group * kInBlocks until (group + 1) * kInBlocks)), 8)
         }
@@ -541,11 +543,11 @@ internal fun matmulQ40X4I8mm(tupleArg0: Triple<Int, Int, Int>, lhs: List<Float>,
                 storeQ40x44x4I8mm(dstPtr1, n, row, col, lhsTile, rhsTile, kInBlocks)
             }
         })
-        Ok(Unit)
+        Result.Ok(Unit)
     })
 }
 
-public fun quantizeQ8kX4Interleaved(lhs: List<Float>, k: Int, row: Int, out: List<BlockQ8Kx4>, blockLen: Int) {
+public fun quantizeQ8kX4Interleaved(lhs: List<Float>, k: Int, row: Int, out: MutableList<BlockQ8Kx4>, blockLen: Int) {
     val kInBlocks = k / QK_K
     for (b in 0 until kInBlocks) {
         val p = BlockQ8Kx4(d = FloatArray(4) { 0.0f }, qs = ByteArray(QK_K * 4) { 0.toByte() }, bsums = ShortArray(QK_K / 4) { 0.toShort() })
@@ -555,7 +557,7 @@ public fun quantizeQ8kX4Interleaved(lhs: List<Float>, k: Int, row: Int, out: Lis
             val xs = ((lhs).slice((row + r) * k + b * QK_K until (row + r) * k + (b + 1) * QK_K))
             var max = 0.0f
             var amax = 0.0f
-            for ((j, x) in xs.enumerate()) {
+            for ((j, x) in xs.mapIndexed { index, item -> Pair(index, item) }) {
                 src[r][j] = x
                 if (amax < x.abs()) {
                     amax = x.abs()
@@ -576,12 +578,12 @@ public fun quantizeQ8kX4Interleaved(lhs: List<Float>, k: Int, row: Int, out: Lis
                 }
         }
         for (j1 in 0 until QK_K * 4) {
-            val srcOffset = (j1 / (4 * BLOCK_LEN)) * BLOCK_LEN + j1 % BLOCK_LEN
-            val srcId = (j1 % (4 * BLOCK_LEN)) / BLOCK_LEN
+            val srcOffset = (j1 / (4 * blockLen)) * blockLen + j1 % blockLen
+            val srcId = (j1 % (4 * blockLen)) / blockLen
             val q = (src[srcId][srcOffset] * iscale[srcId]).round().toByte()
             p.qs[j1] = q
             val index =
-                if (BLOCK_LEN == 4) {
+                if (blockLen == 4) {
                     (((j1 and 15) shr 2) shl 2) + ((j1 shr 8) shl 4) + ((j1 shr 6) and 3)
                 } else {
                     (((j1 and 31) shr 3) shl 2) + ((j1 shr 8) shl 4) + ((j1 shr 6) and 3)
@@ -599,8 +601,8 @@ public fun storeQ4kx84x8I8mm(dst: MutPtr, n: Int, row: Int, col: Int, lhs: List<
         val x = rhs[b]
         val y = lhs[b]
         val bsumsArr = List(4) { List(8) { 0 } }
-        for ((r, bsumsRow) in bsumsArr.iterMut().enumerate()) {
-            for ((i, bsums) in bsumsRow.iterMut().enumerate()) {
+        for ((r, bsumsRow) in bsumsArr.iterMut().mapIndexed { index, item -> Pair(index, item) }) {
+            for ((i, bsums) in bsumsRow.iterMut().mapIndexed { index, item -> Pair(index, item) }) {
                 // quarter-major interleaved layout: [16 * quarter + 4 * row + half-pair]
                 val base = 16 * (i / 2) + 4 * r + (2 * i) % 4
                 bsums = y.bsums[base] + y.bsums[base + 1]
@@ -618,7 +620,7 @@ public fun storeQ4kx84x8I8mm(dst: MutPtr, n: Int, row: Int, col: Int, lhs: List<
             val q8Base = y.qs.asPtr().add(sb * 256)
             val q8s = List(2) { List(8) { vdupqNS8(0) } }
             val (q8s0, q8s1) = q8s.splitAtMut(1)
-            for ((i1, q80, q81) in (q8s0[0].iterMut().zip(q8s1[0].iterMut())).enumerate()) {
+            for ((i1, q80, q81) in (q8s0[0].iterMut().zip(q8s1[0].iterMut())).mapIndexed { index, item -> Pair(index, item) }) {
                 q80 = vld1qS8(q8Base.add(i1 * 32))
                 q81 = vld1qS8(q8Base.add(i1 * 32 + 16))
             }
@@ -677,7 +679,7 @@ public fun storeQ4kx84x8I8mm(dst: MutPtr, n: Int, row: Int, col: Int, lhs: List<
     }
 }
 
-internal fun matmulQ4kX8I8mm(tupleArg0: Triple<Int, Int, Int>, lhs: List<Float>, repacked: List<BlockQ4Kx8>, dst: List<Float>): Result<Unit> {
+internal fun matmulQ4kX8I8mm(tupleArg0: Triple<Int, Int, Int>, lhs: List<Float>, repacked: List<BlockQ4Kx8>, dst: MutableList<Float>): Result<Unit> {
     check(k.isMultipleOf(QK_K))
     check(n.isMultipleOf(8))
     check(m.isMultipleOf(4))
@@ -692,7 +694,7 @@ internal fun matmulQ4kX8I8mm(tupleArg0: Triple<Int, Int, Int>, lhs: List<Float>,
         if (scratch.len() < requiredLen) {
             scratch.resize(requiredLen, 0)
         }
-        val lhsX4: List<BlockQ8Kx4> = fromRawPartsMut(mutPtrFromRustCast(scratch.asMutPtr()), rowGroups * kInBlocks)
+        val lhsX4: MutableList<BlockQ8Kx4> = fromRawPartsMut(mutPtrFromRustCast(scratch.asMutPtr()), rowGroups * kInBlocks)
         for (group in 0 until rowGroups) {
             quantizeQ8kX4Interleaved(lhs, k, group * 4, ((lhsX4).slice(group * kInBlocks until (group + 1) * kInBlocks)), 8)
         }
@@ -715,7 +717,7 @@ internal fun matmulQ4kX8I8mm(tupleArg0: Triple<Int, Int, Int>, lhs: List<Float>,
                 storeQ4kx84x8I8mm(dstPtr1, n, row, col, lhsTile, rhsTile, kInBlocks)
             }
         })
-        Ok(Unit)
+        Result.Ok(Unit)
     })
 }
 
@@ -826,8 +828,8 @@ public fun storeQ5kx84x8I8mm(dst: MutPtr, n: Int, row: Int, col: Int, lhs: List<
         val x = rhs[b]
         val y = lhs[b]
         val bsumsArr = List(4) { List(8) { 0 } }
-        for ((r, bsumsRow) in bsumsArr.iterMut().enumerate()) {
-            for ((i, bsums) in bsumsRow.iterMut().enumerate()) {
+        for ((r, bsumsRow) in bsumsArr.iterMut().mapIndexed { index, item -> Pair(index, item) }) {
+            for ((i, bsums) in bsumsRow.iterMut().mapIndexed { index, item -> Pair(index, item) }) {
                 // quarter-major interleaved layout: [16 * quarter + 4 * row + half-pair]
                 val base = 16 * (i / 2) + 4 * r + (2 * i) % 4
                 bsums = y.bsums[base] + y.bsums[base + 1]
@@ -836,7 +838,7 @@ public fun storeQ5kx84x8I8mm(dst: MutPtr, n: Int, row: Int, col: Int, lhs: List<
         val acc = List(8) { vdupqNS32(0) }
         val biasAcc = List(8) { vdupqNS32(0) }
         val qh = List(4) { List(4) { vdupqNU8(0) } }
-        for ((cp, qhCp) in qh.iterMut().enumerate()) {
+        for ((cp, qhCp) in qh.iterMut().mapIndexed { index, item -> Pair(index, item) }) {
             qhCp[0] = vld1qU8(x.qh.asPtr().add(16 * cp))
             qhCp[1] = vld1qU8(x.qh.asPtr().add(16 * cp + 64))
             qhCp[2] = vld1qU8(x.qh.asPtr().add(16 * cp + 128))
@@ -852,7 +854,7 @@ public fun storeQ5kx84x8I8mm(dst: MutPtr, n: Int, row: Int, col: Int, lhs: List<
             val q8Base = y.qs.asPtr().add(sb * 256)
             val q8s = List(2) { List(8) { vdupqNS8(0) } }
             val (q8s0, q8s1) = q8s.splitAtMut(1)
-            for ((i1, q80, q81) in (q8s0[0].iterMut().zip(q8s1[0].iterMut())).enumerate()) {
+            for ((i1, q80, q81) in (q8s0[0].iterMut().zip(q8s1[0].iterMut())).mapIndexed { index, item -> Pair(index, item) }) {
                 q80 = vld1qS8(q8Base.add(i1 * 32))
                 q81 = vld1qS8(q8Base.add(i1 * 32 + 16))
             }
@@ -1027,7 +1029,7 @@ public fun vecDot8Q5kx8Q8k8x8(n: Int, xs: List<BlockQ5Kx8>, ys: List<BlockQ8K>):
         var bsumsArr by localStorageL1713C8
         vst1qS16(localStorageL1713C8.elementMutPtr(0), bsums)
         val qh = List(4) { List(4) { vdupqNU8(0) } }
-        for ((cp, qhCp) in qh.iterMut().enumerate()) {
+        for ((cp, qhCp) in qh.iterMut().mapIndexed { index, item -> Pair(index, item) }) {
             qhCp[0] = vld1qU8(q5.qh.asPtr().add(16 * cp))
             qhCp[1] = vld1qU8(q5.qh.asPtr().add(16 * cp + 64))
             qhCp[2] = vld1qU8(q5.qh.asPtr().add(16 * cp + 128))
@@ -1081,7 +1083,7 @@ public fun vecDot8Q5kx8Q8k(n: Int, xs: List<BlockQ5Kx8>, ys: List<BlockQ8K>): Fl
         vecDot8Q5kx8Q8k8x4(n, xs, ys)
     }
 
-public fun matmulQ5kX8Gemv(tupleArg0: Triple<Int, Int, Int>, lhs: List<Float>, repacked: List<BlockQ5Kx8>, dst: List<Float>): Result<Unit> {
+public fun matmulQ5kX8Gemv(tupleArg0: Triple<Int, Int, Int>, lhs: List<Float>, repacked: List<BlockQ5Kx8>, dst: MutableList<Float>): Result<Unit> {
     check(k.isMultipleOf(QK_K))
     check(n.isMultipleOf(8))
     val kInBlocks = k / QK_K
@@ -1094,7 +1096,7 @@ public fun matmulQ5kX8Gemv(tupleArg0: Triple<Int, Int, Int>, lhs: List<Float>, r
         if (scratch.len() < requiredLen) {
             scratch.resize(requiredLen, 0)
         }
-        val lhsB: List<BlockQ8K> = fromRawPartsMut(mutPtrFromRustCast(scratch.asMutPtr()), kInBlocks)
+        val lhsB: MutableList<BlockQ8K> = fromRawPartsMut(mutPtrFromRustCast(scratch.asMutPtr()), kInBlocks)
         BlockQ8K.fromFloat(lhs, lhsB)
         val pool = barrierPool()
         val lhsPtr = lhsB.asPtr().toInt()
@@ -1114,11 +1116,11 @@ public fun matmulQ5kX8Gemv(tupleArg0: Triple<Int, Int, Int>, lhs: List<Float>, r
                 }
             }
         })
-        Ok(Unit)
+        Result.Ok(Unit)
     })
 }
 
-internal fun matmulQ5kX8(tupleArg0: Triple<Int, Int, Int>, lhs: List<Float>, repacked: List<BlockQ5Kx8>, dst: List<Float>): Result<Unit> {
+internal fun matmulQ5kX8(tupleArg0: Triple<Int, Int, Int>, lhs: List<Float>, repacked: List<BlockQ5Kx8>, dst: MutableList<Float>): Result<Unit> {
     check(k.isMultipleOf(QK_K))
     check(n.isMultipleOf(8))
     val features = get()
@@ -1138,7 +1140,7 @@ internal fun matmulQ5kX8(tupleArg0: Triple<Int, Int, Int>, lhs: List<Float>, rep
         if (scratch.len() < requiredLen) {
             scratch.resize(requiredLen, 0)
         }
-        val lhsX4: List<BlockQ8Kx4> = fromRawPartsMut(mutPtrFromRustCast(scratch.asMutPtr()), rowGroups * kInBlocks)
+        val lhsX4: MutableList<BlockQ8Kx4> = fromRawPartsMut(mutPtrFromRustCast(scratch.asMutPtr()), rowGroups * kInBlocks)
         for (group in 0 until rowGroups) {
             if (useI8mm) {
                 quantizeQ8kX4Interleaved(lhs, k, group * 4, ((lhsX4).slice(group * kInBlocks until (group + 1) * kInBlocks)), 8)
@@ -1169,7 +1171,7 @@ internal fun matmulQ5kX8(tupleArg0: Triple<Int, Int, Int>, lhs: List<Float>, rep
                 }
             }
         })
-        Ok(Unit)
+        Result.Ok(Unit)
     })
 }
 
@@ -1531,7 +1533,7 @@ internal fun vecDot8Q6kx8Q8k(n: Int, xs: List<BlockQ6Kx8>, ys: List<BlockQ8K>): 
         vecDot8Q6kx8Q8k8x4(n, xs, ys)
     }
 
-public fun matmulQ6kX8Gemv(tupleArg0: Triple<Int, Int, Int>, lhs: List<Float>, repacked: List<BlockQ6Kx8>, dst: List<Float>): Result<Unit> {
+public fun matmulQ6kX8Gemv(tupleArg0: Triple<Int, Int, Int>, lhs: List<Float>, repacked: List<BlockQ6Kx8>, dst: MutableList<Float>): Result<Unit> {
     check(m == 1)
     check(k.isMultipleOf(QK_K))
     check(n.isMultipleOf(8))
@@ -1545,7 +1547,7 @@ public fun matmulQ6kX8Gemv(tupleArg0: Triple<Int, Int, Int>, lhs: List<Float>, r
         if (scratch.len() < requiredLen) {
             scratch.resize(requiredLen, 0)
         }
-        val lhsB: List<BlockQ8K> = fromRawPartsMut(mutPtrFromRustCast(scratch.asMutPtr()), kInBlocks)
+        val lhsB: MutableList<BlockQ8K> = fromRawPartsMut(mutPtrFromRustCast(scratch.asMutPtr()), kInBlocks)
         BlockQ8K.fromFloat(lhs, lhsB)
         val pool = barrierPool()
         val lhsPtr = lhsB.asPtr().toInt()
@@ -1565,11 +1567,11 @@ public fun matmulQ6kX8Gemv(tupleArg0: Triple<Int, Int, Int>, lhs: List<Float>, r
                 }
             }
         })
-        Ok(Unit)
+        Result.Ok(Unit)
     })
 }
 
-internal fun matmulQ6kX8(tupleArg0: Triple<Int, Int, Int>, lhs: List<Float>, repacked: List<BlockQ6Kx8>, dst: List<Float>): Result<Unit> {
+internal fun matmulQ6kX8(tupleArg0: Triple<Int, Int, Int>, lhs: List<Float>, repacked: List<BlockQ6Kx8>, dst: MutableList<Float>): Result<Unit> {
     check(k.isMultipleOf(QK_K))
     check(n.isMultipleOf(8))
     val features = get()
@@ -1589,7 +1591,7 @@ internal fun matmulQ6kX8(tupleArg0: Triple<Int, Int, Int>, lhs: List<Float>, rep
         if (scratch.len() < requiredLen) {
             scratch.resize(requiredLen, 0)
         }
-        val lhsX4: List<BlockQ8Kx4> = fromRawPartsMut(mutPtrFromRustCast(scratch.asMutPtr()), rowGroups * kInBlocks)
+        val lhsX4: MutableList<BlockQ8Kx4> = fromRawPartsMut(mutPtrFromRustCast(scratch.asMutPtr()), rowGroups * kInBlocks)
         for (group in 0 until rowGroups) {
             if (useI8mm) {
                 quantizeQ8kX4Interleaved(lhs, k, group * 4, ((lhsX4).slice(group * kInBlocks until (group + 1) * kInBlocks)), 8)
@@ -1620,7 +1622,7 @@ internal fun matmulQ6kX8(tupleArg0: Triple<Int, Int, Int>, lhs: List<Float>, rep
                 }
             }
         })
-        Ok(Unit)
+        Result.Ok(Unit)
     })
 }
 
@@ -1765,7 +1767,7 @@ internal fun vecDot4Q80x4Q80(n: Int, xs: List<BlockQ80x4>, ys: List<BlockQ80>): 
         vecDot4Q80x4Q804x4(n, xs, ys)
     }
 
-public fun matmulQ80X4Gemv(tupleArg0: Triple<Int, Int, Int>, lhs: List<Float>, repacked: List<BlockQ80x4>, dst: List<Float>): Result<Unit> {
+public fun matmulQ80X4Gemv(tupleArg0: Triple<Int, Int, Int>, lhs: List<Float>, repacked: List<BlockQ80x4>, dst: MutableList<Float>): Result<Unit> {
     check(k.isMultipleOf(QK8_0))
     check(n.isMultipleOf(4))
     val kInBlocks = k / QK8_0
@@ -1778,7 +1780,7 @@ public fun matmulQ80X4Gemv(tupleArg0: Triple<Int, Int, Int>, lhs: List<Float>, r
         if (scratch.len() < requiredLen) {
             scratch.resize(requiredLen, 0)
         }
-        val lhsB: List<BlockQ80> = fromRawPartsMut(mutPtrFromRustCast(scratch.asMutPtr()), kInBlocks)
+        val lhsB: MutableList<BlockQ80> = fromRawPartsMut(mutPtrFromRustCast(scratch.asMutPtr()), kInBlocks)
         BlockQ80.fromFloat(lhs, lhsB)
         val pool = barrierPool()
         val lhsPtr = lhsB.asPtr().toInt()
@@ -1798,11 +1800,11 @@ public fun matmulQ80X4Gemv(tupleArg0: Triple<Int, Int, Int>, lhs: List<Float>, r
                 }
             }
         })
-        Ok(Unit)
+        Result.Ok(Unit)
     })
 }
 
-internal fun matmulQ80X4(tupleArg0: Triple<Int, Int, Int>, lhs: List<Float>, repacked: List<BlockQ80x4>, dst: List<Float>): Result<Unit> {
+internal fun matmulQ80X4(tupleArg0: Triple<Int, Int, Int>, lhs: List<Float>, repacked: List<BlockQ80x4>, dst: MutableList<Float>): Result<Unit> {
     check(k.isMultipleOf(QK8_0))
     check(n.isMultipleOf(4))
     if (m == 1) {
@@ -1820,7 +1822,7 @@ internal fun matmulQ80X4(tupleArg0: Triple<Int, Int, Int>, lhs: List<Float>, rep
         if (scratch.len() < requiredLen) {
             scratch.resize(requiredLen, 0)
         }
-        val lhsX4: List<BlockQ80x4> = fromRawPartsMut(mutPtrFromRustCast(scratch.asMutPtr()), rowGroups * kInBlocks)
+        val lhsX4: MutableList<BlockQ80x4> = fromRawPartsMut(mutPtrFromRustCast(scratch.asMutPtr()), rowGroups * kInBlocks)
         for (group in 0 until rowGroups) {
             quantizeQ80x4Interleaved(lhs, k, group * 4, ((lhsX4).slice(group * kInBlocks until (group + 1) * kInBlocks)), 4)
         }
@@ -1843,7 +1845,7 @@ internal fun matmulQ80X4(tupleArg0: Triple<Int, Int, Int>, lhs: List<Float>, rep
                 storeQ80x44x4(dstPtr1, n, row, col, lhsTile, rhsTile, kInBlocks)
             }
         })
-        Ok(Unit)
+        Result.Ok(Unit)
     })
 }
 
@@ -1888,7 +1890,7 @@ public fun storeQ80x44x4I8mm(dst: MutPtr, n: Int, row: Int, col: Int, lhs: List<
     vst1qF32(MutPtr((dst).rawAddress + (((row + 3) * n + col).toLong() * (PrimitiveLayouts.F32).strideBytes)), sum3)
 }
 
-internal fun matmulQ80X4I8mm(tupleArg0: Triple<Int, Int, Int>, lhs: List<Float>, repacked: List<BlockQ80x4>, dst: List<Float>): Result<Unit> {
+internal fun matmulQ80X4I8mm(tupleArg0: Triple<Int, Int, Int>, lhs: List<Float>, repacked: List<BlockQ80x4>, dst: MutableList<Float>): Result<Unit> {
     check(k.isMultipleOf(QK8_0))
     check(n.isMultipleOf(4))
     check(m.isMultipleOf(4))
@@ -1903,7 +1905,7 @@ internal fun matmulQ80X4I8mm(tupleArg0: Triple<Int, Int, Int>, lhs: List<Float>,
         if (scratch.len() < requiredLen) {
             scratch.resize(requiredLen, 0)
         }
-        val lhsX4: List<BlockQ80x4> = fromRawPartsMut(mutPtrFromRustCast(scratch.asMutPtr()), rowGroups * kInBlocks)
+        val lhsX4: MutableList<BlockQ80x4> = fromRawPartsMut(mutPtrFromRustCast(scratch.asMutPtr()), rowGroups * kInBlocks)
         for (group in 0 until rowGroups) {
             quantizeQ80x4Interleaved(lhs, k, group * 4, ((lhsX4).slice(group * kInBlocks until (group + 1) * kInBlocks)), 8)
         }
@@ -1926,7 +1928,7 @@ internal fun matmulQ80X4I8mm(tupleArg0: Triple<Int, Int, Int>, lhs: List<Float>,
                 storeQ80x44x4I8mm(dstPtr1, n, row, col, lhsTile, rhsTile, kInBlocks)
             }
         })
-        Ok(Unit)
+        Result.Ok(Unit)
     })
 }
 
@@ -2630,7 +2632,7 @@ internal fun vecDotQ2kQ8k(n: Int, xs: List<BlockQ2K>, ys: List<BlockQ8K>): Float
 /**
  * Quantize a row of f32 activations into Q8K format
  */
-internal fun quantizeRowQ8k(xs: List<Float>, ys: List<BlockQ8K>) {
+internal fun quantizeRowQ8k(xs: List<Float>, ys: MutableList<BlockQ8K>) {
     check(xs.size.isMultipleOf(QK_K)) { "quantize_row_q8k: ${xs.size} is not a multiple of $qkK" }
     run {
         val (xChunks, _) = xs.asChunks<QkK>()

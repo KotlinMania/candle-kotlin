@@ -24,6 +24,7 @@ import io.github.kotlinmania.candle.shape.Shape
 import io.github.kotlinmania.candle.stridedindex.StridedBlocks
 import io.github.kotlinmania.candlemetalkernels.BufferOffset
 import io.github.kotlinmania.candlemetalkernels.CallConvTranspose2dCfg
+import io.github.kotlinmania.candlemetalkernels.GemmDType
 import io.github.kotlinmania.candlemetalkernels.callAffine
 import io.github.kotlinmania.candlemetalkernels.callAffineStrided
 import io.github.kotlinmania.candlemetalkernels.callBinaryContiguous
@@ -67,7 +68,7 @@ import io.github.kotlinmania.candlemetalkernels.metal.Buffer
 import io.github.kotlinmania.candlemetalkernels.unary.contiguous
 import io.github.kotlinmania.candlemetalkernels.unary.strided
 import io.github.kotlinmania.candlemetalkernels.utils.EncoderParam
-import io.github.kotlinmania.rustlang.core.result.fromResidual
+import io.github.kotlinmania.rustlang.core.F16
 
 public typealias Device = MetalDevice
 
@@ -88,8 +89,8 @@ public class MetalStorage(
      * The dtype is kept since buffers are untyped.
      */
     public var dtype: DType = DType.entries.first(),
-) : BackendStorage {
-    public fun tryClone(arg0: Layout): Result<MetalStorage> = Ok(this.clone())
+) : BackendStorage<MetalDevice> {
+    public fun tryClone(arg0: Layout): Result<MetalStorage> = Result.Ok(this.clone())
 
     public fun dtypeBackendStorage(): DType = this.dtype
 
@@ -98,97 +99,97 @@ public class MetalStorage(
     public fun toCpuStorage(): Result<CpuStorage> {
         return when (this.dtype) {
             DType.u8 ->
-                Ok(
+                Result.Ok(
                     CpuStorage.u8(
                         when (val tryResult = this.toCpu()) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         },
                     ),
                 )
             DType.u32 ->
-                Ok(
+                Result.Ok(
                     CpuStorage.u32(
                         when (val tryResult = this.toCpu()) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         },
                     ),
                 )
             DType.i16 ->
-                Ok(
+                Result.Ok(
                     CpuStorage.i16(
                         when (val tryResult = this.toCpu()) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         },
                     ),
                 )
             DType.i32 ->
-                Ok(
+                Result.Ok(
                     CpuStorage.i32(
                         when (val tryResult = this.toCpu()) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         },
                     ),
                 )
             DType.i64 ->
-                Ok(
+                Result.Ok(
                     CpuStorage.i64(
                         when (val tryResult = this.toCpu()) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         },
                     ),
                 )
             DType.f16 ->
-                Ok(
+                Result.Ok(
                     CpuStorage.f16(
                         when (val tryResult = this.toCpu()) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         },
                     ),
                 )
             DType.bf16 ->
-                Ok(
+                Result.Ok(
                     CpuStorage.bf16(
                         when (val tryResult = this.toCpu()) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         },
                     ),
                 )
             DType.f32 ->
-                Ok(
+                Result.Ok(
                     CpuStorage.f32(
                         when (val tryResult = this.toCpu()) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         },
                     ),
                 )
             DType.f64 ->
-                Ok(
+                Result.Ok(
                     CpuStorage.f64(
                         when (val tryResult = this.toCpu()) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         },
                     ),
                 )
             DType.f8e4m3 ->
-                Ok(
+                Result.Ok(
                     CpuStorage.f8e4m3(
                         when (val tryResult = this.toCpu()) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         },
                     ),
                 )
             DType.f6e2m3, DType.f6e3m2, DType.f4, DType.f8e8m0 -> {
-                Err(Error.UnsupportedDTypeForOp(this.dtype, "to_cpu_storage").bt())
+                Result.Err(Error.UnsupportedDTypeForOp(this.dtype, "to_cpu_storage").bt())
             }
         }
     }
@@ -207,13 +208,13 @@ public class MetalStorage(
                         .withLabel("affine")
                         .build()
             ) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val encoder =
             when (val tryResult = this.device.commandEncoder()) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val src = bufferO(this.buffer, layout, dtype)
         if (layout.isContiguous()) {
@@ -231,8 +232,8 @@ public class MetalStorage(
                     }
                 }
             when (val tryResult = callAffine(device.device, encoder, device.kernels, name, this.dtype.sizeInBytes(), el, src, buffer, mul.toFloat(), add.toFloat()).mapErr(MetalError::from)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         } else {
             val name1 =
@@ -249,11 +250,11 @@ public class MetalStorage(
                     }
                 }
             when (val tryResult = callAffineStrided(device.device, encoder, device.kernels, name1, layout.dims(), src, layout.stride(), buffer, mul.toFloat(), add.toFloat()).mapErr(MetalError::from)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         }
-        return Ok(MetalStorage.new(buffer, device.clone(), el, dtype))
+        return Result.Ok(MetalStorage.new(buffer, device.clone(), el, dtype))
     }
 
     public fun powf(layout: Layout, pow: Double): Result<MetalStorage> {
@@ -270,13 +271,13 @@ public class MetalStorage(
                         .withLabel("powf")
                         .build()
             ) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val encoder =
             when (val tryResult = this.device.commandEncoder()) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val src = bufferO(this.buffer, layout, dtype)
         if (layout.isContiguous()) {
@@ -291,8 +292,8 @@ public class MetalStorage(
                     }
                 }
             when (val tryResult = callPowf(device.device, encoder, device.kernels, name, this.dtype.sizeInBytes(), el, src, buffer, pow.toFloat()).mapErr(MetalError::from)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         } else {
             val name1 =
@@ -306,11 +307,11 @@ public class MetalStorage(
                     }
                 }
             when (val tryResult = callPowfStrided(device.device, encoder, device.kernels, name1, layout.dims(), src, layout.stride(), buffer, pow.toFloat()).mapErr(MetalError::from)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         }
-        return Ok(MetalStorage.new(buffer, device.clone(), el, dtype))
+        return Result.Ok(MetalStorage.new(buffer, device.clone(), el, dtype))
     }
 
     public fun elu(layout: Layout, alpha: Double): Result<MetalStorage> {
@@ -327,13 +328,13 @@ public class MetalStorage(
                         .withLabel("elu")
                         .build()
             ) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val encoder =
             when (val tryResult = this.device.commandEncoder()) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val src = bufferO(this.buffer, layout, this.dtype)
         if (layout.isContiguous()) {
@@ -348,8 +349,8 @@ public class MetalStorage(
                     }
                 }
             when (val tryResult = callElu(device.device, encoder, device.kernels, name, this.dtype.sizeInBytes(), el, src, buffer, alpha.toFloat()).mapErr(MetalError::from)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         } else {
             val name1 =
@@ -363,11 +364,11 @@ public class MetalStorage(
                     }
                 }
             when (val tryResult = callEluStrided(device.device, encoder, device.kernels, name1, layout.dims(), src, layout.stride(), buffer, alpha.toFloat()).mapErr(MetalError::from)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         }
-        return Ok(MetalStorage.new(buffer, device.clone(), el, dtype))
+        return Result.Ok(MetalStorage.new(buffer, device.clone(), el, dtype))
     }
 
     public fun reduceOp(op: ReduceOp, layout: Layout, sumDims: List<Int>): Result<MetalStorage> {
@@ -378,7 +379,7 @@ public class MetalStorage(
         val dims = mutableListOf()
         val stride = mutableListOf()
         var dstEl: Int = 1
-        for ((dimIdx, d) in srcDims.iter().enumerate()) {
+        for ((dimIdx, d) in srcDims.iter().mapIndexed { index, item -> Pair(index, item) }) {
             if (!sumDims.contains(dimIdx)) {
                 dstEl *= d
                 dims.add(d)
@@ -433,9 +434,9 @@ public class MetalStorage(
                     }
                 }
             if (checkEmpty && layout.shape().elemCount() == 0) {
-                when (val tryResult = Err(Error.EmptyTensor(op = "reduce").bt())) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                when (val tryResult = Result.Err(Error.EmptyTensor(op = "reduce").bt())) {
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             }
             val dtype1 =
@@ -453,20 +454,20 @@ public class MetalStorage(
                             .withLabel("reduce")
                             .build()
                 ) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             val encoder =
                 when (val tryResult = this.device.commandEncoder()) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             val src = bufferO(this.buffer, layout, this.dtype)
             when (val tryResult = callReduceContiguous(device.device, encoder, device.kernels, name, srcDims, dstEl, src, buffer).mapErr(MetalError::from)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
-            return Ok(MetalStorage.new(buffer, device, dstEl, dtype1))
+            return Result.Ok(MetalStorage.new(buffer, device, dstEl, dtype1))
         }
         val (name1, checkEmpty1, returnIndex1) =
             run {
@@ -510,9 +511,9 @@ public class MetalStorage(
                 }
             }
         if (checkEmpty1 && layout.shape().elemCount() == 0) {
-            when (val tryResult = Err(Error.EmptyTensor(op = "reduce").bt())) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            when (val tryResult = Result.Err(Error.EmptyTensor(op = "reduce").bt())) {
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         }
         val dtype3 =
@@ -530,20 +531,20 @@ public class MetalStorage(
                         .withLabel("reduce")
                         .build()
             ) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val encoder1 =
             when (val tryResult = this.device.commandEncoder()) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val src1 = bufferO(this.buffer, layout, this.dtype)
         when (val tryResult = callReduceStrided(device.device, encoder1, device.kernels, name1, dims, stride, dstEl, src1, buffer1).mapErr(MetalError::from)) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
-        return Ok(MetalStorage.new(buffer1, device, dstEl, dtype3))
+        return Result.Ok(MetalStorage.new(buffer1, device, dstEl, dtype3))
     }
 
     public fun cmp(op: CmpOp, rhs: MetalStorage, lhsL: Layout, rhsL: Layout): Result<MetalStorage> {
@@ -567,8 +568,8 @@ public class MetalStorage(
             val elCount = shape.elemCount()
             val encoder =
                 when (val tryResult = device.commandEncoder()) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             val dst = bufferO(selfRef.buffer, l1, selfRef.dtype)
             if (l1.isContiguous()) {
@@ -583,12 +584,12 @@ public class MetalStorage(
                         DType.f8e4m3 -> bail("unsupported const-set f8e4m3")
                         DType.f64 -> bail("unsupported const-set f64")
                         DType.f4, DType.f6e2m3, DType.f6e3m2, DType.f8e8m0, DType.i16, DType.i32 -> {
-                            return Err(Error.UnsupportedDTypeForOp(dtype, "const-set").bt())
+                            return Result.Err(Error.UnsupportedDTypeForOp(dtype, "const-set").bt())
                         }
                     }
                 when (val tryResult = callConstSetContiguous(device.device, encoder, device.kernels, kernelName, dtype.sizeInBytes(), elCount, s1, dst).mapErr(MetalError::from)) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             } else {
                 val kernelName1 =
@@ -602,15 +603,15 @@ public class MetalStorage(
                         DType.f8e4m3 -> bail("unsupported const-set f8e4m3")
                         DType.f64 -> bail("unsupported const-set f64")
                         DType.f4, DType.f6e2m3, DType.f6e3m2, DType.f8e8m0, DType.i16, DType.i32 -> {
-                            return Err(Error.UnsupportedDTypeForOp(dtype, "const-set").bt())
+                            return Result.Err(Error.UnsupportedDTypeForOp(dtype, "const-set").bt())
                         }
                     }
                 when (val tryResult = callConstSetStrided(device.device, encoder, device.kernels, kernelName1, l1.dims(), s1, l1.stride(), dst).mapErr(MetalError::from)) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             }
-            return Ok(Unit)
+            return Result.Ok(Unit)
         }
         return run {
             val matchVal = Pair(this.dtype, s)
@@ -661,13 +662,13 @@ public class MetalStorage(
                         .withLabel("to_dtype")
                         .build()
             ) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val encoder =
             when (val tryResult = device.commandEncoder()) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val src = bufferO(this.buffer, layout, this.dtype)
         if (layout.isContiguous()) {
@@ -713,8 +714,8 @@ public class MetalStorage(
                     }
                 }
             when (val tryResult = callCastContiguous(device.device, encoder, device.kernels, kernelName, this.dtype.sizeInBytes(), elCount, src, buffer).mapErr(MetalError::from)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         } else {
             val kernelName1 =
@@ -759,11 +760,11 @@ public class MetalStorage(
                     }
                 }
             when (val tryResult = callCastStrided(device.device, encoder, device.kernels, kernelName1, layout.dims(), src, layout.stride(), buffer).mapErr(MetalError::from)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         }
-        return Ok(MetalStorage.new(buffer, device.clone(), elCount, dtype))
+        return Result.Ok(MetalStorage.new(buffer, device.clone(), elCount, dtype))
     }
 
     public fun <B : UnaryOpT> unaryImpl(layout: Layout): Result<MetalStorage> {
@@ -780,13 +781,13 @@ public class MetalStorage(
                         .withLabel(B.KERNEL)
                         .build()
             ) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val encoder =
             when (val tryResult = device.commandEncoder()) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val src = bufferO(this.buffer, layout, this.dtype)
         if (layout.isContiguous()) {
@@ -860,8 +861,8 @@ public class MetalStorage(
                     }
                 }
             when (val tryResult = callUnaryContiguous(device.device, encoder, device.kernels, kernelName, dtype.sizeInBytes(), elCount, src, buffer).mapErr(MetalError::from)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         } else {
             val kernelName1 =
@@ -928,11 +929,11 @@ public class MetalStorage(
                 }
             val dst = BufferOffset.zeroOffset(buffer)
             when (val tryResult = callUnaryStrided(device.device, encoder, device.kernels, kernelName1, layout.dims(), src, layout.stride(), dst).mapErr(MetalError::from)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         }
-        return Ok(MetalStorage.new(buffer, device.clone(), elCount, dtype))
+        return Result.Ok(MetalStorage.new(buffer, device.clone(), elCount, dtype))
     }
 
     public fun <B : BinaryOpT> binaryImpl(rhs: MetalStorage, lhsL: Layout, rhsL: Layout): Result<MetalStorage> = this.binary(B.KERNEL, rhs, lhsL, rhsL)
@@ -952,13 +953,13 @@ public class MetalStorage(
                         .withLabel("where")
                         .build()
             ) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val encoder =
             when (val tryResult = this.device.commandEncoder()) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         if (t.dtype() != f.dtype()) {
             bail("Invalid where: different dtypes for values {:?} != {:?}", t.dtype(), f.dtype())
@@ -985,10 +986,10 @@ public class MetalStorage(
         val t1 = bufferO(t.buffer, tL, t.dtype)
         val f1 = bufferO(f.buffer, fL, f.dtype)
         when (val tryResult = callWhereCond(device.device, encoder, device.kernels, name, dtype.sizeInBytes(), dims, src, layout.stride(), layout.isContiguous(), t1, tL.stride(), tL.isContiguous(), f1, fL.stride(), fL.isContiguous(), buffer).mapErr(MetalError::from)) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
-        return Ok(MetalStorage.new(buffer, device, el, dtype))
+        return Result.Ok(MetalStorage.new(buffer, device, el, dtype))
     }
 
     public fun conv1d(layout: Layout, kernel: MetalStorage, kernelL: Layout, params: ParamsConv1D): Result<MetalStorage> {
@@ -1011,13 +1012,13 @@ public class MetalStorage(
                         .withLabel("conv1d_im2col")
                         .build()
             ) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val encoder =
             when (val tryResult = this.device.commandEncoder()) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val name =
             when (val matchVal = this.dtype) {
@@ -1033,8 +1034,8 @@ public class MetalStorage(
             }
         val src = bufferO(this.buffer, layout, this.dtype)
         when (val tryResult = callIm2col1dStrided(this.device.device, encoder, this.device.kernels, name, layout.shape().dims(), strides, listOf(kSize, stride, padding, dilation), src, dst).mapErr(MetalError::from)) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
         drop(encoder)
         val col = MetalStorage(buffer = dst, device = device, count = dstEl, dtype = this.dtype)
@@ -1050,59 +1051,59 @@ public class MetalStorage(
                     when (
                         val tryResult =
                             when (val tryResult = Layout.contiguousWithOffset(Triple(1, n, k), kernelL.startOffset()).transpose(1, 2)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }.broadcastAs(Triple(b, k, n))
                     ) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                 when (val tryResult = col.matmul(kernel, listOf(b, m, n, k), colL, kernelL1)) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             } else {
                 // Make the kernel contiguous if not already the case.
                 val kernelC =
                     when (val tryResult = this.device().zerosImpl(kernelL.shape(), kernel.dtype())) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                 when (val tryResult = kernel.copyStridedSrc(kernelC, 0, kernelL)) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
                 val kernelL2 =
                     when (
                         val tryResult =
                             when (val tryResult = Layout.contiguousWithOffset(Triple(1, n, k), kernelL.startOffset()).transpose(1, 2)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }.broadcastAs(Triple(b, k, n))
                     ) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                 when (val tryResult = col.matmul(kernel, listOf(b, m, n, k), colL, kernelL2)) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             }
         val resL =
             when (val tryResult = Layout.contiguous(Triple(b, lOut1, n)).transpose(1, 2)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val resT =
             when (val tryResult = this.device().zerosImpl(resL.shape(), res.dtype())) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         when (val tryResult = res.copyStridedSrc(resT, 0, resL)) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
-        return Ok(resT)
+        return Result.Ok(resT)
     }
 
     public fun convTranspose1d(layout: Layout, k: MetalStorage, kLayout: Layout, params: ParamsConvTranspose1D): Result<MetalStorage> {
@@ -1114,13 +1115,13 @@ public class MetalStorage(
             if (USE_COL2IM_CONV1D_TR && canUseCol2im) {
                 val (bSize, cIn, lIn) =
                     when (val tryResult = layout.shape().dims3()) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                 val (cIn2, cOut, kSize) =
                     when (val tryResult = kLayout.shape().dims3()) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                 if (cIn != cIn2) {
                     bail("convtr1d: shape mismatch on c_in {:?} {:?}", layout.shape(), kLayout.shape())
@@ -1134,8 +1135,8 @@ public class MetalStorage(
                                 .withLabel("conv_transpose1d")
                                 .build()
                     ) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                 val name =
                     when (val matchVal = this.dtype) {
@@ -1159,14 +1160,14 @@ public class MetalStorage(
                                     k,
                                     listOf(bSize, lIn, cOut * kSize, cIn),
                                     when (val tryResult = layout.transpose(1, 2)) {
-                                        is Result.Ok -> tryResult.value
-                                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                        is Result.Ok<*> -> tryResult.value
+                                        is Result.Err<*> -> return Result.Err(tryResult.error)
                                     },
                                     kernelLMm,
                                 )
                         ) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     }
                 // It is important for the command encoder to be obtained *after* the matmul
@@ -1176,12 +1177,12 @@ public class MetalStorage(
                 // -[IOGPUMetalCommandBuffer setCurrentCommandEncoder:]
                 val encoder =
                     when (val tryResult = this.device.commandEncoder()) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                 when (val tryResult = callCol2im1d(this.device.device, encoder, this.device.kernels, name, listOf(bSize, lIn, cOut, kSize), params.kSize, params.stride, BufferOffset.zeroOffset(col.buffer), buffer).mapErr(MetalError::from)) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
                 buffer
             } else {
@@ -1194,13 +1195,13 @@ public class MetalStorage(
                                 .withLabel("conv_transpose1d")
                                 .build()
                     ) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                 val encoder1 =
                     when (val tryResult = this.device.commandEncoder()) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                 val name1 =
                     when (val matchVal1 = this.dtype) {
@@ -1215,12 +1216,12 @@ public class MetalStorage(
                         }
                     }
                 when (val tryResult = callConvTranspose1d(this.device.device, encoder1, this.device.kernels, name1, params.dilation, params.stride, params.padding, params.outputPadding, params.cOut, lOut, params.bSize, layout.dims(), layout.stride(), kLayout.dims(), kLayout.stride(), this.buffer, layout.startOffset() * this.dtype.sizeInBytes(), k.buffer, kLayout.startOffset() * k.dtype.sizeInBytes(), buffer1).mapErr(MetalError::from)) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
                 buffer1
             }
-        return Ok(MetalStorage.new(buffer2, this.device.clone(), dstEl, this.dtype))
+        return Result.Ok(MetalStorage.new(buffer2, this.device.clone(), dstEl, this.dtype))
     }
 
     public fun conv2d(layout: Layout, kernel: MetalStorage, kernelL: Layout, params: ParamsConv2D): Result<MetalStorage> {
@@ -1246,13 +1247,13 @@ public class MetalStorage(
                         .withLabel("conv2d_im2col")
                         .build()
             ) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val encoder =
             when (val tryResult = this.device.commandEncoder()) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val name =
             when (val matchVal = this.dtype) {
@@ -1268,8 +1269,8 @@ public class MetalStorage(
             }
         val src = bufferO(this.buffer, layout, this.dtype)
         when (val tryResult = callIm2colStrided(this.device.device, encoder, this.device.kernels, name, layout.shape().dims(), layout.stride(), listOf(hK, wK, stride, padding, dilation), src, dst).mapErr(MetalError::from)) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
         drop(encoder)
         val col = MetalStorage(buffer = dst, device = device, count = dstEl, dtype = this.dtype)
@@ -1286,65 +1287,65 @@ public class MetalStorage(
                     when (
                         val tryResult =
                             when (val tryResult = Layout.contiguousWithOffset(Triple(1, n, k), kernelL.startOffset()).transpose(1, 2)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }.broadcastAs(Triple(b, k, n))
                     ) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                 when (val tryResult = col.matmul(kernel, listOf(b, m, n, k), colL, kernelL1)) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             } else {
                 // Make the kernel contiguous if not already the case.
                 val kernelC =
                     when (val tryResult = this.device().zerosImpl(kernelL.shape(), kernel.dtype())) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                 when (val tryResult = kernel.copyStridedSrc(kernelC, 0, kernelL)) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
                 val kernelL2 =
                     when (
                         val tryResult =
                             when (val tryResult = Layout.contiguousWithOffset(Triple(1, n, k), kernelL.startOffset()).transpose(1, 2)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }.broadcastAs(Triple(b, k, n))
                     ) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                 when (val tryResult = col.matmul(kernel, listOf(b, m, n, k), colL, kernelL2)) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             }
         val resL =
             when (
                 val tryResult =
                     when (val tryResult = Layout.contiguous(listOf(b, hOut1, wOut1, n)).transpose(1, 2)) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }.transpose(1, 3)
             ) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val resT =
             when (val tryResult = this.device().zerosImpl(resL.shape(), res.dtype())) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         when (val tryResult = res.copyStridedSrc(resT, 0, resL)) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
-        return Ok(resT)
+        return Result.Ok(resT)
     }
 
     public fun convTranspose2d(l: Layout, kernel: MetalStorage, kernelL: Layout, params: ParamsConvTranspose2D): Result<MetalStorage> {
@@ -1369,13 +1370,13 @@ public class MetalStorage(
                         .withLabel("conv_transpose2d")
                         .build()
             ) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val encoder =
             when (val tryResult = this.device.commandEncoder()) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val name =
             when (val matchVal = this.dtype) {
@@ -1388,18 +1389,18 @@ public class MetalStorage(
                 }
             }
         when (val tryResult = callConvTranspose2d(this.device.device, encoder, this.device.kernels, name, CallConvTranspose2dCfg(dilation = params.dilation, stride = params.stride, padding = params.padding, outputPadding = params.outputPadding, cOut = params.cOut, outH = outH, outW = outW, bSize = params.bSize, inputDims = l.dims(), inputStride = l.stride(), kernelDims = kernelL.dims(), kernelStride = kernelL.stride(), inputOffset = l.startOffset() * this.dtype.sizeInBytes(), kernelOffset = kernelL.startOffset() * kernel.dtype.sizeInBytes()), this.buffer, kernel.buffer, buffer).mapErr(MetalError::from)) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
-        return Ok(MetalStorage.new(buffer, this.device.clone(), dstEl, this.dtype))
+        return Result.Ok(MetalStorage.new(buffer, this.device.clone(), dstEl, this.dtype))
     }
 
     public fun avgPool2d(inpL: Layout, tupleArg1: Pair<Int, Int>, tupleArg2: Pair<Int, Int>): Result<MetalStorage> {
         val shape = inpL.shape()
         val (bSize, channels, width, height) =
             when (val tryResult = shape.dims4()) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val strides = inpL.stride()
         val name =
@@ -1426,27 +1427,27 @@ public class MetalStorage(
                         .withLabel("avg_pool2d")
                         .build()
             ) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val encoder =
             when (val tryResult = this.device.commandEncoder()) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         when (val tryResult = callPool2d(this.device.device, encoder, this.device.kernels, name, inpL.dims(), strides, outW, outH, wK, hK, wStride, hStride, this.buffer, buffer).mapErr(MetalError::from)) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
-        return Ok(MetalStorage.new(buffer, this.device.clone(), dstEl, this.dtype))
+        return Result.Ok(MetalStorage.new(buffer, this.device.clone(), dstEl, this.dtype))
     }
 
     public fun maxPool2d(inpL: Layout, tupleArg1: Pair<Int, Int>, tupleArg2: Pair<Int, Int>): Result<MetalStorage> {
         val shape = inpL.shape()
         val (bSize, channels, width, height) =
             when (val tryResult = shape.dims4()) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val strides = inpL.stride()
         val name =
@@ -1473,19 +1474,19 @@ public class MetalStorage(
                         .withLabel("max_pool2d")
                         .build()
             ) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val encoder =
             when (val tryResult = this.device.commandEncoder()) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         when (val tryResult = callPool2d(this.device.device, encoder, this.device.kernels, name, inpL.dims(), strides, outW, outH, wK, hK, wStride, hStride, this.buffer, buffer).mapErr(MetalError::from)) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
-        return Ok(MetalStorage.new(buffer, this.device.clone(), dstEl, this.dtype))
+        return Result.Ok(MetalStorage.new(buffer, this.device.clone(), dstEl, this.dtype))
     }
 
     public fun upsampleNearest1d(arg0: Layout, arg1: Int): Result<MetalStorage> = bail("Metal upsample_nearest1d not implemented")
@@ -1520,20 +1521,20 @@ public class MetalStorage(
                         .withLabel("upsample_nearest2d")
                         .build()
             ) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val encoder =
             when (val tryResult = this.device.commandEncoder()) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val src = bufferO(this.buffer, inpL, this.dtype)
         when (val tryResult = callUpsampleNearest2d(this.device.device, encoder, this.device.kernels, name, dims, strides, outW, outH, src, buffer).mapErr(MetalError::from)) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
-        return Ok(MetalStorage.new(buffer, this.device.clone(), dstEl, this.dtype))
+        return Result.Ok(MetalStorage.new(buffer, this.device.clone(), dstEl, this.dtype))
     }
 
     public fun upsampleBilinear2d(inpL: Layout, outH: Int, outW: Int, alignCorners: Boolean, scaleH: Double?, scaleW: Double?): Result<MetalStorage> {
@@ -1565,25 +1566,25 @@ public class MetalStorage(
                         .withLabel("upsample_bilinear2d")
                         .build()
             ) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val encoder =
             when (val tryResult = this.device.commandEncoder()) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val src = bufferO(this.buffer, inpL, this.dtype)
         when (val tryResult = callUpsampleBilinear2d(this.device.device, encoder, this.device.kernels, name, dims, strides, outW, outH, alignCorners, scaleH, scaleW, src, buffer).mapErr(MetalError::from)) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
-        return Ok(MetalStorage.new(buffer, this.device.clone(), dstEl, this.dtype))
+        return Result.Ok(MetalStorage.new(buffer, this.device.clone(), dstEl, this.dtype))
     }
 
     public fun gather(srcL: Layout, ids: MetalStorage, idsL: Layout, dim: Int): Result<MetalStorage> {
         if (!idsL.isContiguous()) {
-            return Err(Error.RequiresContiguous(op = "gather").bt())
+            return Result.Err(Error.RequiresContiguous(op = "gather").bt())
         }
         val idsEl = idsL.dims()[dim]
         val dstEl = idsL.shape().elemCount()
@@ -1598,8 +1599,8 @@ public class MetalStorage(
                         .withLabel("gather")
                         .build()
             ) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val name =
             run {
@@ -1630,21 +1631,21 @@ public class MetalStorage(
             }
         val encoder =
             when (val tryResult = this.device.commandEncoder()) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val src = bufferO(this.buffer, srcL, dtype)
         val ids1 = bufferO(ids.buffer, idsL, ids.dtype)
         when (val tryResult = callGather(device.device, encoder, this.device.kernels, name, srcL.dims(), idsEl, dim, src, ids1, buffer).mapErr(MetalError::from)) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
-        return Ok(MetalStorage.new(buffer, device.clone(), dstEl, dtype))
+        return Result.Ok(MetalStorage.new(buffer, device.clone(), dstEl, dtype))
     }
 
     public fun scatterSet(l: Layout, ids: MetalStorage, idsL: Layout, src: MetalStorage, srcL: Layout, dim: Int): Result<Unit> {
         if (!l.isContiguous() || !idsL.isContiguous() || !srcL.isContiguous()) {
-            return Err(Error.RequiresContiguous(op = "scatter").bt())
+            return Result.Err(Error.RequiresContiguous(op = "scatter").bt())
         }
         val name =
             run {
@@ -1661,30 +1662,30 @@ public class MetalStorage(
                     matchVal.first == DType.I64 && matchVal.second == DType.F16 -> "s_i64_f16"
                     matchVal.first == DType.I64 && matchVal.second == DType.BF16 -> "s_i64_bf16"
                     else ->
-                        when (val tryResult = Err(MetalError.UnexpectedDType(msg = "scatter ids should be u8/u32/i64", expected = DType.U32, got = ids.dtype()))) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        when (val tryResult = Result.Err(MetalError.UnexpectedDType(msg = "scatter ids should be u8/u32/i64", expected = DType.U32, got = ids.dtype()))) {
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                 }
             }
         val encoder =
             when (val tryResult = this.device.commandEncoder()) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val dst = bufferO(this.buffer, l, this.dtype)
         val src1 = bufferO(src.buffer, srcL, src.dtype)
         val ids1 = bufferO(ids.buffer, idsL, ids.dtype)
         when (val tryResult = callScatter(this.device.device, encoder, this.device.kernels, name, srcL.dims(), l.dims(), dim, src1, ids1, dst).mapErr(MetalError::from)) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
-        return Ok(Unit)
+        return Result.Ok(Unit)
     }
 
     public fun scatterAddSet(l: Layout, ids: MetalStorage, idsL: Layout, src: MetalStorage, srcL: Layout, dim: Int): Result<Unit> {
         if (!l.isContiguous() || !idsL.isContiguous() || !srcL.isContiguous()) {
-            return Err(Error.RequiresContiguous(op = "scatter-add").bt())
+            return Result.Err(Error.RequiresContiguous(op = "scatter-add").bt())
         }
         val name =
             run {
@@ -1701,25 +1702,25 @@ public class MetalStorage(
                     matchVal.first == DType.I64 && matchVal.second == DType.F16 -> "sa_i64_f16"
                     matchVal.first == DType.I64 && matchVal.second == DType.BF16 -> "sa_i64_bf16"
                     else ->
-                        when (val tryResult = Err(MetalError.UnexpectedDType(msg = "scatter-add ids should be u8/u32/i64", expected = DType.U32, got = ids.dtype()))) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        when (val tryResult = Result.Err(MetalError.UnexpectedDType(msg = "scatter-add ids should be u8/u32/i64", expected = DType.U32, got = ids.dtype()))) {
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                 }
             }
         val encoder =
             when (val tryResult = this.device.commandEncoder()) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val dst = bufferO(this.buffer, l, this.dtype)
         val src1 = bufferO(src.buffer, srcL, src.dtype)
         val ids1 = bufferO(ids.buffer, idsL, ids.dtype)
         when (val tryResult = callScatter(this.device.device, encoder, this.device.kernels, name, srcL.dims(), l.dims(), dim, src1, ids1, dst).mapErr(MetalError::from)) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
-        return Ok(Unit)
+        return Result.Ok(Unit)
     }
 
     public fun indexSelect(ids: MetalStorage, srcL: Layout, idsL: Layout, dim: Int): Result<MetalStorage> {
@@ -1741,8 +1742,8 @@ public class MetalStorage(
                         .withLabel("index_select")
                         .build()
             ) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val name =
             run {
@@ -1775,30 +1776,30 @@ public class MetalStorage(
             }
         val encoder =
             when (val tryResult = this.device.commandEncoder()) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val src = bufferO(this.buffer, srcL, dtype)
         val ids1 = bufferO(ids.buffer, idsL, ids.dtype)
         when (val tryResult = callIndexSelect(device.device, encoder, this.device.kernels, name, srcL.dims(), idsEl, dim, srcL.isContiguous(), srcL.dims(), srcL.stride(), src, ids1, buffer).mapErr(MetalError::from)) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
-        return Ok(MetalStorage.new(buffer, device.clone(), dstEl, dtype))
+        return Result.Ok(MetalStorage.new(buffer, device.clone(), dstEl, dtype))
     }
 
     public fun indexAdd(l: Layout, ids: MetalStorage, idsL: Layout, src: MetalStorage, srcL: Layout, dim: Int): Result<MetalStorage> {
         val acc =
             when (val tryResult = this.device.zerosImpl(l.shape(), this.dtype())) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         when (val tryResult = this.copyStridedSrc(acc, 0, l)) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
         if (!idsL.isContiguous() || !srcL.isContiguous()) {
-            return Err(Error.RequiresContiguous(op = "index-add").bt())
+            return Result.Err(Error.RequiresContiguous(op = "index-add").bt())
         }
         val name =
             run {
@@ -1823,24 +1824,24 @@ public class MetalStorage(
                     matchVal.first == DType.U8 && matchVal.second == DType.U32 -> "ia_u8_u32"
                     matchVal.first == DType.U8 && matchVal.second == DType.U8 -> "ia_u8_u8"
                     else ->
-                        when (val tryResult = Err(MetalError.UnexpectedDType(msg = "index-add ids should be u8/u32/i64", expected = DType.U32, got = ids.dtype()))) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        when (val tryResult = Result.Err(MetalError.UnexpectedDType(msg = "index-add ids should be u8/u32/i64", expected = DType.U32, got = ids.dtype()))) {
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                 }
             }
         val encoder =
             when (val tryResult = this.device.commandEncoder()) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val src1 = bufferO(src.buffer, srcL, src.dtype)
         val ids1 = bufferO(ids.buffer, idsL, ids.dtype)
         when (val tryResult = callIndexAdd(this.device.device, encoder, this.device.kernels, name, srcL.dims(), l.dims(), idsL.dims(), dim, src1, ids1, acc.buffer).mapErr(MetalError::from)) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
-        return Ok(acc)
+        return Result.Ok(acc)
     }
 
     public fun matmul(rhs: MetalStorage, tupleArg1: List<Any?>, lhsL: Layout, rhsL: Layout): Result<MetalStorage> {
@@ -1853,13 +1854,13 @@ public class MetalStorage(
                         .withLabel("matmul")
                         .build()
             ) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val encoder =
             when (val tryResult = this.device.commandEncoder()) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val dtype1 =
             when (val matchVal = this.dtype) {
@@ -1868,14 +1869,14 @@ public class MetalStorage(
                 DType.bf16 -> GemmDType.BF16
                 else -> {
                     val dtype = matchVal
-                    return Err(MetalError.Message("mlx matmul doesn't support $dtype").into())
+                    return Result.Err(MetalError.Message("mlx matmul doesn't support $dtype").into())
                 }
             }
         when (val tryResult = callMlxGemm(this.device.device, encoder, this.device.kernels, dtype1, listOf(b, m, n, k), lhsL.stride(), lhsL.startOffset() * this.dtype.sizeInBytes(), this.buffer, rhsL.stride(), rhsL.startOffset() * rhs.dtype.sizeInBytes(), rhs.buffer, buffer).mapErr(MetalError::from)) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
-        return Ok(MetalStorage.new(buffer, this.device.clone(), b * m * n, this.dtype()))
+        return Result.Ok(MetalStorage.new(buffer, this.device.clone(), b * m * n, this.dtype()))
     }
 
     public fun copy2d(dst: MetalStorage, d1: Int, d2: Int, srcS: Int, dstS: Int, srcO: Int, dstO: Int): Result<Unit> {
@@ -1885,8 +1886,8 @@ public class MetalStorage(
         if (srcS == d2 && dstS == d2) {
             val blit =
                 when (val tryResult = this.device.blitCommandEncoder()) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             blit.setLabel("copy2d_contiguous")
             val srcOffset = srcO * this.dtype.sizeInBytes()
@@ -1896,7 +1897,7 @@ public class MetalStorage(
         } else {
             val elCount = d1 * d2
             if (elCount == 0) {
-                return Ok(Unit)
+                return Result.Ok(Unit)
             }
             val kernelName =
                 when (val matchVal = this.dtype) {
@@ -1915,23 +1916,23 @@ public class MetalStorage(
                 }
             val encoder =
                 when (val tryResult = this.device.commandEncoder()) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             when (val tryResult = callCopy2d(this.device.device, encoder, this.device.kernels, kernelName, this.buffer, dst.buffer, d1, d2, srcS, dstS, srcO * this.dtype.sizeInBytes(), dstO * this.dtype.sizeInBytes()).mapErr(MetalError::from)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         }
-        return Ok(Unit)
+        return Result.Ok(Unit)
     }
 
     public fun copyStridedSrc(dst: MetalStorage, dstOffset: Int, srcL: Layout): Result<Unit> {
         if (srcL.isContiguous() && this.dtype == dst.dtype()) {
             val blit =
                 when (val tryResult = this.device.blitCommandEncoder()) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             blit.setLabel("copy_contiguous")
             val srcOffset = srcL.startOffset() * this.dtype.sizeInBytes()
@@ -1942,7 +1943,7 @@ public class MetalStorage(
             val srcShape = srcL.shape()
             val elCount = srcShape.elemCount()
             if (elCount == 0) {
-                return Ok(Unit)
+                return Result.Ok(Unit)
             }
             if (this.dtype == dst.dtype()) {
                 val strides = srcL.stride()
@@ -1978,15 +1979,15 @@ public class MetalStorage(
             val dst1 = BufferOffset(buffer = dst.buffer, offsetInBytes = dstOffset * dst.dtype.sizeInBytes())
             val encoder =
                 when (val tryResult = this.device.commandEncoder()) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             when (val tryResult = callUnaryStrided(this.device.device, encoder, this.device.kernels, kernelName, srcL.dims(), src, srcL.stride(), dst1).mapErr(MetalError::from)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         }
-        return Ok(Unit)
+        return Result.Ok(Unit)
     }
 
     public fun binary(op: String, rhs: MetalStorage, lhsL: Layout, rhsL: Layout): Result<MetalStorage> {
@@ -1996,8 +1997,8 @@ public class MetalStorage(
         val elCount = shape.elemCount()
         val encoder =
             when (val tryResult = device.commandEncoder()) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val lhs = bufferO(this.buffer, lhsL, this.dtype)
         val rhs1 = bufferO(rhs.buffer, rhsL, rhs.dtype)
@@ -2037,12 +2038,12 @@ public class MetalStorage(
                                 .withLabel(op)
                                 .build()
                     ) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                 when (val tryResult = callBinaryContiguous(device.device, encoder, device.kernels, kernel, this.dtype.sizeInBytes(), elCount, lhs, rhs1, buffer).mapErr(MetalError::from)) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
                 buffer
             } else {
@@ -2055,16 +2056,16 @@ public class MetalStorage(
                                 .withLabel(op)
                                 .build()
                     ) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                 when (val tryResult = callBinaryStrided(device.device, encoder, device.kernels, kernel, this.dtype.sizeInBytes(), lhsL.dims(), lhs, lhsL.stride(), rhs1, rhsL.stride(), buffer1).mapErr(MetalError::from)) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
                 buffer1
             }
-        return Ok(MetalStorage.new(buffer2, device.clone(), elCount, dtype))
+        return Result.Ok(MetalStorage.new(buffer2, device.clone(), elCount, dtype))
     }
 
     internal fun <T> toCpu(): Result<List<T>> {
@@ -2078,23 +2079,23 @@ public class MetalStorage(
                         .withLabel("blit_to_cpu_dst")
                         .build()
             ) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         run {
             val blit =
                 when (val tryResult = this.device.blitCommandEncoder()) {
-                    is Result.Ok -> tryResult.value
-                    is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                    is Result.Ok<*> -> tryResult.value
+                    is Result.Err<*> -> return Result.Err(tryResult.error)
                 }
             blit.setLabel("blit_to_cpu")
             blit.copyFromBuffer(this.buffer, 0, buffer, 0, size)
         }
         when (val tryResult = this.device.flushAndWaitCurrent()) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
-        return Ok(readToVec(buffer, this.count))
+        return Result.Ok(readToVec(buffer, this.count))
     }
 
     public companion object {

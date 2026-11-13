@@ -11,17 +11,15 @@ import io.github.kotlinmania.candle.error.Error
 import io.github.kotlinmania.candle.error.Result
 import io.github.kotlinmania.candle.layout.Layout
 import io.github.kotlinmania.cutile.cudaasync.devicebuffer.DevicePointer
+import io.github.kotlinmania.cutile.cudacore.Device
 import io.github.kotlinmania.cutile.cudacore.Stream
 import io.github.kotlinmania.cutile.cutilecompiler.cudatileruntimeutils.getGpuName
 import io.github.kotlinmania.cutile.cutilecompiler.cudatileruntimeutils.tileirasBinary
 import io.github.kotlinmania.rustlang.core.mem.TypeLayout
 import io.github.kotlinmania.rustlang.core.mem.mutPtrFromRustCast
-import io.github.kotlinmania.rustlang.core.result.fromResidual
-import io.github.kotlinmania.rustlang.std.path.Path
-import io.github.kotlinmania.rustlang.std.path.PathBuf
-import io.github.kotlinmania.rustlang.std.process.Command
-import io.github.kotlinmania.rustlang.std.sync.Mutex
-import io.github.kotlinmania.rustlang.std.sync.OnceLock
+import io.github.kotlinmania.rustlang.core.result.orElse
+import io.github.kotlinmania.rustlang.core.result.unwrapOr
+import io.github.kotlinmania.rustlang.core.result.unwrapOrElse
 
 // cuTile kernel authoring and CUDA stream interop.
 //
@@ -51,20 +49,20 @@ public data class CutileContext(
      */
     public fun <T : DeviceRepr> read(slice: CudaSlice<T>, offset: Int, typeLayoutT: TypeLayout<T>): Result<CutileRead<T>> {
         if (offset > slice.len()) {
-            return Err(Error.msg("cuTile read offset $offset exceeds allocation length ${slice.len()}"))
+            return Result.Err(Error.msg("cuTile read offset $offset exceeds allocation length ${slice.len()}"))
         }
         val (pointer, guard) = slice.devicePtr(this.candleStream)
         val byteOffset =
-            when (val tryResult = ((offset).toLong() * (sizeOf<T>(typeLayoutT = typeLayoutT)).toLong()).takeIf { it in Int.MIN_VALUE..Int.MAX_VALUE }?.toInt().okOrElse({ Error.msg("cuTile read offset overflow") })) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            when (val tryResult = ((((offset).toLong() * (sizeOf<T>(typeLayoutT = typeLayoutT)).toLong()).takeIf { it in Int.MIN_VALUE..Int.MAX_VALUE }?.toInt())?.let { Result.Ok(it) } ?: Result.Err(Error.msg("cuTile read offset overflow")))) {
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val pointer1 =
-            when (val tryResult = ((pointer).toLong() + (byteOffset.toULong()).toLong()).takeIf { it in Int.MIN_VALUE..Int.MAX_VALUE }?.toInt().okOrElse({ Error.msg("cuTile read pointer overflow") })) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            when (val tryResult = ((((pointer).toLong() + (byteOffset.toULong()).toLong()).takeIf { it in Int.MIN_VALUE..Int.MAX_VALUE }?.toInt())?.let { Result.Ok(it) } ?: Result.Err(Error.msg("cuTile read pointer overflow")))) {
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
-        return Ok(CutileRead(pointer = DevicePointer.fromCuDeviceptr(pointer1), guard = guard))
+        return Result.Ok(CutileRead(pointer = DevicePointer.fromCuDeviceptr(pointer1), guard = guard))
     }
 
     /**
@@ -72,20 +70,20 @@ public data class CutileContext(
      */
     public fun <T : DeviceRepr> write(slice: CudaSlice<T>, offset: Int, typeLayoutT: TypeLayout<T>): Result<CutileWrite<T>> {
         if (offset > slice.len()) {
-            return Err(Error.msg("cuTile write offset $offset exceeds allocation length ${slice.len()}"))
+            return Result.Err(Error.msg("cuTile write offset $offset exceeds allocation length ${slice.len()}"))
         }
         val (pointer, guard) = slice.devicePtrMut(this.candleStream)
         val byteOffset =
-            when (val tryResult = ((offset).toLong() * (sizeOf<T>(typeLayoutT = typeLayoutT)).toLong()).takeIf { it in Int.MIN_VALUE..Int.MAX_VALUE }?.toInt().okOrElse({ Error.msg("cuTile write offset overflow") })) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            when (val tryResult = ((((offset).toLong() * (sizeOf<T>(typeLayoutT = typeLayoutT)).toLong()).takeIf { it in Int.MIN_VALUE..Int.MAX_VALUE }?.toInt())?.let { Result.Ok(it) } ?: Result.Err(Error.msg("cuTile write offset overflow")))) {
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val pointer1 =
-            when (val tryResult = ((pointer).toLong() + (byteOffset.toULong()).toLong()).takeIf { it in Int.MIN_VALUE..Int.MAX_VALUE }?.toInt().okOrElse({ Error.msg("cuTile write pointer overflow") })) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            when (val tryResult = ((((pointer).toLong() + (byteOffset.toULong()).toLong()).takeIf { it in Int.MIN_VALUE..Int.MAX_VALUE }?.toInt())?.let { Result.Ok(it) } ?: Result.Err(Error.msg("cuTile write pointer overflow")))) {
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
-        return Ok(CutileWrite(pointer = DevicePointer.fromCuDeviceptr(pointer1), guard = guard))
+        return Result.Ok(CutileWrite(pointer = DevicePointer.fromCuDeviceptr(pointer1), guard = guard))
     }
 
     /**
@@ -94,8 +92,8 @@ public data class CutileContext(
     public fun <T> readStorage(storage: CudaStorage, layout: Layout): Result<CutileRead<T>> where T : CudaDType, T : DeviceRepr {
         return this.read(
             when (val tryResult = storage.asCudaSlice<T>()) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             },
             layout.startOffset(),
         )
@@ -107,8 +105,8 @@ public data class CutileContext(
     public fun <T> writeStorage(storage: CudaStorage, layout: Layout): Result<CutileWrite<T>> where T : CudaDType, T : DeviceRepr {
         return this.write(
             when (val tryResult = storage.asCudaSliceMut<T>()) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             },
             layout.startOffset(),
         )
@@ -122,16 +120,16 @@ public data class CutileContext(
             val candleStream = device.cudaStream()
             val candleContext = candleStream.context()
             when (val tryResult = candleContext.bindToThread().w()) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
             when (val tryResult = checkDeviceSupport(candleContext.ordinal())) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
             val cutileDevice = Device.borrowWithOwner(mutPtrFromRustCast(candleContext.cuCtx()), candleContext.cuDevice().toInt(), candleContext.ordinal(), candleContext.clone())
             val cutileStream = Stream.borrowWithOwner(mutPtrFromRustCast(candleStream.cuStream()), cutileDevice, candleStream.clone())
-            return Ok(CutileContext(candleStream = candleStream, cutileStream = cutileStream))
+            return Result.Ok(CutileContext(candleStream = candleStream, cutileStream = cutileStream))
         }
     }
 }
@@ -141,15 +139,15 @@ public data class CutileContext(
  */
 public fun checkDeviceSupport(ordinal: Int): Result<Unit> {
     val tileiras = tileirasBinary()
-    val supported = tileirasGpuNames(tileiras) ?: return Ok(Unit)
+    val supported = tileirasGpuNames(tileiras) ?: return Result.Ok(Unit)
     return ensureGpuSupported(ordinal, getGpuName(ordinal), tileiras, supported)
 }
 
 public fun ensureGpuSupported(ordinal: Int, gpuName: String, tileiras: Path, supported: List<String>): Result<Unit> {
     if (supported.any({ name -> name == gpuName })) {
-        return Ok(Unit)
+        return Result.Ok(Unit)
     }
-    return Err(Error.msg("cuTile cannot target CUDA device " + (ordinal).toString() + ": it is " + (gpuName).toString() + ", but " + (tileiras.display()).toString() + " supports only " + (supported.join(", ")).toString() + ". Use a supported GPU or a CUDA toolkit whose tileiras supports " + (gpuName).toString() + "."))
+    return Result.Err(Error.msg("cuTile cannot target CUDA device " + (ordinal).toString() + ": it is " + (gpuName).toString() + ", but " + (tileiras.display()).toString() + " supports only " + (supported.join(", ")).toString() + ". Use a supported GPU or a CUDA toolkit whose tileiras supports " + (gpuName).toString() + "."))
 }
 
 public typealias GpuNames = List<String>?
@@ -158,7 +156,7 @@ public typealias GpuNames = List<String>?
  * Architectures accepted by `tileiras - - gpu - name`, probed once per binary.
  */
 public fun tileirasGpuNames(tileiras: Path): GpuNames {
-    val CACHE: OnceLock<Mutex<Map<PathBuf, GpuNames>>> = OnceLock.new()
+    val CACHE: OnceLock<Mutex<MutableMap<PathBuf, GpuNames>>> = OnceLock.new()
     val cache = CACHE.getOrInit(Default::default).lock().unwrapOrElse({ poisoned -> poisoned.intoInner() })
     when (val matchVal = cache.get(tileiras)) {
         null -> {}
@@ -182,8 +180,8 @@ public fun probeTileirasGpuNames(tileiras: Path): GpuNames {
                     .output()
                     .ok()
         ) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
     val help = String.fromUtf8Lossy(output.stdout).intoOwned()
     help.pushStr(String.fromUtf8Lossy(output.stderr))
@@ -247,23 +245,17 @@ public fun <T, E> kernel(operation: String, f: () -> Result<T, E>): Result<T> =
     run {
         val matchVal = catchUnwind(AssertUnwindSafe(f))
         when {
-            matchVal is Ok && matchVal.value is Ok -> {
-                val (value) = matchVal.value as Ok
-                Ok(value)
-            }
-            matchVal is Ok && matchVal.value is Err -> {
-                val (error) = matchVal.value as Err
-                Err(Error.msg("cuTile $operation: $error"))
-            }
+            matchVal is Result.Ok<*> && matchVal.value is Result.Ok<*> -> Result.Ok(value)
+            matchVal is Result.Ok<*> && matchVal.value is Result.Err<*> -> Result.Err(Error.msg("cuTile $operation: $error"))
             else -> {
-                val (payload) = matchVal
+                val payload = (matchVal as Result.Err<*>).error
                 val message =
                     payload
                         .downcastRef<String>()
                         .map(String::asStr)
                         .orElse({ payload.downcastRef<String>().copied() })
                         .unwrapOr("non-string panic")
-                Err(Error.msg("cuTile $operation panicked: $message"))
+                Result.Err(Error.msg("cuTile $operation panicked: $message"))
             }
         }
     }

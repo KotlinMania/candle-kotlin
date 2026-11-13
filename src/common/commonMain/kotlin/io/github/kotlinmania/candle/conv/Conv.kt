@@ -10,7 +10,6 @@ import io.github.kotlinmania.candle.tensor.Tensor
 import io.github.kotlinmania.candle.tensor.fromStorage
 import io.github.kotlinmania.rustlang.core.mem.PrimitiveLayouts
 import io.github.kotlinmania.rustlang.core.mem.TypeLayout
-import io.github.kotlinmania.rustlang.core.result.fromResidual
 
 // 1D and 2D Convolutions
 
@@ -177,12 +176,12 @@ public data class ParamsConvTranspose2D(
 public fun Tensor.conv1dSingleGroup(kernel: Tensor, params: ParamsConv1D): Result<Tensor> {
     val storage =
         when (val tryResult = this.storage().conv1d(this.layout(), kernel.storage(), kernel.layout(), params)) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
     val op = BackpropOp.new2(this, kernel, { arg, kernel1 -> Op.Conv1D(arg = arg, kernel = kernel1, padding = params.padding, stride = params.stride, dilation = params.dilation) })
     val outDims = params.outDims()
-    return Ok(fromStorage(storage, outDims, op, false))
+    return Result.Ok(fromStorage(storage, outDims, op, false))
 }
 
 /**
@@ -196,18 +195,18 @@ public fun Tensor.conv1d(kernel: Tensor, padding: Int, stride: Int, dilation: In
 public fun Tensor.conv1dWithAlgo(kernel: Tensor, padding: Int, stride: Int, dilation: Int, groups: Int, cudnnFwdAlgo: CudnnFwdAlgo?): Result<Tensor> {
     val (cOut, cInK, kSize) =
         when (val tryResult = kernel.dims3()) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
     val (bSize, cIn, lIn) =
         when (val tryResult = this.dims3()) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
     if (cIn != cInK * groups) {
-        when (val tryResult = Err(Error.Conv1dInvalidArgs(inpShape = this.shape().clone(), kShape = kernel.shape().clone(), padding = padding, stride = stride, msg = "the number of in-channels on the input doesn't match the kernel size").bt())) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+        when (val tryResult = Result.Err(Error.Conv1dInvalidArgs(inpShape = this.shape().clone(), kShape = kernel.shape().clone(), padding = padding, stride = stride, msg = "the number of in-channels on the input doesn't match the kernel size").bt())) {
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
     }
     val params = ParamsConv1D(bSize = bSize, lIn = lIn, cOut = cOut / groups, cIn = cIn / groups, kSize = kSize, padding = padding, stride = stride, dilation = dilation, cudnnFwdAlgo = cudnnFwdAlgo)
@@ -216,18 +215,18 @@ public fun Tensor.conv1dWithAlgo(kernel: Tensor, padding: Int, stride: Int, dila
     } else {
         val blocks =
             when (val tryResult = this.chunk(groups, 1)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val kernel1 =
             when (val tryResult = kernel.chunk(groups, 0)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val blocks1 =
             when (val tryResult = (blocks.iter().zip(kernel1)).map({ (block, kernel2) -> block.conv1dSingleGroup(kernel2, params) }).collect<Result<Vec>>()) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         Tensor.cat(blocks1, 1)
     }
@@ -236,12 +235,12 @@ public fun Tensor.conv1dWithAlgo(kernel: Tensor, padding: Int, stride: Int, dila
 public fun Tensor.convTranspose1dSingleGroup(kernel: Tensor, params: ParamsConvTranspose1D): Result<Tensor> {
     val storage =
         when (val tryResult = this.storage().convTranspose1d(this.layout(), kernel.storage(), kernel.layout(), params)) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
     val op = BackpropOp.new2(this, kernel, { arg, kernel1 -> Op.ConvTranspose1D(arg = arg, kernel = kernel1, padding = params.padding, outputPadding = params.outputPadding, stride = params.stride, dilation = params.dilation) })
     val outDims = params.outDims()
-    return Ok(fromStorage(storage, outDims, op, false))
+    return Result.Ok(fromStorage(storage, outDims, op, false))
 }
 
 /**
@@ -250,13 +249,13 @@ public fun Tensor.convTranspose1dSingleGroup(kernel: Tensor, params: ParamsConvT
 public fun Tensor.convTranspose1d(kernel: Tensor, padding: Int, outputPadding: Int, stride: Int, dilation: Int, groups: Int): Result<Tensor> {
     val (cInK, cOut, kSize) =
         when (val tryResult = kernel.dims3()) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
     val (bSize, cIn, lIn) =
         when (val tryResult = this.dims3()) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
     if (cIn != cInK) {
         bail("in_channel mismatch between input ({c_in}) and kernel ({c_in_k})")
@@ -270,18 +269,18 @@ public fun Tensor.convTranspose1d(kernel: Tensor, padding: Int, outputPadding: I
     } else {
         val blocks =
             when (val tryResult = this.chunk(groups, 1)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val kernel1 =
             when (val tryResult = kernel.chunk(groups, 0)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val blocks1 =
             when (val tryResult = (blocks.iter().zip(kernel1)).map({ (block, kernel2) -> block.convTranspose1dSingleGroup(kernel2, params) }).collect<Result<Vec>>()) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         Tensor.cat(blocks1, 1)
     }
@@ -290,12 +289,12 @@ public fun Tensor.convTranspose1d(kernel: Tensor, padding: Int, outputPadding: I
 public fun Tensor.conv2dSingleGroup(kernel: Tensor, params: ParamsConv2D): Result<Tensor> {
     val storage =
         when (val tryResult = this.storage().conv2d(this.layout(), kernel.storage(), kernel.layout(), params)) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
     val op = BackpropOp.new2(this, kernel, { arg, kernel1 -> Op.Conv2D(arg = arg, kernel = kernel1, padding = params.padding, stride = params.stride, dilation = params.dilation) })
     val outDims = params.outDims()
-    return Ok(fromStorage(storage, outDims, op, false))
+    return Result.Ok(fromStorage(storage, outDims, op, false))
 }
 
 /**
@@ -306,13 +305,13 @@ public fun Tensor.conv2d(kernel: Tensor, padding: Int, stride: Int, dilation: In
 public fun Tensor.conv2dWithAlgo(kernel: Tensor, padding: Int, stride: Int, dilation: Int, groups: Int, cudnnFwdAlgo: CudnnFwdAlgo?): Result<Tensor> {
     val (bSize, cIn, iH, iW) =
         when (val tryResult = this.dims4()) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
     val (cOut, cInK, kH, kW) =
         when (val tryResult = kernel.dims4()) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
     if (cIn != cInK * groups) {
         bail("in_channel mismatch between input ({c_in}, groups {groups}) and kernel ({c_in_k})")
@@ -323,18 +322,18 @@ public fun Tensor.conv2dWithAlgo(kernel: Tensor, padding: Int, stride: Int, dila
     } else {
         val blocks =
             when (val tryResult = this.chunk(groups, 1)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val kernel1 =
             when (val tryResult = kernel.chunk(groups, 0)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val blocks1 =
             when (val tryResult = (blocks.iter().zip(kernel1)).map({ (block, kernel2) -> block.conv2dSingleGroup(kernel2, params) }).collect<Result<Vec>>()) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         Tensor.cat(blocks1, 1)
     }
@@ -346,13 +345,13 @@ public fun Tensor.conv2dWithAlgo(kernel: Tensor, padding: Int, stride: Int, dila
 public fun Tensor.convTranspose2d(kernel: Tensor, padding: Int, outputPadding: Int, stride: Int, dilation: Int): Result<Tensor> {
     val (bSize, cIn, iH, iW) =
         when (val tryResult = this.dims4()) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
     val (cInK, cOut, kH, kW) =
         when (val tryResult = kernel.dims4()) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
     if (cIn != cInK) {
         bail("in_channel mismatch between input ({c_in}) and kernel ({c_in_k})")
@@ -360,10 +359,10 @@ public fun Tensor.convTranspose2d(kernel: Tensor, padding: Int, outputPadding: I
     val params = ParamsConvTranspose2D(bSize = bSize, iH = iH, iW = iW, kH = kH, kW = kW, cOut = cOut, cIn = cIn, padding = padding, outputPadding = outputPadding, stride = stride, dilation = dilation)
     val storage =
         when (val tryResult = this.storage().convTranspose2d(this.layout(), kernel.storage(), kernel.layout(), params)) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
     val op = BackpropOp.new2(this, kernel, { arg, kernel1 -> Op.ConvTranspose2D(arg = arg, kernel = kernel1, padding = params.padding, outputPadding = params.outputPadding, stride = params.stride, dilation = params.dilation) })
     val outDims = params.outDims()
-    return Ok(fromStorage(storage, outDims, op, false))
+    return Result.Ok(fromStorage(storage, outDims, op, false))
 }

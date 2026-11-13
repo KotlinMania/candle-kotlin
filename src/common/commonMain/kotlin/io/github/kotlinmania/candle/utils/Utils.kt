@@ -1,27 +1,24 @@
 // port-lint: source utils.rs
 package io.github.kotlinmania.candle.utils
 
-import io.github.kotlinmania.candle.RustAny
+import io.github.kotlinmania.candle.cpu.Cpu
 import io.github.kotlinmania.candle.cpu.features.get
 import io.github.kotlinmania.libc.pthreadSetQosClassSelfNp
 import io.github.kotlinmania.libc.qosclasst.QOS_CLASS_USER_INTERACTIVE
 import io.github.kotlinmania.libc.sysctlbyname
 import io.github.kotlinmania.numcpus.getPhysical
 import io.github.kotlinmania.rayon.ThreadPool
+import io.github.kotlinmania.rayon.ThreadPoolBuilder
+import io.github.kotlinmania.rustlang.core.RustAny
 import io.github.kotlinmania.rustlang.core.mem.AddressableLocal
 import io.github.kotlinmania.rustlang.core.mem.ObjectSlotLayout
 import io.github.kotlinmania.rustlang.core.mem.PrimitiveLayouts
+import io.github.kotlinmania.rustlang.core.mem.TypeLayout
 import io.github.kotlinmania.rustlang.core.mem.constPtrFromRustCast
 import io.github.kotlinmania.rustlang.core.ptr.ConstPtr
 import io.github.kotlinmania.rustlang.core.ptr.MutPtr
-import io.github.kotlinmania.rustlang.std.cell.UnsafeCell
-import io.github.kotlinmania.rustlang.std.hint.spinLoop
-import io.github.kotlinmania.rustlang.std.sync.Mutex
-import io.github.kotlinmania.rustlang.std.sync.OnceLock
-import io.github.kotlinmania.rustlang.std.sync.atomic.AtomicBool
-import io.github.kotlinmania.rustlang.std.sync.atomic.AtomicUsize
-import io.github.kotlinmania.rustlang.std.sync.atomic.Ordering
-import io.github.kotlinmania.rustlang.std.thread.Thread
+import io.github.kotlinmania.rustlang.core.result.Result
+import io.github.kotlinmania.rustlang.core.result.unwrapOr
 
 // Useful functions for checking features.
 
@@ -84,11 +81,10 @@ public class WorkDesc internal constructor(
         public operator fun invoke(
             trampoline: WorkDescTrampolineCallback = WorkDescTrampolineCallback { _, _ -> },
             data: ConstPtr = ConstPtr(0L),
-        ): WorkDesc =
-            WorkDesc(
-                trampoline = trampoline,
-                dataCtorArg = data,
-            )
+        ): WorkDesc = WorkDesc(
+            trampoline = trampoline,
+            dataCtorArg = data,
+        )
     }
 }
 
@@ -158,14 +154,13 @@ public class BarrierPoolInner internal constructor(
             work: UnsafeCell<WorkDesc> = UnsafeCell<WorkDesc>(),
             stop: AtomicBool = AtomicBool(),
             panicPayload: Mutex<RustAny?> = Mutex<RustAny?>(),
-        ): BarrierPoolInner =
-            BarrierPoolInner(
-                slots = slots,
-                handlesCtorArg = handles,
-                workCtorArg = work,
-                stop = stop,
-                panicPayloadCtorArg = panicPayload,
-            )
+        ): BarrierPoolInner = BarrierPoolInner(
+            slots = slots,
+            handlesCtorArg = handles,
+            workCtorArg = work,
+            stop = stop,
+            panicPayloadCtorArg = panicPayload,
+        )
     }
 }
 
@@ -243,14 +238,12 @@ public class BarrierPool internal constructor(
         guard = newGen
         run {
             val work = this.inner.work.get()
-            work.trampoline = WorkDescTrampolineCallback { data, tid -> callTrampoline<(Int) -> Unit>(data, tid) }
+            work.trampoline = callTrampoline<(Int) -> Unit>
             work.data = ConstPtr((constPtrFromRustCast(f)).rawAddress, (constPtrFromRustCast(f)).rawMeta)
         }
         val handles = this.inner.handles.get()!!
         for (root in this.rootWorkers) {
-            this.inner.slots[root]
-                .go
-                .store(newGen, Ordering.Release)
+            this.inner.slots[root].go.store(newGen, Ordering.Release)
             handles[root].unpark()
         }
         // Guard waits for workers and propagates panics on drop.
@@ -261,7 +254,7 @@ public class BarrierPool internal constructor(
 
     // Uniform, short work units can avoid shared-cursor contention by assigning
     // one contiguous range per thread.
-    internal fun executeStatic(nItems: Int, f: (Range<Int>) -> Unit) {
+    internal fun executeStatic(nItems: Int, f: (IntRange) -> Unit) {
         if (nItems == 0) {
             return
         }
@@ -280,7 +273,7 @@ public class BarrierPool internal constructor(
 
     // Static per-tid slices make every op wait for the slowest thread; a shared cursor
     // lets fast threads absorb a straggler's work instead of spinning at the barrier.
-    public fun executeChunked(nItems: Int, f: (Range<Int>) -> Unit) {
+    public fun executeChunked(nItems: Int, f: (IntRange) -> Unit) {
         if (nItems == 0) {
             return
         }
@@ -293,15 +286,13 @@ public class BarrierPool internal constructor(
         // ~8 grabs per thread amortizes cursor contention while keeping tail imbalance small
         val chunk = nItems.divCeil(nThreads * 8).max(1)
         val cursor = AtomicUsize.new(0)
-        this.execute({
-            while (true) {
-                val start = cursor.fetchAdd(chunk, Ordering.Relaxed)
-                if (start >= nItems) {
-                    break
-                }
-                f(start until nItems.min(start + chunk))
+        this.execute({ while (true) {
+            val start = cursor.fetchAdd(chunk, Ordering.Relaxed)
+            if (start >= nItems) {
+                break
             }
-        })
+            f(start until nItems.min(start + chunk))
+        } })
     }
 
     public fun drop() {
@@ -309,14 +300,10 @@ public class BarrierPool internal constructor(
             return
         }
         this.inner.stop.store(true, Ordering.Relaxed)
-        val newGen =
-            this.callLock
-                .lock()
-                .unwrap()
-                .wrappingAdd(1)
+        val newGen = this.callLock.lock().unwrap().wrappingAdd(1)
         val handles = this.inner.handles.get()
         // Signal ALL slots and unpark them so parked workers wake immediately.
-        for ((i, slot) in this.inner.slots.enumerate()) {
+        for ((i, slot) in this.inner.slots.mapIndexed { index, item -> Pair(index, item) }) {
             slot.go.store(newGen, Ordering.Release)
             if (handles != null) {
                 val hs = handles
@@ -334,13 +321,12 @@ public class BarrierPool internal constructor(
             threads: MutableList<JoinHandle<Unit>> = mutableListOf(),
             rootWorkers: List<Int> = emptyList(),
             callLock: Mutex<Int> = Mutex<Int>(),
-        ): BarrierPool =
-            BarrierPool(
-                inner = inner,
-                threadsCtorArg = threads,
-                rootWorkers = rootWorkers,
-                callLockCtorArg = callLock,
-            )
+        ): BarrierPool = BarrierPool(
+            inner = inner,
+            threadsCtorArg = threads,
+            rootWorkers = rootWorkers,
+            callLockCtorArg = callLock,
+        )
 
         public fun new(nWorkers: Int): BarrierPool {
             val inner = BarrierPoolInner(slots = (0 until nWorkers).map({ Slot(go = AtomicUsize.new(0), done = AtomicUsize.new(0)) }).collect<Vec>().intoBoxedSlice(), handles = OnceLock.new(), work = UnsafeCell.new(WorkDesc(trampoline = {}, data = ConstPtr(0L))), stop = AtomicBool.new(false), panicPayload = Mutex.new(null))
@@ -349,95 +335,76 @@ public class BarrierPool internal constructor(
             val (children, rootWorkers) = computeTree(nWorkers, clusterSize)
             val spinLimit = barrierPoolSpinLimit()
             val threads: Vec =
-                (0 until nWorkers)
-                    .map({ tid ->
-                        val children1 = children[tid].clone()
-                        Builder
-                            .new()
-                            .name("candle-bp-$tid")
-                            .spawn(
-                                closure@{
-                                    IN_BARRIER_POOL.with({ f -> f.set(true) })
-                                    setThreadAffinity()
-                                    val inner1 = (ObjectSlotLayout<BarrierPoolInner>()).readNative(((ConstPtr(innerPtr.toLong()))).rawAddress)
-                                    val slot = inner1.slots[tid]
-                                    var gen = 0
-                                    while (true) {
-                                        // Spin briefly then park, waiting for next work item.
-                                        var spins = 0u
-                                        while (true) {
-                                            val g = slot.go.load(Ordering.Acquire)
-                                            if (g != gen) {
-                                                gen = g
-                                                break
-                                            }
-                                            if (inner1.stop.load(Ordering.Relaxed)) {
-                                                return@closure
-                                            }
-                                            spins += 1u
-                                            if (spins < spinLimit) {
-                                                spinLoop()
-                                            } else {
-                                                // Park deposits a token; unpark() before park() returns immediately — no race.
-                                                park()
-                                                spins = 0u
-                                            }
-                                        }
-                                        if (inner1.stop.load(Ordering.Relaxed)) {
-                                            break
-                                        }
-                                        // Fan work out to children.
-                                        val handles = inner1.handles.get()!!
-                                        for (child in children1) {
-                                            inner1.slots[child].go.store(gen, Ordering.Release)
-                                            handles[child].unpark()
-                                        }
-                                        // Execute own work, catching panics so done is always signalled.
-                                        when (
-                                            val matchVal =
-                                                catchUnwind(
-                                                    AssertUnwindSafe({
-                                                        val work = inner1.work.get()
-                                                        (work.trampoline)(work.data, tid)
-                                                    }),
-                                                )
-                                        ) {
-                                            is Err -> {
-                                                val (payload) = matchVal
-                                                var p = inner1.panicPayload.lock().unwrap()
-                                                if (p == null) {
-                                                    p = payload
-                                                }
-                                            }
-                                            else -> {}
-                                        }
-                                        // Reduce: wait for all children before signalling parent.
-                                        for (child1 in children1) {
-                                            while (inner1.slots[child1].done.load(Ordering.Acquire) != gen) {
-                                                spinLoop()
-                                            }
-                                        }
-                                        // Signal done unconditionally so main/parent never deadlocks.
-                                        slot.done.store(gen, Ordering.Release)
+                (0 until nWorkers).map({ tid ->
+                    val children1 = children[tid].clone()
+                    Builder.new().name("candle-bp-$tid").spawn(closure@{
+                        IN_BARRIER_POOL.with({ f -> f.set(true) })
+                        setThreadAffinity()
+                        val inner1 = (ObjectSlotLayout<BarrierPoolInner>()).readNative(((ConstPtr(innerPtr.toLong()))).rawAddress)
+                        val slot = inner1.slots[tid]
+                        var gen = 0
+                        while (true) {
+                            // Spin briefly then park, waiting for next work item.
+                            var spins = 0u
+                            while (true) {
+                                val g = slot.go.load(Ordering.Acquire)
+                                if (g != gen) {
+                                    gen = g
+                                    break
+                                }
+                                if (inner1.stop.load(Ordering.Relaxed)) {
+                                    return@closure
+                                }
+                                spins += 1u
+                                if (spins < spinLimit) {
+                                    spinLoop()
+                                } else {
+                                    // Park deposits a token; unpark() before park() returns immediately — no race.
+                                    park()
+                                    spins = 0u
+                                }
+                            }
+                            if (inner1.stop.load(Ordering.Relaxed)) {
+                                break
+                            }
+                            // Fan work out to children.
+                            val handles = inner1.handles.get()!!
+                            for (child in children1) {
+                                inner1.slots[child].go.store(gen, Ordering.Release)
+                                handles[child].unpark()
+                            }
+                            // Execute own work, catching panics so done is always signalled.
+                            when (val matchVal = catchUnwind(AssertUnwindSafe({
+                                val work = inner1.work.get()
+                                (work.trampoline)(work.data, tid)
+                            }))) {
+                                is Err -> {
+                                    val payload = matchVal.error
+                                    var p = inner1.panicPayload.lock().unwrap()
+                                    if (p == null) {
+                                        p = payload
                                     }
-                                },
-                            ).expect("failed to spawn candle barrier pool worker")
-                    })
-                    .collect()
-            inner.handles
-                .set(
-                    threads
-                        .iter()
-                        .map({ jh -> jh.thread().clone() })
-                        .collect<Vec>()
-                        .intoBoxedSlice(),
-                ).ok()
+                                }
+                                else -> {}
+                            }
+                            // Reduce: wait for all children before signalling parent.
+                            for (child1 in children1) {
+                                while (inner1.slots[child1].done.load(Ordering.Acquire) != gen) {
+                                    spinLoop()
+                                }
+                            }
+                            // Signal done unconditionally so main/parent never deadlocks.
+                            slot.done.store(gen, Ordering.Release)
+                        }
+                    }).expect("failed to spawn candle barrier pool worker")
+                }).collect()
+            inner.handles.set(threads.iter().map({ jh -> jh.thread().clone() }).collect<Vec>().intoBoxedSlice()).ok()
             return BarrierPool(inner = inner, threads = threads, rootWorkers = rootWorkers, callLock = Mutex.new(0))
         }
     }
 }
 
-public fun <F : (Int) -> Unit> callTrampoline(data: ConstPtr, tid: Int) {
+public fun callTrampoline(data: ConstPtr, tid: Int, typeLayoutF: TypeLayout<F>) {
     (ObjectSlotLayout<(Int) -> Unit>()).readNative(((ConstPtr(data.rawAddress, data.rawMeta))).rawAddress)(tid)
 }
 
@@ -478,7 +445,7 @@ public fun getClusterSize(): Int {
     return 6
 }
 
-public fun barrierPoolSpinLimit(): UInt = variable("CANDLE_BARRIER_POOL_SPIN_LIMIT").ok().andThen({ s -> UInt.fromStr(s).ok() }).unwrapOr(DEFAULT_BARRIER_POOL_SPIN_LIMIT)
+public fun barrierPoolSpinLimit(): UInt = (variable("CANDLE_BARRIER_POOL_SPIN_LIMIT").ok()?.let({ s -> UInt.fromStr(s).ok() }) ?: DEFAULT_BARRIER_POOL_SPIN_LIMIT)
 
 /**
  * RAII guard that blocks until all root workers have finished.
@@ -490,19 +457,12 @@ public data class BarrierGuard(
 ) {
     public fun drop() {
         for (root in this.roots) {
-            while (this.inner.slots[root]
-                    .done
-                    .load(Ordering.Acquire) != this.gen
-            ) {
+            while (this.inner.slots[root].done.load(Ordering.Acquire) != this.gen) {
                 spinLoop()
             }
         }
         // Always clear any stored panic. Propagate unless main is not already unwinding.
-        val payload =
-            this.inner.panicPayload
-                .lock()
-                .unwrap()
-                .take()
+        val payload = this.inner.panicPayload.lock().unwrap().take()
         if (!panicking()) {
             if (payload != null) {
                 val p = payload
@@ -523,37 +483,22 @@ public fun <R> withThreadpool(f: () -> R): R = candlePool().install(f)
 
 public fun initGlobalThreadpool() {
     setThreadAffinity()
-    ThreadPoolBuilder
-        .new()
-        .numThreads(getNumThreads())
-        .startHandler({ setThreadAffinity() })
-        .buildGlobal()
+    ThreadPoolBuilder.new().numThreads(getNumThreads()).startHandler({ setThreadAffinity() }).buildGlobal()
 }
 
 public fun defaultNumThreads(): Int {
-    val physical =
-        run {
-            perfCoreCount()
-                ?: (linuxEnvCpuMask() ?: linuxPreferredCpus())?.size
-                ?: getPhysical()
-        }
+    val physical = run {
+        (perfCoreCount() ?: getPhysical())
+        ((linuxEnvCpuMask() ?: .linuxPreferredCpus())?.let(List.len) ?: getPhysical())
+        getPhysical()
+    }
     return physical.max(1)
     // safeguard against bad number
 }
 
-public fun rayonNumThreads(): Int =
-    variable("RAYON_NUM_THREADS")
-        .ok()
-        .andThen({ s -> Int.fromStr(s).ok() })
-        .filter({ nt -> nt > 0 })
-        .unwrapOrElse(::defaultNumThreads)
+public fun rayonNumThreads(): Int = (variable("RAYON_NUM_THREADS").ok()?.let({ s -> Int.fromStr(s).ok() }).filter({ nt -> nt > 0 }) ?: .defaultNumThreads())
 
-public fun candleNumThreads(): Int =
-    variable("CANDLE_NUM_THREADS")
-        .ok()
-        .andThen({ s -> Int.fromStr(s).ok() })
-        .filter({ nt -> nt > 0 })
-        .unwrapOrElse(::rayonNumThreads)
+public fun candleNumThreads(): Int = (variable("CANDLE_NUM_THREADS").ok()?.let({ s -> Int.fromStr(s).ok() }).filter({ nt -> nt > 0 }) ?: .rayonNumThreads())
 
 public fun getNumThreads(): Int {
     // Respond to the same environment variable as rayon.
@@ -573,17 +518,15 @@ public fun perfCoreCount(): Int? {
 }
 
 public fun linuxPreferredCpus(): List<Int>? {
-    val CPUS: OnceLock<List<Int>?> = OnceLock.new()
+    val CPUS: OnceLock<List<Int>?>  = OnceLock.new()
     return CPUS.getOrInit(::linuxDetectPreferredCpus).asDeref()
 }
 
 public fun linuxEnvCpuMask(): List<Int>? {
-    val CPUS: OnceLock<List<Int>?> = OnceLock.new()
-    return CPUS
-        .getOrInit({
-            variable("CANDLE_CPU_MASK").ok().andThen({ mask -> linuxParseCpuList(mask) })
-        })
-        .asDeref()
+    val CPUS: OnceLock<List<Int>?>  = OnceLock.new()
+    return CPUS.getOrInit({
+        variable("CANDLE_CPU_MASK").ok()?.let({ mask -> linuxParseCpuList(mask) })
+    })
 }
 
 public fun linuxAffinityEnabled(): Boolean = variable("CANDLE_CPU_AFFINITY").map({ v -> v != "0" && !v.eqIgnoreAsciiCase("false") }).unwrapOr(false)
@@ -594,16 +537,16 @@ public fun linuxParseCpuList(mask: String): List<Int>? {
     val cpus = mutableListOf()
     for (part in mask.split(',').map(String::trim).filter({ part -> !part.isEmpty() })) {
         val (start2, end2) =
-            when (val matchVal = part.splitOnce('-')) {
+            when (val matchVal = part.let { s -> val idx = s.indexOf('-'); if (idx < 0) null else Pair(s.substring(0, idx), s.substring(idx + 1)) }) {
                 null -> {
-                    val cpu = (part.parse<Int>().ok() ?: return null)
+                    val cpu = ((part.toIntOrNull()?.let { Result.Ok(it) } ?: Result.Err("failed to parse Int")).ok() ?: return null)
                     Pair(cpu, cpu)
                 }
                 else -> {
                     val start = matchVal.first
                     val end = matchVal.second
-                    val start1 = (start.trim().parse<Int>().ok() ?: return null)
-                    val end1 = (end.trim().parse<Int>().ok() ?: return null)
+                    val start1 = ((start.trim().toIntOrNull()?.let { Result.Ok(it) } ?: Result.Err("failed to parse Int")).ok() ?: return null)
+                    val end1 = ((end.trim().toIntOrNull()?.let { Result.Ok(it) } ?: Result.Err("failed to parse Int")).ok() ?: return null)
                     Pair(start1, end1)
                 }
             }
@@ -626,35 +569,30 @@ public fun linuxDetectPreferredCpus(): List<Int>? {
     for (entry in (readDir("/sys/devices/system/cpu").ok() ?: return null).flatten()) {
         val cpuName = entry.fileName()
         val cpuName1 = (cpuName.toStr() ?: return null)
-        val idx = (cpuName1.takeIf { it.startsWith("cpu") }?.removePrefix("cpu"))?.let({ idx -> idx.parse<Int>().ok() }) ?: continue
+        val idx = (cpuName1.takeIf { it.startsWith("cpu") }?.removePrefix("cpu"))?.let({ idx -> (idx.toIntOrNull()?.let { Result.Ok(it) } ?: Result.Err("failed to parse Int")).ok() }) ?: continue
         val path = entry.path()
-        val capacity = ((readToString(path.join("cpu_capacity")).ok() ?: return null).trim().parse<Int>().ok() ?: return null)
+        val capacity = (((readToString(path.join("cpu_capacity")).ok() ?: return null).trim().toIntOrNull()?.let { Result.Ok(it) } ?: Result.Err("failed to parse Int")).ok() ?: return null)
         cpus.add(Cpu(idx = idx, capacity = capacity))
     }
     if (cpus.size < 2) {
         return null
     }
-    val min = (ArrayDeque((ArrayDeque(cpus)).map({ cpu -> cpu.capacity })).min() ?: return null)
-    val max = (ArrayDeque((ArrayDeque(cpus)).map({ cpu -> cpu.capacity })).max() ?: return null)
+    val min = (cpus.map({ cpu -> cpu.capacity }).min() ?: return null)
+    val max = (cpus.map({ cpu -> cpu.capacity }).max() ?: return null)
     if (max == 0 || min * 10 >= max * 9) {
         return null
     }
     val totalCpus = cpus.size
-    val preferred = ArrayDeque((ArrayDeque(cpus).filter({ cpu -> cpu.capacity * 10 >= max * 9 })).map({ cpu -> cpu.idx })).collect<Vec>()
+    val preferred = cpus.filter({ cpu -> cpu.capacity * 10 >= max * 9 }).map({ cpu -> cpu.idx }).collect<Vec>()
     preferred.sortUnstable()
-    return (preferred.size < totalCpus).thenSome(preferred)
+    return (preferred.len() < totalCpus).thenSome(preferred)
 }
 
 public var POOL: OnceLock<ThreadPool> = OnceLock.new()
 
 internal fun candlePool(): ThreadPool =
     POOL.getOrInit({
-        ThreadPoolBuilder
-            .new()
-            .numThreads(getNumThreads())
-            .startHandler({ setThreadAffinity() })
-            .build()
-            .expect("failed to build candle rayon threadpool")
+        ThreadPoolBuilder.new().numThreads(getNumThreads()).startHandler({ setThreadAffinity() }).build().expect("failed to build candle rayon threadpool")
     })
 
 /**
@@ -670,9 +608,9 @@ public fun hasAccelerate(): Boolean = false
 
 public fun hasMkl(): Boolean = false
 
-public fun cudaIsAvailable(): Boolean = false
+public fun cudaIsAvailable(): Boolean = true
 
-public fun metalIsAvailable(): Boolean = false
+public fun metalIsAvailable(): Boolean = true
 
 public fun withAvx(): Boolean = get().avx2
 

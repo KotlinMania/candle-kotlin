@@ -2,6 +2,7 @@
 package io.github.kotlinmania.candle.customop
 
 import io.github.kotlinmania.candle.cpubackend.CpuStorage
+import io.github.kotlinmania.candle.cpubackend.utils.C
 import io.github.kotlinmania.candle.cudabackend.CudaStorage
 import io.github.kotlinmania.candle.cudabackend.utils.S
 import io.github.kotlinmania.candle.dummymetalbackend.MetalStorage
@@ -16,7 +17,6 @@ import io.github.kotlinmania.candle.shape.Shape
 import io.github.kotlinmania.candle.storage.Storage
 import io.github.kotlinmania.candle.tensor.Tensor
 import io.github.kotlinmania.candle.tensor.fromStorage
-import io.github.kotlinmania.rustlang.core.result.fromResidual
 
 /**
  * Unary ops that can be defined in user-land.
@@ -34,20 +34,20 @@ public interface CustomOp1 {
      * The forward pass, as run on a gpu device. Note that the storage can use arbitrary strides,
      * offsets etc so the associated layout should be used to access it.
      */
-    public fun cudaFwd(storage: CudaStorage, layout: Layout): Result<Pair<CudaStorage, Shape>> = Err(Error.Cuda("no cuda implementation for ${this.name()}".into()))
+    public fun cudaFwd(storage: CudaStorage, layout: Layout): Result<Pair<CudaStorage, Shape>> = Result.Err(Error.Cuda("no cuda implementation for ${this.name()}".into()))
 
     /**
      * The forward pass, as run on a metal gpu device. Note that the storage can use arbitrary strides,
      * offsets etc so the associated layout should be used to access it.
      */
-    public fun metalFwd(storage: MetalStorage, layout: Layout): Result<Pair<MetalStorage, Shape>> = Err(Error.Metal("no metal implementation for ${this.name()}".into()))
+    public fun metalFwd(storage: MetalStorage, layout: Layout): Result<Pair<MetalStorage, Shape>> = Result.Err(Error.Metal("no metal implementation for ${this.name()}".into()))
 
     /**
      * This function takes as argument the argument `arg` used in the forward pass, the result
      * produced by the forward operation `res` and the gradient of the result `gradRes`.
      * The function should return the gradient of the argument.
      */
-    public fun bwd(arg: Tensor, res: Tensor, gradRes: Tensor): Result<Tensor?> = Err(Error.BackwardNotSupported(op = this.name()))
+    public fun bwd(arg: Tensor, res: Tensor, gradRes: Tensor): Result<Tensor?> = Result.Err(Error.BackwardNotSupported(op = this.name()))
 }
 
 public interface CustomOp2 {
@@ -63,15 +63,15 @@ public interface CustomOp2 {
      * The forward pass, as run on a gpu device. Note that the storage can use arbitrary strides,
      * offsets etc so the associated layout should be used to access it.
      */
-    public fun cudaFwd(arg0: CudaStorage, arg1: Layout, arg2: CudaStorage, arg3: Layout): Result<Pair<CudaStorage, Shape>> = Err(Error.Cuda("no cuda implementation for ${this.name()}".into()))
+    public fun cudaFwd(arg0: CudaStorage, arg1: Layout, arg2: CudaStorage, arg3: Layout): Result<Pair<CudaStorage, Shape>> = Result.Err(Error.Cuda("no cuda implementation for ${this.name()}".into()))
 
     /**
      * The forward pass, as run on a metal gpu device. Note that the storage can use arbitrary strides,
      * offsets etc so the associated layout should be used to access it.
      */
-    public fun metalFwd(arg0: MetalStorage, arg1: Layout, arg2: MetalStorage, arg3: Layout): Result<Pair<MetalStorage, Shape>> = Err(Error.Metal("no metal implementation for ${this.name()}".into()))
+    public fun metalFwd(arg0: MetalStorage, arg1: Layout, arg2: MetalStorage, arg3: Layout): Result<Pair<MetalStorage, Shape>> = Result.Err(Error.Metal("no metal implementation for ${this.name()}".into()))
 
-    public fun bwd(arg1: Tensor, arg2: Tensor, res: Tensor, gradRes: Tensor): Result<Pair<Tensor?, Tensor?>> = Err(Error.BackwardNotSupported(op = this.name()))
+    public fun bwd(arg1: Tensor, arg2: Tensor, res: Tensor, gradRes: Tensor): Result<Pair<Tensor?, Tensor?>> = Result.Err(Error.BackwardNotSupported(op = this.name()))
 }
 
 public interface CustomOp3 {
@@ -87,15 +87,15 @@ public interface CustomOp3 {
      * The forward pass, as run on a gpu device. Note that the storage can use arbitrary strides,
      * offsets etc so the associated layout should be used to access it.
      */
-    public fun cudaFwd(arg0: CudaStorage, arg1: Layout, arg2: CudaStorage, arg3: Layout, arg4: CudaStorage, arg5: Layout): Result<Pair<CudaStorage, Shape>> = Err(Error.Cuda("no cuda implementation for ${this.name()}".into()))
+    public fun cudaFwd(arg0: CudaStorage, arg1: Layout, arg2: CudaStorage, arg3: Layout, arg4: CudaStorage, arg5: Layout): Result<Pair<CudaStorage, Shape>> = Result.Err(Error.Cuda("no cuda implementation for ${this.name()}".into()))
 
     /**
      * The forward pass, as run on a metal gpu device. Note that the storage can use arbitrary strides,
      * offsets etc so the associated layout should be used to access it.
      */
-    public fun metalFwd(arg0: MetalStorage, arg1: Layout, arg2: MetalStorage, arg3: Layout, arg4: MetalStorage, arg5: Layout): Result<Pair<MetalStorage, Shape>> = Err(Error.Metal("no metal implementation for ${this.name()}".into()))
+    public fun metalFwd(arg0: MetalStorage, arg1: Layout, arg2: MetalStorage, arg3: Layout, arg4: MetalStorage, arg5: Layout): Result<Pair<MetalStorage, Shape>> = Result.Err(Error.Metal("no metal implementation for ${this.name()}".into()))
 
-    public fun bwd(arg1: Tensor, arg2: Tensor, arg3: Tensor, res: Tensor, gradRes: Tensor): Result<Triple<Tensor?, Tensor?, Tensor?>> = Err(Error.BackwardNotSupported(op = this.name()))
+    public fun bwd(arg1: Tensor, arg2: Tensor, arg3: Tensor, res: Tensor, gradRes: Tensor): Result<Triple<Tensor?, Tensor?, Tensor?>> = Result.Err(Error.BackwardNotSupported(op = this.name()))
 }
 
 /**
@@ -104,10 +104,10 @@ public interface CustomOp3 {
 public fun <C : CustomOp1> Tensor.applyOp1NoBwd(c: C): Result<Tensor> {
     val (storage, shape) =
         when (val tryResult = this.storage().applyOp1(this.layout(), c)) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
-    return Ok(fromStorage(storage, shape, BackpropOp.none(), false))
+    return Result.Ok(fromStorage(storage, shape, BackpropOp.none(), false))
 }
 
 /**
@@ -116,10 +116,10 @@ public fun <C : CustomOp1> Tensor.applyOp1NoBwd(c: C): Result<Tensor> {
 public fun <C : CustomOp2> Tensor.applyOp2NoBwd(rhs: Tensor, c: C): Result<Tensor> {
     val (storage, shape) =
         when (val tryResult = this.storage().applyOp2(this.layout(), rhs.storage(), rhs.layout(), c)) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
-    return Ok(fromStorage(storage, shape, BackpropOp.none(), false))
+    return Result.Ok(fromStorage(storage, shape, BackpropOp.none(), false))
 }
 
 /**
@@ -128,10 +128,10 @@ public fun <C : CustomOp2> Tensor.applyOp2NoBwd(rhs: Tensor, c: C): Result<Tenso
 public fun <C : CustomOp3> Tensor.applyOp3NoBwd(t2: Tensor, t3: Tensor, c: C): Result<Tensor> {
     val (storage, shape) =
         when (val tryResult = this.storage().applyOp3(this.layout(), t2.storage(), t2.layout(), t3.storage(), t3.layout(), c)) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
-    return Ok(fromStorage(storage, shape, BackpropOp.none(), false))
+    return Result.Ok(fromStorage(storage, shape, BackpropOp.none(), false))
 }
 
 /**
@@ -140,11 +140,11 @@ public fun <C : CustomOp3> Tensor.applyOp3NoBwd(t2: Tensor, t3: Tensor, c: C): R
 public fun Tensor.applyOp1Arc(c: CustomOp1): Result<Tensor> {
     val (storage, shape) =
         when (val tryResult = this.storage().applyOp1(this.layout(), c.asRef().asRef())) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
     val op = BackpropOp.new1(this, { s -> Op.CustomOp1(s, c.clone()) })
-    return Ok(fromStorage(storage, shape, op, false))
+    return Result.Ok(fromStorage(storage, shape, op, false))
 }
 
 public fun <C : CustomOp1> Tensor.applyOp1(c: C): Result<Tensor> = this.applyOp1Arc(c)
@@ -155,11 +155,11 @@ public fun <C : CustomOp1> Tensor.applyOp1(c: C): Result<Tensor> = this.applyOp1
 public fun Tensor.applyOp2Arc(rhs: Tensor, c: CustomOp2): Result<Tensor> {
     val (storage, shape) =
         when (val tryResult = this.storage().applyOp2(this.layout(), rhs.storage(), rhs.layout(), c.asRef().asRef())) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
     val op = BackpropOp.new2(this, rhs, { t1, t2 -> Op.CustomOp2(t1, t2, c.clone()) })
-    return Ok(fromStorage(storage, shape, op, false))
+    return Result.Ok(fromStorage(storage, shape, op, false))
 }
 
 public fun <C : CustomOp2> Tensor.applyOp2(r: Tensor, c: C): Result<Tensor> = this.applyOp2Arc(r, c)
@@ -170,14 +170,14 @@ public fun <C : CustomOp2> Tensor.applyOp2(r: Tensor, c: C): Result<Tensor> = th
 public fun Tensor.applyOp3Arc(t2: Tensor, t3: Tensor, c: CustomOp3): Result<Tensor> {
     val (storage, shape) =
         when (val tryResult = this.storage().applyOp3(this.layout(), t2.storage(), t2.layout(), t3.storage(), t3.layout(), c.asRef().asRef())) {
-            is Result.Ok -> tryResult.value
-            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+            is Result.Ok<*> -> tryResult.value
+            is Result.Err<*> -> return Result.Err(tryResult.error)
         }
     val op =
         BackpropOp.new3(this, t2, t3, { t1, t21, t31 ->
             Op.CustomOp3(t1, t21, t31, c.clone())
         })
-    return Ok(fromStorage(storage, shape, op, false))
+    return Result.Ok(fromStorage(storage, shape, op, false))
 }
 
 public fun <C : CustomOp3> Tensor.applyOp3(t2: Tensor, t3: Tensor, c: C): Result<Tensor> = this.applyOp3Arc(t2, t3, c)
@@ -201,13 +201,13 @@ public interface InplaceOp1 {
      * The forward pass, as run on a gpu device. Note that the storage can use arbitrary strides,
      * offsets etc so the associated layout should be used to access it.
      */
-    public fun cudaFwd(storage: CudaStorage, layout: Layout): Result<Unit> = Err(Error.Cuda("no cuda implementation for ${this.name()}".into()))
+    public fun cudaFwd(storage: CudaStorage, layout: Layout): Result<Unit> = Result.Err(Error.Cuda("no cuda implementation for ${this.name()}".into()))
 
     /**
      * The forward pass, as run on a metal gpu device. Note that the storage can use arbitrary strides,
      * offsets etc so the associated layout should be used to access it.
      */
-    public fun metalFwd(storage: MetalStorage, layout: Layout): Result<Unit> = Err(Error.Metal("no metal implementation for ${this.name()}".into()))
+    public fun metalFwd(storage: MetalStorage, layout: Layout): Result<Unit> = Result.Err(Error.Metal("no metal implementation for ${this.name()}".into()))
 }
 
 /**
@@ -331,13 +331,13 @@ public interface InplaceOp2 {
      * The forward pass, as run on a gpu device. Note that the storage can use arbitrary strides,
      * offsets etc so the associated layout should be used to access it.
      */
-    public fun cudaFwd(s1: CudaStorage, l1: Layout, s2: CudaStorage, l2: Layout): Result<Unit> = Err(Error.Cuda("no cuda implementation for ${this.name()}".into()))
+    public fun cudaFwd(s1: CudaStorage, l1: Layout, s2: CudaStorage, l2: Layout): Result<Unit> = Result.Err(Error.Cuda("no cuda implementation for ${this.name()}".into()))
 
     /**
      * The forward pass, as run on a metal gpu device. Note that the storage can use arbitrary strides,
      * offsets etc so the associated layout should be used to access it.
      */
-    public fun metalFwd(s1: MetalStorage, l1: Layout, s2: MetalStorage, l2: Layout): Result<Unit> = Err(Error.Metal("no metal implementation for ${this.name()}".into()))
+    public fun metalFwd(s1: MetalStorage, l1: Layout, s2: MetalStorage, l2: Layout): Result<Unit> = Result.Err(Error.Metal("no metal implementation for ${this.name()}".into()))
 }
 
 public interface InplaceOp3 {
@@ -353,13 +353,13 @@ public interface InplaceOp3 {
      * The forward pass, as run on a gpu device. Note that the storage can use arbitrary strides,
      * offsets etc so the associated layout should be used to access it.
      */
-    public fun cudaFwd(arg0: CudaStorage, arg1: Layout, arg2: CudaStorage, arg3: Layout, arg4: CudaStorage, arg5: Layout): Result<Unit> = Err(Error.Cuda("no cuda implementation for ${this.name()}".into()))
+    public fun cudaFwd(arg0: CudaStorage, arg1: Layout, arg2: CudaStorage, arg3: Layout, arg4: CudaStorage, arg5: Layout): Result<Unit> = Result.Err(Error.Cuda("no cuda implementation for ${this.name()}".into()))
 
     /**
      * The forward pass, as run on a metal gpu device. Note that the storage can use arbitrary strides,
      * offsets etc so the associated layout should be used to access it.
      */
-    public fun metalFwd(arg0: MetalStorage, arg1: Layout, arg2: MetalStorage, arg3: Layout, arg4: MetalStorage, arg5: Layout): Result<Unit> = Err(Error.Metal("no metal implementation for ${this.name()}".into()))
+    public fun metalFwd(arg0: MetalStorage, arg1: Layout, arg2: MetalStorage, arg3: Layout, arg4: MetalStorage, arg5: Layout): Result<Unit> = Result.Err(Error.Metal("no metal implementation for ${this.name()}".into()))
 }
 
 /**
@@ -376,8 +376,8 @@ public fun <C : InplaceOpN<N>> Tensor.inplaceOp(srcs: List<Tensor>, c: C, n: Int
     }
     // Classify srcs wrt dst
     val access = c.srcAccessPattern()
-    val rels: List<LayoutRelation> = List((N).toInt()) { null }
-    for (i in 0 until N) {
+    val rels: List<LayoutRelation> = List(n) { null }
+    for (i in 0 until n) {
         if (!this.sameStorage(srcs[i])) {
             continue
         }

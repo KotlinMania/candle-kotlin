@@ -1,16 +1,13 @@
 // port-lint: source indexer.rs
 package io.github.kotlinmania.candle.indexer
 
-import io.github.kotlinmania.candle.device.Device
+import io.github.kotlinmania.candle.cpu.Cpu
+import io.github.kotlinmania.candle.cpubackend.utils.C
 import io.github.kotlinmania.candle.error.Error
 import io.github.kotlinmania.candle.error.bail
 import io.github.kotlinmania.candle.shape.D
 import io.github.kotlinmania.candle.tensor.Tensor
 import io.github.kotlinmania.rustlang.core.result.Result
-import io.github.kotlinmania.rustlang.core.result.fromResidual
-import io.github.kotlinmania.rustlang.std.ops.Bound
-import io.github.kotlinmania.rustlang.std.ops.RangeBounds
-import io.github.kotlinmania.rustlang.std.ops.bound.*
 
 /**
  * Intended to be use by the trait `.i()`
@@ -31,7 +28,7 @@ public fun Tensor.index(indexers: List<TensorIndexer>): Result<Tensor, Error> {
     var x = this.clone()
     val dims = this.shape().dims()
     var currentDim = 0
-    for ((i, indexer) in indexers.enumerate()) {
+    for ((i, indexer) in indexers.mapIndexed { index, item -> Pair(index, item) }) {
         x =
             when (indexer) {
                 is TensorIndexer.Select -> {
@@ -39,12 +36,12 @@ public fun Tensor.index(indexers: List<TensorIndexer>): Result<Tensor, Error> {
                     when (
                         val tryResult =
                             when (val tryResult = x.narrow(currentDim, n, 1)) {
-                                is Result.Ok -> tryResult.value
-                                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                is Result.Ok<*> -> tryResult.value
+                                is Result.Err<*> -> return Result.Err(tryResult.error)
                             }.squeeze(currentDim)
                     ) {
-                        is Result.Ok -> tryResult.value
-                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                        is Result.Ok<*> -> tryResult.value
+                        is Result.Err<*> -> return Result.Err(tryResult.error)
                     }
                 }
                 is TensorIndexer.Narrow -> {
@@ -75,8 +72,8 @@ public fun Tensor.index(indexers: List<TensorIndexer>): Result<Tensor, Error> {
                         }
                     val out =
                         when (val tryResult = x.narrow(currentDim, start, stop.saturatingSub(start))) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     currentDim += 1
                     out
@@ -91,14 +88,14 @@ public fun Tensor.index(indexers: List<TensorIndexer>): Result<Tensor, Error> {
                             val tryResult =
                                 x.indexSelect(
                                     when (val tryResult = indexes.toDevice(x.device())) {
-                                        is Result.Ok -> tryResult.value
-                                        is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                                        is Result.Ok<*> -> tryResult.value
+                                        is Result.Err<*> -> return Result.Err(tryResult.error)
                                     },
                                     currentDim,
                                 )
                         ) {
-                            is Result.Ok -> tryResult.value
-                            is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                            is Result.Ok<*> -> tryResult.value
+                            is Result.Err<*> -> return Result.Err(tryResult.error)
                         }
                     currentDim += 1
                     out1
@@ -109,13 +106,13 @@ public fun Tensor.index(indexers: List<TensorIndexer>): Result<Tensor, Error> {
                 }
             }
     }
-    return Ok(x)
+    return Result.Ok(x)
 }
 
 /**
  * Generic structure used to index a slice of the tensor
  */
-public sealed class TensorIndexer : From<Int> {
+public sealed class TensorIndexer {
     /**
      * This selects the elements for which an index has some specific value.
      */
@@ -182,14 +179,14 @@ public sealed class TensorIndexer : From<Int> {
 
         public fun from(index: List<UInt>): TensorIndexer =
             run {
-                val matchVal = Tensor.new(index, Device.Cpu)
+                val matchVal = Tensor.new(index, Cpu)
                 when (matchVal) {
-                    is Result.Ok -> {
+                    is Result.Ok<*> -> {
                         val tensor = matchVal.value
                         TensorIndexer.IndexSelect(tensor)
                     }
-                    is Result.Err -> {
-                        val e = matchVal.value
+                    is Result.Err<*> -> {
+                        val e = matchVal.error
                         TensorIndexer.Err(e)
                     }
                 }
@@ -198,14 +195,14 @@ public sealed class TensorIndexer : From<Int> {
         public fun fromVecUInt(index: List<UInt>): TensorIndexer {
             val len = index.size
             return run {
-                val matchVal = Tensor.fromVec(index, len, Device.Cpu)
+                val matchVal = Tensor.fromVec(index, len, Cpu)
                 when (matchVal) {
-                    is Result.Ok -> {
+                    is Result.Ok<*> -> {
                         val tensor = matchVal.value
                         TensorIndexer.IndexSelect(tensor)
                     }
-                    is Result.Err -> {
-                        val e = matchVal.value
+                    is Result.Err<*> -> {
+                        val e = matchVal.error
                         TensorIndexer.Err(e)
                     }
                 }

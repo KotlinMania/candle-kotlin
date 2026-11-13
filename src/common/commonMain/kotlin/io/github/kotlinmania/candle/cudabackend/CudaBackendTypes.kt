@@ -8,13 +8,12 @@ import io.github.kotlinmania.candle.error.bail
 import io.github.kotlinmania.candle.layout.Layout
 import io.github.kotlinmania.cudarc.driver.CudaSlice
 import io.github.kotlinmania.cudarc.driver.LaunchArgs
+import io.github.kotlinmania.cudarc.driver.sys.CUstreamCaptureStatus
 import io.github.kotlinmania.float8.F8e4m3
 import io.github.kotlinmania.half.Bf16
 import io.github.kotlinmania.half.F16
-import io.github.kotlinmania.rustlang.core.result.fromResidual
-import io.github.kotlinmania.rustlang.std.sync.Mutex
 
-public typealias ParamCache = Map<Pair<DeviceId, List<Int>>, CudaSlice<Int>>
+public typealias ParamCache = MutableMap<Pair<DeviceId, List<Int>>, CudaSlice<Int>>
 
 public sealed class SlicePtrOrNull<T> {
     public data class Ptr<T>(
@@ -43,39 +42,32 @@ public sealed class SlicePtrOrNull<T> {
 public fun SlicePtrOrNull.Companion.paramsFromVec(dev: CudaDevice, params: List<Int>): Result<SlicePtrOrNull<Int>> {
     if (cudaGraphHtodCacheEnabled()) {
         val key = Pair(dev.id(), params.clone())
-        val cache = CUDA_PARAM_CACHE.getOrInit({ Mutex.new(HashMap.new()) })
-        when (
-            val matchVal =
-                cache
-                    .lock()
-                    .unwrap()
-                    .get(key)
-                    .cloned()
-        ) {
+        val cache = CUDA_PARAM_CACHE.getOrInit({ Mutex.new(mutableMapOf()) })
+        when (val matchVal = cache.lock().unwrap().get(key)) {
             null -> {}
             else -> {
                 val slice = matchVal
-                return Ok(SlicePtrOrNull.Cached(slice))
+                return Result.Ok(SlicePtrOrNull.Cached(slice))
             }
         }
-        val isCapturing = (dev.cudaStream().captureStatus()).rustEquals(Ok(CUstreamCaptureStatus.CU_STREAM_CAPTURE_STATUS_ACTIVE))
+        val isCapturing = (dev.cudaStream().captureStatus()).rustEquals(Result.Ok(CUstreamCaptureStatus.CU_STREAM_CAPTURE_STATUS_ACTIVE))
         if (isCapturing) {
             bail("h2d param cache miss during CUDA graph capture: warmup did not populate all required parameter vectors")
         }
         val slice1 =
             when (val tryResult = dev.cudaStream().cloneHtod(params).w()) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             }
         val cache1 = cache.lock().unwrap()
         val slice2 = cache1.entry(key).orInsertWith({ slice1 }).clone()
-        return Ok(SlicePtrOrNull.Cached(slice2))
+        return Result.Ok(SlicePtrOrNull.Cached(slice2))
     }
-    return Ok(
+    return Result.Ok(
         SlicePtrOrNull.Ptr(
             when (val tryResult = dev.cloneHtod(params)) {
-                is Result.Ok -> tryResult.value
-                is Result.Err -> return Result.fromResidual(Result.Err(tryResult.value))
+                is Result.Ok<*> -> tryResult.value
+                is Result.Err<*> -> return Result.Err(tryResult.error)
             },
         ),
     )
@@ -83,7 +75,7 @@ public fun SlicePtrOrNull.Companion.paramsFromVec(dev: CudaDevice, params: List<
 
 public fun SlicePtrOrNull.Companion.paramsFromLayout(dev: CudaDevice, l: Layout): Result<SlicePtrOrNull<Int>> =
     if (l.isContiguous()) {
-        Ok(SlicePtrOrNull.Null)
+        Result.Ok(SlicePtrOrNull.Null)
     } else {
         SlicePtrOrNull.paramsFromVec(dev, listOf(l.dims(), l.stride()).concat())
     }

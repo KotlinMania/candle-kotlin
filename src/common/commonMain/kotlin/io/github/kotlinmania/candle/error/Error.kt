@@ -1,14 +1,15 @@
 // port-lint: source error.rs
 package io.github.kotlinmania.candle.error
 
+import io.github.kotlinmania.candle.cpubackend.utils.C
 import io.github.kotlinmania.candle.device.DeviceLocation
 import io.github.kotlinmania.candle.dtype.DType
 import io.github.kotlinmania.candle.dummymetalbackend.MetalError
 import io.github.kotlinmania.candle.layout.Layout
 import io.github.kotlinmania.candle.shape.Shape
-import io.github.kotlinmania.rustlang.core.result.Result
 import io.github.kotlinmania.safetensors.Dtype
 import io.github.kotlinmania.safetensors.SafeTensorError
+import io.github.kotlinmania.rustlang.core.result.Result as RustResult
 
 // Candle-specific Error and Result
 
@@ -154,7 +155,7 @@ public sealed class Error {
 
     // === Wrapped Errors ===
     public data class Cuda(
-        public var value: Error,
+        public var value: Any,
     ) : Error()
     public data class Metal(
         public var value: MetalError,
@@ -215,7 +216,7 @@ public sealed class Error {
      * Arbitrary errors wrapping with context.
      */
     public data class WrappedContext(
-        public var wrapped: Error,
+        public var wrapped: Any,
         public var context: String,
     ) : Error()
     public data class Context(
@@ -255,7 +256,7 @@ public sealed class Error {
         }
     }
 
-    public fun <P : AsRef<Path>> withPath(p: P): Error = Error.WithPath(inner = this, path = p.asRef().toPathBuf())
+    public fun withPath(p: Path): Error = Error.WithPath(inner = this, path = p.toPathBuf())
 
     public fun context(c: Any): Error = Error.Context(inner = this, context = c)
 
@@ -274,18 +275,18 @@ public fun <T, U> zip(r1: Result<T>, r2: Result<U>): Result<Pair<T, U>> =
     run {
         val matchVal = Pair(r1, r2)
         when {
-            matchVal.first is Ok && matchVal.second is Ok -> {
-                val (r11) = matchVal.first as Ok
-                val (r21) = matchVal.second as Ok
-                Ok(Pair(r11, r21))
+            matchVal.first is RustResult.Ok<*> && matchVal.second is RustResult.Ok<*> -> {
+                val r11 = (matchVal.first as RustResult.Ok<*>).value
+                val r21 = (matchVal.second as RustResult.Ok<*>).value
+                RustResult.Ok(Pair(r11, r21))
             }
-            matchVal.first is Err -> {
-                val (e) = matchVal.first as Err
-                Err(e)
+            matchVal.first is RustResult.Err<*> -> {
+                val e = (matchVal.first as RustResult.Err<*>).error
+                RustResult.Err(e)
             }
             else -> {
-                val (e1) = matchVal.second as Err
-                Err(e1)
+                val e1 = (matchVal.second as RustResult.Err<*>).error
+                RustResult.Err(e1)
             }
         }
     }
@@ -308,30 +309,30 @@ public interface Context<T, E> {
     public fun <C> withContext(f: () -> C): io.github.kotlinmania.rustlang.core.result.Result<T, Error>
 }
 
-public fun <T, E, C> io.github.kotlinmania.rustlang.core.result.Result<T, E>.context(context: C): io.github.kotlinmania.rustlang.core.result.Result<T, Error> where E : Error {
+public fun <T, E, C> io.github.kotlinmania.rustlang.core.result.Result<T, E>.context(context: C): io.github.kotlinmania.rustlang.core.result.Result<T, Error> {
     // Not using mapErr to save 2 useless frames off the captured backtrace
     // in extContext.
     return when (this) {
-        is Result.Ok -> {
+        is RustResult.Ok<*> -> {
             val ok = this.value
-            Ok(ok)
+            RustResult.Ok(ok)
         }
-        is Result.Err -> {
-            val error = this.value
-            Err(Error.WrappedContext(wrapped = error, context = context.toString()).bt())
+        is RustResult.Err<*> -> {
+            val error = this.error
+            RustResult.Err(Error.WrappedContext(wrapped = error, context = context.toString()).bt())
         }
     }
 }
 
-public fun <T, E, C> io.github.kotlinmania.rustlang.core.result.Result<T, E>.withContext(context: () -> C): io.github.kotlinmania.rustlang.core.result.Result<T, Error> where E : Error =
+public fun <T, E, C> io.github.kotlinmania.rustlang.core.result.Result<T, E>.withContext(context: () -> C): io.github.kotlinmania.rustlang.core.result.Result<T, Error> =
     when (this) {
-        is Result.Ok -> {
+        is RustResult.Ok<*> -> {
             val ok = this.value
-            Ok(ok)
+            RustResult.Ok(ok)
         }
-        is Result.Err -> {
-            val error = this.value
-            Err(Error.WrappedContext(wrapped = error, context = context().toString()).bt())
+        is RustResult.Err<*> -> {
+            val error = this.error
+            RustResult.Err(Error.WrappedContext(wrapped = error, context = context().toString()).bt())
         }
     }
 
@@ -339,20 +340,20 @@ public fun <T, C> T?.context(context: C): io.github.kotlinmania.rustlang.core.re
     // Not using okOrElse to save 2 useless frames off the captured
     // backtrace.
     return when (this) {
-        null -> Err(Error.msg(context).bt())
+        null -> RustResult.Err(Error.msg(context).bt())
         else -> {
             val ok = this
-            Ok(ok)
+            RustResult.Ok(ok)
         }
     }
 }
 
 public fun <T, C> T?.withContext(context: () -> C): io.github.kotlinmania.rustlang.core.result.Result<T, Error> =
     when (this) {
-        null -> Err(Error.UnwrapNone.context(context()).bt())
+        null -> RustResult.Err(Error.UnwrapNone.context(context()).bt())
         else -> {
             val v = this
-            Ok(v)
+            RustResult.Ok(v)
         }
     }
 

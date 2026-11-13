@@ -1,15 +1,6 @@
 package io.github.kotlinmania.candle.cpu
 
-import io.github.kotlinmania.candle.cpu.avx.vecAddBf16
-import io.github.kotlinmania.candle.cpu.avx.vecAddF16
-import io.github.kotlinmania.candle.cpu.avx.vecDotBf16
-import io.github.kotlinmania.candle.cpu.avx.vecDotF16
-import io.github.kotlinmania.candle.cpu.avx.vecDotF32
-import io.github.kotlinmania.candle.cpu.avx.vecScalarAddBf16
-import io.github.kotlinmania.candle.cpu.avx.vecScalarAddF16
-import io.github.kotlinmania.candle.cpu.avx.vecSum
 import io.github.kotlinmania.candle.cpu.features.get
-import io.github.kotlinmania.candle.cpu.neon.vecMulBf16
 import io.github.kotlinmania.half.Bf16
 import io.github.kotlinmania.half.F16
 import io.github.kotlinmania.rustlang.core.mem.ObjectSlotLayout
@@ -105,29 +96,32 @@ public fun useNeonBf16(): Boolean {
 
 internal fun vecDotF32(aRow: ConstPtr, bRow: ConstPtr, c: MutPtr, k: Int) {
     if (useAvx2()) {
-        return vecDotF32(aRow, bRow, c, k)
+        return io.github.kotlinmania.candle.cpu.avx
+            .vecDotF32(aRow, bRow, c, k)
     }
     if (useNeon()) {
         return io.github.kotlinmania.candle.cpu.neon
             .vecDotF32(aRow, bRow, c, k)
     }
-    vecDotF32(aRow, bRow, c, k)
+    scalarVecDotF32(aRow, bRow, c, k)
 }
 
 internal fun vecSum(row: ConstPtr, b: MutPtr, k: Int) {
     if (useAvx2()) {
-        return vecSum(row, b, k)
+        return io.github.kotlinmania.candle.cpu.avx
+            .vecSum(row, b, k)
     }
     if (useNeon()) {
         return io.github.kotlinmania.candle.cpu.neon
             .vecSum(row, b, k)
     }
-    vecSum(row, b, k)
+    scalarVecSum(row, b, k)
 }
 
 internal fun vecDotF16(aRow: ConstPtr, bRow: ConstPtr, c: MutPtr, k: Int) {
     if (useAvx2F16()) {
-        return vecDotF16(aRow, bRow, c, k)
+        return io.github.kotlinmania.candle.cpu.avx
+            .vecDotF16(aRow, bRow, c, k)
     }
     if (useNeonF16()) {
         return io.github.kotlinmania.candle.cpu.neon
@@ -138,7 +132,8 @@ internal fun vecDotF16(aRow: ConstPtr, bRow: ConstPtr, c: MutPtr, k: Int) {
 
 internal fun vecDotBf16(aRow: ConstPtr, bRow: ConstPtr, c: MutPtr, k: Int) {
     if (useAvx2()) {
-        return vecDotBf16(aRow, bRow, c, k)
+        return io.github.kotlinmania.candle.cpu.avx
+            .vecDotBf16(aRow, bRow, c, k)
     }
     if (useNeonBf16()) {
         return io.github.kotlinmania.candle.cpu.neon
@@ -149,40 +144,44 @@ internal fun vecDotBf16(aRow: ConstPtr, bRow: ConstPtr, c: MutPtr, k: Int) {
 
 internal fun vecAddF16(aRow: ConstPtr, bRow: ConstPtr, c: MutPtr, k: Int) {
     if (useAvx2F16()) {
-        return vecAddF16(aRow, bRow, c, k)
+        return io.github.kotlinmania.candle.cpu.avx
+            .vecAddF16(aRow, bRow, c, k)
     }
     if (useNeonF16()) {
         return io.github.kotlinmania.candle.cpu.neon
             .vecAddF16(aRow, bRow, c, k)
     }
-    vecAddF16(aRow, bRow, c, k)
+    scalarVecAddF16(aRow, bRow, c, k)
 }
 
 internal fun vecAddBf16(aRow: ConstPtr, bRow: ConstPtr, c: MutPtr, k: Int) {
     if (useAvx2()) {
-        return vecAddBf16(aRow, bRow, c, k)
+        return io.github.kotlinmania.candle.cpu.avx
+            .vecAddBf16(aRow, bRow, c, k)
     }
     if (useNeonBf16()) {
         return io.github.kotlinmania.candle.cpu.neon
             .vecAddBf16(aRow, bRow, c, k)
     }
-    vecAddBf16(aRow, bRow, c, k)
+    scalarVecAddBf16(aRow, bRow, c, k)
 }
 
 internal fun vecScalarAddF16(scalar: F16, xs: ConstPtr, ys: MutPtr, k: Int) {
     if (useAvx2F16()) {
-        return vecScalarAddF16(scalar, xs, ys, k)
+        return io.github.kotlinmania.candle.cpu.avx
+            .vecScalarAddF16(scalar, xs, ys, k)
     }
     if (useNeonF16()) {
         return io.github.kotlinmania.candle.cpu.neon
             .vecScalarAddF16(scalar, xs, ys, k)
     }
-    vecScalarAddF16(scalar, xs, ys, k)
+    scalarVecScalarAddF16(scalar, xs, ys, k)
 }
 
 internal fun vecMulBf16(aRow: ConstPtr, bRow: ConstPtr, c: MutPtr, k: Int) {
     if (useNeonBf16()) {
-        return vecMulBf16(aRow, bRow, c, k)
+        return io.github.kotlinmania.candle.cpu.neon
+            .vecMulBf16(aRow, bRow, c, k)
     }
     for (j in 0 until k) {
         (ObjectSlotLayout<Bf16>()).writeNative((MutPtr((c).rawAddress + ((j).toLong() * (ObjectSlotLayout<Bf16>()).strideBytes))).rawAddress, (ObjectSlotLayout<Bf16>()).readNative((ConstPtr((aRow).rawAddress + ((j).toLong() * (ObjectSlotLayout<Bf16>()).strideBytes))).rawAddress) * (ObjectSlotLayout<Bf16>()).readNative((ConstPtr((bRow).rawAddress + ((j).toLong() * (ObjectSlotLayout<Bf16>()).strideBytes))).rawAddress))
@@ -191,11 +190,12 @@ internal fun vecMulBf16(aRow: ConstPtr, bRow: ConstPtr, c: MutPtr, k: Int) {
 
 internal fun vecScalarAddBf16(scalar: Bf16, xs: ConstPtr, ys: MutPtr, k: Int) {
     if (useAvx2()) {
-        return vecScalarAddBf16(scalar, xs, ys, k)
+        return io.github.kotlinmania.candle.cpu.avx
+            .vecScalarAddBf16(scalar, xs, ys, k)
     }
     if (useNeonBf16()) {
         return io.github.kotlinmania.candle.cpu.neon
             .vecScalarAddBf16(scalar, xs, ys, k)
     }
-    vecScalarAddBf16(scalar, xs, ys, k)
+    scalarVecScalarAddBf16(scalar, xs, ys, k)
 }
